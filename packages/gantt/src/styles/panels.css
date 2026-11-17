@@ -1,0 +1,147 @@
+/* The panels below sit inside the root and are positioned against it (absolute), so they follow the chart's box, not the window.
+   Their colours are the theme's tokens: a literal colour outside tokens.css fails the architecture check (theming.rs). */
+/* The page's message line: loading, errors and a measured run's progress. The live numbers are the status line's. */
+.gantt [data-part=overlay] {
+  position: absolute;
+  inset-inline-end: 12px;
+  bottom: 12px;
+  padding: 8px 10px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-rule);
+  border-radius: 6px;
+  white-space: pre;
+  pointer-events: none;
+  font: 12px/1.4 "Gantt Mono", monospace;
+}
+.gantt [data-part=overlay]:empty {
+  display: none;
+}
+/* The import notes: a toolbar button opens this list below the toolbar, so nothing covers the chart until it is asked for. */
+.gantt :is([data-part=unsupported], [data-part=file-only]) {
+  position: absolute;
+  top: calc(var(--gantt-toolbar-h) + 4px);
+  inset-inline-end: 12px;
+  max-width: 520px;
+  max-height: 40%;
+  display: flex;
+  flex-direction: column;
+  z-index: 5;
+  padding: 8px 10px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-rule);
+  border-radius: 6px;
+  font: 12px/1.4 var(--gantt-font);
+}
+.gantt :is([data-part=unsupported], [data-part=file-only])[hidden] {
+  display: none;
+}
+.gantt :is([data-part=unsupported-head], [data-part=file-only-head]) {
+  display: flex;
+  align-items: center;
+}
+.gantt :is([data-part=unsupported-head], [data-part=file-only-head]) button {
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 3px;
+  background: var(--gantt-bg);
+  color: var(--gantt-text);
+  font: 11px var(--gantt-font);
+  cursor: pointer;
+}
+.gantt :is([data-part=unsupported-head], [data-part=file-only-head]) button:hover {
+  background: var(--gantt-hov);
+}
+.gantt :is([data-part=unsupported-title], [data-part=file-only-title]) {
+  margin-inline-end: auto;
+  padding-inline-end: 12px;
+}
+.gantt :is([data-part=unsupported-head], [data-part=file-only-head]) button + button {
+  margin-inline-start: 4px;
+}
+.gantt :is([data-part=unsupported-list], [data-part=file-only-list], [data-part=here-only-list], [data-part=file-only-links-list], [data-part=here-only-links-list]) {
+  margin: 6px 0 0;
+  font: inherit;
+  min-height: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+.gantt :is([data-part=here-only-title], [data-part=file-only-links-title], [data-part=here-only-links-title]) {
+  margin-top: 8px;
+}
+/* The compare panel starts below the Show moved button (`moved.css`: the axis band, 4px, the button, 4px), so the button never covers a heading,
+   and its four headings are heavier than the lists under them. */
+.gantt [data-part=file-only] {
+  top: calc(var(--gantt-toolbar-h) + var(--gantt-axis-h) + 32px);
+}
+.gantt :is([data-part=file-only-title], [data-part=here-only-title], [data-part=file-only-links-title], [data-part=here-only-links-title]) {
+  font-weight: 600;
+}
+.gantt [data-part=hover-card] {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  max-width: 380px;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-muted);
+  border-radius: 6px;
+  pointer-events: none;
+  font: 12px/1.4 var(--gantt-font);
+}
+.gantt [data-part=hover-card][hidden] {
+  display: none;
+}
+.gantt [data-part=hover-card] .title {
+  font-weight: bold;
+}
+.gantt [data-part=hover-card] .outline-path {
+  margin-top: 1px;
+  color: var(--gantt-muted);
+}
+.gantt [data-part=hover-card] .details {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 2px 12px;
+  margin-top: 6px;
+}
+.gantt [data-part=hover-card] .label {
+  color: var(--gantt-muted);
+}
+.gantt [data-part=hover-card] .value {
+  min-width: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.gantt [data-part=hover-card] .value.critical {
+  color: var(--gantt-crit-text);
+}
+/* Shown when a measured run (?measure=1) has finished. */
+.gantt [data-part=result-link] {
+  position: absolute;
+  inset-inline-end: 12px;
+  top: 12px;
+  padding: 6px 10px;
+  background: var(--gantt-sel-edge);
+  color: var(--gantt-bar-text);
+  border-radius: 6px;
+  text-decoration: none;
+  font: 12px/1.4 "Gantt Mono", monospace;
+}
+.gantt [data-part=result-link][hidden] {
+  display: none;
+}
+/* Read by a screen reader, never seen: the announcement of the pinned card. */
+.gantt [data-part=card-live] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

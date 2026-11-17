@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>terminal</title>
+<style>
+  * { cursor: none !important; box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b0e14; }
+  .win { position: absolute; inset: 0; display: flex; flex-direction: column; }
+  .bar { height: 38px; background: #161b22; display: flex; align-items: center; padding: 0 16px; gap: 8px; border-bottom: 1px solid #222a35; }
+  .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .title { color: #8b949e; font: 14px ui-monospace, "DejaVu Sans Mono", monospace; margin-left: 14px; }
+  #screen { flex: 1; padding: 22px 28px; color: #d6dde6; font: 19px/1.5 "DejaVu Sans Mono", ui-monospace, monospace; white-space: pre-wrap; overflow: hidden; }
+  .cwd { color: #58a6ff; }
+  .sign { color: #7ee787; }
+  .cmd { color: #ffffff; }
+  .caret { display: inline-block; width: 0.6em; background: #d6dde6; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .ok { color: #7ee787; } .skip { color: #e3b341; } .dim { color: #8b949e; }
+</style>
+</head>
+<body>
+<div class="win">
+  <div class="bar"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span><span class="title" id="title">bash</span></div>
+  <div id="screen"></div>
+</div>
+<script>
+const screen = document.getElementById("screen");
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function colour(line) {
+  let h = esc(line);
+  h = h.replace(/^(\s+)(ok)(\s)/, '$1<span class="ok">$2</span>$3').replace(/^(\s+)(skip)(\s)/, '$1<span class="skip">$2</span>$3');
+  return h;
+}
+function prompt(cwd) {
+  const p = document.createElement("div");
+  p.innerHTML = `<span class="cwd">${esc(cwd)}</span> <span class="sign">$</span> <span class="cmd"></span><span class="caret">&nbsp;</span>`;
+  screen.appendChild(p);
+  return p;
+}
+window.marks = [];
+window.done = false;
+async function run() {
+  const scene = new URLSearchParams(location.search).get("s");
+  const steps = await (await fetch(`term-${scene}.json`)).json();
+  document.getElementById("title").textContent = "bash — " + steps[0].cwd;
+  await sleep(700);
+  for (const step of steps) {
+    document.getElementById("title").textContent = "bash — " + step.cwd;
+    const p = prompt(step.cwd);
+    const cmd = p.querySelector(".cmd");
+    await sleep(500);
+    window.marks.push({ cmd: step.cmd, t: performance.now() });
+    for (const ch of step.cmd) { cmd.textContent += ch; await sleep(38); }
+    await sleep(450);
+    p.querySelector(".caret").remove();
+    await sleep(250);
+    for (const line of step.out) {
+      const d = document.createElement("div");
+      d.innerHTML = colour(line) || "&nbsp;";
+      screen.appendChild(d);
+      await sleep(55);
+    }
+    await sleep(step.out.length ? 1500 : 500);
+  }
+  prompt(steps[steps.length - 1].cwd);
+  window.done = true;
+}
+run();
+</script>
+</body>
+</html>

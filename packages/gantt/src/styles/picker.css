@@ -1,0 +1,129 @@
+/* The project list for an XER file with several projects. It is a modal dialog, so the browser draws it over the whole page, not
+   inside the root's box: its size is a share of the page, and the root's tokens reach it because it is inside the root. The root's
+   key listener ignores a key whose target is in it (main.ts), so the chart's keys do nothing while it is open. */
+.gantt [data-part=picker] {
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  font: 13px/18px var(--gantt-font);
+}
+.gantt [data-part=picker][open] {
+  display: flex;
+  flex-direction: column;
+}
+.gantt [data-part=picker]::backdrop {
+  background: var(--gantt-scrim);
+}
+.gantt [data-part=picker-title] {
+  margin: 0 0 4px;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.gantt [data-part=picker-hint] {
+  margin: 0 0 10px;
+  color: var(--gantt-muted);
+}
+.gantt [data-part=picker-list] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+.gantt [data-part=picker] button {
+  padding: 6px 10px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 5px;
+  background: var(--gantt-bg);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.gantt [data-part=picker] button:hover {
+  background: var(--gantt-hov);
+}
+.gantt [data-part=picker] button:focus-visible {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: 1px;
+}
+.gantt [data-part=picker-actions] {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+/* The keys list (gs#703): a modal dialog like the picker, with the picker's look. The chart's key listener ignores keys inside it. */
+.gantt [data-part=keys-help] {
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  font: 13px/18px var(--gantt-font);
+}
+.gantt [data-part=keys-help]::backdrop {
+  background: var(--gantt-scrim);
+}
+.gantt [data-part=keys-help-title] {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.gantt [data-part=keys-help-list] {
+  border-collapse: collapse;
+}
+.gantt [data-part=keys-help-list] td {
+  padding: 2px 0;
+  vertical-align: top;
+}
+.gantt [data-part=keys-help-list] td:first-child {
+  padding-inline-end: 16px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gantt [data-part=keys-help-all] {
+  margin: 8px 0 0;
+}
+.gantt [data-part=keys-help] a {
+  color: inherit;
+}
+.gantt [data-part=keys-help] button {
+  padding: 6px 10px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 5px;
+  background: var(--gantt-bg);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.gantt [data-part=keys-help] button:hover {
+  background: var(--gantt-hov);
+}
+.gantt [data-part=keys-help] :focus-visible {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: 1px;
+}
+.gantt [data-part=keys-help-actions] {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+/* The toolbar's `?` button: narrow, since the strip at 1280 px has little to spare (the Find hint must stay whole). */
+.gantt [data-part=toolbar] [data-part=keys-button] {
+  flex: none;
+  width: 10px;
+  padding: 0;
+  margin: 0 -8px 0 -4px;
+}

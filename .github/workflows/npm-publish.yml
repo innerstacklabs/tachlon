@@ -1,0 +1,57 @@
+name: npm-publish
+
+# Publishes packages/gantt to npm under the name in its package.json. A person starts it from the Actions tab; nothing else triggers it.
+# Auth is npm's Trusted Publisher (OIDC): configure it on npmjs.com for innerstacklabs/tachlon, workflow npm-publish.yml. There is no NPM_TOKEN.
+# It runs on a GitHub-hosted runner because trusted publishing refuses self-hosted runners. There is no provenance: npm accepts it only from a public repo, and this one is private.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  WEB_ROOT: packages/gantt
+  STAGED: staged-package
+
+jobs:
+  publish:
+    # Only the main branch publishes: a run started from another ref stops here.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    # id-token is the OIDC token npm exchanges for a publish credential; only this job holds it.
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: {targets: wasm32-unknown-unknown}
+      # Must match the wasm-bindgen version in Cargo.lock (build-web.sh checks).
+      - uses: taiki-e/install-action@v2
+        with: {tool: "wasm-bindgen@0.2.129"}
+      - uses: pnpm/action-setup@v4
+        with: {package_json_file: "${{ env.WEB_ROOT }}/package.json"}
+      # The scripts run .ts files by type stripping (Node 22.18 or later). Trusted publishing needs npm 11.5.1 or later; Node 22 ships npm 10.
+      - uses: actions/setup-node@v4
+        # No registry-url: it makes setup-node export a placeholder NODE_AUTH_TOKEN, and npm then tries that token
+        # instead of trusted publishing (OIDC) and gets a 404 (first publish run 42315828393, 2026-11-06).
+        with: {node-version: 22, check-latest: true}
+      - run: npm install -g npm@^11.5.1
+      - run: bash scripts/build-web.sh --no-bundle
+      - run: pnpm install --frozen-lockfile
+        working-directory: ${{ env.WEB_ROOT }}
+      - run: pnpm build:lib
+        working-directory: ${{ env.WEB_ROOT }}
+      # The checks and the publish run on a staged copy: the packed files and a package.json without scripts, devDependencies or packageManager.
+      - run: node scripts/stage-package.ts "$WEB_ROOT" "$STAGED"
+      # Fails when the tarball holds anything but dist-lib/, README.md, AGENTS.md and package.json, lacks the engine file, or the manifest holds a build setting.
+      - run: node scripts/pack-check.ts "$STAGED" --published
+      - run: node scripts/package-size.ts "$STAGED"
+      # The page type-check on the installed declarations; no browser here (the ci.yml run loads the chart).
+      - run: node scripts/consumer-check.ts "$STAGED" --no-browser
+      - run: npm pack --dry-run
+        working-directory: ${{ env.STAGED }}
+      - run: npm publish
+        working-directory: ${{ env.STAGED }}

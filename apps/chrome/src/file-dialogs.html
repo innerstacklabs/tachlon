@@ -1,0 +1,39 @@
+<dialog data-part="picker" aria-labelledby="picker-title">
+  <h2 data-part="picker-title"></h2>
+  <p data-part="picker-hint">Choose the project to open, or open them all.</p>
+  <div data-part="picker-list"></div>
+  <div data-part="picker-actions"><button data-part="picker-cancel" type="button">Cancel</button></div>
+</dialog>
+<dialog data-part="keys-help" aria-labelledby="keys-help-title">
+  <h2 data-part="keys-help-title">Keyboard shortcuts</h2>
+  <table data-part="keys-help-list"><tbody></tbody></table>
+  <p data-part="keys-help-all"><a href="book/keys.html" target="_blank" rel="noopener">All keys</a></p>
+  <div data-part="keys-help-actions"><button data-part="keys-help-close" type="button">Close</button></div>
+</dialog>
+<aside data-part="unsupported" hidden>
+  <div data-part="unsupported-head"><span data-part="unsupported-title"></span><button data-part="import-notes-dismiss" type="button" title="Make the notice quiet: it stays in the toolbar as a small mark, and a click still lists the notes">Dismiss</button><button data-part="unsupported-close" type="button" aria-label="Close">×</button></div>
+  <pre data-part="unsupported-list"></pre>
+</aside>
+<aside data-part="file-only" hidden>
+  <div data-part="file-only-head"><span data-part="file-only-title">Only in last month's file</span><button data-part="file-only-close" type="button" aria-label="Close">×</button></div>
+  <pre data-part="file-only-list"></pre>
+  <div data-part="here-only-title">Only in this month's file</div>
+  <pre data-part="here-only-list"></pre>
+  <div data-part="file-only-links-title">Links only in last month's file</div>
+  <pre data-part="file-only-links-list"></pre>
+  <div data-part="here-only-links-title">Links only in this month's file</div>
+  <pre data-part="here-only-links-list"></pre>
+</aside>
+<dialog data-part="checks-dialog" aria-labelledby="checks-title">
+  <h2 data-part="checks-title">Checks</h2>
+  <table data-part="checks-list"><tbody></tbody></table>
+  <div data-part="checks-actions"><button data-part="checks-close" type="button">Close</button></div>
+</dialog>
+<dialog data-part="export-dialog" aria-labelledby="export-title">
+  <h2 data-part="export-title">Export</h2>
+  <button data-part="export-mspdi" type="button">MS Project XML</button>
+  <button data-part="export-xer" type="button">P6 XER</button>
+  <p data-part="export-result" role="status" hidden></p>
+  <pre data-part="export-left-out" hidden></pre>
+  <div data-part="export-actions"><button data-part="export-close" type="button">Close</button></div>
+</dialog>

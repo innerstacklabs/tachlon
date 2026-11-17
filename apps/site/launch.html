@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tachlon launch day</title>
+<meta name="description" content="Tachlon is the Gantt chart for developers who put a schedule in their product, in any industry: written in Rust, drawn on the GPU, as smooth at 50,000 tasks as at 50, with a full API, your brand's theme and P6 XER and MS Project XML files.">
+<link rel="stylesheet" href="home.css">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="nav"><div class="wrap">
+  <a class="logo" href="index.html"><svg class="mark" aria-hidden="true"><use href="mark.svg#mark"/></svg>tachlon</a>
+  <nav class="nav-links" aria-label="Page"><a href="index.html">The page</a> <a href="#assistant">Get started</a></nav>
+  <a class="btn primary small nav-cta" href="https://app.tachlon.com">Open the demo</a>
+</div></header>
+
+<p class="wrap draft-note">Not published. These are the launch-day blocks, held here until the package ships; each moves back to the page when its claims are true. <span id="claims-open"></span>.</p>
+
+<main class="wrap sheet">
+  <section class="launch-actions" aria-label="Launch-day calls to action">
+    <div class="actions">
+      <span class="claim-inline" data-claim="tl#1249 tl#1089">Or ask your coding assistant (Claude Code, Codex, Cursor): <em>add a Tachlon Gantt to this app</em>. <a href="#assistant">The prompt</a></span>
+      <span>Or install it: <code class="claim-inline" data-claim="tl#1089">npm install tachlon</code>. No login, no form.</span>
+    </div>
+    <p>Open the demo in your browser, or <span class="claim-inline" data-claim="tl#1089">install it and mount it on your own data</span>.</p>
+  </section>
+
+  <section class="assistant cloud" id="assistant" data-claim="tl#1249 tl#1089" aria-labelledby="assistant-title">
+    <div class="assistant-text">
+      <h2 id="assistant-title">Ask your coding assistant to add it.</h2>
+      <p>Paste one prompt into your coding assistant (Claude Code, Codex, Cursor, Copilot), and it installs Tachlon, wires it to your own tasks and links, and mounts the chart. No login, no form, no key.</p>
+      <ol class="steps">
+        <li><strong>Install.</strong> <code>npx tachlon init</code> finds your framework and bundler and writes a working chart.</li>
+        <li><strong>Map your data.</strong> <code>validate()</code> names every field that does not fit, so the assistant fixes the mapping until it passes.</li>
+        <li><strong>Fix what breaks.</strong> <code>npx tachlon doctor</code> checks the WebAssembly file, your content security policy and the GPU, and gives one fix for each problem.</li>
+      </ol>
+      <p class="aside">The skill for Claude Code ships inside the package, and AGENTS.md serves Codex and every other assistant.</p>
+    </div>
+    <figure>
+      <figcaption>The prompt <button class="copy" type="button" data-copy="prompt" aria-label="Copy the prompt">Copy</button></figcaption>
+      <p class="visually-hidden" role="status" id="copy-status"></p>
+<pre class="prompt" id="prompt">Add Tachlon (npm package tachlon), the GPU Gantt chart, to this app. Run npx tachlon init, map our tasks and dependencies to its schedule format and check them with validate() until they pass, then show the chart on the project page. If the chart does not appear, run npx tachlon doctor and apply its fixes.</pre>
+    </figure>
+  </section>
+
+  <section class="install cloud" id="install" data-claim="tl#1089 tl#1096 tl#1093" aria-labelledby="install-title">
+    <div class="install-text">
+      <h2 id="install-title">Or write it yourself: two minutes from install to chart.</h2>
+      <p>Install from npm with no login. The core mounts into any element; the React component wraps it.</p>
+      <p class="frameworks"><strong>React</strong><strong>TypeScript</strong></p>
+    </div>
+    <figure>
+      <figcaption>TypeScript</figcaption>
+<pre><code><span class="k">import</span> { mount } <span class="k">from</span> <span class="s">"tachlon"</span>;
+<span class="k">import</span> <span class="s">"tachlon/gantt.css"</span>;
+
+<span class="k">const</span> root = document.querySelector(<span class="s">"#schedule"</span>) <span class="k">as</span> HTMLDivElement;
+<span class="k">const</span> chart = <span class="k">await</span> mount(root, { schedule: file });
+chart.on(<span class="s">"move"</span>, () =&gt; save(chart.toDocument()));</code></pre>
+    </figure>
+    <figure>
+      <figcaption>React</figcaption>
+<pre><code><span class="k">import</span> { Gantt } <span class="k">from</span> <span class="s">"tachlon/react"</span>;
+<span class="k">import</span> <span class="s">"tachlon/gantt.css"</span>;
+
+<span class="k">export function</span> Schedule({ project }) {
+  <span class="k">return</span> &lt;Gantt schedule={project} onMove={save} /&gt;;
+}</code></pre>
+    </figure>
+  </section>
+
+  <section class="features" aria-label="Launch-day features">
+    <article class="feature cloud" id="brand" data-claim="tl#1193 tl#1094">
+      <div class="feature-text">
+        <h2>Wears your brand.</h2>
+        <p>Every color is a documented token, in light and dark; the bar shape and the type are tokens too. Set them on the chart's box and it looks like your product, not ours.</p>
+      </div>
+<pre><code><span class="c">/* your product's palette */</span>
+.gantt {
+  --gantt-bg: <span class="s">#ffffff</span>;
+  --gantt-text: <span class="s">#1d2433</span>;
+  --gantt-bar: <span class="s">#5b4bdb</span>;
+  --gantt-crit: <span class="s">#e5484d</span>;
+  --gantt-bar-r: <span class="s">6px</span>;
+}</code></pre>
+    </article>
+
+    <article class="feature cloud" id="api" data-claim="tl#1194 tl#1195 tl#1094">
+      <div class="feature-text">
+        <h2>Answers to your code.</h2>
+        <p>Everything the built-in toolbar does is a command you can call, so your own toolbar drives it: every filter, find, outline levels, rows, the data date and the baseline. Read the chart's state, and hear every change.</p>
+        <p class="aside">Load and save as JSON, export P6 XER or Microsoft Project XML, and listen for select, edit, move, load and change events.</p>
+      </div>
+<pre><code>chart.on(<span class="s">"change"</span>, () =&gt; {
+  <span class="k">const</span> s = chart.state();
+  toolbar.render(s.filter, s.rowCount);
+});
+chart.commands.setFilter(<span class="s">"longestPath"</span>);
+<span class="k">const</span> hits = chart.commands.find(<span class="s">"drywall"</span>);</code></pre>
+    </article>
+  </section>
+</main>
+
+<footer><div class="wrap">
+  <a class="logo" href="index.html"><svg class="mark" aria-hidden="true"><use href="mark.svg#mark-navy"/></svg>tachlon</a>
+  <div class="foot-base"><span>&copy; 2026 Dave Remy. Tachlon is open source under the MIT license.</span> <span>Engine: Rust, WebAssembly &middot; Drawn on: WebGPU or WebGL2</span></div>
+</div></footer>
+
+<script src="cloud.js"></script>
+<script src="copy.js"></script>
+</body>
+</html>

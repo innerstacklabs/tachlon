@@ -1,0 +1,16 @@
+[package]
+name = "xer"
+version = "0.1.0"
+description = "Table-layer and typed reader for Primavera P6 XER files"
+edition.workspace = true
+license = "MIT"
+publish = false
+
+[features]
+synth = []
+
+[dependencies]
+# This table stays empty to keep the crate dependency-free.
+
+[lints]
+workspace = true

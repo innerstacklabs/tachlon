@@ -1,0 +1,12 @@
+name: wasm-bindings
+description: The wasm bindings from this machine's disk when the wasm job of this run kept them here, else the artifact (gantt#1878)
+runs:
+  using: composite
+  steps:
+    - id: disk
+      shell: bash
+      run: |
+        [ -n "$WASM_HANDOFF" ] || { echo "WASM_HANDOFF is empty, downloading the artifact"; exit 0; }; mkdir -p "$GITHUB_WORKSPACE/$WEB_ROOT/src/wasm" && cp -r "$HOME/$WASM_HANDOFF/." "$GITHUB_WORKSPACE/$WEB_ROOT/src/wasm/" && echo "hit=true" >> "$GITHUB_OUTPUT" && echo "wasm-bindings read from $HOME/$WASM_HANDOFF, no download" || echo "wasm-bindings are not on this disk, downloading the artifact"
+    - if: steps.disk.outputs.hit != 'true'
+      uses: actions/download-artifact@v4
+      with: {name: wasm-bindings, path: "${{ env.WEB_ROOT }}/src/wasm/"}

@@ -1,0 +1,45 @@
+/* The Columns menu (columns-menu.ts) hides Start, Finish or Float: no track, no width (a track and one 6px gap), and the head and the cells go.
+   A hidden column sets its track empty; --gantt-cols is then set again on the table from the four tracks (column-order.css, in the order the menu has set), so the head and every row drop the same tracks, and --hidden-w is what table.css takes off the width the columns need. The same rule serves a table whose order the menu has changed. */
+.gantt [data-part=table][data-hide-start] {
+  --start-track: ;
+  --hide-start-w: calc(var(--gantt-date-col) + 6px);
+}
+.gantt [data-part=table][data-hide-finish] {
+  --finish-track: ;
+  --hide-finish-w: calc(var(--gantt-date-col) + 6px);
+}
+.gantt [data-part=table][data-hide-float] {
+  --float-track: ;
+  --hide-float-w: 52px;
+}
+.gantt [data-part=table]:is([data-hide-start], [data-hide-finish], [data-hide-float], [data-column-order]) {
+  --gantt-cols: minmax(var(--gantt-task-fit, var(--gantt-task-min)), 1fr) var(--movable-tracks);
+  --hidden-w: calc(var(--hide-start-w, 0px) + var(--hide-finish-w, 0px) + var(--hide-float-w, 0px));
+}
+.gantt [data-part=table][data-hide-start] .cols > .start,
+.gantt [data-part=table][data-hide-finish] .cols > .finish,
+.gantt [data-part=table][data-hide-float] .cols > .float {
+  display: none;
+}
+/* The button is an icon, as narrow as a button gets, as the Export one is, and it sits by the Progress button with no divider of its own: at 1280 px
+   the word and its divider took the room the find box's hint (90 px) and the file line need (the hosted toolbar-text-whole spec reads them whole).
+   Its name is the aria-label and the title. */
+.gantt [data-part=toolbar] [data-part=columns-menu] { padding-inline-start: 0; border-inline-start: 0; }
+.gantt [data-part=toolbar] [data-part=columns-button] { display: inline-flex; align-items: center; justify-content: center; width: 18px; padding: 0; }
+/* The menu rows are checkboxes: an empty box while the column is hidden, a check mark in it while it shows. Existing tokens only. */
+.gantt [data-part=columns-panel] button { display: flex; align-items: center; gap: 6px; }
+.gantt [data-part=columns-panel] button[role=menuitemcheckbox]::before {
+  content: "";
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 2px;
+  color: var(--gantt-sel-edge);
+  font-size: 10px;
+  line-height: 10px;
+  text-align: center;
+}
+.gantt [data-part=columns-panel] button[role=menuitemcheckbox][aria-checked="true"]::before {
+  content: "\2714\FE0E";
+}

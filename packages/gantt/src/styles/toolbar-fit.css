@@ -1,0 +1,127 @@
+/* The toolbar's give-way rules (split out of chrome.css, imported right after it so the cascade order is unchanged): which text of the strip shrinks, hides or keeps
+   its room when the strip is crowded, in what order, and the Find box and the `?` button that must stay whole (gs#858, gs#866, gs#1055). */
+.gantt [data-part=data-date],
+.gantt [data-part=row-count] {
+  color: var(--gantt-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* The selection count gives way before every other text in the strip, so the file line, data date, row count and find hint stay whole at
+   1280 px with a ten-row range; it is cut with an ellipsis at its end. */
+.gantt [data-part=selection-count] {
+  flex-shrink: 1000000;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gantt-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* The row count names the filter ("Construction phase = Mechanical commissioning · 8 of 43 rows"), so it can be long. It gives up room
+   after the data date and before the file line, and it is cut with an ellipsis at its end, so it always starts at its first letter. */
+.gantt [data-part=row-count] {
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* While a filter is on (a pressed button in the Filters panel) the count keeps 21ch: "…50,000 of 50,000 rows", the largest count the
+   product is measured at. The Progress toggle is on for a P6 file and says nothing of the count, so it does not hold the room (gs#866). Slipped
+   alone does not hold it either: its count is "46 slipped", and the room goes to the find box's hint at 1280 px (gs#858). */
+.gantt [data-part=toolbar]:has([data-part=filters-panel] button[aria-pressed="true"]:not([data-part=slipped-toggle])) [data-part=row-count] {
+  min-width: 21ch;
+}
+/* The plain count ("59 rows") gives way when Find would otherwise fall under its 104px floor; the app's chrome (`apps/chrome/src/row-count-fit.ts`) measures that and marks it (gs#1055). */
+.gantt [data-part=row-count][data-give-way] {
+  display: none;
+}
+/* A baseline is set and the strip is 1300px wide or less (the Baseline group is then four buttons wide), so the `?` button, Find's 90px hint and the
+   file line cannot all have their room (gs#1055, A devteam-1-366, 368 and 431). With a filter on, Slipped among them, the count ("8 of 43 rows",
+   "46 slipped") is the only sign that the chart is narrowed, so it stays whole and Find keeps 104px (its 90px hint and padding); the file name is
+   cut further first (to 8ch), then the data date (to 10ch). */
+@container gantt-toolbar (min-width: 1200px) and (max-width: 1300px) {
+  .gantt [data-part=toolbar]:has([data-part=baseline-clear]:not([hidden])):has([data-part=filters-button][data-on="true"]) {
+    & [data-part=row-count] {
+      flex-shrink: 0.001;
+    }
+    /* The file line's 200 would take a fraction of a pixel from it while Find still has room, so Find and the selection count shrink 1000
+       times as fast here, keeping their order. */
+    & [data-part=toolbar-file] {
+      flex-shrink: 200;
+    }
+    & [data-part=selection-count] {
+      flex-shrink: 1000000000;
+    }
+    & [data-part=open-info] {
+      min-width: 8ch;
+    }
+    & [data-part=data-date] {
+      min-width: 10ch;
+    }
+    & [data-part=find],
+    & [data-part=find]:has([data-part=find-count]:not(:empty)) {
+      flex-shrink: 100000000;
+      min-width: 104px;
+    }
+    /* A note ("no matches") stays inside the box and the strip: the box keeps its 104px input, the 8px gap and the note's 12ch, and the data date
+       (cut to its 10ch floor at most), not the file group with its import notice, gives up the room the Checks button took (tl703r6). */
+    &:has([data-part=find-count]:not(:empty)) {
+      & [data-part=find] {
+        min-width: calc(112px + 12ch);
+      }
+      & [data-part=data-date] {
+        flex-shrink: 100000;
+      }
+    }
+    & [data-part=find-input] {
+      min-width: 104px;
+    }
+  }
+}
+/* The data date gives way only after the find box has reached its floor (which shrinks first, hundreds of times as fast): then it is cut with an
+   ellipsis before the strip overflows. At 1280 px with a P6 file it shows whole (gs#866). */
+.gantt [data-part=data-date] {
+  flex-shrink: 3;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The find box gives way first when the strip is crowded; the file note and the buttons keep their size. The factor is large enough that the
+   items that shrink with it (the file line, the data date, the row count) lose well under 1/64 px while the box has room: at 1000 they lost
+   0.1 to 0.2 px, which Chrome draws as an ellipsis over the last letters ("17:…"), though the text had room (gs#858). */
+.gantt [data-part=find] {
+  flex-shrink: 100000;
+  /* The box's floor is the input's (64px) and the gap; a note takes 12ch more while there is one. */
+  min-width: 72px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gantt [data-part=find-input] {
+  width: 200px;
+  min-width: 64px;
+  height: 22px;
+  box-sizing: border-box;
+  padding: 0 6px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 3px;
+  background: var(--gantt-bg);
+  color: var(--gantt-text);
+  font: inherit;
+}
+/* The note ("no matches", "went to date", "1 of 50,000") shows whole, and takes room only while there is one: the file line and the row
+   count give it up when the strip is full. */
+.gantt [data-part=find-count]:empty {
+  display: none;
+}
+.gantt [data-part=find]:has([data-part=find-count]:not(:empty)) {
+  min-width: calc(72px + 12ch);
+}
+.gantt [data-part=find-count] {
+  color: var(--gantt-muted);
+  font-variant-numeric: tabular-nums;
+}
+/* The `?` button is a full 18px button inside the toolbar's padding and clear of Find, with or without a notice; picker.css's is 10px and overlaps (gs#1055). */
+.gantt [data-part=toolbar] button[data-part=keys-button] {
+  width: 18px;
+  margin: 0;
+}

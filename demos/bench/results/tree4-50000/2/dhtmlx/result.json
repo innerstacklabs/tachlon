@@ -1,0 +1,145 @@
+{
+  "tool": "drive",
+  "url": "http://127.0.0.1:51889/?cell=tree4-50000-20261020",
+  "side": "dhtmlx",
+  "rows": 50000,
+  "date": "2026-11-05T16:56:40.571Z",
+  "environment": {
+    "chrome": "156.0.8078.4",
+    "gpu": {
+      "vendor": "Google Inc. (Apple)",
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)"
+    },
+    "dpr": 1,
+    "measuredHz": 59.9,
+    "viewport": {
+      "width": 1280,
+      "height": 800
+    },
+    "refreshHz": 60,
+    "headless": false,
+    "os": "darwin 25.6.0",
+    "node": "v26.12.1",
+    "sideBackend": "DOM",
+    "debugBuild": false,
+    "sideBuild": "DHTMLX Gantt 10.0.3 (MIT, no scheduling, no working-time calendars)",
+    "rowsOnScreen": 20
+  },
+  "options": {
+    "width": 1280,
+    "height": 800,
+    "dpr": 1,
+    "refreshHz": 60,
+    "dnfS": 120,
+    "memoryAtS": 20,
+    "headless": false,
+    "phases": [
+      "load",
+      "scroll-y",
+      "scroll-x",
+      "drag",
+      "memory"
+    ]
+  },
+  "requestedDatasetSha256": "b0bc8dbbc39c7c4a9d8cc96c7c5e8d5d0d8fa51c1f77c9b8cab2448825960458",
+  "datasetSha256": "b0bc8dbbc39c7c4a9d8cc96c7c5e8d5d0d8fa51c1f77c9b8cab2448825960458",
+  "inputBytes": 9101049,
+  "warnings": [],
+  "phases": {
+    "load": {
+      "dnf": false,
+      "ms": 322.5,
+      "libraryMs": 18,
+      "dataToReadyMs": 292.9,
+      "spotChecked": true,
+      "settledMs": 338.6,
+      "dataToSettledMs": 309
+    },
+    "scroll-y": {
+      "dnf": false,
+      "verified": true,
+      "frames": 2670,
+      "p50": 16.7,
+      "p95": 18.7,
+      "longGaps": 3,
+      "droppedFrames": 3,
+      "max": 35.3,
+      "steps": 120,
+      "stepPx": 333.3333333333333,
+      "wheelEvents": {
+        "out": 443,
+        "back": 443
+      },
+      "target": 40000,
+      "scrolled": 39870,
+      "from": 0,
+      "turn": 39870,
+      "back": 0
+    },
+    "scroll-x": {
+      "dnf": false,
+      "verified": true,
+      "frames": 629,
+      "p50": 16.7,
+      "p95": 18.7,
+      "longGaps": 1,
+      "droppedFrames": 1,
+      "max": 35.4,
+      "steps": 120,
+      "stepPx": 155.89166666666668,
+      "wheelEvents": {
+        "out": 105,
+        "back": 104
+      },
+      "target": 18707,
+      "scrolled": 18707,
+      "from": 0,
+      "turn": 18707,
+      "back": 0
+    },
+    "drag": {
+      "dnf": false,
+      "verified": true,
+      "frames": 133,
+      "p50": 16.7,
+      "p95": 18.6,
+      "longGaps": 1,
+      "droppedFrames": 1,
+      "max": 33.3,
+      "commitMs": 3.1,
+      "days": 10,
+      "steps": 60,
+      "afterFrames": 10,
+      "from": {
+        "x": 511,
+        "y": 162.5
+      },
+      "to": {
+        "x": 1211,
+        "y": 162.5
+      },
+      "task": "1",
+      "pxPerDay": 70,
+      "zoomSteps": 0,
+      "scrollSteps": 0
+    },
+    "memory": {
+      "dnf": false,
+      "afterLoad": {
+        "kind": "footprint",
+        "chromeBytes": 378535936,
+        "rendererBytes": 180983808,
+        "gpuProcessBytes": 86193152,
+        "jsHeapUsedBytes": 33875464,
+        "readAtS": 20.001
+      },
+      "afterScripts": {
+        "kind": "footprint",
+        "chromeBytes": 407161856,
+        "rendererBytes": 202270720,
+        "gpuProcessBytes": 98041856,
+        "jsHeapUsedBytes": 31842132
+      }
+    }
+  }
+}

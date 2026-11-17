@@ -1,0 +1,47 @@
+/* The launch-day blocks (launch.html, not published): the sections that wait on the package, in the home page's theme (home.css).
+   Claims not yet true (Dave, 2026-11-02: the page is the launch-day page; it publishes only when every claim is true).
+   A block that is not true yet sits in a revision cloud, a phrase gets a dashed underline; each carries data-claim, the
+   stories that make it true, shown in a tag. The page is ready to publish when no [data-claim] is left. The first public
+   page is index.html (the north star: headline, screencast, proven claims); the launch-day blocks, whose
+   claims wait on the package, sit in launch.html, which is not published, so the gate applies to index.html. */
+.sheet p { max-width: 62ch; }
+.launch-actions { display: grid; gap: 14px; }
+.launch-actions .actions { flex-direction: column; align-items: flex-start; gap: 14px; margin-top: 0; }
+
+.features { display: grid; gap: 96px; }
+.features .feature + .feature { margin-top: 0; }
+.feature-text { display: grid; gap: 14px; }
+.feature .aside, .assistant .aside { font-size: 14px; color: var(--muted); }
+
+.cloud { position: relative; padding: 40px 40px 34px; }
+.cloud > svg.scallop { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+.cloud > svg.scallop path { fill: none; stroke: var(--accent); stroke-width: 1.4; }
+.claim-tag { position: absolute; top: -2px; right: 28px; background: var(--bg); color: var(--accent); border: 1.4px solid var(--accent); font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 2px; }
+.claim-inline { border-bottom: 1.5px dashed var(--accent); }
+.claim-inline::after { content: attr(data-claim); font-size: 10px; font-weight: 700; color: var(--accent); vertical-align: super; margin-left: 3px; }
+.draft-note { padding: 12px 0; font-size: 13px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px 16px; }
+@media (max-width: 600px) { .cloud { padding: 34px 20px 26px; } }
+
+/* Code, set like the chart's own type: the one place for a monospace face. */
+pre { margin: 0; background: var(--navy); color: var(--navy-ink); padding: 16px 18px; overflow-x: auto; font: 14px/1.6 var(--mono); border-radius: 2px; }
+pre code { background: none; color: inherit; padding: 0; font: inherit; }
+pre .k { color: #5aa9ff; }
+pre .s { color: #a9c4ff; }
+pre .c { color: var(--navy-muted); }
+.install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px 40px; align-items: start; }
+.install-text { grid-column: 1 / -1; display: grid; gap: 12px; }
+.install figure { margin: 0; display: grid; gap: 8px; }
+.install figcaption { font-size: 14px; font-weight: 700; }
+.frameworks { display: flex; flex-wrap: wrap; gap: 8px 24px; font-size: 15px; color: var(--muted); }
+.frameworks strong { color: var(--ink); }
+@media (max-width: 760px) { .install { grid-template-columns: 1fr; } }
+/* The assistant path, first in Get started (Dave, 2026-11-03: equal to or above the code). */
+.assistant { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 28px 40px; align-items: start; }
+.assistant-text { display: grid; gap: 14px; }
+.assistant figure { margin: 0; display: grid; gap: 8px; }
+.assistant figcaption { font-size: 14px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.steps { margin: 0; padding-left: 1.4em; display: grid; gap: 8px; }
+pre.prompt { white-space: pre-wrap; font-size: 15px; line-height: 1.55; }
+.copy { font: inherit; font-size: 13px; font-weight: 700; background: var(--ink); color: #fff; border: 0; border-radius: 2px; padding: 4px 12px; cursor: pointer; }
+.copy:hover { background: var(--accent); }
+@media (max-width: 760px) { .assistant { grid-template-columns: 1fr; } }

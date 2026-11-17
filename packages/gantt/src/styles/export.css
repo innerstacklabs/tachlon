@@ -1,0 +1,77 @@
+/* The Export dialog (gs#703): a modal dialog like the project picker, drawn over the whole page. */
+.gantt [data-part=export-dialog] {
+  width: min(520px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  font: 13px/18px var(--gantt-font);
+}
+.gantt [data-part=export-dialog][open] {
+  display: flex;
+  flex-direction: column;
+}
+.gantt [data-part=export-dialog]::backdrop {
+  background: var(--gantt-scrim);
+}
+.gantt [data-part=export-title] {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.gantt [data-part=export-dialog] button {
+  padding: 6px 10px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 5px;
+  background: var(--gantt-bg);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.gantt [data-part=export-dialog] button:hover {
+  background: var(--gantt-hov);
+}
+.gantt [data-part=export-dialog] button:focus-visible {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: 1px;
+}
+.gantt [data-part=export-result] {
+  margin: 10px 0 0;
+}
+.gantt [data-part=export-left-out] {
+  margin: 6px 0 0;
+  min-height: 0;
+  overflow: auto;
+  color: var(--gantt-muted);
+  font: 12px/16px var(--gantt-font);
+  white-space: pre-wrap;
+}
+.gantt [data-part=export-actions] {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+/* The toolbar button is an icon, as narrow as a button gets: at 1280 px the find box and the file line have no room to give (the hosted
+   toolbar-text-whole spec reads them whole). Its name is the aria-label and the title. */
+.gantt [data-part=toolbar] [data-part=export-button] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  padding: 0;
+}
+/* The strip had about 8 px to spare at 1280 px with a baseline set and Slipped on; the button and its gap cost more, so the strip's
+   gap and side padding give back what it takes (3 px between items, 8 px at the sides; 2 px between items since the Columns button, which the Columns icon alone did not fit, tl703fx). */
+.gantt [data-part=toolbar] {
+  gap: 2px;
+  padding-inline-start: 8px;
+  padding-inline-end: 8px;
+}
+/* The 2 px gap alone left the row count touching the data date ("08:00Moved"); this margin gives the two a 5 px space, as before (tl703fx). */
+.gantt [data-part=row-count] {
+  margin-inline-start: 3px;
+}

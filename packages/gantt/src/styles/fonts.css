@@ -1,0 +1,25 @@
+/* The page's own fonts (gs#529): Liberation Sans and Liberation Mono 2.1.5, SIL OFL 1.1, shipped in src/fonts/ (see NOTICE.md there).
+   Text width then comes from these files and not from whatever the machine has installed. The chart's bar names and axis labels
+   draw the same Liberation Sans from crates/timeline/assets/. The families have their own names, not "Liberation Sans", so a
+   machine that has the system font cannot satisfy them by accident. font-display: block holds text back until the file is in. */
+@font-face {
+  font-family: "Gantt Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../fonts/LiberationSans-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Gantt Sans";
+  font-style: normal;
+  font-weight: 600 700;
+  font-display: block;
+  src: url("../fonts/LiberationSans-Bold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Gantt Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("../fonts/LiberationMono-Regular.woff2") format("woff2");
+}

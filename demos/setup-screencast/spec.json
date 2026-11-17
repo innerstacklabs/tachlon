@@ -1,0 +1,8 @@
+[
+  ["1a-term", 0.4, "Start from a fresh Vite React app. Install {pkg} from npm, then run npx {pkg} init. It writes one component file and prints the import line to add. It leaves your existing files alone."],
+  ["2a-chart", 0.3, "Here is that file. It holds three sample tasks, Design, Build and Ship, each waiting on the one before, and mounts the chart into a div three hundred pixels tall. In App dot tsx you add the import, and one line that renders Chart inside a full-width div."],
+  ["3a-dev", 0.3, "Run npm run dev and open the page. The three tasks are drawn with dates, durations and zero days of float, so all three are critical. Control and the mouse wheel zoom the timeline in and out."],
+  ["4a-open", 0.3, "To open a real schedule, keep the chosen file in state and pass it to the Gantt component's schedule prop. Here it is a Primavera P6 XER file for an office fit-out: the whole outline, thirty-five percent complete, with actual starts and the data date."],
+  ["5a-cdnsrc", 0.3, "No bundler? A plain HTML page works too. One stylesheet link and an import map point at {pkg} on jsDelivr, and the same mount call draws the same three tasks."],
+  ["6a-doctor", 0.3, "If a chart does not draw, npx {pkg} doctor checks the install, the engine and the stylesheet."]
+]

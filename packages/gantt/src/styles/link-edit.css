@@ -1,0 +1,25 @@
+/* The link editor (link-edit.ts): a small box at the top right of the chart's row, under the alert line. */
+.gantt [data-part=link-edit] {
+  grid-area: 2 / 1 / 3 / -1;
+  align-self: start;
+  justify-self: end;
+  z-index: 7;
+  margin: 28px 10px 0 0;
+  padding: 4px 8px;
+  background: var(--gantt-surface);
+  border: 1px solid var(--gantt-rule);
+  color: var(--gantt-text);
+  font-family: var(--gantt-font);
+  font-size: 12px;
+  line-height: 16px;
+}
+.gantt [data-part=link-edit][hidden] {
+  display: none;
+}
+.gantt [data-part=link-edit] input {
+  width: 9em;
+  font: inherit;
+  color: inherit;
+  background: var(--gantt-bg);
+  border: 1px solid var(--gantt-rule);
+}

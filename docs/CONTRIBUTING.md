@@ -1,0 +1,57 @@
+# For contributors
+
+Where the project came from, where it is going, the gates, the book, the screencast rule, and the license. The architecture is [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Where it came from
+
+It evolved from a hobby spike (Dave, 2026-10-20) that asked: can a Rust scheduling engine and a Rust GPU timeline renderer (wgpu, viewport-rendered into a canvas), in one WebAssembly module behind a thin TypeScript shell, handle a large construction schedule (50,000 tasks) with smooth zoom and drag in the browser?
+
+The first plan is not kept in this repository; the decision records in [docs/decisions/](decisions/) hold the choices that came from it.
+
+The architecture is [docs/ARCHITECTURE.md](ARCHITECTURE.md).
+
+The WASM API is [docs/WASM_API.md](WASM_API.md).
+
+## Where this is going
+
+A browser-based, very fast Gantt scheduling product for large construction schedules, built incrementally with an architecture pause at each milestone. It serves the people who read and review P6 schedules first (open a P6 XER or an MS Project XML file in the browser; navigate, compare updates, run the DCMA checks, print), and the scheduler after. The measured speed claim is in [docs/MEASURING.md](MEASURING.md), the comparison with other charts in [docs/research/2026-11-13-gantt-comparison.md](research/2026-11-13-gantt-comparison.md), and each user journey has a chapter in the [book](../book/src/index.md).
+
+## Gates
+
+The gates to run before a push are the steps of `.github/workflows/pr.yml`; a pull request runs the same steps.
+
+Check 13 (`the_old_name_stays_out_of_the_repository` in `crates/app/tests/architecture/name.rs`) also keeps the product's name in a few files. A tracked file, or a tracked path, may name the product, in any case, only if it is in `BRAND_FILES` (the README, `apps/site/`, `book/`, `docs/PRODUCT.md`, `docs/decisions/` and five files of `packages/gantt/`) or is under `examples/`; every other line that names it is one failure. That includes scripts, tests, fixtures, the other docs and this guide. A script or test that needs the name reads `PRODUCT_NAME` from `packages/gantt/src/product.ts`, or uses a neutral name. Do not add a file to `BRAND_FILES` to pass the check: the list only shrinks (decision 0013 in `docs/decisions/`).
+
+A pull request with a user-visible change adds its line to the newest entry of `CHANGELOG.md`: what a developer must change, or what is new.
+
+## Checking the install prompt
+
+The README's first-screen prompt is tested on a real assistant by hand, never in CI, because each run spends quota. After `bash scripts/build-web.sh --no-bundle` at the repo root, then `pnpm install --frozen-lockfile` and `pnpm build:lib` in `packages/gantt/` (the check reads `packages/gantt/dist-lib/` and names these steps when it is missing), run `node scripts/agent-install-check.ts claude` (capped at 1 USD) or `node scripts/agent-install-check.ts codex` (capped at 600 s), once per assistant. It copies the test app (`scripts/fixtures/agent-install/app/`) to a temp folder with a git history on `main` and a `pre-push` hook, serves the packed, unreleased package from a local registry (`scripts/lib/local-registry.ts`), runs the prompt, and prints one line for each check (`scripts/lib/agent-install-check.ts`). It writes the results to `results.json` in the kept folder, or to the file named by `--json`. `--record <dir>` also keeps, for the install video, the assistant's stream, the page screenshot, the timings and a story file for `scripts/narrate.ts` (`scripts/lib/agent-install-record.ts`); record both assistants into the same folder, and a story says the install works the same in others only when the other assistant's run passed. Exit 0: every check passed. Exit 1: a check failed. Exit 2: the run could not happen (no assistant binary, no browser, no network, no build). The unit tests, `packages/gantt/tests-node/agent-install-run.test.ts`, use stub assistants.
+
+## Releasing
+
+`main` is staging: every push to it deploys to the Pages preview at `main.gantt-book.pages.dev`. `release` is production (the hosted site): a push to it deploys with the Pages production branch. `release` moves only by a fast-forward to a green `main`, so what testers open is a `main` commit whose checks passed.
+
+The product page (`apps/site`, without `launch.html`, with the built package copied beside it as `package/`: its hero chart mounts from it) is a separate Pages project, `gantt-product-page`. A push to `main` deploys it to the private preview at `main.gantt-product-page.pages.dev`; a PR does not. A push to `release` publishes it to the `public-site` project (the product's own domain) only while the repository variable `SITE_LIVE` is `true` and `scripts/site-claims.ts` finds no claim left in the pages. The features page (`apps/site/features.html`) links each feature to a heading of the package README or a chapter of the book; `node scripts/features-links.ts apps/site/features.html` fails when a link names a section that does not exist, and runs in the `select` job of `ci.yml` and the `docs` job of `pr.yml`.
+
+To see the page with its live chart, build the package (`pnpm build:lib` in `packages/gantt/`), then `cp -r apps/site /tmp/site && cp -r packages/gantt/dist-lib /tmp/site/package` and serve `/tmp/site` with any static server that sends `.wasm` as `application/wasm` (`python3 -m http.server` does). Opened as a file, the page shows its screenshot instead.
+
+## The book
+
+One chapter of the [book](../book/src/index.md) per user journey. The book is built in CI by `mdbook build book` and hosted as the guide (the link in the README); the chapters are also readable here.
+
+To build the book yourself, install [mdBook](https://rust-lang.github.io/mdBook/) 0.5 and run `mdbook build book`; it writes `book/book/`, which git ignores. A PR that adds a user-visible feature adds its chapter section in the same diff.
+
+## The screencast
+
+The screencast at the top of the README is recorded by `demos/screencast/run.sh` ([DEMOS.md](DEMOS.md), "Recording the screencast"). A PR that adds a user-visible feature adds its step to `demos/screencast/steps-features.mjs` in the same diff, and the wrap of a sprint that merged one re-runs the script and commits the new media.
+
+## License
+
+The project is open source under the MIT license: `LICENSE` holds the text, Copyright (c) 2026 Inner Stack Labs LLC.
+
+**Using it.** Use, copy, modify and embed it in any product, free of charge, under the MIT terms.
+
+**Format readers.** The P6 XER reader (`crates/xer`) is its own crate, with no dependency on the engine, so other tools can use it alone ([decision 0004](decisions/0004-format-crates-licensed-separately.md)).
+
+**Contributing.** Open a pull request. A contribution comes under the same MIT license as the rest of the project; there is no contributor agreement to sign.

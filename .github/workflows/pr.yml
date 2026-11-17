@@ -1,0 +1,126 @@
+name: pull request
+
+# The checks for a pull request from outside (a fork). They run on GitHub-hosted runners and read no secret: a fork's run gets none, and none is
+# named here. Our own branches run ci.yml on push in the private repository, so there this file runs only for a fork, never twice for one change.
+# A repository with another name (the public one) has no ci.yml, so every pull request runs here.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+  WEB_ROOT: packages/gantt
+
+jobs:
+  # The Rust workspace: format, lints, every crate's tests, the doc tests, the documentation build and the advisories.
+  rust:
+    if: ${{ github.event.pull_request.head.repo.fork || github.repository != 'innerstacklabs/tachlon' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: false
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest@0.9.150
+      - run: cargo nextest run --profile ci
+      - run: cargo test --doc
+      - name: doc
+        run: cargo doc --no-deps
+      # Fails on any RustSec advisory not accepted, with a reason, in deny.toml.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+      - name: deny (advisories)
+        run: cargo deny check advisories
+
+  # The chart: the wasm build, the package build, type check, the page-free tests, the smoke specs in Chromium and the library pack check. The other
+  # browser specs are not here: they need the machine setup of ci.yml.
+  web:
+    if: ${{ github.event.pull_request.head.repo.fork || github.repository != 'innerstacklabs/tachlon' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: false
+      # Must match the wasm-bindgen version in Cargo.lock (build-web.sh checks).
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ env.WEB_ROOT }}/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          check-latest: true
+          cache: pnpm
+          cache-dependency-path: ${{ env.WEB_ROOT }}/pnpm-lock.yaml
+      - run: bash scripts/build-web.sh --no-bundle
+      - run: pnpm install --frozen-lockfile
+        working-directory: ${{ env.WEB_ROOT }}
+      - run: pnpm build
+        working-directory: ${{ env.WEB_ROOT }}
+      - run: pnpm typecheck
+        working-directory: ${{ env.WEB_ROOT }}
+      - run: node --test tests-node/*.test.ts
+        working-directory: ${{ env.WEB_ROOT }}
+      # The smoke set: the specs tagged @smoke, one per journey that works today, in headless Chromium (webServer in playwright.config.ts starts `pnpm preview`).
+      - run: pnpm exec playwright install --with-deps chromium
+        working-directory: ${{ env.WEB_ROOT }}
+      - run: pnpm exec playwright test --grep @smoke --workers 2
+        working-directory: ${{ env.WEB_ROOT }}
+      - name: library build and pack check
+        working-directory: ${{ env.WEB_ROOT }}
+        run: |
+          pnpm build:lib
+          staged=$(mktemp -d)
+          node "$GITHUB_WORKSPACE/scripts/stage-package.ts" . "$staged"
+          node "$GITHUB_WORKSPACE/scripts/pack-check.ts" "$staged" --published
+
+  # A tree scan for credential shapes: a pull request that adds a key fails here, with the path and rule and never the value.
+  secrets:
+    if: ${{ github.event.pull_request.head.repo.fork || github.repository != 'innerstacklabs/tachlon' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, check-latest: true}
+      - run: node scripts/test-public-release.ts
+      - run: node scripts/test-public-history.ts
+      - run: node scripts/public-release.ts scan
+
+  # The features table matches docs/features.md, and every doc link on the features page names a section that exists.
+  docs:
+    if: ${{ github.event.pull_request.head.repo.fork || github.repository != 'innerstacklabs/gantt' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, check-latest: true}
+      - run: node scripts/test-features-matrix.ts
+      - run: node scripts/features-matrix.ts --check
+      - run: node scripts/test-features-links.ts
+      - run: node scripts/features-links.ts apps/site/features.html

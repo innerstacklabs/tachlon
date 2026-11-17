@@ -1,0 +1,368 @@
+.gantt [data-part=toolbar] {
+  grid-area: 1 / 1 / 2 / -1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: var(--gantt-toolbar-h, 36px);
+  box-sizing: border-box;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--gantt-rule);
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  font-family: var(--gantt-font);
+  font-size: 12px;
+  white-space: nowrap;
+}
+/* The menu keeps the strip to one line down to about 900 px of chart width (the shrinking items at their floors). Below that the strip
+   wraps, which is the fallback and not the design: a wrap on the main rule would break the line before the file name and the find box had
+   shrunk. The width is the chart's own (the root is the container), not the window's: a chart embedded in a narrow box wraps in a wide window. */
+@container (max-width: 900px) {
+  .gantt [data-part=toolbar] {
+    flex-wrap: wrap;
+    row-gap: 4px;
+    height: auto;
+    min-height: var(--gantt-toolbar-h, 36px);
+    padding: 2px 10px;
+  }
+}
+.gantt [data-part=toolbar] .tb-brand {
+  font-weight: 700;
+  letter-spacing: 0;
+}
+/* A group is a run of related controls. An empty group takes no room, so a later PR adds its controls to one with no CSS. */
+.gantt [data-part=toolbar] .tb-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-inline-start: 6px;
+  border-inline-start: 1px solid var(--gantt-rule);
+}
+.gantt [data-part=toolbar] .tb-group:empty,
+.gantt [data-part=toolbar] .tb-group[hidden] {
+  display: none;
+}
+/* A group with no visible button (the Baseline group of a chart mounted without the app's chrome, with no baseline) takes no room either. */
+.gantt [data-part=toolbar] > .tb-group:not(:has(button:not([hidden]))) {
+  display: none;
+}
+/* The strip's slots for the app's chrome (`apps/chrome`) have no box of their own: what the chrome puts into one sits in the strip, or in its group, as if written there. */
+.gantt [data-part=toolbar] :is([data-part=baseline-tools], [data-part=row-tools], [data-part=zoom-tools], [data-part=readouts], [data-part=file-tools], [data-part=file-notice], [data-part=keys-tools]) {
+  display: contents;
+}
+.gantt [data-part=file-dialogs] {
+  display: contents;
+}
+.gantt [data-part=toolbar] .tb-label {
+  margin-inline-end: 2px;
+  color: var(--gantt-muted);
+}
+.gantt [data-part=toolbar] .tb-spacer {
+  flex: 1;
+}
+.gantt [data-part=toolbar] button {
+  height: 22px;
+  box-sizing: border-box;
+  /* 3px each side, not 5: a file that opens with a baseline shows Add new, Clear baseline and Variance as well, and the strip must hold them at 1280 px (gs#703). */
+  padding: 0 3px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 3px;
+  background: var(--gantt-bg);
+  color: var(--gantt-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  /* A button never shrinks; the file group and the find box give way first. */
+  flex: none;
+}
+/* The Filters and Columns menus: a button in the strip and a panel under it, one item to a line. */
+.gantt [data-part=toolbar] .tb-menu {
+  position: relative;
+  padding-inline-start: 6px;
+  border-inline-start: 1px solid var(--gantt-rule);
+}
+.gantt [data-part=toolbar] [data-part=filters-button][data-on="true"] {
+  background: var(--gantt-sel);
+  color: var(--gantt-sel-edge);
+}
+.gantt [data-part=toolbar] :is([data-part=filters-panel], [data-part=columns-panel]) {
+  position: absolute;
+  top: calc(100% + 6px);
+  inset-inline-start: 0;
+  /* Over the alert lines (6 and 7), so an open panel is never covered by one; the toolbar has no stacking context of its own, so the import notice (5) stays over the strip. */
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 4px;
+  background: var(--gantt-surface);
+}
+.gantt [data-part=toolbar] :is([data-part=filters-panel], [data-part=columns-panel])[hidden] {
+  display: none;
+}
+.gantt [data-part=toolbar] [data-part=filters-panel] .tb-hint {
+  margin: 0;
+  color: var(--gantt-muted);
+  font-size: 11px;
+}
+.gantt [data-part=toolbar] [data-part=filters-panel] .tb-group {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
+.gantt [data-part=toolbar] button:disabled {
+  color: var(--gantt-muted);
+  cursor: default;
+}
+.gantt [data-part=toolbar] button:hover {
+  background: var(--gantt-hov);
+}
+.gantt [data-part=toolbar] button[aria-pressed="true"] {
+  background: var(--gantt-sel);
+  color: var(--gantt-sel-edge);
+}
+/* The window's date and length show while the window is on, so the strip stays as wide as it was when it is off. */
+.gantt [data-part=toolbar] .tb-inline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.gantt [data-part=toolbar] .tb-inline[hidden] {
+  display: none;
+}
+.gantt [data-part=toolbar] .tb-input {
+  height: 22px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 3px;
+  background: var(--gantt-bg);
+  color: var(--gantt-text);
+  font: inherit;
+  font-size: 11px;
+}
+/* The weeks box is a plain number field: no spinner, so it stays 4 digits wide. */
+.gantt [data-part=toolbar] .tb-weeks {
+  width: 4ch;
+  appearance: textfield;
+}
+.gantt [data-part=toolbar] .tb-weeks::-webkit-inner-spin-button,
+.gantt [data-part=toolbar] .tb-weeks::-webkit-outer-spin-button {
+  appearance: none;
+  margin: 0;
+}
+.gantt [data-part=toolbar] .tb-input[aria-invalid="true"] {
+  border-color: var(--gantt-warn);
+}
+/* The activity code choices (type, then value) are each as wide as the text they hold, up to 16ch, so a code such as "Handover" reads whole.
+   A longer one is cut with an ellipsis (the open list shows it whole). The group is not shown for a file without codes. */
+.gantt [data-part=toolbar] [data-part=code-filter] select.tb-input {
+  width: auto;
+  max-width: 16ch;
+  padding: 0 2px;
+  text-overflow: ellipsis;
+}
+.gantt [data-part=toolbar] [data-part=code-filter] select.tb-input[hidden] {
+  display: none;
+}
+.gantt [data-part=toolbar] button:focus-visible,
+.gantt [data-part=toolbar] input:focus-visible,
+.gantt [data-part=toolbar] select:focus-visible {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: -2px;
+}
+/* The file group shrinks before the other groups do: a long file name is cut, and the full text is its tooltip. */
+.gantt [data-part=toolbar] [data-part=toolbar-file] {
+  min-width: 0;
+}
+/* One short line fits the strip: the file's name, format and task count, cut with an ellipsis when it is long. */
+.gantt [data-part=open-info] {
+  display: flex;
+  min-width: 0;
+  max-width: 38ch;
+  color: var(--gantt-muted);
+  font-size: 11px;
+  line-height: 14px;
+}
+.gantt [data-part=open-file] {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The unsaved mark (gs#703): an 8 px dot beside the file name. */
+.gantt [data-part=unsaved-mark] {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gantt-sel-edge);
+}
+.gantt [data-part=unsaved-mark][hidden] {
+  display: none;
+}
+/* Windows forced colors replaces every background, so the toolbar's tinted "on" buttons and the unsaved dot look like their idle selves. Here the
+   state is a border: a pressed button, Filters with a filter on and Columns while its panel is open get 2 px in Highlight (padding 2 px, so the
+   strip keeps its width; the Columns icon has a fixed width), and the dot becomes a ring wide enough to read as a filled disc. System colors only. */
+@media (forced-colors: active) {
+  .gantt [data-part=toolbar] :is(button[aria-pressed="true"], [data-part=filters-button][data-on="true"], [data-part=columns-button][aria-expanded="true"]) {
+    border: 2px solid Highlight;
+  }
+  .gantt [data-part=toolbar] :is(button[aria-pressed="true"], [data-part=filters-button][data-on="true"]) {
+    padding: 0 2px;
+  }
+  .gantt [data-part=unsaved-mark] {
+    box-sizing: border-box;
+    border: 4px solid CanvasText;
+  }
+}
+/* A file is over the chart: a dashed outline on the root says it will be opened. */
+.gantt[data-dropping="true"] {
+  outline: 2px dashed var(--gantt-sel-edge);
+  outline-offset: -4px;
+}
+/* The same drag also says what a release does, centred over the chart and over the panels (8). */
+.gantt[data-dropping="true"]::after {
+  content: "Drop to open";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  z-index: 9;
+  transform: translate(-50%, -50%);
+  padding: 8px 16px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 4px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  font: 600 16px var(--gantt-font);
+  pointer-events: none;
+}
+/* The line that says why a file did not open, or a refused edit, until it is dismissed or the next open starts: a flex item of the toolbar after the
+   spacer, so it covers no button and no column header and the chart never moves (gs#1055). At most 420px, then an ellipsis; the spacer and the counts
+   give way to it. Red is a failure; data-kind="info" is a hint: the toolbar's surface, the text colour and a sel-edge bar at its start. */
+.gantt [data-part=open-error],
+.gantt [data-part=edit-error] {
+  flex: 0 1 420px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 3px;
+  background: var(--gantt-warn);
+  color: var(--gantt-bar-text);
+  font-family: var(--gantt-font);
+  font-size: 12px;
+  line-height: 16px;
+}
+.gantt [data-part=open-error][data-kind="info"],
+.gantt [data-part=edit-error][data-kind="info"] {
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  box-shadow: inset 0 0 0 1px var(--gantt-rule), inset 3px 0 0 var(--gantt-sel-edge);
+}
+.gantt [data-part=toolbar]:has([data-part=open-error]:not([hidden]), [data-part=edit-error]:not([hidden])) :is(.tb-spacer, [data-part=row-count], [data-part=selection-count]) {
+  display: none;
+}
+.gantt [data-part=open-error][hidden], .gantt [data-part=edit-error][hidden] { display: none; }
+/* A frame that threw (frame-guard.ts): at the bottom of the chart's row, over the last good frame, which stays drawn. */
+.gantt [data-part=frame-error] {
+  grid-area: 2 / 1 / 3 / -1;
+  align-self: end;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--gantt-warn);
+  color: var(--gantt-bar-text);
+  font-family: var(--gantt-font);
+  font-size: 12px;
+  line-height: 16px;
+}
+.gantt [data-part=frame-error][hidden] {
+  display: none;
+}
+.gantt [data-part=frame-error-text] {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.gantt [data-part=frame-error] button {
+  flex: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.gantt [data-part=frame-error] button[hidden] {
+  display: none;
+}
+.gantt [data-part=frame-error] button:focus-visible {
+  outline: 2px solid currentColor;
+}
+.gantt [data-part=open-error-text],
+.gantt [data-part=edit-error-text] {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gantt [data-part=toolbar] [data-part=open-error][data-kind="info"] button:focus-visible,
+.gantt [data-part=toolbar] [data-part=edit-error][data-kind="info"] button:focus-visible {
+  outline-color: var(--gantt-sel-edge);
+}
+.gantt [data-part=toolbar] [data-part=open-error] button,
+.gantt [data-part=toolbar] [data-part=edit-error] button {
+  flex: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.gantt [data-part=toolbar] [data-part=open-error] button:focus-visible,
+.gantt [data-part=toolbar] [data-part=edit-error] button:focus-visible {
+  outline: 2px solid var(--gantt-bar-text);
+  outline-offset: 1px;
+}
+/* One line of live numbers, shown and hidden by a key (main.ts). A fixed height, so showing it never moves the rows. */
+.gantt [data-part=status-line] {
+  grid-area: 3 / 1 / 4 / -1;
+  height: var(--gantt-status-h, 22px);
+  box-sizing: border-box;
+  padding: 0 10px;
+  overflow: hidden;
+  border-top: 1px solid var(--gantt-rule);
+  background: var(--gantt-surface);
+  color: var(--gantt-muted);
+  font-family: var(--gantt-font);
+  font-size: 11px;
+  line-height: calc(var(--gantt-status-h, 22px) - 1px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.gantt [data-part=status-line][hidden] {
+  display: none;
+}
+/* The import notes notice sits in the file group, after the file line: one button that keeps its whole label, so the long file line gives up the room (its full text is its tooltip). A file with no notes shows nothing. */
+.gantt [data-part=toolbar] [data-part=import-notes][hidden] {
+  display: none;
+}
+.gantt [data-part=toolbar] [data-part=import-notes][aria-expanded="true"] {
+  background: var(--gantt-sel);
+  color: var(--gantt-sel-edge);
+}
+/* The toolbar is the container the narrow-strip rule at the top of this file queries. The Slipped, Lookahead and code controls sit in the Filters panel,
+   which hangs over the chart and takes no room in the strip, so showing them changes nothing here. */
+.gantt [data-part=toolbar] {
+  container: gantt-toolbar / inline-size;
+}
+/* Progress and the variance columns together (gs#703): the variance tracks must not push the chart under half of the box. The pane keeps its normal
+   width (and the ID column's), so Task gives way inside it (--progress-task reads the pane's width) and the variance columns scroll with the rest. */
+.gantt.gantt:has([data-part=table][data-progress="true"][data-variance="true"]) {
+  grid-template-columns: calc(var(--gantt-table-w, clamp(420px, 40%, 800px)) + var(--gantt-ids-w, 0px)) minmax(0, 1fr);
+}

@@ -1,0 +1,57 @@
+# The commit pipeline: commit, gate, outbox, saves and host undo
+
+Status: accepted. Decided by karpathy, 2026-11-16 (gantt#2110; devteam-1 answer 1499 accepts the architecture review of the host API, gantt#2076 comment 6938711824, section 4). A line marked `Decided here:` is the drafter's choice where the review left one open; it stands until karpathy overrules it.
+
+## Context
+
+Five host features need to know about every edit: the change log (gantt#2077), the before-edit function and read-only (gantt#2085), the capability profile (gantt#2090), ordered saves (gantt#2091) and one undo history (gantt#2092). Checked at `origin/main` `6b05b07f`, by file and symbol:
+
+- There is one edit core, `Session::run` (in `crates/app/src/edit.rs`), which returns the inverse. It is the wrong place for host work: a bar drag calls it on every frame (`constrain` in `crates/app/src/press.rs`, `resize_frame` in `press/resize.rs`, and the put-back in `restore` in `press/before.rs`), and the dialog and paste groups call it and roll back with it (`set_task_fields` in `edit/fields.rs`; `insert_many` in `insert_many.rs`).
+- Every committed change does one of six things, all in `crates/app/src/history.rs`: `edit` pushes (inside `edit_inverse`), `edit_group` pushes, `record_group` pushes, `commit_drag` pushes, `undo` replays and `redo` replays. No other file writes the history (`git grep 'history\.(undo|redo|push)'` finds only `history.rs`). An accepted proposal goes through `edit_group` (`accept_proposal` and `accept_one` in `crates/app/src/proposal.rs`).
+- The edit log merged in PR #2104 is attached elsewhere: `edit_typed` (in `crates/app/src/edit_log.rs`) beside `edit`, called from seven typed entry points (`set_finish_text` in `edit/finish.rs`, `set_percent_text` in `edit/percent.rs`, `set_progress_text` and `set_progress_field_text` in `edit/progress.rs`, `set_start_text` in `edit/start.rs`, `set_duration` and `rename_task` in `web/commands.rs`), with `log_typed` called by the dialog (`set_task_fields` in `edit/fields.rs`). `log_typed` covers four edit kinds and returns nothing for the rest. Undo, redo, drag, links, limits, insert, delete, reparent and paste log nothing, so a host that saves from the log is wrong after the first undo.
+- The log drops its oldest change past 1,000 with no signal (`EDIT_LOG_CAP` in `edit_log.rs`). The history drops its oldest step past 200 (`HISTORY_CAP` in `history.rs`).
+- Events are made in TypeScript by comparing the status string each frame (`watch` in `packages/gantt/src/events.ts`, called once per frame from `loop.ts`), so they fire after the fact and a before-edit function cannot use them.
+- A held change with accept and reject exists (`Proposal`, `accept_proposal` and `reject_proposal` in `proposal.rs`).
+
+## Decision
+
+1. **A commit is one history entry.** One function, `Session::commit(entry, source)`, replaces the four `history.push` calls (in `edit_inverse`, `edit_group`, `record_group` and `commit_drag`) and wraps the two replays (`undo` and `redo`). An architecture test refuses any other call to `History::push` or write to the two stacks. Each commit gets `seq`, a session counter that starts at 1, rises by one for every commit (undo, redo and rollback included) and is never reused, and a `source`: `typed`, `drag`, `dialog`, `paste`, `proposal`, `assistant`, `host`, `undo`, `redo` or `rollback`.
+2. **Changes come from the commit, not the caller.** `commit` builds the per-record changes by comparing each edit with its inverse, the method of `log_typed`, for every variant of the `Edit` enum and for a data-date entry. Callers pass only the source. `edit_typed` and the `source` field on a change go away.
+3. **One gate in front: `Session::gate(edit, source)`.** It runs once per person's action, before anything changes:
+   - at the top of `Session::edit` and `Session::edit_group` (`history.rs`);
+   - at the top of the two group runners, before their first `run` (`set_task_fields` in `edit/fields.rs`, `insert_many`);
+   - when a press first passes the drag threshold (`pointer_move` in `press.rs`), and when a link drag begins (`pointer_down`). `Decided here:` the threshold and not the press itself, so that a click that selects a row on a read-only chart is not refused;
+   - at the top of `Session::undo` and `Session::redo`.
+4. **Where the gate must not run.** Not in `Session::run` or `Session::apply` (`edit.rs`), so never per drag frame; not in a rollback inside a group (`run_group` in `history.rs`, `set_task_fields`, `insert_many`); not in `update(records)`, `assignKey` or `rollbackTo`. `Decided here:` `rollbackTo` skips the gate because the host asked for it, and a host that just lost its lock has usually made the chart read-only.
+5. **The gate checks in this order and stops at the first refusal:** (a) read-only; (b) the capability profile (decision 0018, gantt#2090), including permission per field group; (c) the host's before-edit function. The cheap checks come first and host code runs last. A refusal carries a reason and is shown by the existing refusal path (`refusal` in `crates/app/src/web/host/mod.rs`). The gate is a veto, not a notice: an edit it allows can still be refused by the engine, and only the outbox says what happened.
+6. **The before-edit function is one synchronous function** handed to the session by the web binding, so no JavaScript call site changes. Its payload is `{ source, changes }` in the shape of rule 7, built from the planned edit and the current values. `Decided here:` at the start of a drag the new value is not known, so the change names the record and the field (`snet` or `duration`) with no `new`. Approval that takes time uses the held change: the host refuses in the function and proposes.
+7. **The outbox is a list of commits in the vocabulary of decision 0017.** One entry:
+
+   ```json
+   { "seq": 41, "source": "drag", "changes": [
+     { "record": "task", "op": "update", "key": "a1f3", "task": 12,
+       "field": "snet", "old": null, "new": "2026-03-04T08:00" } ] }
+   ```
+
+   - `record` is `"task"`, `"link"`, `"calendar"` or `"schedule"`. `key` is the host key or `null`, never the code. `task` (or `link`, for a link) is the session slot, session-only (decision 0016). A `"schedule"` change has neither.
+   - `op` is `"update"`, `"create"` or `"delete"`. `Decided here:` the review's shape had no `record` and no `op`; both are added because links, inserts and deletes are commits too.
+   - An update has `field`, `old` and `new`: one change per field that changed, a field name and values from decision 0017, `null` for none. A reparent or a move in the outline is an update of `parent` and of `after` (the sibling above, or `null`).
+   - A create has `fields`: the whole record as the snapshot writes it, with `parent` and `after` for a task and `from` and `to` for a link. A delete has neither. Undo of a delete is a create with the key the record had; undo of an insert is a delete.
+   - Inside a change, a reference to another task (`parent`, `after`, `from`, `to`) is that task's key. `Decided here:` when the task has no key yet, it is `{ "task": slot }`, an object, so it cannot be mistaken for a key.
+8. **The `edit` event carries commits.** It still fires once per revision change for every edit (A devteam-1-1490 item 2) and is `{ revision, commits }`, so a host makes one save per undo step. The drain runs when the revision changes and at a bar's release, and not while the bar is held (the event then carries `commits: []`; the release fires an `edit` with the drag's one commit, even when its revision is the one the last frame had, since a release can leave it there). The event also carries `seq` and `snapshot` from the same read, and the first `edit` after the switch to WebGL2 carries `snapshot: true`, since that start has a new outbox. `select` and `move` carry the task's `key`, and `move` its start as `YYYY-MM-DDTHH:mm`.
+9. **The outbox never drops silently.** It holds at most `OUTBOX_CAP` commits. `Decided here:` 1,000 commits, the number of `EDIT_LOG_CAP`. `Decided here:` a commit that would pass the cap empties the outbox and sets a flag; commits are then not kept until the next drain, which returns `{ "commits": [], "snapshot": true, "seq": n }` with the latest `seq` and clears the flag. The host takes `snapshot()` and saves that. No commit is ever dropped without this signal.
+10. **Ordered saves (gantt#2091) are a TypeScript queue keyed by `seq`,** with one save in flight. On success it calls `acknowledge(seq)`; for a created record it first calls `assignKey` (decision 0016) and replaces `{ "task": slot }` with the new key in every commit still queued. On failure it drops the commits queued behind and calls `rollbackTo(seq)`.
+11. **`rollbackTo(seq)` puts the session back to the state before that commit.** `Decided here:` the session keeps a journal of `(seq, kind)` for each commit not yet acknowledged, and walks it newest first down to `seq`: a normal commit is undone and its redo entry discarded, an undo commit is redone, a redo commit is undone. Commits are last in, first out on the two stacks, so each step finds its entry on top. The walk is reported as one commit with source `rollback`, which the queue does not save. When the journal or the history no longer holds `seq` (the history keeps `HISTORY_CAP` = 200 steps), `rollbackTo` refuses and the event sets `snapshot: true`: the host reloads its own copy.
+12. **One undo history (gantt#2092).** A keyed programmatic edit is a normal commit with source `host`. A host-only action is an opaque entry on the same stack; undoing it raises an event the host acts on. `clearHistory()` empties both stacks and the journal.
+13. **`update(records)` (gantt#2087) is not an edit.** It applies inputs by key, recomputes once, and skips the gate, the history and the outbox.
+
+## Consequences
+
+- PR #2104 stands as a first slice; the next row moves the log to the commit point in `history.rs` and deletes the per-entry-point calls. tl2077lb and tl2077lc are that one row. It is written as tl2077cp, tl2077cq and tl2077cr.
+- `Session::edit` logs nothing today by design of PR #2104; after rule 1 every path logs, and that row's test asserts it for undo, redo, drag, paste, an accepted proposal, a link, a limit, an insert, a delete and a reparent (`every_edit_path_is_one_commit_with_its_source_and_a_change` in `crates/app/tests/commits_outline.rs`).
+- Speed: the gate and the outbox are outside `run`, so a drag frame pays nothing. The PR that adds the before-edit function records the drag frame time at 50,000 tasks with the function and the outbox on (the review's section 6).
+- A save slower than 200 commits cannot be rolled back; the host reloads (rule 11). This is stated in the host docs.
+
+## Rows this governs
+
+gantt#2077 (tl2077lb with tl2077lc: rules 1, 2, 7 and 9; tl2077ev: rule 8), gantt#2085 and gantt#2090 (rules 3 to 6), gantt#2091 (rules 10 and 11), gantt#2092 (rule 12), gantt#2087 (rule 13), gantt#2082 (`assignKey`, with decision 0016).

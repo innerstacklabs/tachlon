@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tachlon: blazingly fast Gantt chart</title>
+<meta name="description" content="Tachlon is the Gantt chart for your product: a Rust engine compiled to WebAssembly and a GPU renderer in one npm package, built and measured at 50,000 tasks.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0e1630">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tachlon">
+<meta property="og:title" content="Tachlon: blazingly fast Gantt chart">
+<meta property="og:description" content="Tachlon is the Gantt chart for your product: a Rust engine compiled to WebAssembly and a GPU renderer in one npm package, built and measured at 50,000 tasks.">
+<meta property="og:url" content="https://tachlon.com/">
+<meta property="og:image" content="https://tachlon.com/shots/hero-light.webp">
+<meta property="og:image:width" content="2880">
+<meta property="og:image:height" content="1800">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://tachlon.com/">
+<link rel="stylesheet" href="package/gantt.css">
+<link rel="stylesheet" href="home.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="streak" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="9" y2="0">
+      <stop offset="0" stop-color="#1f5eff" stop-opacity="0"/>
+      <stop offset="1" stop-color="#1f5eff" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="streak-navy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="9" y2="0"><stop offset="0" stop-color="#5aa9ff" stop-opacity="0"/><stop offset="1" stop-color="#5aa9ff" stop-opacity="0.9"/></linearGradient>
+  </defs>
+  <!-- The mark on white is the page's accent blue (5.1:1); the one on the navy footer keeps the light blue. -->
+  <symbol id="mark" viewBox="0 0 32 32">
+    <g transform="translate(16 16) skewX(-14) translate(-16 -16)">
+      <path d="M11 5h20v5.5H11z M31 10.5v5l-5-5z M17 10.5h5V29h-5z" fill="#1f5eff"/>
+      <path d="M0 5h9v2H0z M2 8.5h7v2H2z" fill="url(#streak)"/>
+    </g>
+  </symbol>
+  <symbol id="mark-navy" viewBox="0 0 32 32">
+    <g transform="translate(16 16) skewX(-14) translate(-16 -16)">
+      <path d="M11 5h20v5.5H11z M31 10.5v5l-5-5z M17 10.5h5V29h-5z" fill="#5aa9ff"/>
+      <path d="M0 5h9v2H0z M2 8.5h7v2H2z" fill="url(#streak-navy)"/>
+    </g>
+  </symbol>
+</svg>
+
+<header class="nav" id="nav">
+  <div class="wrap">
+    <a class="logo" href="#top"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg>tachlon</a>
+    <nav class="nav-links" aria-label="Site">
+      <details>
+        <summary>Product</summary>
+        <div class="menu"> <a href="#speed">Fast at scale<small>50,000 tasks, measured in seconds</small></a> <a href="#engine">The engine<small>Rust, WebAssembly and the GPU</small></a> <a href="#files">P6 and MS Project files</a> <a href="#moved">See what moved</a> <a href="#critical">Critical path and scheduling</a> <a href="#themes">Themes and brand tokens</a> <a href="#benchmark">Benchmark</a> </div>
+      </details>
+      <details>
+        <summary>Developers</summary>
+        <div class="menu"> <a href="https://www.npmjs.com/package/tachlon">Docs<small>The README on npm: install and usage</small></a> <a href="#examples">Examples</a> <a href="#ai">AI integration<small>The prompt, AGENTS.md and llms.txt</small></a> <a href="how-it-works.html">How it works</a> </div>
+      </details>
+      <a href="features.html">Features</a>
+      <a href="#contact">Contact</a>
+    </nav>
+    <a class="btn primary small nav-cta" href="#ai">Try it</a>
+    <button class="nav-toggle" type="button" aria-label="Menu" aria-expanded="false" aria-controls="nav"><span></span></button>
+  </div>
+</header>
+
+<main id="top">
+  <div class="hero">
+    <div class="wrap hero-top">
+      <div>
+        <p class="eyebrow">Tachlon Gantt</p>
+        <h1>Blazingly fast Gantt chart</h1>
+        <p class="lede">Tachlon is the Gantt chart for your product: a <strong>Rust</strong> engine compiled to <strong>WebAssembly</strong> and a <strong>GPU</strong> renderer in one npm package, built and measured at 50,000 tasks.</p>
+        <div class="actions">
+          <a class="btn primary" href="#ai">Try it</a>
+          <a class="btn dark" href="https://app.tachlon.com/?sample=demo-50k">Open the 50,000-task demo</a>
+        </div>
+      </div>
+      <ol class="pipeline" aria-label="From your data to the screen"> <li><span class="ico data" aria-hidden="true">{ }</span><div><strong>Your data</strong><span>JSON from your API, or a P6 XER or Microsoft Project XML file</span></div></li> <li><span class="ico rust" aria-hidden="true">Rs</span><div><strong>Rust, as WebAssembly</strong><span>Computes every date and lays out the chart</span></div></li> <li><span class="ico gpu" aria-hidden="true">GPU</span><div><strong>The GPU</strong><span>WebGPU, or WebGL2 where a browser lacks it, draws each frame</span></div></li> </ol>
+    </div>
+
+    <div class="wrap demo" id="demo">
+      <div class="demo-frame">
+        <div class="demo-bar" role="toolbar" aria-label="Live chart controls">
+          <span class="group"><span class="label">Schedule</span>
+            <span class="seg">
+              <button class="tool" type="button" data-load="fitout" aria-pressed="true">Office fit-out</button>
+              <button class="tool" type="button" data-load="300" aria-pressed="false">300 tasks</button>
+              <button class="tool" type="button" data-load="50000" aria-pressed="false">Load 50,000 tasks</button>
+            </span>
+          </span>
+          <span class="group optional">
+            <button class="tool" type="button" data-cmd="undo" title="Undo">Undo</button>
+            <button class="tool" type="button" data-cmd="redo" title="Redo">Redo</button>
+          </span>
+          <span class="group optional"><span class="label">Level</span>
+            <button class="tool" type="button" data-level="1">1</button>
+            <button class="tool" type="button" data-level="2">2</button>
+            <button class="tool" type="button" data-cmd="expandAll">All</button>
+          </span>
+          <span class="group">
+            <button class="tool" type="button" data-cmd="zoomOut" aria-label="Zoom out">&minus;</button>
+            <button class="tool" type="button" data-cmd="zoomIn" aria-label="Zoom in">+</button>
+            <button class="tool" type="button" data-cmd="fit">Fit</button>
+          </span>
+          <span class="group">
+            <button class="tool" type="button" id="crit" aria-pressed="false">Critical path</button>
+            <button class="tool optional" type="button" id="theme" aria-pressed="false">Dark</button>
+          </span>
+          <span class="demo-status" id="demo-status" role="status">Loading the chart…</span>
+        </div>
+        <div class="demo-stage" id="demo-stage">
+          <picture>
+            <source media="(max-width: 700px)" srcset="shots/hero-phone.webp" width="1480" height="1800">
+            <img class="fallback" src="shots/hero-fitout.webp" width="2880" height="1720" alt="Tachlon showing an office fit-out schedule: a task table with percent complete and actual dates beside the Gantt chart, the critical path in red and the data date line.">
+          </picture>
+        </div>
+        <p class="demo-note" id="demo-note">This is the real chart, mounted on this page with <code>mount()</code> from the npm package. Scroll it, zoom it, drag a bar, then load 50,000 tasks.</p>
+      </div>
+    </div>
+
+    <div class="stack" aria-label="Works with any JavaScript stack">
+      <div class="wrap">
+        <span class="lead">Works with any JavaScript stack</span>
+        <span class="chip"><i class="js">JS</i>JavaScript</span>
+        <span class="chip"><i class="ts">TS</i>TypeScript types <small>included</small></span>
+        <span class="chip"><i class="re">R</i>React component <small>included</small></span>
+        <span class="also">Vue, Angular, Svelte and the rest: <code>mount()</code> takes a plain DOM element.</span>
+      </div>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="wrap">
+      <article class="feature" id="speed">
+        <div>
+          <p class="kicker">Fast at scale</p>
+          <h2>50,000 tasks open in about 0.3 seconds</h2>
+          <p class="intro">Hospitals, airports and power plants are scheduled in 10,000 to 50,000 activities. Tachlon is built and measured at that size.</p>
+          <!-- bench:stats --><div class="stats">
+            <div class="stat"><b>0.3 s</b><span>to open 50,000 tasks, with the schedule calculated</span></div>
+            <div class="stat"><b>0.019 s</b><span>slowest frame while scrolling 50,000 tasks. DHTMLX: 0.035 s</span></div>
+            <div class="stat"><b>2.5&times;</b><span>faster than DHTMLX on a 50,000-task chain: 0.31 s against 0.79 s</span></div>
+          </div><!-- /bench:stats -->
+          <ul> <li>A 50,000-task schedule scrolls, zooms and replans as smoothly as a 50-task one.</li> <li>Open the demo, click the chart and press <code>s</code> to see the open time and frame times on your own machine.</li> </ul>
+          <a class="btn primary" href="https://app.tachlon.com/?sample=demo-50k">Open the 50,000-task demo</a>
+          <p class="fine">Medians from our run of <!-- bench:run -->2026-11-05<!-- /bench:run --> on a Mac mini, Apple M4. <a href="#benchmark">See the full table</a>, including the rows where DHTMLX is ahead.</p>
+        </div>
+        <figure class="shot">
+          <img src="shots/speed-50k.webp" width="2360" height="1400" alt="Tachlon with 50,000 rows open: the task table with durations, dates and float beside the bars and their dependency lines.">
+        </figure>
+      </article>
+
+      <article class="feature flip" id="engine">
+        <div>
+          <p class="kicker">Rust &middot; WebAssembly &middot; GPU</p>
+          <h2>Written in Rust. Drawn on the GPU.</h2>
+          <p class="intro">The engine is Rust, compiled to WebAssembly. It reads the schedule, computes every date and lays out the chart. The GPU then draws every bar and link.</p>
+          <ul> <li>You install one npm package. Your build never compiles Rust.</li> <li>The engine is one <code>.wasm</code> file that loads beside the script.</li> <li>The chart draws with WebGPU, and moves to WebGL2 by itself where a browser lacks it.</li> <li>The API is typed JavaScript: <code>mount</code>, events and commands.</li> </ul>
+          <a class="btn ghost" href="how-it-works.html">How it works, for a JavaScript team</a>
+        </div>
+        <figure class="shot">
+          <div class="code-card" role="img" aria-label="The files in the tachlon npm package: the script, the WebAssembly engine, the stylesheet, the React component and the TypeScript declarations.">
+            <div class="bar"><i></i><i></i><i></i></div>
+<pre><span class="c">$</span> npm install tachlon
+
+<span class="c">node_modules/tachlon/</span>
+  AGENTS.md            <span class="c"># for your AI assistant</span>
+  dist-lib/
+    tachlon.js         <span class="c"># the chart</span>
+    <span class="k">app_bg.wasm</span>        <span class="c"># the Rust engine</span>
+    gantt.css          <span class="c"># light and dark</span>
+    react.js           <span class="c"># &lt;Gantt /&gt; for React</span>
+    types/             <span class="c"># TypeScript types</span>
+    schema.json        <span class="c"># your data's shape</span></pre>
+          </div>
+        </figure>
+      </article>
+
+      <article class="feature" id="files">
+        <div>
+          <p class="kicker">Files</p>
+          <h2>Opens the files your users have</h2>
+          <p class="intro">Drop a Primavera P6 XER file or a Microsoft Project XML file on the chart. There is no conversion step.</p>
+          <ul> <li>Actual dates, percent complete, the data date and P6 activity codes come with the file.</li> <li>A P6 file with several projects asks which one to open, or opens them all.</li> <li>It writes both formats back out, and lists anything a format cannot carry.</li> <li>Moving from DHTMLX or Bryntum? <code>fromDhtmlx</code> and <code>fromBryntum</code> read the data you already have.</li> </ul>
+          <p class="fine">Native .mpp files are not supported.</p>
+        </div>
+        <figure class="shot">
+          <img src="shots/p6.webp" width="1460" height="1060" alt="The task table of a P6 file: IDs, WBS codes, percent complete and actual start and finish dates.">
+        </figure>
+      </article>
+
+      <article class="feature flip" id="moved">
+        <div>
+          <p class="kicker">Change review</p>
+          <h2>See what moved</h2>
+          <p class="intro">Change a link or drag a bar, and every task that shifted keeps a dashed outline where it was.</p>
+          <ul> <li>A note says how many tasks moved, what happened to the finish, and whether the critical path changed.</li> <li>Show moved filters the list to the tasks the last change moved, with their summaries.</li> <li>Your users check a change before anyone acts on it. Undo takes it back.</li> </ul>
+          <p class="fine">Here a link went from start-to-start plus 8 days to finish-to-start plus 2 days. The note reads "16 tasks moved &middot; finish +8 days &middot; critical 1 joined, 0 left".</p>
+        </div>
+        <figure class="shot">
+          <img src="shots/moved.webp" width="1440" height="1180" alt="The chart after a link edit: moved bars with dashed outlines at their old dates, and a note reading 16 tasks moved &middot; finish +8 days.">
+        </figure>
+      </article>
+    </div>
+  </section>
+
+  <section class="ai" id="ai">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Add it with your AI assistant</h2>
+        <p>Tachlon ships with instructions written for coding assistants. Paste one prompt, and your assistant installs the chart, puts it on a page and checks its own work.</p>
+      </div>
+      <div class="ai-grid">
+        <div>
+          <div class="prompt-card">
+            <div class="prompt-head"><span>Paste this into your AI coding assistant</span><button class="btn light small" type="button" data-copy="prompt" aria-label="Copy the prompt">Copy</button></div>
+<pre id="prompt">Add a Tachlon Gantt chart to this app. Install the npm package tachlon and follow the AGENTS.md inside it (more at tachlon.com/llms.txt). Put the chart on one existing page and change nothing else. Run the build and npx tachlon doctor until both pass. Commit on a new branch; do not push.</pre>
+          </div>
+          <p class="visually-hidden" role="status" id="copy-status"></p>
+          <div class="byhand">
+            <p>Or add it by hand:</p>
+<pre>npm install tachlon</pre>
+<pre>import { mount } from "tachlon";
+import "tachlon/gantt.css";
+
+const chart = await mount(el, { tasks, links });</pre>
+          </div>
+        </div>
+        <div class="ai-list">
+          <div class="ai-item"> <h3>AGENTS.md, inside the package</h3> <p>A step-by-step guide for the assistant: look, install on a branch, render the chart in one page, run doctor, build, commit. It also lists what the assistant must never do.</p> </div>
+          <div class="ai-item"> <h3>llms.txt</h3> <p><code>tachlon.com/llms.txt</code> tells an assistant what Tachlon is and which pages to read first.</p> </div>
+          <div class="ai-item"> <h3><code>npx tachlon doctor</code></h3> <p>Reads the project, writes nothing, and prints a one-sentence fix under each failed check. The assistant runs it until it passes. <code>npx tachlon init</code> writes the chart file for Vite and Next.js.</p> </div>
+          <div class="ai-item"> <h3>Assistant tools that run in Node <span class="soon">Next release</span></h3> <p>Read-only tools an assistant can call over a schedule file, with no page: what moves if a task slips, why a task starts when it does, schedule health and the critical path. Definitions come in MCP, Anthropic and OpenAI form.</p> </div>
+        </div>
+      </div>
+      <p class="fineprint">Tachlon is free and open source under the MIT license: no key, no trial and no mark on the chart. The source is on GitHub under the MIT license.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <article class="feature" id="critical">
+        <div>
+          <p class="kicker">Scheduling</p>
+          <h2>Critical path and scheduling, built in</h2>
+          <p class="intro">Tachlon calculates the schedule as it opens it, and again on every edit. Critical tasks draw in red.</p>
+          <ul> <li>Filter to Critical only, the longest path, the driving path or a Lookahead window.</li> <li>Links are finish-to-start, start-to-start, finish-to-finish or start-to-finish, with lag.</li> <li>Set a baseline and a data date, and see which tasks slipped.</li> <li>Edit from the keyboard: insert rows, change durations, indent, add links. Undo takes back any of it.</li> </ul>
+        </div>
+        <figure class="shot">
+          <img src="shots/critical.webp" width="2360" height="1400" alt="An office fit-out schedule filtered to Critical only: 23 of 59 rows, their bars in red, with the data date line.">
+          <figcaption>The office fit-out sample, filtered to Critical only: 23 of 59 rows.</figcaption>
+        </figure>
+      </article>
+
+      <article class="feature flip" id="themes">
+        <div>
+          <p class="kicker">Customization</p>
+          <h2>Light, dark and your brand</h2>
+          <p class="intro">Both themes ship. The chart follows the system setting or your page's choice.</p>
+          <ul> <li>Colors, the bar shape, row height and type are CSS tokens.</li> <li>Set a token on the chart's element, for example <code>--gantt-bar: #0a7</code>, and your rule wins.</li> <li>Force a theme with <code>data-theme="dark"</code> or <code>"light"</code>.</li> </ul>
+        </div>
+        <figure class="shot">
+          <img src="shots/themes.webp" width="2000" height="1300" alt="The same schedule with the task table in the light theme and the chart in the dark theme.">
+          <figcaption>One schedule, split down the middle: light on the left, dark on the right.</figcaption>
+        </figure>
+      </article>
+    </div>
+  </section>
+
+  <section class="band-tint" id="walkthrough">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Watch it in 90 seconds</h2>
+        <p>A schedule opened, scrolled at 50,000 tasks, edited and replanned.</p>
+      </div>
+      <figure class="shot" style="max-width: 980px; margin-inline: auto;">
+        <video controls playsinline muted preload="metadata" poster="shots/video-poster.webp" width="2880" height="1800">
+          <source src="media/overview-narrated.mp4" type="video/mp4">
+          <track kind="captions" src="media/overview-narrated.vtt" srclang="en" label="English" default>
+        </video>
+        <figcaption>The recorded walkthrough ran at 60 frames a second on WebGPU, on an Apple M4.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section id="benchmark">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Measured beside DHTMLX Gantt</h2>
+        <p>Each component gets the same generated schedule, on the same machine, in the same browser. Times are in seconds, and lower is better.</p>
+      </div>
+      <div class="bench-grid">
+        <div>
+          <!-- bench:table --><div class="table-scroll">
+            <table>
+              <caption class="visually-hidden">Tachlon against DHTMLX Gantt at 50,000 and 10,000 tasks; lower is better</caption>
+              <thead><tr><th scope="col">Tree schedule / chain schedule</th><th scope="col">Tachlon</th><th scope="col">DHTMLX Gantt (free edition)</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">Open 50,000 tasks</th><td class="win">0.30 s / 0.31 s</td><td>0.34 s / 0.79 s</td></tr>
+                <tr><th scope="row">Scroll 50,000 tasks, slowest frame</th><td class="win">0.02 s / 0.02 s</td><td>0.04 s / 0.04 s</td></tr>
+                <tr><th scope="row">Open 10,000 tasks</th><td class="win">0.14 s / 0.14 s</td><td>0.11 s / 0.18 s</td></tr>
+                <tr><th scope="row">Whole-browser memory at 50,000 tasks</th><td class="win">483.5 MB / 482.1 MB</td><td>380.0 MB / 405.0 MB</td></tr>
+              </tbody>
+            </table>
+          </div><!-- /bench:table -->
+          <div class="bench-notes">
+            <!-- bench:ahead --><p data-fine-print><strong>Where Tachlon is ahead, and where it isn't yet.</strong> Tachlon opens the 50,000-task chain <span data-fine="times">2.5</span> times faster than DHTMLX (<span data-fine="chainO">0.31</span> s against <span data-fine="chainD">0.79</span> s), and the 50,000-task tree a little faster (<span data-fine="tree50O">0.30</span> s against <span data-fine="tree50D">0.34</span> s). Its slowest frame in every test is about half of DHTMLX's (<span data-fine="frameO">0.019</span> s against <span data-fine="frameD">0.035</span> s). Dragging a task at 50,000 is even (<span data-fine="dragO">0.019</span> s against <span data-fine="dragDLo">0.018</span> to <span data-fine="dragDHi">0.019</span> s). DHTMLX opens the 10,000-task tree faster (<span data-fine="treeD">0.11</span> s against <span data-fine="treeO">0.14</span> s), loads its library faster (<span data-fine="libD">0.02</span> s against <span data-fine="libO">0.03</span> s), and uses less memory (about <span data-fine="memDLo">345</span> to <span data-fine="memDHi">405</span> MB against <span data-fine="memOLo">400</span> to <span data-fine="memOHi">485</span> MB). We're working on all three, and we re-run this table when a change moves one of its numbers beyond normal run-to-run variation; the date above is the last run.</p><!-- /bench:ahead -->
+          </div>
+        </div>
+        <div>
+          <div class="callout"> <h3>DHTMLX's free edition does not calculate the schedule. Tachlon does.</h3> <p>Tachlon's open times include solving the schedule. DHTMLX's MIT edition cannot schedule, so its side of the test is load and draw only.</p> </div>
+          <div class="bench-notes">
+            <p>"Blazingly fast" is measured against Gantt charts that run in a browser. We have measured one other so far. If you know a faster one, tell us at hello@tachlon.com.</p>
+            <p><strong>Using Bryntum or Syncfusion?</strong> The table has neither. Syncfusion's license does not let anyone else publish benchmarks of its product. The harness is not public yet. When it is, you can run it with your own license.</p>
+            <p><strong>What Syncfusion measured.</strong> In the benchmark it published on October 22, 2026, at 50,000 tasks the first render took 10.2 s for Syncfusion, 54.2 s for DHTMLX and 91.2 s for Bryntum. Its DHTMLX figure is far above ours (54.2 s against 0.34 to 0.79 s). The tests differ: Syncfusion ran DHTMLX 10.0.2 in Edge on an Intel Core i5-10210U, and we ran the MIT edition on an Apple M4. We have not measured which difference explains the gap. These are Syncfusion's figures, from <a href="https://www.syncfusion.com/blogs/post/react-gantt-chart-performance-benchmark">its own benchmark</a>; not measured by us.</p>
+          </div>
+        </div>
+      </div>
+      <details class="method">
+        <summary>Method, machine and dataset hashes</summary>
+        <!-- bench:method --><p>Each cell is the median over matched pairs on a tree4 schedule, then on a chain schedule (tree4 / chain). Measured 2026-11-05 on a Mac mini, Apple M4, 16 GB, against DHTMLX Gantt 10.0.3. We have not measured SVAR Gantt yet. Memory is the whole browser's total, 20 seconds after the page loads. Dataset SHA-256 (tree4 / chain): 10,000 tasks <code>fc82758fdeb5b146fc92dc13f289b41ccce4b77e48c894a833a102e3b07d5da8</code> / <code>a77d52f761b82124715e273c76ada383acc98093350b205bb83637d5da720474</code>, 50,000 tasks <code>b0bc8dbbc39c7c4a9d8cc96c7c5e8d5d0d8fa51c1f77c9b8cab2448825960458</code> / <code>63cfc51f34c00c52d25003cfc67577c987bce10868adc637096bc44c08742eac</code>. Each side loads its own file of it, in bytes: Tachlon 10,000 tasks 1,454,430 / 1,465,596, 50,000 tasks 7,432,833 / 7,505,595; DHTMLX 10,000 tasks 1,780,297 / 1,804,535, 50,000 tasks 9,101,049 / 9,244,533. The run command was <code>node demos/bench/run.ts --sides sides.json --cells tree4:10000,chain:10000,tree4:50000,chain:50000 --pairs 8 --max-load 4 --out results</code>. A script writes every figure on this page from that run's results file, demos/bench/results/2026-11-05.json. Nobody types them in.</p><!-- /bench:method -->
+      </details>
+    </div>
+  </section>
+
+  <section class="band-tint" id="examples">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>More examples</h2>
+        <p>Each one opens in the hosted demo, in your browser.</p>
+      </div>
+      <div class="cards">
+        <a class="card" href="https://app.tachlon.com/?sample=office-fitout"> <img src="shots/hero-fitout.webp" width="2880" height="1720" alt="The office fit-out sample with progress, a baseline and the critical path."> <div><h3>Office fit-out</h3><p>A Microsoft Project XML file of 59 rows, five weeks in, with progress and a baseline.</p></div> </a>
+        <a class="card" href="https://app.tachlon.com/?sample=medium-5k"> <img src="shots/xer-5k.webp" width="2880" height="1720" alt="A generated P6 XER file of 5,000 activities with WBS codes."> <div><h3>A P6 file, 5,000 activities</h3><p>A generated Primavera XER file with WBS codes, activity IDs and actual dates.</p></div> </a>
+        <a class="card" href="https://app.tachlon.com/?sample=demo-50k"> <img src="shots/speed-50k.webp" width="2360" height="1400" alt="The generated 50,000-task schedule."> <div><h3>50,000 tasks</h3><p>A generated schedule at the size the benchmark uses. Press <code>s</code> for the open time and frame times.</p></div> </a>
+      </div>
+      <p class="center"><a class="btn primary" href="https://app.tachlon.com">Open the demo</a></p>
+    </div>
+  </section>
+
+  <div class="cta-band" id="contact">
+    <div class="wrap">
+      <h2>Open source, MIT</h2>
+      <p>Tachlon is free and open source under the MIT license: no key, no trial and no mark on the chart.</p>
+      <div class="actions">
+        <a class="btn light" href="#ai">Try it</a>
+        <a class="btn outline" href="mailto:hello@tachlon.com">Write to us</a>
+      </div>
+    </div>
+  </div>
+
+  <section>
+    <div class="wrap resources">
+      <div> <h3>Resources</h3> <ul> <li><a href="https://www.npmjs.com/package/tachlon">Documentation</a></li> <li><a href="https://unpkg.com/tachlon/AGENTS.md">AGENTS.md</a></li> <li><a href="llms.txt">llms.txt</a></li> <li><a href="how-it-works.html">How it works</a></li> <li><a href="#examples">Live examples</a></li> </ul> </div>
+      <div> <h3>Latest releases</h3> <ul> <!-- bench:release --><li><span class="ver">0.2.0</span>Nov 15, 2026 <span class="latest">Latest</span></li> <li><span class="ver">0.1.1</span>Nov 7, 2026</li> <li><span class="ver">0.1.0</span>Nov 7, 2026</li> <li><span class="ver">0.0.1</span>Oct 31, 2026</li><!-- /bench:release --> <li><a href="https://www.npmjs.com/package/tachlon?activeTab=versions">All versions on npm</a></li> </ul> </div>
+      <div> <h3>Open source, MIT</h3> <p>Tachlon is free and open source under the MIT license. The source is on GitHub under the MIT license. Write to <a href="mailto:hello@tachlon.com">hello@tachlon.com</a> with what you'd build, and we'll write back.</p> </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot-cols">
+      <div>
+        <a class="logo" href="#top"><svg class="mark" aria-hidden="true"><use href="#mark-navy"/></svg>tachlon</a>
+        <p class="about">The Gantt chart component for your product. Rust, WebAssembly and the GPU, in one npm package.</p>
+      </div>
+      <div> <h4>Product</h4> <ul> <li><a href="#speed">Fast at scale</a></li> <li><a href="#engine">The engine</a></li> <li><a href="#files">P6 and MS Project files</a></li> <li><a href="#moved">See what moved</a></li> </ul> </div>
+      <div> <h4>Developers</h4> <ul> <li><a href="https://www.npmjs.com/package/tachlon">Docs</a></li> <li><a href="#examples">Examples</a></li> <li><a href="#ai">AI integration</a></li> <li><a href="https://unpkg.com/tachlon/AGENTS.md">AGENTS.md</a></li> <li><a href="llms.txt">llms.txt</a></li> </ul> </div>
+      <div> <h4>Compared with</h4> <ul> <li><a href="#benchmark">DHTMLX Gantt</a></li> <li><a href="#benchmark">Bryntum Gantt</a></li> <li><a href="#benchmark">Syncfusion Gantt</a></li> </ul> </div>
+      <div> <h4>Company</h4> <ul> <li>Inner Stack Labs</li> <li><a href="mailto:hello@tachlon.com">hello@tachlon.com</a></li> </ul> </div>
+    </div>
+    <div class="foot-base">
+      <span>&copy; 2026 Dave Remy. Tachlon is open source under the MIT license.</span>
+      <span>Engine: Rust, WebAssembly &middot; Drawn on: WebGPU or WebGL2</span>
+    </div>
+  </div>
+</footer>
+
+
+<script src="copy.js"></script>
+<script type="module" src="home.js"></script>
+</body>
+</html>

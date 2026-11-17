@@ -1,0 +1,38 @@
+[package]
+name = "engine"
+version = "0.1.0"
+description = "Pure-Rust scheduling engine: calendars, critical path method by search, schedule generator."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+# Test seams for the integration tests (`engine::test_hooks`): lower the duration
+# cone's limits, omit a backward predecessor, fail a fallback. Off by default; only
+# a dev-dependency turns it on, so no shipped build carries them.
+test-hooks = []
+
+[dependencies]
+
+[dev-dependencies]
+engine = { path = ".", features = ["test-hooks"] }
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "cpm"
+harness = false
+
+[[bench]]
+name = "tombstone"
+harness = false
+
+[[bench]]
+name = "links"
+harness = false
+
+[[bench]]
+name = "duration_dist"
+harness = false

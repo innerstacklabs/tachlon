@@ -1,0 +1,1 @@
+TestBox.ttf is generated for the font test and covered by the repository's MIT license.

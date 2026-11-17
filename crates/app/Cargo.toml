@@ -1,0 +1,49 @@
+[package]
+name = "app"
+version = "0.1.0"
+description = "wasm-bindgen entry: owns the Schedule and the Timeline in one WebAssembly module."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+autotests = false
+
+[lints]
+workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# One test binary: tests/it.rs holds a `mod` line for every test file.
+[[test]]
+name = "it"
+path = "tests/it.rs"
+
+[features]
+# A counting allocator for profile builds (scripts/build-web.sh --keep-names); never in the shipped build.
+alloc-stats = []
+
+[dependencies]
+engine = { path = "../engine" }
+import = { path = "../import" }
+timeline = { path = "../timeline" }
+
+[dev-dependencies]
+engine = { path = "../engine", features = ["test-hooks"] }
+xer = { path = "../xer", features = ["synth"] }
+# The architecture test reads the wasm module (crates/app/src/web/) as a syntax tree (tests/architecture).
+# span-locations is needed for correctness: the reader dedupes `#[wasm_bindgen]` by (line, column),
+# and without it every span reads 0:0. It also gives the line numbers the messages quote.
+syn = { version = "2", features = ["full", "visit"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
+# The JSON-contract test (tests/json_contract) parses the templates web.rs writes. Dev-only.
+serde_json = "1"
+# The list_xlsx test reads the sheet it writes as XML.
+quick-xml = "0.41"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+# Pinned: wasm-bindgen-cli must be this exact version (scripts/build-web.sh checks).
+wasm-bindgen = "=0.2.129"
+wasm-bindgen-futures = "0.4"
+console_error_panic_hook = "0.1"
+web-sys = { version = "0.3", features = ["Event", "EventTarget", "HtmlCanvasElement", "Performance", "Window", "console"] }
+wgpu = "30"

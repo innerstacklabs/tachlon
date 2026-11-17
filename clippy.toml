@@ -1,0 +1,7 @@
+# A function over 80 lines fails `cargo clippy -- -D warnings`. Each crate root turns the lint on
+# with `#![cfg_attr(not(test), warn(clippy::too_many_lines))]`, which leaves tests, benches and
+# examples out. A function that is long on purpose carries `#[allow(clippy::too_many_lines, reason = "...")]`.
+too-many-lines-threshold = 80
+allow-unwrap-in-tests = true
+allow-print-in-tests = true
+allow-dbg-in-tests = true

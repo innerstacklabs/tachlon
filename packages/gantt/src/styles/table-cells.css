@@ -1,0 +1,95 @@
+/* A chevron: down when expanded, right when collapsed. */
+.gantt .row .disclosure {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: var(--gantt-row-h);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gantt-muted);
+  cursor: pointer;
+  vertical-align: top;
+}
+.gantt .row .disclosure::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 4px;
+  height: 4px;
+  border: solid currentColor;
+  border-width: 0 1.5px 1.5px 0;
+}
+.gantt .row .disclosure[aria-expanded="false"]::before {
+  transform: translate(-70%, -50%) rotate(-45deg);
+}
+.gantt .row .disclosure[aria-expanded="true"]::before {
+  transform: translate(-50%, -70%) rotate(45deg);
+}
+.gantt .row .disclosure:focus-visible {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: -2px;
+}
+.gantt .row .float,
+.gantt .row .var-start,
+.gantt .row .var-finish,
+.gantt .row .var-float,
+.gantt [data-part=table-head] .var-start,
+.gantt [data-part=table-head] .var-finish,
+.gantt [data-part=table-head] .var-float,
+.gantt .row .dur,
+.gantt .row .remaining,
+.gantt .row .percent,
+.gantt [data-part=table-head] .dur,
+.gantt [data-part=table-head] .float,
+.gantt [data-part=table-head] .remaining,
+.gantt [data-part=table-head] .percent {
+  text-align: end;
+}
+.gantt .row input.cell-edit {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  padding: 0 3px;
+  border: 1px solid var(--gantt-sel-edge);
+  border-radius: 0;
+  background: var(--gantt-bg);
+  color: var(--gantt-text);
+  font: inherit;
+}
+.gantt .row input.cell-edit.invalid {
+  border-color: var(--gantt-warn);
+}
+.gantt .row .cell-error {
+  position: absolute;
+  top: 100%;
+  inset-inline-start: 6px;
+  z-index: 5;
+  padding: 0 6px;
+  background: var(--gantt-warn);
+  color: var(--gantt-bar-text);
+  white-space: nowrap;
+  line-height: 18px;
+  font-size: 11px;
+}
+/* A Start cell holding a real start constraint (data-constrained, table-row.ts): a small triangle in its top left corner, clear of the right-edge text fade. */
+.gantt .row .start[data-constrained] {
+  position: relative;
+}
+.gantt .row .start[data-constrained]::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  background: var(--gantt-sel-edge);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+  forced-color-adjust: none;
+}
+/* A row the host marked as waiting for its own recalculation (data-pending, table-row.ts): its cells dim, and the row stays selectable and editable. */
+.gantt .row[data-pending] > span {
+  opacity: 0.6;
+}

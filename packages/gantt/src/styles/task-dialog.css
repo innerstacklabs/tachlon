@@ -1,0 +1,60 @@
+/* The task dialog (task-dialog.ts): a modal dialog with the picker's look, drawn by the browser over the whole page. The root's
+   tokens reach it because it is inside the root; the chart's key listener ignores a key whose target is in it. */
+.gantt [data-part=task-dialog] {
+  width: min(420px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  font: 13px/18px var(--gantt-font);
+}
+.gantt [data-part=task-form] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.gantt [data-part=task-dialog-title] {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.gantt [data-part=task-form] label {
+  display: grid;
+  grid-template-columns: 9em 1fr;
+  align-items: center;
+  gap: 8px;
+}
+.gantt [data-part=task-form] input,
+.gantt [data-part=task-dialog-actions] button {
+  min-width: 0;
+  padding: 3px 6px;
+  font: inherit;
+  color: inherit;
+  background: var(--gantt-bg);
+  border: 1px solid var(--gantt-rule);
+  border-radius: 3px;
+}
+.gantt [data-part=task-form] :is(input, button):focus-visible {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: 1px;
+}
+.gantt [data-part=task-dialog-error] {
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: var(--gantt-warn);
+  color: var(--gantt-bar-text);
+  overflow-wrap: anywhere;
+}
+.gantt [data-part=task-dialog-actions] {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.gantt [data-part=task-dialog-actions] button {
+  padding: 5px 12px;
+  cursor: pointer;
+}

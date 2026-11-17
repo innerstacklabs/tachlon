@@ -1,0 +1,46 @@
+<svg viewBox="0 0 800 512" width="100%" role="img" aria-labelledby="layers-title layers-desc" fill="none" stroke="currentColor" stroke-width="1.5" font-family="-apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif" font-size="12.5" xmlns="http://www.w3.org/2000/svg">
+<title id="layers-title">The layers, from the host page down to the engine</title>
+<desc id="layers-desc">Each arrow points from a layer to the layer it calls. apps/hosted loads gantt-core (the built packages/gantt) and @gantt/chrome (apps/chrome). Only store.ts reaches apps/cloud, over /api/docs. packages/gantt/src calls only the exports listed in docs/WASM_API.md into crates/app/src/web/, which calls Session in crates/app/src. Session calls crates/timeline and crates/import, which calls crates/xer. crates/timeline and crates/import both call crates/engine.</desc>
+<defs><marker id="layers-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="currentColor" stroke="none"/></marker></defs>
+<g fill="currentColor" fill-opacity="0.07">
+<rect x="20" y="10" width="480" height="84" rx="8"/>
+<rect x="20" y="122" width="480" height="48" rx="8"/>
+<rect x="20" y="206" width="480" height="48" rx="8"/>
+<rect x="20" y="282" width="480" height="48" rx="8"/>
+<rect x="20" y="366" width="170" height="36" rx="8"/>
+<rect x="215" y="366" width="130" height="36" rx="8"/>
+<rect x="385" y="366" width="115" height="36" rx="8"/>
+<rect x="20" y="450" width="480" height="48" rx="8"/>
+<rect x="540" y="10" width="240" height="64" rx="8" fill-opacity="0.03" stroke-dasharray="5 4"/>
+</g>
+<g marker-end="url(#layers-arrow)">
+<path d="M260 94V122"/><path d="M260 170V206"/><path d="M260 254V282"/><path d="M105 330V366"/><path d="M280 330V366"/><path d="M105 402V450"/><path d="M280 402V450"/><path d="M345 384H385"/>
+<path d="M500 42H540" stroke-dasharray="5 4"/>
+</g>
+<g fill="currentColor" stroke="none">
+<g font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-weight="600">
+<text x="34" y="30">apps/hosted</text>
+<text x="34" y="144">packages/gantt/src</text>
+<text x="34" y="228">crates/app/src/web/</text>
+<text x="34" y="304">crates/app/src</text>
+<text x="34" y="388">crates/timeline</text>
+<text x="229" y="388">crates/import</text>
+<text x="399" y="388">crates/xer</text>
+<text x="34" y="472">crates/engine</text>
+<text x="554" y="30">apps/cloud</text>
+</g>
+<text x="130" y="30">host page, samples</text>
+<text x="34" y="50">loads only gantt-core = the built packages/gantt (decision 0007)</text>
+<text x="34" y="68">and @gantt/chrome = apps/chrome (decision 0012): the toolbar,</text>
+<text x="34" y="86">the file controls, the Filters menu and the find box</text>
+<text x="34" y="162">TypeScript: DOM, events, requestAnimationFrame</text>
+<text x="34" y="246">wasm32 only: App, LoadedSchedule; owns canvas and Renderer</text>
+<text x="34" y="322">Session: Schedule + Solution + Timeline + outline, filters, history</text>
+<text x="34" y="490">Schedule, Calendar, compute / recompute_cone_moved</text>
+<text x="554" y="48">server code, a project of its own;</text>
+<text x="554" y="64">decision 0011</text>
+<text x="540" y="94">reached by store.ts only, over</text>
+<text x="540" y="110">/api/docs; the chart never names it</text>
+<text x="272" y="192">calls only the exports listed in docs/WASM_API.md</text>
+</g>
+</svg>

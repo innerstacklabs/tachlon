@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+  <StartDate>2026-01-05T08:00:00</StartDate>
+  <CalendarUID>1</CalendarUID>
+  <Calendars>
+    <Calendar>
+      <UID>1</UID>
+      <Name>Overlapping periods</Name>
+      <IsBaseCalendar>1</IsBaseCalendar>
+      <BaseCalendarUID>-1</BaseCalendarUID>
+      <WeekDays>
+        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
+        <!-- Monday: 11:00 to 13:00 overlaps 08:00 to 12:00; 13:00 to 17:00 stays. -->
+        <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes>
+          <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+          <WorkingTime><FromTime>11:00:00</FromTime><ToTime>13:00:00</ToTime></WorkingTime>
+          <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+        </WorkingTimes></WeekDay>
+        <!-- Tuesday: two periods that do not overlap; nothing is dropped. -->
+        <WeekDay><DayType>3</DayType><DayWorking>1</DayWorking><WorkingTimes>
+          <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+          <WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+        </WorkingTimes></WeekDay>
+        <WeekDay><DayType>4</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <!-- Thursday: a period that ends before it starts is dropped like an overlap. -->
+        <WeekDay><DayType>5</DayType><DayWorking>1</DayWorking><WorkingTimes>
+          <WorkingTime><FromTime>09:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+          <WorkingTime><FromTime>17:00:00</FromTime><ToTime>08:00:00</ToTime></WorkingTime>
+        </WorkingTimes></WeekDay>
+        <WeekDay><DayType>6</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
+      </WeekDays>
+      <Exceptions>
+        <!-- A working Monday 2026-01-12: 10:00 to 13:00 overlaps 09:00 to 12:00. -->
+        <Exception>
+          <EnteredByOccurrences>0</EnteredByOccurrences><DayWorking>1</DayWorking>
+          <TimePeriod><FromDate>2026-01-12T00:00:00</FromDate><ToDate>2026-01-12T23:59:00</ToDate></TimePeriod>
+          <WorkingTimes>
+            <WorkingTime><FromTime>09:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+            <WorkingTime><FromTime>10:00:00</FromTime><ToTime>13:00:00</ToTime></WorkingTime>
+            <WorkingTime><FromTime>14:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime>
+          </WorkingTimes>
+        </Exception>
+      </Exceptions>
+    </Calendar>
+    <!-- A second calendar with overlapping periods: it has its own note. -->
+    <Calendar>
+      <UID>2</UID>
+      <Name>Second</Name>
+      <IsBaseCalendar>1</IsBaseCalendar>
+      <BaseCalendarUID>-1</BaseCalendarUID>
+      <WeekDays>
+        <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes>
+          <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+          <WorkingTime><FromTime>10:00:00</FromTime><ToTime>14:00:00</ToTime></WorkingTime>
+        </WorkingTimes></WeekDay>
+      </WeekDays>
+    </Calendar>
+  </Calendars>
+  <Tasks>
+    <Task><UID>1</UID><Name>Task</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>PT8H0M0S</Duration><DurationFormat>7</DurationFormat></Task>
+  </Tasks>
+</Project>

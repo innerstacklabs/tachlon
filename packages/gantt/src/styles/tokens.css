@@ -1,0 +1,250 @@
+/* Every rule here starts with the root class (.gantt): the page around the chart is the host's, so this demo page sets its own
+   reset as style attributes on <html> and <body>, and a host that embeds the chart is not touched by this sheet (docs/ARCHITECTURE.md "Embedding"). */
+/* These tokens are the component's theming API; override them on the root element. Unlisted tokens are documented in docs/ARCHITECTURE.md "Theming". */
+:where(.gantt) {
+  /* Zero specificity, so the forced sets below can change it; a forced set names the one scheme. */
+  color-scheme: light dark;
+  /* The host page's text alignment must not reach the task names (gantt#1559); a host can still set it on the root. */
+  text-align: start;
+  --gantt-bg: #f2f5f9;
+  --gantt-surface: #e8edf4;
+  --gantt-band: #e1e7f0;
+  --gantt-rule: #c9d2e3;
+  --gantt-text: #18213b;
+  --gantt-muted: #4f5b80;
+  --gantt-bar: #6f86c9;
+  --gantt-bar-edge: #3a4c8f;
+  --gantt-crit-fill: #e04f47;
+  --gantt-crit: #c42b2b;
+  --gantt-crit-edge: #a82222;
+  --gantt-bar-soft: #cdd5e8;
+  --gantt-crit-soft: #f0bcb7;
+  --gantt-bar-ink: #0e1426;
+  --gantt-crit-text: #a82222;
+  --gantt-sum: #18213b;
+  --gantt-sel: #d9e2f6;
+  --gantt-sel-edge: #1b5bbd;
+  --gantt-hov: #e6ecf6;
+  --gantt-link: #a3aec6;
+  --gantt-today: #17705f;
+  /* Shape, not colour (tl#1215): the data-date line's dash and gap and the critical bar's edge, so the two read apart to a red-green colour-blind reader. Both themes; the shell passes them to the chart (theme.ts). */
+  --gantt-today-dash: 6px;
+  --gantt-today-gap: 4px;
+  --gantt-crit-edge-w: 2px;
+  --gantt-grid: #e8edf4;
+  --gantt-grid-major: #d3dae7;
+  --gantt-axis: #e8edf4;
+  --gantt-nonwork: #18213b12;
+  --gantt-stripe: #edf1f7;
+  --gantt-bar-text: #ffffff;
+  --gantt-bar-sel-progress: #00000059;
+  --gantt-held: #9a6a00;
+  --gantt-link-refused: #9a6a00;
+  --gantt-warn: #7f5600;
+  --gantt-link-terminal: #1b5bbd;
+  --gantt-baseline: #6f7a9c;
+  /* The dimmed backdrop behind a dialog: a translucent tint of the chart's own ink, so it follows the host's palette. CSS only. */
+  --gantt-scrim: #18213b66;
+  /* The time-axis band: two tiers of half this each (gs#315). The shell sets it from the chart's own height (table.ts), so the task-list head matches. */
+  --gantt-axis-h: 48px;
+  --gantt-row-h: 24px;
+  /* The bar look (gs#314): corner radius and bar height as a share of the row. The shell passes both to the chart (theme.ts). */
+  --gantt-bar-r: 2px;
+  --gantt-bar-h: 50%;
+  /* The link terminal's diameter (gs#49): drawn outside the finish end of the hovered or selected bar. */
+  --gantt-terminal-size: 8px;
+  /* The gap between a bar's finish end and its link terminal, the link drag preview's line, and the selected link's line (gs#360). */
+  --gantt-terminal-gap: 3px;
+  --gantt-preview-w: 2px;
+  --gantt-selected-w: 2px;
+  /* The toolbar strip's height (Ledger: 36px, both themes) and the status line's. */
+  --gantt-toolbar-h: 36px;
+  --gantt-status-h: 22px;
+  /* Task list layout (Ledger metrics, both themes). --gantt-cols is the one place the column grid is set: a column is added by changing it and the cells. */
+  --gantt-table-w: clamp(420px, calc(50% - var(--gantt-ids-w, 0px)), 800px);
+  /* The ID and WBS tracks before a file is open; table.ts then sets both on the root, in px, from the file's longest ID and WBS code:
+     the text, --gantt-code-pad, at least --gantt-code-min and at most the cap (--gantt-id-max, --gantt-wbs-max). */
+  --gantt-id-col: 92px;
+  --gantt-wbs-col: 72px;
+  --gantt-id-max: 16ch;
+  --gantt-wbs-max: 24ch;
+  --gantt-code-pad: 12px;
+  --gantt-code-min: 4ch;
+  /* The Task column never shrinks below this: 16 characters of the 12px body font (about 107px) and the 14px chevron slot a leaf name keeps.
+     A length, not ch, so the head (11px) and the rows (12px) give the column the same width. When the columns need more room than the pane
+     has, the table scrolls sideways (table.css) instead of squeezing Task. */
+  --gantt-task-min: 124px;
+  /* table.ts sets --gantt-task-fit on the root: the Task width that ends the last column the pane holds at the pane's right edge, so the edge falls in a gap (gs#851). Unset, Task takes the least it needs. */
+  /* Start and Finish keep this width; the Task column takes what the pane has left (gs#821). It is the text of "2027-01-04 08:00" (95px) and a little more. */
+  --gantt-date-col: 100px;
+  /* One variance column (Start, Finish, Float against the baseline); a track and one 6px gap each widen the table. */
+  --gantt-var-col: 52px;
+  --gantt-cols: minmax(var(--gantt-task-fit, var(--gantt-task-min)), 1fr) 60px var(--gantt-date-col) var(--gantt-date-col) 46px;
+  --gantt-font: "Gantt Sans", sans-serif;
+}
+/* data-theme="dark" or "light" on the root forces a set whatever the system says (gs#703); with no attribute the system decides.
+   All three sets are zero-specificity, so a host's overrides win over each, and the two forced sets come after the media block. */
+@media (prefers-color-scheme: dark) {
+  /* Two :where() calls, not one: crates/timeline/tests/theme.rs finds this block by the text ":where(.gantt)" after the media query. */
+  :where(.gantt):where(:not([data-theme])) {
+    --gantt-bg: #0e1630;
+    --gantt-surface: #131c3a;
+    --gantt-band: #16203f;
+    --gantt-rule: #26324f;
+    --gantt-text: #e6ecf5;
+    --gantt-muted: #9aa6c6;
+    --gantt-bar: #4a5fa8;
+    --gantt-bar-edge: #8fa3e8;
+    --gantt-crit-fill: #c23a36;
+    --gantt-crit: #f0544a;
+    --gantt-crit-edge: #d33f36;
+    --gantt-bar-soft: #26324f;
+    --gantt-crit-soft: #5a2430;
+    --gantt-bar-ink: #f2f5f9;
+    --gantt-crit-text: #ff7d73;
+    --gantt-sum: #dbe3f2;
+    --gantt-sel: #1c2d5c;
+    --gantt-sel-edge: #5aa9ff;
+    --gantt-hov: #17213f;
+    --gantt-link: #34416a;
+    --gantt-today: #3fbfa4;
+    --gantt-grid: #111a36;
+    --gantt-grid-major: #1c2747;
+    --gantt-axis: #131c3a;
+    --gantt-nonwork: #e6ecf512;
+    --gantt-stripe: #101934;
+    --gantt-bar-text: #0e1630;
+    --gantt-bar-sel-progress: #ffffff66;
+    --gantt-held: #e0a030;
+    --gantt-link-refused: #e0a030;
+    --gantt-warn: #e0a030;
+    --gantt-link-terminal: #5aa9ff;
+    --gantt-baseline: #7f8db0;
+    --gantt-scrim: #050a1a99;
+  }
+}
+:where(.gantt[data-theme="dark"]) {
+  color-scheme: dark;
+  --gantt-bg: #0e1630;
+  --gantt-surface: #131c3a;
+  --gantt-band: #16203f;
+  --gantt-rule: #26324f;
+  --gantt-text: #e6ecf5;
+  --gantt-muted: #9aa6c6;
+  --gantt-bar: #4a5fa8;
+  --gantt-bar-edge: #8fa3e8;
+  --gantt-crit-fill: #c23a36;
+  --gantt-crit: #f0544a;
+  --gantt-crit-edge: #d33f36;
+  --gantt-bar-soft: #26324f;
+  --gantt-crit-soft: #5a2430;
+  --gantt-bar-ink: #f2f5f9;
+  --gantt-crit-text: #ff7d73;
+  --gantt-sum: #dbe3f2;
+  --gantt-sel: #1c2d5c;
+  --gantt-sel-edge: #5aa9ff;
+  --gantt-hov: #17213f;
+  --gantt-link: #34416a;
+  --gantt-today: #3fbfa4;
+  --gantt-grid: #111a36;
+  --gantt-grid-major: #1c2747;
+  --gantt-axis: #131c3a;
+  --gantt-nonwork: #e6ecf512;
+  --gantt-stripe: #101934;
+  --gantt-bar-text: #0e1630;
+  --gantt-bar-sel-progress: #ffffff66;
+  --gantt-held: #e0a030;
+  --gantt-link-refused: #e0a030;
+  --gantt-warn: #e0a030;
+  --gantt-link-terminal: #5aa9ff;
+  --gantt-baseline: #7f8db0;
+  --gantt-scrim: #050a1a99;
+}
+:where(.gantt[data-theme="light"]) {
+  color-scheme: light;
+  --gantt-bg: #f2f5f9;
+  --gantt-surface: #e8edf4;
+  --gantt-band: #e1e7f0;
+  --gantt-rule: #c9d2e3;
+  --gantt-text: #18213b;
+  --gantt-muted: #4f5b80;
+  --gantt-bar: #6f86c9;
+  --gantt-bar-edge: #3a4c8f;
+  --gantt-crit-fill: #e04f47;
+  --gantt-crit: #c42b2b;
+  --gantt-crit-edge: #a82222;
+  --gantt-bar-soft: #cdd5e8;
+  --gantt-crit-soft: #f0bcb7;
+  --gantt-bar-ink: #0e1426;
+  --gantt-crit-text: #a82222;
+  --gantt-sum: #18213b;
+  --gantt-sel: #d9e2f6;
+  --gantt-sel-edge: #1b5bbd;
+  --gantt-hov: #e6ecf6;
+  --gantt-link: #a3aec6;
+  --gantt-today: #17705f;
+  --gantt-grid: #e8edf4;
+  --gantt-grid-major: #d3dae7;
+  --gantt-axis: #e8edf4;
+  --gantt-nonwork: #18213b12;
+  --gantt-stripe: #edf1f7;
+  --gantt-bar-text: #ffffff;
+  --gantt-bar-sel-progress: #00000059;
+  --gantt-held: #9a6a00;
+  --gantt-link-refused: #9a6a00;
+  --gantt-warn: #7f5600;
+  --gantt-link-terminal: #1b5bbd;
+  --gantt-baseline: #6f7a9c;
+  --gantt-scrim: #18213b66;
+}
+.gantt {
+  display: grid;
+  grid-template-columns: var(--gantt-table-w, clamp(420px, 40%, 800px)) minmax(0, 1fr);
+  /* The toolbar on top, the status line and the legend strip below span both columns; a chart without them keeps one row. */
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  /* The chart is as big as the box its host gives it. The host's box needs a height; the chart reads no window size. */
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+  /* The toolbar's wrap fallback reads the chart's width (a container query), not the window's. */
+  container-type: inline-size;
+  background: var(--gantt-bg);
+  color: var(--gantt-text);
+  font-family: var(--gantt-font);
+}
+/* The ID column widens the table by its track and one column gap, so the name column keeps its width. */
+.gantt:has([data-part=table][data-ids="true"]) {
+  /* The default width is half the box less this, so the table with its ID column is half and the chart keeps the other half (gs#866). */
+  --gantt-ids-w: calc(var(--gantt-id-col, 92px) + 6px);
+  grid-template-columns: calc(var(--gantt-table-w, clamp(420px, 40%, 800px)) + var(--gantt-ids-w)) minmax(0, 1fr);
+}
+/* The variance columns widen it the same way: three tracks and their gaps, with or without the ID column. */
+.gantt:has([data-part=table][data-variance="true"]) {
+  grid-template-columns: calc(var(--gantt-table-w, clamp(420px, 40%, 800px)) + 3 * (var(--gantt-var-col) + 6px)) minmax(0, 1fr);
+}
+.gantt:has([data-part=table][data-ids="true"][data-variance="true"]) {
+  grid-template-columns: calc(var(--gantt-table-w, clamp(420px, 40%, 800px)) + var(--gantt-id-col, 92px) + 6px + 3 * (var(--gantt-var-col) + 6px)) minmax(0, 1fr);
+}
+/* The chart takes keys while focus is inside it (main.ts); the root itself is where focus rests. A mouse click shows no
+   ring; keyboard focus shows one. */
+.gantt:focus:not(:focus-visible) {
+  outline: none;
+}
+.gantt:focus-visible {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: -2px;
+}
+/* The head is as tall as the canvas's axis band (AXIS_HEIGHT), so the
+   first table row lines up with the first bar row. */
+.gantt [data-part=table-head] {
+  flex: none;
+  height: var(--gantt-axis-h, 48px);
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--gantt-grid-major);
+  background: var(--gantt-axis);
+  color: var(--gantt-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

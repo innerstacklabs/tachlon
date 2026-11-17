@@ -1,0 +1,28 @@
+/* The order of Dur, Start, Finish and Float (column-order.ts). The Columns menu sets --order-<column> (1 to 4) and --track-1 to --track-4 on the
+   table; the cells take their `order` from the first and the grid takes its tracks from the second, so the head and every row follow the DOM
+   order unchanged. --order-base is 4 with Progress on, so the four come after % complete, Actual start, Actual finish and Remaining; the
+   variance cells come after them (the order the Progress rules gave them, now for both layouts). With no order set the defaults are the
+   table's own order. */
+.gantt [data-part=table] {
+  --order-base: 0;
+  --movable-tracks: var(--track-1, 60px) var(--track-2, var(--start-track, var(--gantt-date-col))) var(--track-3, var(--finish-track, var(--gantt-date-col))) var(--track-4, var(--float-track, 46px));
+}
+.gantt [data-part=table][data-progress="true"] { --order-base: 4; }
+.gantt .cols > .dur { order: calc(var(--order-base) + var(--order-dur, 1)); }
+.gantt .cols > .start { order: calc(var(--order-base) + var(--order-start, 2)); }
+.gantt .cols > .finish { order: calc(var(--order-base) + var(--order-finish, 3)); }
+.gantt .cols > .float { order: calc(var(--order-base) + var(--order-float, 4)); }
+.gantt .cols > :is(.var-start, .var-finish, .var-float, .var-hold) { order: 9; }
+/* The Columns panel's rows: the checkbox takes the room, the two move buttons sit at the right. */
+.gantt [data-part=columns-panel] [data-row] { display: flex; align-items: center; gap: 6px; align-self: stretch; }
+.gantt [data-part=columns-panel] [data-row] > :first-child { flex: 1; }
+/* Dur has no checkbox, so its row reserves the checkbox's width (columns.css: a 12px box and a 6px gap) after a button's 4px of border and padding,
+   and its name starts at the same x as Start, Finish and Float. */
+.gantt [data-part=columns-panel] [data-row] > span { display: flex; align-items: center; gap: 6px; padding-inline-start: 4px; font-size: 11px; }
+.gantt [data-part=columns-panel] [data-row] > span::before { content: ""; width: 12px; height: 12px; }
+.gantt [data-part=columns-panel] button[data-move] { width: 22px; justify-content: center; }
+.gantt [data-part=columns-panel] button[aria-disabled="true"] { opacity: 0.35; }
+/* Dragging a head cell onto another (column-drag.ts): the four head cells grab, and the target shows a bar on the side the column will land on. */
+.gantt .cols > :is(.dur, .start, .finish, .float) { cursor: grab; user-select: none; touch-action: none; }
+.gantt .cols > [data-drop=before] { box-shadow: inset 2px 0 0 var(--gantt-sel-edge); }
+.gantt .cols > [data-drop=after] { box-shadow: inset -2px 0 0 var(--gantt-sel-edge); }

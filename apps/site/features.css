@@ -1,0 +1,13 @@
+/* Features: a heading, then one list for each group of what the chart does; the comparison table's cells read left to right. */
+.feat-hero { display: grid; gap: 20px; justify-items: center; text-align: center; }
+.feat-hero h1 { font-size: clamp(2.2rem, 6vw, 4.4rem); letter-spacing: -0.02em; max-width: 16ch; }
+.feat-hero .lede { font-size: 1.1rem; max-width: 720px; }
+.feat { display: grid; gap: 48px; }
+.feat > section { padding: 0; }
+.feat h2, #compare h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin-bottom: 14px; }
+.feat ul { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 0 48px; }
+.feat li { padding: 10px 0; border-bottom: 1px solid var(--rule); }
+a.doc { margin-left: 6px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+#compare { display: grid; gap: 18px; }
+.compare table { min-width: 980px; font-size: 14.5px; }
+.compare th, .compare td { text-align: left; vertical-align: top; }

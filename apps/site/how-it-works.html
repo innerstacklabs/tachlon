@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Tachlon works</title>
+<meta name="description" content="Why Tachlon's engine is Rust, why it ships as WebAssembly, why the GPU draws it, and what that means for a JavaScript or TypeScript team: you never write Rust.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="theme-color" content="#0e1630">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Tachlon">
+<meta property="og:title" content="How Tachlon works">
+<meta property="og:description" content="Why Tachlon's engine is Rust, why it ships as WebAssembly, why the GPU draws it, and what that means for a JavaScript or TypeScript team: you never write Rust.">
+<meta property="og:url" content="https://tachlon.com/how-it-works">
+<meta property="og:image" content="https://tachlon.com/shots/hero-light.webp">
+<meta property="og:image:width" content="2880">
+<meta property="og:image:height" content="1800">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://tachlon.com/how-it-works">
+<link rel="stylesheet" href="home.css">
+<link rel="stylesheet" href="how.css">
+</head>
+<body>
+<header class="nav"><div class="wrap">
+  <a class="logo" href="index.html"><svg class="mark" aria-hidden="true"><use href="mark.svg#mark"/></svg>tachlon</a>
+  <nav class="nav-links" aria-label="Page"><a href="#rust">Rust</a> <a href="#wasm">WebAssembly</a> <a href="#gpu">GPU</a> <a href="#your-stack">Your stack</a> <a href="features.html">Features</a> <a href="index.html">Back to the product</a></nav>
+  <a class="btn primary small nav-cta" href="https://app.tachlon.com">Open the demo</a>
+</div></header>
+
+<main class="wrap sheet">
+  <section class="how-hero" aria-labelledby="how-title">
+    <h1 id="how-title">Rust inside. JavaScript outside.</h1>
+    <p class="lede">The engine that schedules and draws 50,000 tasks is written in Rust. Your team never sees it: you install a package, call a typed API from JavaScript or TypeScript, and style it with CSS.</p>
+  </section>
+
+  <figure class="layers" aria-label="Where your code ends and the engine begins">
+    <div class="layer yours"><strong>Your app</strong><span>React, Vue or plain TypeScript. Your toolbar, your data, your routes.</span></div>
+    <div class="layer api"><strong>The chart's API</strong><span>Typed TypeScript: mount, load, commands and events. The only part you touch.</span></div>
+    <div class="layer core"><strong>The engine, Rust compiled to WebAssembly</strong><span>Reads P6, MS Project and JSON; computes every date; lays out the rows.</span></div>
+    <div class="layer gpu"><strong>The GPU</strong><span>WebGPU, or WebGL2 where a browser lacks it, draws each frame.</span></div>
+    <figcaption>Everything below the line is inside the component. You work above it.</figcaption>
+  </figure>
+
+  <section class="why" id="rust" aria-labelledby="rust-title">
+    <h2 id="rust-title">Why Rust</h2>
+    <div class="why-body">
+      <p>A Gantt chart is a scheduling engine with a picture on top. Every drag re-solves the schedule: each task's early and late dates, its float, the critical path, through calendars, lags and four kinds of link. At 50,000 tasks that is a lot of arithmetic to do between two frames.</p>
+      <p>Rust compiles to tight machine code and has no tracing garbage collector, so the engine never stops for a collection pause in the middle of a drag. When you change one task, the engine starts from the tasks that change can reach and widens the work only when it has to, as when the project's finish moves.</p>
+      <p>The same engine runs outside the browser too: Node opens P6 and MS Project files with it (<code>tachlon/headless</code>), and its tests run in milliseconds without a browser.</p>
+    </div>
+  </section>
+
+  <section class="why" id="wasm" aria-labelledby="wasm-title">
+    <h2 id="wasm-title">Why WebAssembly</h2>
+    <div class="why-body">
+      <p>WebAssembly is how compiled code runs in every modern browser, next to JavaScript and at close to native speed. The Rust engine is compiled once, into one file, and the browser loads it like any other asset.</p>
+      <p>It runs on the page's main thread, single-threaded. That keeps it simple to host: no Web Workers to wire up, no shared memory, and none of the cross-origin isolation headers that threaded WebAssembly needs.</p>
+    </div>
+  </section>
+
+  <section class="why" id="gpu" aria-labelledby="gpu-title">
+    <h2 id="gpu-title">Why the GPU</h2>
+    <div class="why-body">
+      <p>A chart of 50,000 tasks is tens of thousands of bars, links, labels and grid lines. Drawn one by one into the page, they make the browser lay them out again on every scroll. Handed to the GPU as one scene, they are drawn in a single pass each frame, the way a game draws.</p>
+      <p>The chart uses WebGPU where the browser has it and falls back to WebGL2, which current Chrome, Edge, Firefox and Safari ship. The task table beside the chart stays ordinary HTML, so its text is selectable, readable by a screen reader and styled by your CSS.</p>
+    </div>
+  </section>
+
+  <section class="stack" id="your-stack" aria-labelledby="stack-title">
+    <h2 id="stack-title">What it means for a JavaScript team</h2>
+    <div class="faq">
+      <article>
+        <h3>Do we need Rust, or a Rust toolchain?</h3>
+        <p>No. The package on npm carries the compiled engine. You install it like any other dependency, and your build never compiles Rust.</p>
+      </article>
+      <article>
+        <h3>Is it typed?</h3>
+        <p>Yes. The package ships TypeScript declarations for the whole API, and the reference is generated from the same source.</p>
+      </article>
+      <article>
+        <h3>What does it add to our bundle?</h3>
+        <p>The engine is one WebAssembly file: 2.2 MB gzipped (<code>gzip -9</code>) in a release build of main on 11 November 2026, plus the chart's own JavaScript and CSS. It is a static file your server can cache, and you can load it only on the pages that show a chart. A byte budget in CI keeps it from growing.</p>
+      </article>
+      <article>
+        <h3>Does it work with our framework?</h3>
+        <p>The core mounts into any element, so it works anywhere. A React component wraps it.</p>
+      </article>
+      <article>
+        <h3>Server-side rendering?</h3>
+        <p>The chart draws in the browser, so it renders on the client. In a server-rendered app, mount it after hydration, as you would a map or a code editor.</p>
+      </article>
+      <article>
+        <h3>Our site has a Content Security Policy.</h3>
+        <p>If your policy restricts scripts, add <code>'wasm-unsafe-eval'</code> to <code>script-src</code> so the browser may compile the engine. Allow an engine file in <code>connect-src</code>, even one on your own origin, unless <code>connect-src</code> or <code>default-src</code> allows <code>'self'</code>. Scripts, styles and fonts follow the rules you already have for any package.</p>
+      </article>
+      <article>
+        <h3>Special headers, workers, threads?</h3>
+        <p>None. The engine is single-threaded on the main thread, so no Cross-Origin-Opener-Policy or Cross-Origin-Embedder-Policy headers are needed.</p>
+      </article>
+      <article>
+        <h3>Which browsers?</h3>
+        <p>The chart needs WebGPU or WebGL2. Current Chrome, Edge, Firefox and Safari ship WebGL2, though a machine's drivers or policy can turn it off; then <code>mount</code> rejects with a <code>MountError</code> that says why. WebGPU also needs an https page and a usable GPU. If WebGPU fails, the chart moves to WebGL2, inside its own box, without reloading your page.</p>
+      </article>
+      <article>
+        <h3>How do we debug it?</h3>
+        <p>From JavaScript, like the rest of your app. <code>mount</code> rejects with a <code>MountError</code> if the first schedule cannot be read or the first frame cannot start. After that, <code>load</code> returns a result instead of throwing, and a failed open or a failed frame shows a message on the chart and fires an <code>error</code> event your code can listen for.</p>
+      </article>
+      <article>
+        <h3>Is it open source? What does it cost?</h3>
+        <p>Yes. Tachlon is open source under the MIT license, free to use in any product, with no key and no trial. The source is on GitHub under the MIT license.</p>
+      </article>
+      <article>
+        <h3>Can we make it look like our product?</h3>
+        <p>Yes. Colors are documented CSS tokens, in light and dark; the bar shape, row height and type are CSS tokens too.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="next" aria-labelledby="next-title">
+    <h2 id="next-title">See it at 50,000 tasks.</h2>
+    <p><a href="index.html">Back to the product</a>, or <a href="https://app.tachlon.com">open the demo</a> in your browser.</p>
+  </section>
+</main>
+
+<footer><div class="wrap">
+  <a class="logo" href="index.html"><svg class="mark" aria-hidden="true"><use href="mark.svg#mark-navy"/></svg>tachlon</a>
+  <div class="foot-base"><span>&copy; 2026 Dave Remy. Tachlon is open source under the MIT license.</span> <span>Engine: Rust, WebAssembly &middot; Drawn on: WebGPU or WebGL2</span></div>
+</div></footer>
+
+<script src="cloud.js"></script>
+</body>
+</html>

@@ -1,0 +1,225 @@
+/* The book theme: mdBook 0.5's variables, set to the chart's calm look (design option
+   C; the chart tokens in web/src/styles/tokens.css) and the mascot's colours (teal, claw orange, a blue
+   accent). Two themes only, "light" and "navy" (shown as Light and Dark in the menu); the stock Rust, Coal and Ayu
+   names map onto them so a browser that remembers one of those still gets the book's page. */
+
+:root {
+    --sidebar-target-width: 280px;
+    --sidebar-width: min(var(--sidebar-target-width), 80vw);
+    --sidebar-resize-indicator-width: 8px;
+    --sidebar-resize-indicator-space: 2px;
+    --page-padding: 15px;
+    --content-max-width: 760px;
+    --menu-bar-height: 50px;
+    --mono-font: ui-monospace, "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+    --code-font-size: 0.875em;
+    --searchbar-margin-block-start: 5px;
+
+    /* The mascot's colours, the same in both themes. */
+    --book-teal: #1f7a70;
+    --book-teal-deep: #17525a;
+    --book-claw: #ef5f3a;
+    --book-blue: #2457c5;
+    --book-mint: #e4f3ef;
+}
+
+.light, .rust, html:not(.js) {
+    --bg: #ffffff;
+    --fg: #1c2430;
+
+    --sidebar-bg: #f1f3f6;
+    --sidebar-fg: #1c2430;
+    --sidebar-non-existant: #8d97a3;
+    --sidebar-active: #1f7a70;
+    --sidebar-spacer: #d7dce4;
+
+    --scrollbar: #b5bcc6;
+
+    --icons: #5d6977;
+    --icons-hover: #1c2430;
+
+    --links: #1f7a70;
+
+    --inline-code-color: #17525a;
+
+    --theme-popup-bg: #ffffff;
+    --theme-popup-border: #d7dce4;
+    --theme-hover: #e9edf3;
+
+    --quote-bg: #e4f3ef;
+    --quote-border: #1f7a70;
+
+    --warning-border: #c47d00;
+
+    --table-border-color: #d7dce4;
+    --table-header-bg: #e9edf3;
+    --table-alternate-bg: #f8f9fb;
+
+    --searchbar-border-color: #d7dce4;
+    --searchbar-bg: #ffffff;
+    --searchbar-fg: #1c2430;
+    --searchbar-shadow-color: #d7dce4;
+    --searchresults-header-fg: #5d6977;
+    --searchresults-border-color: #d7dce4;
+    --searchresults-li-bg: #e4f3ef;
+    --search-mark-bg: #f3b2ad;
+
+    --color-scheme: light;
+
+    /* Same as `--icons` */
+    --copy-button-filter: invert(42%) sepia(9%) saturate(560%) hue-rotate(169deg) brightness(92%) contrast(87%);
+    /* Same as `--sidebar-active` */
+    --copy-button-filter-hover: invert(37%) sepia(58%) saturate(466%) hue-rotate(125deg) brightness(92%) contrast(90%);
+
+    --footnote-highlight: #e4f3ef;
+
+    --overlay-bg: rgba(28, 36, 48, 0.3);
+
+    --blockquote-note-color: #2457c5;
+    --blockquote-tip-color: #1f7a70;
+    --blockquote-important-color: #6b4fd1;
+    --blockquote-warning-color: #c47d00;
+    --blockquote-caution-color: #d4524a;
+
+    --sidebar-header-border-color: #1f7a70;
+
+    --book-tip-bg: #e4f3ef;
+    --book-surface: #f1f3f6;
+    --book-rule: #d7dce4;
+    --book-muted: #5d6977;
+    --book-crit: #d4524a;
+}
+
+.navy, .coal, .ayu {
+    --bg: #0b0e13;
+    --fg: #e8edf3;
+
+    --sidebar-bg: #11161d;
+    --sidebar-fg: #e8edf3;
+    --sidebar-non-existant: #5d6977;
+    --sidebar-active: #5fcfbe;
+    --sidebar-spacer: #1f2731;
+
+    --scrollbar: #3a4552;
+
+    --icons: #8d9bab;
+    --icons-hover: #e8edf3;
+
+    --links: #5fcfbe;
+
+    --inline-code-color: #9fe3d8;
+
+    --theme-popup-bg: #11161d;
+    --theme-popup-border: #1f2731;
+    --theme-hover: #1a222c;
+
+    --quote-bg: #10231f;
+    --quote-border: #2f9d8f;
+
+    --warning-border: #f0a020;
+
+    --table-border-color: #1f2731;
+    --table-header-bg: #131a23;
+    --table-alternate-bg: #0e1218;
+
+    --searchbar-border-color: #1f2731;
+    --searchbar-bg: #11161d;
+    --searchbar-fg: #e8edf3;
+    --searchbar-shadow-color: #0b0e13;
+    --searchresults-header-fg: #8d9bab;
+    --searchresults-border-color: #1f2731;
+    --searchresults-li-bg: #10231f;
+    --search-mark-bg: #5c2226;
+
+    --color-scheme: dark;
+
+    /* Same as `--icons` */
+    --copy-button-filter: invert(66%) sepia(9%) saturate(389%) hue-rotate(169deg) brightness(90%) contrast(86%);
+    /* Same as `--sidebar-active` */
+    --copy-button-filter-hover: invert(78%) sepia(23%) saturate(624%) hue-rotate(118deg) brightness(93%) contrast(89%);
+
+    --footnote-highlight: #10231f;
+
+    --overlay-bg: rgba(11, 14, 19, 0.5);
+
+    --blockquote-note-color: #4fb0ff;
+    --blockquote-tip-color: #5fcfbe;
+    --blockquote-important-color: #b39dff;
+    --blockquote-warning-color: #f0a020;
+    --blockquote-caution-color: #ee5a69;
+
+    --sidebar-header-border-color: #5fcfbe;
+
+    --book-tip-bg: #10231f;
+    --book-surface: #11161d;
+    --book-rule: #1f2731;
+    --book-muted: #8d9bab;
+    --book-crit: #ee5a69;
+}
+
+@media (prefers-color-scheme: dark) {
+    html:not(.js) {
+        --bg: #0b0e13;
+        --fg: #e8edf3;
+
+        --sidebar-bg: #11161d;
+        --sidebar-fg: #e8edf3;
+        --sidebar-non-existant: #5d6977;
+        --sidebar-active: #5fcfbe;
+        --sidebar-spacer: #1f2731;
+
+        --scrollbar: #3a4552;
+
+        --icons: #8d9bab;
+        --icons-hover: #e8edf3;
+
+        --links: #5fcfbe;
+
+        --inline-code-color: #9fe3d8;
+
+        --theme-popup-bg: #11161d;
+        --theme-popup-border: #1f2731;
+        --theme-hover: #1a222c;
+
+        --quote-bg: #10231f;
+        --quote-border: #2f9d8f;
+
+        --warning-border: #f0a020;
+
+        --table-border-color: #1f2731;
+        --table-header-bg: #131a23;
+        --table-alternate-bg: #0e1218;
+
+        --searchbar-border-color: #1f2731;
+        --searchbar-bg: #11161d;
+        --searchbar-fg: #e8edf3;
+        --searchbar-shadow-color: #0b0e13;
+        --searchresults-header-fg: #8d9bab;
+        --searchresults-border-color: #1f2731;
+        --searchresults-li-bg: #10231f;
+        --search-mark-bg: #5c2226;
+
+        --color-scheme: dark;
+
+        --copy-button-filter: invert(66%) sepia(9%) saturate(389%) hue-rotate(169deg) brightness(90%) contrast(86%);
+        --copy-button-filter-hover: invert(78%) sepia(23%) saturate(624%) hue-rotate(118deg) brightness(93%) contrast(89%);
+
+        --footnote-highlight: #10231f;
+
+        --overlay-bg: rgba(11, 14, 19, 0.5);
+
+        --blockquote-note-color: #4fb0ff;
+        --blockquote-tip-color: #5fcfbe;
+        --blockquote-important-color: #b39dff;
+        --blockquote-warning-color: #f0a020;
+        --blockquote-caution-color: #ee5a69;
+
+        --sidebar-header-border-color: #5fcfbe;
+
+        --book-tip-bg: #10231f;
+        --book-surface: #11161d;
+        --book-rule: #1f2731;
+        --book-muted: #8d9bab;
+        --book-crit: #ee5a69;
+    }
+}

@@ -1,0 +1,71 @@
+{
+  "machine": "Apple M4",
+  "date": "2026-11-08",
+  "browser": "156.0.8078.80",
+  "url": "https://app.tachlon.com/?sample=demo-50k",
+  "backend": "WebGPU",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+  "fps": 60,
+  "windows": [
+    {
+      "name": "open",
+      "start": 0.3,
+      "end": 8.133
+    },
+    {
+      "name": "zoom",
+      "start": 8.134,
+      "end": 15.867
+    },
+    {
+      "name": "driving-path",
+      "start": 15.867,
+      "end": 22.017
+    },
+    {
+      "name": "drag",
+      "start": 22.017,
+      "end": 29.317
+    },
+    {
+      "name": "fling",
+      "start": 29.317,
+      "end": 37.498
+    },
+    {
+      "name": "critical-only",
+      "start": 37.498,
+      "end": 43.679
+    },
+    {
+      "name": "lookahead",
+      "start": 43.679,
+      "end": 49.296
+    },
+    {
+      "name": "open-p6",
+      "start": 49.296,
+      "end": 61.246
+    },
+    {
+      "name": "code-filter",
+      "start": 61.246,
+      "end": 67.296
+    },
+    {
+      "name": "edit-link",
+      "start": 67.296,
+      "end": 74.046
+    },
+    {
+      "name": "show-moved",
+      "start": 74.046,
+      "end": 79.929
+    },
+    {
+      "name": "close",
+      "start": 79.929,
+      "end": 86.796
+    }
+  ]
+}

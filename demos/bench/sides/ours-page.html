@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Gantt</title>
+    <link rel="icon" href="data:," />
+    <style>
+      html, body { height: 100%; margin: 0; }
+      :root { color-scheme: light dark; }
+      body { display: flex; flex-direction: column; background: Canvas; color: CanvasText; font: 13px/1.4 system-ui, sans-serif; }
+      .host-box { flex: 1; min-height: 0; }
+    </style>
+  </head>
+  <body>
+    <main class="host-box"><div id="gantt_here" class="gantt" tabindex="0"></div></main>
+    <script type="module" src="./ours-page.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "noEmit": false, "allowImportingTsExtensions": false, "rewriteRelativeImportExtensions": true, "declaration": true, "useDefineForClassFields": false, "stripInternal": true, "rootDir": "src", "outDir": "dist-ng", "types": ["vite/client"] },
+  "include": [],
+  "files": ["src/angular.ts"],
+  "angularCompilerOptions": { "compilationMode": "partial", "strictTemplates": true }
+}

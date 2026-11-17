@@ -1,0 +1,220 @@
+/* The book: what the stock mdBook stylesheets do not cover. Loaded after them (book.toml,
+   additional-css). The colours come from theme/css/variables.css; nothing here names a colour twice. */
+
+/* Type: the chart's own stack (web/src/styles/tokens.css), not the bundled Open Sans. */
+html, body, .sidebar, .menu-bar, .nav-chapters, .searchbar {
+    font-family: -apple-system, "Segoe UI", Inter, Roboto, system-ui, sans-serif;
+}
+.content main {
+    font-size: 1.05rem;
+    line-height: 1.6;
+}
+.content h1, .content h2, .content h3 {
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+.content h1 { font-size: 2.1rem; margin-block-end: 0.4em; }
+.content h2 { font-size: 1.45rem; margin-block-start: 2.2em; }
+.content h3 { font-size: 1.15rem; }
+.content p { margin: 0.75em 0; }
+.content code { border-radius: 4px; }
+
+/* Keys look like keys. */
+.content kbd {
+    display: inline-block;
+    padding: 0.05em 0.45em;
+    border: 1px solid var(--book-rule);
+    border-bottom-width: 2px;
+    border-radius: 5px;
+    background: var(--book-surface);
+    color: var(--fg);
+    font: 600 0.85em var(--mono-font);
+    line-height: 1.5;
+}
+
+/* The chapter clip: 16:9, the poster until it plays, a hairline so a white frame has an edge. */
+.content .clip {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    margin: 1em 0 1.5em;
+    border: 1px solid var(--book-rule);
+    border-radius: 10px;
+    background: var(--book-surface);
+}
+
+/* A screenshot with a caption. The number badges are drawn into the image by demos/screencast/clip.mjs. */
+.content figure.shot {
+    margin: 1.25em 0 1.75em;
+}
+.content figure.shot img {
+    display: block;
+    width: 100%;
+    border: 1px solid var(--book-rule);
+    border-radius: 10px;
+}
+.content figure.shot figcaption {
+    margin-top: 0.5em;
+    color: var(--book-muted);
+    font-size: 0.9rem;
+}
+
+/* Steps: numbered in teal, with room between them. */
+.content ol.steps,
+.content main > ol {
+    padding-inline-start: 1.6em;
+}
+.content main > ol > li {
+    margin: 0.45em 0;
+    padding-inline-start: 0.25em;
+}
+.content main > ol > li::marker {
+    color: var(--book-teal);
+    font-weight: 650;
+}
+
+/* The tip from the mascot: the one place in a chapter where the mascot speaks. */
+.content .book-tip {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    margin: 1.5em 0;
+    padding: 14px 16px;
+    border: 1px solid var(--book-rule);
+    border-left: 4px solid var(--book-teal);
+    border-radius: 10px;
+    background: var(--book-tip-bg);
+}
+.content .book-tip img {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+}
+.content .book-tip p {
+    margin: 0;
+}
+.content .book-tip p + p {
+    margin-top: 0.5em;
+}
+
+/* A plain note (a limit, a status), without the mascot. */
+.content .note {
+    margin: 1.25em 0;
+    padding: 10px 14px;
+    border-left: 4px solid var(--book-blue);
+    border-radius: 6px;
+    background: var(--book-surface);
+}
+.content .note p { margin: 0; }
+
+/* The front page. */
+.content .hero {
+    display: grid;
+    grid-template-columns: 180px minmax(0, 1fr);
+    gap: 28px;
+    align-items: center;
+    margin: 0.5em 0 1.5em;
+}
+.content .hero img {
+    width: 180px;
+    height: 180px;
+    border-radius: 24px;
+    background: var(--book-mint);
+}
+.content .hero h1 {
+    margin: 0 0 0.3em;
+    font-size: 2.4rem;
+}
+.content .hero .pitch {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--book-muted);
+}
+@media (max-width: 600px) {
+    .content .hero { grid-template-columns: 1fr; }
+    .content .hero img { width: 120px; height: 120px; }
+}
+.content .start {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+    margin: 1em 0 1.5em;
+}
+.content .start a {
+    display: block;
+    padding: 14px 16px;
+    border: 1px solid var(--book-rule);
+    border-radius: 10px;
+    background: var(--book-surface);
+    color: var(--fg);
+    text-decoration: none;
+}
+.content .start a:hover {
+    border-color: var(--book-teal);
+}
+.content .start a strong {
+    display: block;
+    margin-bottom: 4px;
+    color: var(--links);
+}
+.content .start a span {
+    color: var(--book-muted);
+    font-size: 0.95rem;
+}
+
+/* What is coming: a plain list, each line says it is not built. */
+.content .coming li {
+    margin: 0.4em 0;
+}
+.content .coming .soon {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--book-surface);
+    color: var(--book-muted);
+    font-size: 0.8em;
+    vertical-align: middle;
+}
+
+/* The sidebar: a part title in small caps, the active chapter in teal. */
+.chapter li.part-title {
+    margin-top: 1.4em;
+    color: var(--book-muted);
+    font-size: 0.78rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+.chapter li.chapter-item {
+    margin-block-start: 0.5em;
+}
+.chapter li a.active {
+    font-weight: 650;
+}
+
+/* The menu bar title carries the icon. */
+.menu-title {
+    font-weight: 650;
+}
+
+/* The icon beside the title in the menu bar. */
+.menu-icon {
+    width: 22px;
+    height: 22px;
+    margin-right: 6px;
+    border-radius: 6px;
+    vertical-align: -5px;
+}
+
+/* mdBook hides the side arrows when the sidebar is open at 1380 px or less, which left the Welcome page with its Next link
+   below the fold at the demo's 1280 px window. From 1280 px the arrows come back and the bottom links go. */
+@media only screen and (min-width: 1280px) and (max-width: 1380px) {
+    #mdbook-sidebar-toggle-anchor:checked ~ .page-wrapper .nav-wide-wrapper {
+        display: block;
+    }
+    #mdbook-sidebar-toggle-anchor:checked ~ .page-wrapper .nav-wrapper {
+        display: none;
+    }
+}

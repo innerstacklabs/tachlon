@@ -1,0 +1,80 @@
+  <div data-part="toolbar" role="toolbar" data-t-aria-label="chart-tools">
+    <span class="tb-brand"></span>
+    <div data-part="toolbar-file" class="tb-group" role="group" data-t-aria-label="file">
+      <span data-part="file-tools"></span>
+    </div>
+    <div data-part="filters-menu" class="tb-menu"></div>
+    <div class="tb-group" role="group" data-t-aria-label="baseline">
+      <span data-part="baseline-tools"></span>
+      <button data-part="variance-toggle" type="button" aria-pressed="true" data-t-title="variance-title" hidden data-t="variance"></button>
+    </div>
+    <div class="tb-group" role="group" data-t-aria-label="progress">
+      <button data-part="progress-toggle" type="button" aria-pressed="false" data-t-title="progress-title" data-t="progress"></button>
+    </div>
+    <div data-part="columns-menu" class="tb-menu">
+      <button data-part="columns-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="columns-panel" data-t-aria-label="columns" data-t-title="columns-title"><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M1.5 1.5h9v9h-9zM4.5 1.5v9M7.5 1.5v9"/></svg></button>
+      <div data-part="columns-panel" role="menu" data-t-aria-label="columns" hidden>
+        <div role="none" data-row="dur"><span data-t="dur"></span><button data-part="columns-up-dur" data-move="-1" type="button" role="menuitem" data-t-aria-label="move-dur-up" data-t-title="move-dur-up-title"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6.5 5 3.5l3 3"/></svg></button><button data-part="columns-down-dur" data-move="1" type="button" role="menuitem" data-t-aria-label="move-dur-down" data-t-title="move-dur-down-title"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3.5 5 6.5l3-3"/></svg></button></div>
+        <div role="none" data-row="start"><button data-part="columns-start" data-column="start" type="button" role="menuitemcheckbox" aria-checked="true" data-t-title="show-start-title" data-t="start"></button><button data-part="columns-up-start" data-move="-1" type="button" role="menuitem" data-t-aria-label="move-start-up" data-t-title="move-start-up-title"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6.5 5 3.5l3 3"/></svg></button><button data-part="columns-down-start" data-move="1" type="button" role="menuitem" data-t-aria-label="move-start-down" data-t-title="move-start-down-title"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3.5 5 6.5l3-3"/></svg></button></div>
+        <div role="none" data-row="finish"><button data-part="columns-finish" data-column="finish" type="button" role="menuitemcheckbox" aria-checked="true" data-t-title="show-finish-title" data-t="finish"></button><button data-part="columns-up-finish" data-move="-1" type="button" role="menuitem" data-t-aria-label="move-finish-up" data-t-title="move-finish-up-title"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6.5 5 3.5l3 3"/></svg></button><button data-part="columns-down-finish" data-move="1" type="button" role="menuitem" data-t-aria-label="move-finish-down" data-t-title="move-finish-down-title"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3.5 5 6.5l3-3"/></svg></button></div>
+        <div role="none" data-row="float"><button data-part="columns-float" data-column="float" type="button" role="menuitemcheckbox" aria-checked="true" data-t-title="show-float-title" data-t="float"></button><button data-part="columns-up-float" data-move="-1" type="button" role="menuitem" data-t-aria-label="move-float-up" data-t-title="move-float-up-title"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6.5 5 3.5l3 3"/></svg></button><button data-part="columns-down-float" data-move="1" type="button" role="menuitem" data-t-aria-label="move-float-down" data-t-title="move-float-down-title"><svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 3.5 5 6.5l3-3"/></svg></button></div>
+      </div>
+    </div>
+    <span data-part="row-tools"></span>
+    <div class="tb-group" role="group" data-t-aria-label="zoom">
+      <span data-part="zoom-tools"></span>
+      <button data-part="fit-button" type="button" data-t-title="fit-title" data-t="fit"></button>
+    </div>
+    <span class="tb-spacer"></span>
+    <span data-part="file-notice"></span>
+    <div data-part="edit-error" role="alert" hidden><span data-part="edit-error-text"></span><button data-part="edit-error-close" type="button" data-t-aria-label="dismiss">×</button></div>
+    <span data-part="readouts"></span>
+    <span data-part="selection-count" aria-live="polite"></span>
+    <div data-part="find"></div>
+    <span data-part="keys-tools"></span>
+  </div>
+  <div data-part="table" role="treegrid" data-t-aria-label="task-list">
+    <div data-part="table-head">
+      <div class="cols">
+        <span class="name" data-t="task"></span><span class="dur" data-t="dur"></span><span class="start" data-t="start"></span><span class="finish" data-t="finish"></span><span class="float" data-t-title="float-title" data-t="float"></span>
+      </div>
+    </div>
+    <div data-part="table-body"><div data-part="table-rows"></div><div data-part="blank-note"></div></div>
+    <span data-part="row-position" aria-hidden="true" hidden></span>
+    <div data-part="split" role="separator" aria-orientation="vertical" data-t-aria-label="resize" aria-valuemin="420" tabindex="0" data-t-title="resize-title"></div>
+  </div>
+  <canvas data-part="timeline" role="img" data-t-aria-label="timeline"></canvas>
+  <div data-part="link-edit" hidden><label><span data-t="link"></span> <input data-part="link-edit-input" type="text" size="12" autocomplete="off" spellcheck="false" data-t-aria-label="link-input" data-t-title="link-title"></label></div>
+  <div data-part="frame-error" role="alert" hidden><span data-part="frame-error-text"></span><button data-part="frame-error-dismiss" type="button" data-t-aria-label="dismiss">×</button><button data-part="frame-error-reload" type="button" hidden data-t="reload"></button></div>
+  <div data-part="overlay" data-t="loading"></div>
+  <div data-part="file-dialogs"></div>
+  <dialog data-part="task-dialog" aria-labelledby="task-dialog-title">
+    <form data-part="task-form" autocomplete="off">
+      <h2 data-part="task-dialog-title"></h2>
+      <label><span data-t="name"></span> <input name="name" type="text" spellcheck="false"></label>
+      <label><span data-t="duration"></span> <input name="duration" type="text" spellcheck="false"></label>
+      <label><span data-t="start"></span> <input name="start" type="text" spellcheck="false" data-t-placeholder="date-format"></label>
+      <label><span data-t="finish"></span> <input name="finish" type="text" spellcheck="false" data-t-placeholder="date-format"></label>
+      <label><span data-t="percent"></span> <input name="percent" type="text" spellcheck="false"></label>
+      <label><span data-t="actual-start"></span> <input name="actual_start" type="text" spellcheck="false" data-t-placeholder="date-format"></label>
+      <label><span data-t="actual-finish"></span> <input name="actual_finish" type="text" spellcheck="false" data-t-placeholder="date-format"></label>
+      <label><span data-t="remaining"></span> <input name="remaining" type="text" spellcheck="false"></label>
+      <label><span data-t="snlt"></span> <input name="snlt" type="text" spellcheck="false" data-t-placeholder="date-format"></label>
+      <label><span data-t="fnet"></span> <input name="fnet" type="text" spellcheck="false" data-t-placeholder="date-format"></label>
+      <label><span data-t="fnlt"></span> <input name="fnlt" type="text" spellcheck="false" data-t-placeholder="date-format"></label>
+      <div data-part="task-dialog-error" role="alert" hidden></div>
+      <div data-part="task-dialog-actions"><button data-part="task-cancel" type="button" data-t="cancel"></button><button data-part="task-save" type="submit" data-t="save"></button></div>
+    </form>
+  </dialog>
+  <div class="gantt-print-pages" aria-hidden="true"></div>
+  <pre data-part="print-sheet" aria-hidden="true"></pre>
+  <div data-part="hover-card" hidden></div>
+  <div data-part="card-live" role="status" aria-live="polite"></div>
+  <div data-part="moved-note" role="status" aria-live="polite"></div>
+  <div data-part="path-line"></div>
+  <div data-part="baseline-summary" hidden></div>
+  <div data-part="drag-note" role="status" aria-live="polite" hidden></div>
+  <div data-part="save-note" role="status" aria-live="polite" hidden></div>
+  <button data-part="moved-show" type="button" hidden data-t="show-moved"></button>
+  <a data-part="result-link" download="gantt-measurement.json" hidden data-t="measurement-link"></a>
+  <ul data-part="legend" data-t-aria-label="legend"></ul>

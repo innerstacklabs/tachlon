@@ -1,0 +1,184 @@
+// The object `mount` hands back (`Gantt`), built from the parts one start of the chart made. It is a facade: each method checks the
+// chart is alive and calls a part; none of them holds state of its own beyond "destroyed".
+import { download, type LoadResult, type LoadSource, toChecksReport, toExportResult } from "./document.js";
+import { createCommands, guardCommands } from "./commands.js";
+import { loadSource } from "./load-source.js";
+import { readFilterInputs, type ViewState } from "./view-state.js";
+import { takeDown, type Shell } from "./shell.js";
+import type { OpenGuard } from "./open-guard.js";
+import type { OpenedFile, OpenOptions } from "./open-schedule.js";
+import type { PageSize, PrintPages, Status } from "./api.js";
+import { pagePng } from "./image-export.js";
+import { xlsxFile } from "./xlsx.js";
+import { snapshot } from "./snapshot.js";
+import { localDate, measureText, printColumns } from "./print-sheet.js";
+import type { Gantt } from "./index.js";
+import type { HasOn } from "./events.js";
+import type { Speed } from "./speed.js";
+
+/** What the object reads and calls on the start that built it. */
+export interface GanttParts {
+  shell: Shell;
+  reason: (err: unknown) => string;
+  /** The open file's document name, and its setter (`load` names the schedule). */
+  name: () => string;
+  setName: (name: string) => void;
+  save: () => Promise<void>;
+  /** Writes the note at the bottom right (`#save-note`, a live region) and shows it. */
+  note: (text: string) => void;
+  /** Prints once on that paper (`installPrintSheet`). */
+  printOn: (size: PageSize) => void;
+  openFile: (file: File, options?: OpenOptions) => Promise<void>;
+  adopt: (file: OpenedFile, lines: string[], ms: number, expected: readonly string[], fileName: string | null, unsaved?: boolean) => void;
+  busy: () => boolean;
+  /** Mark these task slots as pending (`installTable`). */
+  setPending: (slots: readonly number[]) => void;
+  /** The token and the swap check `load` shares with `openFile`. */
+  guard: OpenGuard;
+  /** The host's own reader of the view state (not the loop's). */
+  hostView: { read: (s: Status) => ViewState };
+  events: HasOn;
+  /** The open's timings and the frames' numbers (`speed.ts`). */
+  speed: () => Speed;
+}
+
+/** The `Gantt` of one start; `destroy` takes down what `shell.disposers` holds, then frees the app and empties the root. */
+export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-lines-per-function -- existing, over cap
+  const { shell } = p;
+  const { app, root, disposers } = shell;
+  let destroyed = false;
+  const alive = (): void => {
+    if (destroyed) throw new Error("this chart was destroyed");
+  };
+  const printPages = (): PrintPages => app.print_pages(document.title, localDate(), undefined, measureText, printColumns(shell.root)) as PrintPages;
+  return {
+    commands: guardCommands(createCommands(shell, p.reason, p.busy), () => destroyed),
+    open: async (file, options) => {
+      alive();
+      await p.openFile(file, options);
+    },
+    save: async () => {
+      alive();
+      await p.save();
+    },
+    exportCsv: () => {
+      alive();
+      const file = `${p.name()}.csv`;
+      // The byte order mark (EF BB BF) makes Excel read a non-ASCII task name as UTF-8.
+      download(file, new TextEncoder().encode(`\uFEFF${app.list_csv()}`), "text/csv");
+      const { rowCount, n } = shell.status();
+      p.note(`Exported ${rowCount === n ? rowCount : `${rowCount} of ${n}`} rows to ${file}`);
+    },
+    exportXlsx: async () => {
+      alive();
+      const file = `${p.name()}.xlsx`;
+      // The sheet and the row count are read together, before the file is packed, so the note counts the rows the file holds.
+      const { rowCount, n } = shell.status();
+      const bytes = await xlsxFile({ name: p.name(), sheetXml: app.list_xlsx_sheet() });
+      if (destroyed) return;
+      download(file, bytes, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      p.note(`Exported ${rowCount === n ? rowCount : `${rowCount} of ${n}`} rows to ${file}`);
+    },
+    copyList: async () => {
+      alive();
+      const { rowCount, n } = shell.status();
+      await navigator.clipboard.writeText(app.list_text());
+      if (!destroyed) p.note(`Copied ${rowCount === n ? rowCount : `${rowCount} of ${n}`} rows`);
+    },
+    printOn: (size) => {
+      alive();
+      p.printOn(size);
+    },
+    printedPages: () => {
+      alive();
+      return printPages().length;
+    },
+    exportImage: async (options) => {
+      alive();
+      const pages = printPages();
+      const page = options?.page ?? 1;
+      if (!Number.isInteger(page) || page < 1 || page > pages.length) {
+        const shown = Number.isInteger(page) ? `${page}` : `"${String(page)}"`;
+        throw new Error(`exportImage: page ${shown} is not one of the ${pages.length} printed page${pages.length === 1 ? "" : "s"}`);
+      }
+      const png = await pagePng(pages[page - 1]!);
+      if (!destroyed) download(page === 1 ? `${p.name()}.png` : `${p.name()}-page-${page}.png`, png, "image/png");
+    },
+    load: async (source: LoadSource): Promise<LoadResult> => {
+      alive();
+      return loadSource(app, source, p.adopt, p.setName, p.guard);
+    },
+    newSchedule: async (): Promise<LoadResult> => {
+      alive();
+      const busy = p.guard.busy();
+      if (busy !== null) return { ok: false, error: `Not started. ${busy}` };
+      if (p.hostView.read(shell.status()).unsaved && !window.confirm("Start a new schedule? The changes to the current schedule are not saved and will be lost.")) {
+        return { ok: false, error: "Not started. The current schedule was kept." };
+      }
+      return loadSource(app, { blank: true }, p.adopt, p.setName, p.guard);
+    },
+    toDocument: () => {
+      alive();
+      return JSON.parse(app.save(p.name())) as unknown;
+    },
+    snapshot: () => {
+      alive();
+      return snapshot(app, p.name());
+    },
+    exportXer: () => {
+      alive();
+      return toExportResult(app.export_xer());
+    },
+    exportMspdi: () => {
+      alive();
+      return toExportResult(app.export_mspdi());
+    },
+    checks: () => {
+      alive();
+      return toChecksReport(app.checks());
+    },
+    backend: () => {
+      alive();
+      return app.backend() === "WebGPU" ? "WebGPU" : "WebGL2";
+    },
+    state: () => {
+      alive();
+      return p.hostView.read(shell.status());
+    },
+    filterInputs: () => {
+      alive();
+      return readFilterInputs(app);
+    },
+    busy: () => {
+      alive();
+      return p.busy();
+    },
+    setReadOnly: (on) => {
+      alive();
+      app.set_read_only(on);
+    },
+    readOnly: () => {
+      alive();
+      return app.read_only();
+    },
+    setPending: (keys) => {
+      alive();
+      const slots = JSON.parse(app.task_slots([...keys])) as (number | null)[];
+      p.setPending(slots.filter((slot): slot is number => slot !== null));
+      return keys.filter((_, i) => slots[i] === null);
+    },
+    speed: () => {
+      alive();
+      return p.speed();
+    },
+    on: (name, handler) => { alive(); return p.events.on(name, handler); },
+    destroy: () => {
+      if (destroyed) return;
+      destroyed = true;
+      // The loop is the last part installed, so it stops first and nothing draws on an app that is about to be freed.
+      takeDown(disposers);
+      app.free();
+      root.replaceChildren();
+    },
+  };
+}

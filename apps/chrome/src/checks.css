@@ -1,0 +1,81 @@
+/* The Checks dialog (gs#703): a modal dialog like the keys list, with the same look, and no pass or fail colour: every number is plain text. */
+.gantt [data-part=checks-dialog] {
+  width: min(640px, calc(100% - 32px));
+  max-height: calc(100% - 32px);
+  box-sizing: border-box;
+  padding: 14px 16px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  font: 13px/18px var(--gantt-font);
+}
+.gantt [data-part=checks-dialog]::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+.gantt [data-part=checks-title] {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.gantt [data-part=checks-list] {
+  border-collapse: collapse;
+}
+.gantt [data-part=checks-list] td {
+  padding: 4px 12px 4px 0;
+  vertical-align: top;
+}
+.gantt [data-part=checks-list] td:first-child {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gantt [data-part=checks-list] td:nth-child(2) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.gantt [data-part=checks-list] td:nth-child(3) {
+  color: var(--gantt-muted);
+}
+/* Why a flagged line matters: one sentence under what the line counts, in the text colour so it reads apart from the muted one above. */
+.gantt [data-part=checks-why] {
+  display: block;
+  margin-top: 2px;
+  color: var(--gantt-text);
+}
+.gantt [data-part=checks-list] td:last-child {
+  padding-right: 0;
+  white-space: nowrap;
+}
+.gantt [data-part=checks-dialog] [data-part=checks-list] button {
+  padding: 2px 8px;
+}
+.gantt [data-part=checks-dialog] button {
+  padding: 6px 10px;
+  border: 1px solid var(--gantt-rule);
+  border-radius: 5px;
+  background: var(--gantt-bg);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.gantt [data-part=checks-dialog] button:hover {
+  background: var(--gantt-hov);
+}
+.gantt [data-part=checks-dialog] :focus-visible {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: 1px;
+}
+.gantt [data-part=checks-actions] {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+/* The toolbar button is an icon, as narrow as the Export button beside it: the strip at 1280 px has no room to give (the hosted
+   toolbar-text-whole spec reads the file line, the data date, the row count and Find's hint whole). Its name is the aria-label. */
+.gantt [data-part=toolbar] [data-part=checks-button] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  padding: 0;
+}

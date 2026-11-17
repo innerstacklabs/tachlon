@@ -1,0 +1,37 @@
+<svg viewBox="0 0 760 384" width="100%" role="img" aria-labelledby="frame-title frame-desc" fill="none" stroke="currentColor" stroke-width="1.5" font-family="-apple-system, 'Segoe UI', Inter, Roboto, system-ui, sans-serif" font-size="12.5" xmlns="http://www.w3.org/2000/svg">
+<title id="frame-title">One frame, from requestAnimationFrame to Renderer::render</title>
+<desc id="frame-desc">The browser's requestAnimationFrame calls tick in packages/gantt/src/loop.ts. tick calls App::frame, which applies a pending drag and asks Session::frame_scene for the Scene (the scene, the dependency arrows, the move outlines, the link overlay, then the bar labels). App::frame passes the Scene to Renderer::render.</desc>
+<defs><marker id="frame-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 10 5 0 10z" fill="currentColor" stroke="none"/></marker></defs>
+<g fill="currentColor" fill-opacity="0.07">
+<rect x="20" y="10" width="290" height="52" rx="8"/>
+<rect x="20" y="88" width="290" height="52" rx="8"/>
+<rect x="20" y="166" width="290" height="52" rx="8"/>
+<rect x="20" y="244" width="290" height="52" rx="8"/>
+<rect x="20" y="322" width="290" height="52" rx="8"/>
+</g>
+<g marker-end="url(#frame-arrow)"><path d="M165 62V88"/><path d="M165 140V166"/><path d="M165 218V244"/><path d="M165 296V322"/></g>
+<g fill="currentColor" stroke="none">
+<g font-family="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" font-weight="600">
+<text x="34" y="32">requestAnimationFrame</text>
+<text x="34" y="110">tick</text>
+<text x="34" y="188">App::frame</text>
+<text x="34" y="266">Session::frame_scene</text>
+<text x="34" y="344">Renderer::render</text>
+</g>
+<text x="34" y="50">the browser</text>
+<text x="34" y="128">packages/gantt/src/loop.ts</text>
+<text x="34" y="206">crates/app/src/web/</text>
+<text x="34" y="284">crates/app/src</text>
+<text x="34" y="362">crates/timeline</text>
+<text x="340" y="32">The loop asks for a frame only while</text>
+<text x="340" y="48">something changes.</text>
+<text x="340" y="104">Draws until the status is unchanged for half</text>
+<text x="340" y="120">a second (QUIET_MS), then sleeps. Any call</text>
+<text x="340" y="136">into the app from outside a tick wakes it.</text>
+<text x="340" y="196">Applies a pending drag.</text>
+<text x="340" y="260">Returns the Scene: the scene, the dependency</text>
+<text x="340" y="276">arrows, the move outlines, the link overlay,</text>
+<text x="340" y="292">then the bar labels.</text>
+<text x="340" y="352">Draws the Scene.</text>
+</g>
+</svg>

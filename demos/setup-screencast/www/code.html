@@ -1,0 +1,52 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>code</title>
+<style>
+  * { cursor: none !important; box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0d1117; }
+  .tabs { height: 40px; background: #161b22; display: flex; align-items: flex-end; border-bottom: 1px solid #222a35; padding-left: 12px; }
+  .tab { color: #e6edf3; background: #0d1117; font: 14px "DejaVu Sans", sans-serif; padding: 9px 18px; border: 1px solid #222a35; border-bottom: none; border-top: 2px solid #f78166; }
+  pre { margin: 0; padding: 12px 0; font: 15.5px/1.36 "DejaVu Sans Mono", ui-monospace, monospace; color: #e6edf3; }
+  .ln { display: block; padding-right: 24px; }
+  .ln.hl { background: rgba(56, 139, 253, 0.22); box-shadow: inset 4px 0 0 #388bfd; }
+  .no { display: inline-block; width: 56px; text-align: right; padding-right: 22px; color: #6e7681; user-select: none; }
+  .c { color: #8b949e; } .s { color: #a5d6ff; } .k { color: #ff7b72; } .t { color: #7ee787; }
+</style>
+</head>
+<body>
+<div class="tabs"><span class="tab" id="tab"></span></div>
+<pre id="code"></pre>
+<script>
+const q = new URLSearchParams(location.search);
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const KW = /^(import|from|export|default|function|const|let|return|if|else|type|await|async|new|true|false|undefined)$/;
+function hl(line) {
+  const re = /(\/\/.*$|<!--.*?-->)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|`[^`]*`)|(<\/?[A-Za-z][\w.]*)|([A-Za-z_]\w*)|([\s\S])/g;
+  let out = "", m;
+  while ((m = re.exec(line))) {
+    if (m[1]) out += `<span class="c">${esc(m[1])}</span>`;
+    else if (m[2]) out += `<span class="s">${esc(m[2])}</span>`;
+    else if (m[3]) out += `<span class="t">${esc(m[3])}</span>`;
+    else if (m[4]) out += KW.test(m[4]) ? `<span class="k">${m[4]}</span>` : esc(m[4]);
+    else out += esc(m[5]);
+  }
+  return out;
+}
+async function show() {
+  const file = q.get("f");
+  document.getElementById("tab").textContent = q.get("name") || file;
+  const lines = (await (await fetch("files/" + file)).text()).replace(/\n$/, "").split("\n");
+  const from = Number(q.get("from") || 1), to = Number(q.get("to") || lines.length);
+  const marks = (q.get("hl") || "").split(",").filter(Boolean).map(Number);
+  document.getElementById("code").innerHTML = lines.slice(from - 1, to).map((l, i) => {
+    const n = from + i;
+    return `<span class="ln${marks.includes(n) ? " hl" : ""}"><span class="no">${n}</span>${hl(l) || " "}</span>`;
+  }).join("");
+  window.ready = true;
+}
+show();
+</script>
+</body>
+</html>

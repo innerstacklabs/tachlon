@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+  <StartDate>2026-01-05T08:00:00</StartDate>
+  <CalendarUID>1</CalendarUID>
+  <Calendars>
+    <Calendar>
+      <UID>1</UID>
+      <Name>Standard</Name>
+      <IsBaseCalendar>1</IsBaseCalendar>
+      <BaseCalendarUID>-1</BaseCalendarUID>
+      <WeekDays>
+        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
+        <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>3</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>4</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>5</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>6</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
+      </WeekDays>
+    </Calendar>
+  </Calendars>
+  <Tasks>
+    <Task><UID>1</UID><Name>Done</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>PT16H0M0S</Duration><DurationFormat>7</DurationFormat><PercentComplete>100</PercentComplete></Task>
+    <Task><UID>2</UID><Name>Half</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>PT16H0M0S</Duration><DurationFormat>7</DurationFormat><PercentComplete>50</PercentComplete></Task>
+    <Task><UID>3</UID><Name>Fresh</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>PT16H0M0S</Duration><DurationFormat>7</DurationFormat><PercentComplete>0</PercentComplete></Task>
+    <Task><UID>4</UID><Name>Unstated</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>PT16H0M0S</Duration><DurationFormat>7</DurationFormat></Task>
+  </Tasks>
+</Project>

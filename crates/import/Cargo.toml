@@ -1,0 +1,23 @@
+[package]
+name = "import"
+version = "0.1.0"
+description = "Import project schedules from external file formats."
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+engine = { path = "../engine" }
+quick-xml = "0.41"
+xer = { path = "../xer" }
+
+[dev-dependencies]
+xer = { path = "../xer", features = ["synth"] }
+criterion = { version = "0.5", default-features = false, features = ["cargo_bench_support"] }
+
+[[bench]]
+name = "parse"
+harness = false
+
+[lints]
+workspace = true

@@ -1,0 +1,4 @@
+/package/*.wasm
+  Content-Type: application/wasm
+/package/*
+  Cache-Control: public, max-age=3600

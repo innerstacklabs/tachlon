@@ -1,0 +1,17 @@
+# cargo-nextest settings for the rust job in .github/workflows/ci.yml (gs#1146).
+# Run locally the way the pull request workflow does: `cargo nextest run`, which uses the default profile.
+
+[profile.default]
+# No retries on a developer machine: a flaky test should show up as a failure, not hide.
+retries = 0
+
+# A pushed branch (the run that gates a PR). A test that fails and then passes within 2 retries
+# lets the run pass, and the run reports it as flaky.
+[profile.ci]
+retries = 2
+
+# The scheduled run on main. A test that needed a retry still fails the run, so a flaky test
+# gets fixed instead of retried forever.
+[profile.nightly]
+retries = 2
+flaky-result = "fail"

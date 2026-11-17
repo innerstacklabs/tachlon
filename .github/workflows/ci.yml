@@ -1,0 +1,1034 @@
+name: ci
+
+# Every pushed branch runs, so a PR's head commit already carries the checks; a pull_request trigger as well would run every job twice.
+on:
+  push:
+  workflow_dispatch:
+  # The full suite on main, nightly (gs#1117). A push to main runs only the deploy path.
+  schedule:
+    - cron: '17 9 * * *'
+
+permissions:
+  contents: read
+
+# On a PR branch a newer push cancels the older run, so the queue holds only runs whose result someone will read. On main and release a
+# running run is never cancelled: it carries the deploy (#920). A group holds one running and one waiting run, and a newer push replaces the
+# waiting one; that is safe because the newer commit contains the older one and deploys it (gs#1117). Only pushes share a ref's group: a
+# manual or nightly run gets a group of its own, so it can never replace a waiting push that carries a deploy. A merge is checked on its PR
+# head first.
+concurrency:
+  group: ci-${{ github.event_name == 'push' && github.ref || format('{0}-{1}', github.event_name, github.ref) }}
+  cancel-in-progress: ${{ github.event_name == 'push' && github.ref != 'refs/heads/main' && github.ref != 'refs/heads/release' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  RUSTFLAGS: -D warnings
+  RUSTDOCFLAGS: -D warnings
+  WEB_ROOT: packages/gantt  # the chart's folder; scripts/lib/web-root.ts names it for the scripts
+  WASM_HANDOFF: .cache/tachlon-ci-handoff/${{ github.run_id }}-${{ github.run_attempt }}  # under $HOME: where `wasm` keeps this run's bindings (gantt#1878)
+
+jobs:
+  # Decides once which tier this run is (scripts/lib/ci-tier.ts: fast, full, nightly or deploy) and whether the code jobs (rust, wasm, web,
+  # hosted) run, so no other job guesses. It is on a self-hosted runner (GitHub-hosted minutes are billable on this repo, A devteam-1-375).
+  # Any tier but fast, and anything it cannot judge, says code true. A fast branch says false only when every changed file is a page directly
+  # under docs/ that no test reads: docs/WASM_API.md (the architecture tests) and docs/decisions/ (the architecture tests and the
+  # deploy-conditions test) always say true, and so does a page or path that names an old project name, which the architecture tests scan
+  # for in every tracked file. `ci-summary` reads this output. It also decides which browser specs `web` runs (scripts/lib/touched-specs.ts,
+  # gs#1163): on fast only the specs the diff touches, or none, and never the batch-only measure.spec; on deploy the specs the push's commits touch; on every other tier all of them. It
+  # also decides which crates' tests `rust` runs (scripts/lib/touched-crates.ts, gantt#1456): on fast the crates the diff touches and
+  # their dependents, or all of them when it cannot tell; on every other tier all of them.
+  select:
+    # Self-hosted jobs never run for a pull request from a fork (this file has no pull_request trigger today; the gate keeps it so).
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci"]') }}
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.pick.outputs.code }}
+      why: ${{ steps.pick.outputs.why }}
+      tier: ${{ steps.tier.outputs.tier }}
+      # false only on the deploy tier: it runs the deploy path (wasm, hosted, book) and skips rust, which already passed on the PR head
+      # and run again nightly (gs#1117). `web` runs there too when the push touches a browser spec (gantt#1578); `deploy` does not wait for it.
+      full: ${{ steps.tier.outputs.tier == 'deploy' && 'false' || 'true' }}
+      # none, some or all; `specs` is the spec paths `web` runs (empty: no filter), and the nopage pair picks the no-page tests `smoke` runs on fast.
+      web: ${{ steps.specs.outputs.web }}
+      specs: ${{ steps.specs.outputs.specs }}
+      nopage_specs: ${{ steps.specs.outputs.nopage_specs }}
+      nopage_grep: ${{ steps.specs.outputs.nopage_grep }}
+      # On fast, the hosted specs `hosted-browser` runs besides @smoke: paths, or `all` (lo#3176).
+      hosted_specs: ${{ steps.specs.outputs.hosted_specs }}
+      hosted_grep: ${{ steps.specs.outputs.hosted_grep }}
+      # true on every tier but fast: the benchmark driver test is two of its 22 tests at 60 to 98 s each, so a PR push leaves it to batch, nightly and deploy (gantt#1163).
+      bench: ${{ steps.specs.outputs.bench }}
+      # all or some; for some, `-p <crate>` per crate for the test step of `rust` (gantt#1456).
+      rust: ${{ steps.crates.outputs.rust }}
+      rust_packages: ${{ steps.crates.outputs.rust_packages }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # The tier scripts are TypeScript run by type stripping, which needs Node 22.18 or later; a runner with an older node fails this step.
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, check-latest: true}
+      # The names scan (scripts/public-release.ts scan) runs on every pushed branch, so on every PR head, and on main. The names come from the
+      # repository secret PUBLIC_RELEASE_NAMES. An empty secret fails a push and a run on this repository; a fork run has no secrets and skips.
+      - name: names
+        env:
+          PUBLIC_RELEASE_NAMES: ${{ secrets.PUBLIC_RELEASE_NAMES }}
+          SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          if [ -z "$(printf %s "$PUBLIC_RELEASE_NAMES" | tr -d ' ,\n')" ]; then
+            [ "$SAME_REPO" = true ] && { echo "::error::PUBLIC_RELEASE_NAMES is empty: the names scan cannot run"; exit 1; }
+            echo "names: no secrets on a fork run; not scanned"
+            exit 0
+          fi
+          node scripts/public-release.ts scan
+      - name: tier
+        id: tier
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+        run: |
+          node scripts/test-ci-tier.ts
+          node --test scripts/test-ci-measure.ts
+          node scripts/test-ci-wired.ts
+          node scripts/test-site-claims.ts
+          node scripts/test-features-links.ts
+          node scripts/features-links.ts apps/site/features.html
+          node scripts/test-features-matrix.ts
+          node scripts/features-matrix.ts --check
+          node scripts/test-book-api.ts
+          node scripts/test-book-pages.ts
+          node scripts/test-narrate.ts
+          node scripts/test-voice-inworld.ts
+          node scripts/test-pack-check.ts
+          node scripts/test-stage-package.ts
+          node scripts/test-media-stale.ts
+          node scripts/test-public-history.ts
+          node scripts/test-public-release.ts
+          node scripts/test-harness-ties.ts
+          node scripts/lib/package-size.test.ts
+          node scripts/harness-ties.ts
+          node scripts/ci-tier.ts "$EVENT" "$REF" >> "$GITHUB_OUTPUT"
+      - name: pick
+        id: pick
+        env:
+          TIER: ${{ steps.tier.outputs.tier }}
+        run: |
+          decide() {
+            echo "code=$1" >> "$GITHUB_OUTPUT"
+            echo "why=$2" >> "$GITHUB_OUTPUT"
+            echo "select: code=$1 ($2)"
+            exit 0
+          }
+          if [ "$TIER" != fast ]; then
+            decide true "the $TIER tier runs every job"
+          fi
+          git fetch --no-tags origin main || decide true "could not fetch main"
+          files=$(git diff --name-only --no-renames origin/main...HEAD) || decide true "could not diff against main"
+          [ -n "$files" ] || decide true "no changed files against main to judge"
+          # The old project names, and the product's name, are built here so this file does not hold them (the architecture tests
+          # scan every tracked file for both: the product's name may be written only in the files `name.rs` lists).
+          a=gantt
+          b=spike
+          c=man
+          d=tis
+          e=tach
+          g=lon
+          pattern="${a}[-_]${b}|${c}${d}|${e}${g}"
+          while IFS= read -r f; do
+            case "$f" in
+              docs/WASM_API.md | docs/*/*) decide true "$f is read by a test" ;;
+              docs/*.md) ;;
+              *) decide true "$f is not a page under docs/" ;;
+            esac
+            if printf '%s\n' "$f" | grep -qiE "$pattern" || grep -qiE "$pattern" "$f" 2> /dev/null; then
+              decide true "$f names an old project name or the product, which the architecture tests scan for"
+            fi
+          done <<< "$files"
+          decide false "only docs pages changed: $(printf '%s' "$files" | tr '\n' ' ')"
+      # Runs after `pick`, which fetched main on fast; a diff it cannot read runs every spec.
+      - name: specs
+        id: specs
+        env:
+          TIER: ${{ steps.tier.outputs.tier }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          node scripts/test-touched-specs.ts
+          node scripts/touched-specs.ts "$TIER" >> "$GITHUB_OUTPUT"
+      # `cargo metadata` gives the crate graph, so the step needs the toolchain `rust` uses. A graph or diff it cannot read prints rust=all.
+      - uses: dtolnay/rust-toolchain@stable
+      - name: crates
+        id: crates
+        env:
+          TIER: ${{ steps.tier.outputs.tier }}
+        run: |
+          node scripts/test-touched-crates.ts
+          node scripts/touched-crates.ts "$TIER" >> "$GITHUB_OUTPUT"
+
+  rust:
+    needs: select
+    if: ${{ (needs.select.outputs.code == 'true' && needs.select.outputs.full == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci"]') }}
+    steps:
+      # The runner unit decides whether sccache is the compiler wrapper (RUSTC_WRAPPER in its process environment; the `env`
+      # context holds only workflow variables). With it on, the target dir is not cached and the last step prints the stats.
+      - id: wrap
+        run: echo "on=${RUSTC_WRAPPER:+true}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      # Only main saves the cache (the nightly run is on main), so a branch run restores and never writes; the runners are long-lived, so
+      # the cargo bin directory is left out (cache-bin). Without this every branch wrote its own copy and pushed past the 10 GB cap (gs#1146).
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: "${{ steps.wrap.outputs.on != 'true' }}"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-bin: false
+      - name: fmt
+        run: cargo fmt --check
+      - name: clippy
+        run: cargo clippy --all-targets -- -D warnings
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest@0.9.150
+      # Profiles are in .config/nextest.toml: a branch run retries a failing test twice and passes if a retry passes (the log says FLAKY);
+      # the nightly run retries the same way and still fails the run. nextest skips doctests, so `cargo test --doc` runs them.
+      # On a PR branch only the crates the diff touches, and their dependents, run (`select`, gantt#1456); the log names them. Every other
+      # tier, and a diff `select` cannot place, runs the whole workspace. fmt, clippy, doc and deny above and below always cover all of it.
+      - name: test
+        env:
+          NEXTEST_PROFILE: ${{ needs.select.outputs.tier == 'nightly' && 'nightly' || 'ci' }}
+          RUST_PACKAGES: ${{ needs.select.outputs.rust_packages }}
+        run: |
+          echo "test: rust=${{ needs.select.outputs.rust }}, packages: ${RUST_PACKAGES:-the whole workspace}"
+          # shellcheck disable=SC2086 # the list is `-p <name>` words from the selector, split on purpose
+          cargo nextest run --profile "$NEXTEST_PROFILE" $RUST_PACKAGES
+          # shellcheck disable=SC2086
+          cargo test --doc $RUST_PACKAGES
+      # The release profile has no overflow checks, so it is the build that would wrap: the brute-force and range tests must give the same answer there (decision 0020).
+      - name: test (engine, release)
+        if: ${{ needs.select.outputs.tier == 'nightly' }}
+        run: cargo nextest run --cargo-profile release -p engine --test brute_force --test ranges
+      - name: doc
+        run: cargo doc --no-deps
+      # Fails on any RustSec advisory not accepted, with a reason, in deny.toml.
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20.2
+      - name: deny (advisories)
+        run: cargo deny check advisories
+      - if: always() && steps.wrap.outputs.on == 'true'
+        run: sccache --show-stats; echo "CARGO_INCREMENTAL=${CARGO_INCREMENTAL-unset}"
+      # One sccache server per runner user: two can write one cache directory at once. The runner unit sets this, so the step names the box (gs#1146).
+      - name: one sccache server per box
+        if: always()
+        run: |
+          ps_args=$(ps -u "$(id -u)" -o args=)
+          n=$(printf '%s\n' "$ps_args" | grep -c -E '^(\S*/)?sccache$' || true)
+          echo "sccache servers run by $(id -un) on $(hostname): $n"
+          [ "$n" -le 1 ] || { echo "::error::$(hostname) runs $n sccache servers for $(id -un); the runner unit must leave one"; exit 1; }
+
+  # The browser app's Rust side: wasm32 clippy and build, then wasm-bindgen, handed to the web job as an artifact.
+  wasm:
+    needs: select
+    if: ${{ (needs.select.outputs.code == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci"]') }}
+    steps:
+      - id: wrap
+        run: echo "on=${RUSTC_WRAPPER:+true}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: "${{ steps.wrap.outputs.on != 'true' }}"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-bin: false
+      # Must match the wasm-bindgen version in Cargo.lock (build-web.sh checks).
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-bindgen@0.2.129
+      - name: clippy (wasm32)
+        run: cargo clippy --target wasm32-unknown-unknown -p app -p timeline -p xer -- -D warnings
+      - name: build + wasm-bindgen
+        run: bash scripts/build-web.sh --no-bundle
+      # Also kept on this disk, for the jobs of this run that land on this machine (gantt#1878); a failure here only makes them download the artifact.
+      - name: keep the bindings on this disk
+        run: |
+          [ -n "$WASM_HANDOFF" ] || { echo "::warning::WASM_HANDOFF is empty, the bindings were not kept on this disk"; exit 0; }; d="$HOME/$WASM_HANDOFF"; mkdir -p "${d%/*}" && find "${d%/*}" -mindepth 1 -maxdepth 1 -mtime +1 -exec rm -rf {} + && rm -rf "$d" "$d.tmp" && cp -r "$WEB_ROOT/src/wasm" "$d.tmp" && mv "$d.tmp" "$d" || echo "::warning::the bindings were not kept on this disk"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wasm-bindings
+          path: ${{ env.WEB_ROOT }}/src/wasm/
+          retention-days: 1
+      - if: always() && steps.wrap.outputs.on == 'true'
+        run: sccache --show-stats; echo "CARGO_INCREMENTAL=${CARGO_INCREMENTAL-unset}"
+
+  # The smoke set (gs#1123): the specs tagged @smoke, one per journey that works today (scripts/test-smoke-set.ts keeps it at
+  # 10 to 25 tests). It builds and runs as a `web` shard does, without a shard, and runs on every tier but deploy. On fast it also runs the
+  # no-page tests (the plan's class d, gs#1163), which `web` may not, and when `web` is skipped it runs the checks `web (checks)` runs once.
+  smoke:
+    needs: [select, wasm]
+    if: ${{ (needs.select.outputs.code == 'true' && needs.select.outputs.tier != 'deploy') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci","tachlon-browser"]') }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ${{ env.WEB_ROOT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/wasm-bindings
+      - uses: pnpm/action-setup@v4
+        with: {package_json_file: "${{ env.WEB_ROOT }}/package.json", dest: "~/setup-pnpm-${{ runner.name }}"}
+      - uses: actions/setup-node@v4
+        with: {node-version: 22, check-latest: true, cache: pnpm, cache-dependency-path: "${{ env.WEB_ROOT }}/pnpm-lock.yaml"}
+      - run: pnpm install --frozen-lockfile
+      - id: build
+        run: pnpm build
+      # The component's Node tier (gs#1163): the page-free tests and the WASM file reading, on every tier this job runs.
+      - name: node --test (tests-node)
+        run: node --test tests-node/*.test.ts
+      - run: pnpm exec playwright install chromium
+      # Runners that share a host each get their own preview port, as in `web`.
+      - name: preview port
+        run: |
+          case "$RUNNER_NAME" in hubgantt2) port=4174 ;; dell-gantt2) port=4175 ;; dell-gantt3) port=4176 ;; thinkpad-gantt2) port=4177 ;; *) port=4173 ;; esac
+          echo "GANTT_PORT=$port" >> "$GITHUB_ENV"
+      - name: playwright test (@smoke)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
+        run: pnpm exec playwright test --grep @smoke ${PW_WORKERS:+--workers "$PW_WORKERS"}
+      - name: playwright test (no-page tests)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && needs.select.outputs.tier == 'fast' && needs.select.outputs.nopage_grep != '' }}
+        env:
+          NOPAGE_SPECS: ${{ needs.select.outputs.nopage_specs }}
+          NOPAGE_GREP: ${{ needs.select.outputs.nopage_grep }}
+        run: pnpm exec playwright test --grep "$NOPAGE_GREP" $NOPAGE_SPECS
+      # The checks `web (checks)` runs once, here when `web` is skipped.
+      - name: deploy job conditions, demos unit tests and typecheck (web skipped)
+        if: ${{ !cancelled() && needs.select.outputs.web == 'none' }}
+        run: |
+          set -e
+          node "$GITHUB_WORKSPACE/scripts/test-deploy-conditions.mjs"
+          for test in demos/screencast/test-caption.mjs demos/screencast/test-ctx.mjs demos/screencast/test-frame.mjs demos/screencast/test-label.mjs \
+                      demos/screencast/test-mac-copy.mjs demos/screencast/test-story.mjs demos/screencast/test-clip-guard.mjs demos/50k/test-measure-open.mjs \
+                      demos/screencast/test-hosted-build.mjs demos/screencast/test-narration.mjs; do
+            node "$GITHUB_WORKSPACE/$test"
+          done
+          node --test "$GITHUB_WORKSPACE/demos/bench/dataset.test.ts" "$GITHUB_WORKSPACE/demos/bench/grab.test.ts" "$GITHUB_WORKSPACE/demos/bench/adapt.test.ts" "$GITHUB_WORKSPACE/demos/bench/sides/bryntum.test.ts" "$GITHUB_WORKSPACE/demos/bench/sides/bryntum-fake.test.ts" "$GITHUB_WORKSPACE/demos/dhtmlx-compare/to-mspdi.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/run.test.ts" "$GITHUB_WORKSPACE/demos/bench/results.test.ts" "$GITHUB_WORKSPACE/demos/bench/results-file.test.ts" "$GITHUB_WORKSPACE/demos/dhtmlx-compare/table.test.ts" "$GITHUB_WORKSPACE/demos/dhtmlx-compare/pair.test.ts" "$GITHUB_WORKSPACE/demos/bench/cli.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/dhtmlx-compare/setup-harness.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/sides/ours.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/sides/svar.test.ts" "$GITHUB_WORKSPACE/demos/bench/sides/svar-fonts.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/sides/dhtmlx.test.ts"
+          pnpm typecheck
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: {name: smoke-report, path: "${{ env.WEB_ROOT }}/playwright-report/", if-no-files-found: ignore, retention-days: 3}
+
+  # The TypeScript shell: install, bundle, typecheck, then the @playwright/test specs. The runner is a self-hosted `tachlon-ci`
+  # runner on hub with no GPU and no preinstalled Playwright browser; the job installs Playwright's Chromium (pinned by @playwright/test in
+  # the package.json). The specs drive it headless on the SwiftShader software adapter, which renders on WebGL2 (WebGPU is lost there, see
+  # the README), and any failed spec fails the job. The suite is split four ways (`--shard=i/4`, gs#1122): the matrix makes four jobs,
+  # `web (1)` to `web (4)`, each with its own install, build and preview port. `fail-fast` is off so one red shard cannot hide another's result.
+  # The `--shard` denominator must equal the matrix length, or some specs never run (scripts/test-deploy-conditions.mjs checks it).
+  # On fast `select` names the specs (gs#1163): the touched ones, split over the four shards (a shard left with none passes), or every spec
+  # but the batch-only measure.spec; with none touched the job is skipped. On deploy it is the specs the push touched; every other tier runs every spec.
+  # The shards are uneven on purpose (gantt#1163): Playwright cuts the file list (alphabetical, then the files with their own test.use) into runs of tests in the ratio of
+  # PWTEST_SHARD_WEIGHTS (one weight per shard, so four). The checks that do not depend on the shard and the packed-package checks (about 80 s)
+  # run in a fifth leg, `web (checks)`, beside the four, which runs no spec. Shard 1's files (adapter-* to export) are the slowest per
+  # test, so it gets fewer tests. Playwright throws if the count of weights is not the shard total. Re-weigh when the shard times drift apart.
+  web:
+    needs: [select, wasm]
+    if: ${{ (needs.select.outputs.code == 'true' && needs.select.outputs.web != 'none') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci","tachlon-browser"]') }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+        include: [{shard: checks}]
+    defaults:
+      run:
+        working-directory: ${{ env.WEB_ROOT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/wasm-bindings
+      # Runners on one host share a home directory and the action's default `dest` (~/setup-pnpm) is rewritten by every run: a neighbouring
+      # runner swept pnpm out from under a shard ("Unable to locate executable file: pnpm", run 41279241793). One directory per runner.
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ env.WEB_ROOT }}/package.json
+          dest: ~/setup-pnpm-${{ runner.name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          check-latest: true
+          cache: pnpm
+          cache-dependency-path: ${{ env.WEB_ROOT }}/pnpm-lock.yaml
+      # The checks that do not depend on the shard run once, in the `checks` leg.
+      # The deploy job's `if:` against its event cases, with no deploy (no wasm needed).
+      - name: deploy job conditions
+        if: ${{ matrix.shard == 'checks' }}
+        run: node "$GITHUB_WORKSPACE/scripts/test-deploy-conditions.mjs"
+      # The browserless unit tests of the demos (no browser, no build). `demos/50k/test-measure-cleanup.mjs` is not one of them: it needs
+      # the build, Playwright Chromium and bwrap. The scenes themselves run in the `hosted-browser` job (apps/hosted/tests/journey.spec.ts, gs#541).
+      - name: demos unit tests
+        if: ${{ matrix.shard == 'checks' }}
+        run: |
+          set -e
+          for test in demos/screencast/test-caption.mjs demos/screencast/test-ctx.mjs demos/screencast/test-frame.mjs demos/screencast/test-label.mjs \
+                      demos/screencast/test-mac-copy.mjs demos/screencast/test-story.mjs demos/screencast/test-clip-guard.mjs demos/50k/test-measure-open.mjs \
+                      demos/screencast/test-hosted-build.mjs demos/screencast/test-narration.mjs; do
+            echo "== $test"
+            node "$GITHUB_WORKSPACE/$test"
+          done
+          echo "== demos/bench/dataset.test.ts demos/bench/adapt.test.ts demos/bench/grab.test.ts demos/bench/sides/bryntum.test.ts demos/bench/sides/bryntum-fake.test.ts demos/dhtmlx-compare/to-mspdi.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/dataset.test.ts" "$GITHUB_WORKSPACE/demos/bench/grab.test.ts" "$GITHUB_WORKSPACE/demos/bench/adapt.test.ts" "$GITHUB_WORKSPACE/demos/bench/sides/bryntum.test.ts" "$GITHUB_WORKSPACE/demos/bench/sides/bryntum-fake.test.ts" "$GITHUB_WORKSPACE/demos/dhtmlx-compare/to-mspdi.test.ts"
+          echo "== demos/bench/run.test.ts demos/bench/results.test.ts demos/bench/results-file.test.ts demos/dhtmlx-compare/table.test.ts demos/dhtmlx-compare/pair.test.ts demos/bench/cli.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/run.test.ts" "$GITHUB_WORKSPACE/demos/bench/results.test.ts" "$GITHUB_WORKSPACE/demos/bench/results-file.test.ts" "$GITHUB_WORKSPACE/demos/dhtmlx-compare/table.test.ts" "$GITHUB_WORKSPACE/demos/dhtmlx-compare/pair.test.ts" "$GITHUB_WORKSPACE/demos/bench/cli.test.ts"
+          echo "== demos/dhtmlx-compare/setup-harness.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/dhtmlx-compare/setup-harness.test.ts"
+          echo "== demos/bench/sides/ours.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/sides/ours.test.ts"
+          echo "== demos/bench/sides/svar.test.ts demos/bench/sides/svar-fonts.test.ts demos/bench/sides/dhtmlx.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/sides/svar.test.ts" "$GITHUB_WORKSPACE/demos/bench/sides/svar-fonts.test.ts"
+          node --test "$GITHUB_WORKSPACE/demos/bench/sides/dhtmlx.test.ts"
+      - run: pnpm install --frozen-lockfile
+      - name: build
+        id: build
+        run: pnpm build
+      - name: typecheck
+        if: ${{ matrix.shard == 'checks' }}
+        run: pnpm typecheck
+      - name: library build and pack check
+        if: ${{ matrix.shard == 'checks' }}
+        run: |
+          pnpm build:lib
+          # The staged copy is what npm-publish.yml publishes: the packed files and a package.json without scripts, devDependencies or packageManager.
+          staged=$(mktemp -d)
+          node "$GITHUB_WORKSPACE/scripts/stage-package.ts" . "$staged"
+          node "$GITHUB_WORKSPACE/scripts/pack-check.ts" "$staged" --published
+          rm -rf "$staged"
+          pnpm docs:check
+      # Browser builds live in ~/.cache/ms-playwright; the @playwright/test version pins the revision.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: cache Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: install Chromium
+        run: pnpm exec playwright install chromium
+      # The package a stranger installs (gantt#1089 L6): the packed tarball in an empty folder, a page type-checked against its declarations,
+      # and the chart loaded from it in one Chromium. The `checks` leg only, after the library build and Chromium; the test runs its fixtures first.
+      - name: consumer check (packed tarball in an empty folder)
+        if: ${{ matrix.shard == 'checks' }}
+        run: |
+          node "$GITHUB_WORKSPACE/scripts/test-consumer-check.ts"
+          staged=$(mktemp -d)
+          node "$GITHUB_WORKSPACE/scripts/stage-package.ts" . "$staged"
+          node "$GITHUB_WORKSPACE/scripts/consumer-check.ts" "$staged"
+          rm -rf "$staged"
+      # The two examples (gantt#1092, examples/): each is copied into a new folder, installs the packed package there and runs its spec in
+      # Chromium. The `checks` leg only, after the library build; it installs the example's own packages from the registry.
+      - name: examples (a plain page and a React app on the packed tarball)
+        if: ${{ matrix.shard == 'checks' }}
+        run: node "$GITHUB_WORKSPACE/examples/check.ts" plain react
+      # Runners that share a host (hub: hubgantt, hubgantt2; Dell: dell-gantt, -2, -3) each get their own preview port, GANTT_PORT.
+      - name: preview port
+        run: |
+          case "$RUNNER_NAME" in hubgantt2) port=4174 ;; dell-gantt2) port=4175 ;; dell-gantt3) port=4176 ;; thinkpad-gantt2) port=4177 ;; *) port=4173 ;; esac
+          echo "GANTT_PORT=$port" >> "$GITHUB_ENV"
+      # The print demo on the 5,000-task schedule: demos/print/run.sh saves a PDF and the test counts its pages. Needs the build above and Chromium.
+      - name: print demo (5,000-task schedule, longest path in a 26-week window, to a two-page PDF)
+        if: ${{ matrix.shard == 'checks' && steps.build.outcome == 'success' }}
+        run: node "$GITHUB_WORKSPACE/demos/print/test-print.mjs"
+      # webServer in playwright.config.ts starts and stops `pnpm preview`.
+      # Skipped when the build failed, where it would only add noise. A runner unit may set PW_WORKERS; unset keeps the config's 3.
+      - name: playwright test (headless Chromium, shard ${{ matrix.shard }} of 4)
+        if: ${{ !cancelled() && steps.build.outcome == 'success' && matrix.shard != 'checks' }}
+        env:
+          SPECS: ${{ needs.select.outputs.specs }}
+          PWTEST_SHARD_WEIGHTS: "6:11:10:12"
+        run: >-
+          pnpm exec playwright test --shard=${{ matrix.shard }}/4
+          ${PW_WORKERS:+--workers "$PW_WORKERS"} ${SPECS:+--pass-with-no-tests $SPECS}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.shard }}
+          path: |
+            ${{ env.WEB_ROOT }}/playwright-report/
+            ${{ env.WEB_ROOT }}/test-results/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  # The hosted app (apps/hosted, gs#511 S3): its own Vite project over the built package, `gantt-core` (gantt#1090). Same
+  # wasm-bindings artifact as `web`; builds, typechecks, runs the page-free Node tests and the benchmark driver test, and keeps the build as
+  # `hosted-dist`. It reads no secret and deploys nothing. The browser specs (the hosted spec, the journey and the J1 open spec, which moved
+  # here from `web` in gs#541) run in `hosted-browser`, beside it (gantt#1163).
+  hosted:
+    needs: [select, wasm, book]
+    if: ${{ (needs.select.outputs.code == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci","tachlon-browser"]') }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/hosted
+    steps:
+      # This job's steps run in apps/hosted by default, which does not exist before checkout.
+      - id: wrap
+        working-directory: .
+        run: echo "on=${RUSTC_WRAPPER:+true}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/wasm-bindings
+      - uses: pnpm/action-setup@v4
+        with: {package_json_file: apps/hosted/package.json, dest: "~/setup-pnpm-${{ runner.name }}"}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # build samples runs a .ts file by type stripping, which needs Node 22.18 or later.
+          check-latest: true
+          cache: pnpm
+          cache-dependency-path: apps/hosted/pnpm-lock.yaml
+      # setup-node falls back to a cached 22.x, maybe older than 22.18, if its manifest lookup fails (gs#620); this reads the `node` the later steps run.
+      - name: node is 22.18 or later
+        run: |
+          have=$(node -p process.versions.node)
+          [ "$(printf '22.18.0\n%s\n' "$have" | sort -V | head -n 1)" = 22.18.0 ] || { echo "::error::the samples step needs Node 22.18 or later (type stripping); this runner has node '$have'"; exit 1; }
+      - run: pnpm install --frozen-lockfile
+      # The chrome's files import `gantt-core` from their own folder (gantt#1090), so apps/chrome has its own install, as apps/hosted has.
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/chrome
+      # The hosted app and the chrome load the built package, not the source: install it, and build it before `pnpm build` (it needs the wasm above).
+      - run: pnpm install --frozen-lockfile
+        working-directory: packages/gantt
+      - run: pnpm build:lib
+        working-directory: packages/gantt
+      # The package size check runs where the package is built: `web` is skipped when only a README changes, `hosted` is not.
+      - name: package size
+        working-directory: packages/gantt
+        run: node "$GITHUB_WORKSPACE/scripts/package-size.ts" .
+      # The product page's hero chart mounts from this build (the deploy job stages it as package/ beside apps/site).
+      - uses: actions/upload-artifact@v4
+        with:
+          name: package-lib
+          path: packages/gantt/dist-lib/
+          retention-days: 1
+      # The generated samples (5,000 and 50,000 activities) come from the xer crate's synth example, so this job needs cargo. The script
+      # fails if a file reaches 25 MiB; nothing it writes is committed.
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: "${{ steps.wrap.outputs.on != 'true' }}"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-bin: false
+      - name: build samples
+        run: node scripts/build-samples.mjs
+      - name: build
+        id: build
+        run: pnpm build
+      - run: pnpm typecheck
+      # The hosted app's Node tier (gs#1163): its page-free tests, on every tier this job runs.
+      - name: node --test (apps/hosted/tests-node)
+        run: node --test tests-node/*.test.ts
+      - name: install Chromium
+        run: pnpm exec playwright install chromium
+      # The benchmark driver (gs#1199): serves this build, drives ?sample=demo-50k headless through window.gantt, one JSON with all five phases. Not on fast (gantt#1163).
+      - name: node --test (demos/bench/drive.test.ts)
+        if: ${{ steps.build.outcome == 'success' && needs.select.outputs.bench == 'true' }}
+        run: node --test "$GITHUB_WORKSPACE/demos/bench/drive.test.ts"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hosted-dist
+          path: apps/hosted/dist/
+          retention-days: 1
+      - if: always() && steps.wrap.outputs.on == 'true'
+        run: sccache --show-stats; echo "CARGO_INCREMENTAL=${CARGO_INCREMENTAL-unset}"
+
+  # The hosted app's browser specs (gantt#1163), split from `hosted` so they run beside its benchmark test: the same needs, `if` and runner,
+  # and the build steps the specs need (the same as `hosted`'s; a change there goes here too). Everything that waits on `hosted` waits on this
+  # job too (scripts/test-deploy-conditions.mjs checks it), so nothing deploys or reports green before both pass.
+  hosted-browser:
+    needs: [select, wasm, book]
+    if: ${{ (needs.select.outputs.code == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci","tachlon-browser"]') }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/hosted
+    steps:
+      - id: wrap
+        working-directory: .
+        run: echo "on=${RUSTC_WRAPPER:+true}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/wasm-bindings
+      - uses: pnpm/action-setup@v4
+        with: {package_json_file: apps/hosted/package.json, dest: "~/setup-pnpm-${{ runner.name }}"}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          check-latest: true
+          cache: pnpm
+          cache-dependency-path: apps/hosted/pnpm-lock.yaml
+      - name: node is 22.18 or later
+        run: |
+          have=$(node -p process.versions.node)
+          [ "$(printf '22.18.0\n%s\n' "$have" | sort -V | head -n 1)" = 22.18.0 ] || { echo "::error::the samples step needs Node 22.18 or later (type stripping); this runner has node '$have'"; exit 1; }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
+        working-directory: apps/chrome
+      - run: pnpm install --frozen-lockfile
+        working-directory: packages/gantt
+      - run: pnpm build:lib
+        working-directory: packages/gantt
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: "${{ steps.wrap.outputs.on != 'true' }}"
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-bin: false
+      - name: build samples
+        run: node scripts/build-samples.mjs
+      - name: build
+        id: build
+        run: pnpm build
+      - name: install Chromium
+        run: pnpm exec playwright install chromium
+      # The book spec (book-next-arrow) reads a built book from BOOK_DIR and fails when it is unset (gs#703). It is the `book` job's build,
+      # which holds the API reference; this job does not build mdbook.
+      - uses: actions/download-artifact@v4
+        with: {name: book, path: "${{ runner.temp }}/book"}
+      - run: echo "BOOK_DIR=$RUNNER_TEMP/book" >> "$GITHUB_ENV"
+      # Runners that share a host each get their own preview port (as in `web`).
+      - name: preview port
+        run: |
+          case "$RUNNER_NAME" in hubgantt2) port=4174 ;; dell-gantt2) port=4175 ;; dell-gantt3) port=4176 ;; thinkpad-gantt2) port=4177 ;; *) port=4173 ;; esac
+          echo "GANTT_PORT=$port" >> "$GITHUB_ENV"
+      - name: playwright test (headless Chromium)
+        if: ${{ steps.build.outcome == 'success' }}
+        # The JSON reporter writes the result that `journey time` reads (gs#495); the html reporter stays as the config has it.
+        # On fast only the @smoke tests run, J1 and J9 (gs#1163); the journey is not among them, so `journey time` says unknown there.
+        env:
+          PLAYWRIGHT_JSON_OUTPUT_NAME: test-results/results.json
+          PLAYWRIGHT_HTML_OPEN: never
+          SMOKE_ONLY: ${{ needs.select.outputs.tier == 'fast' && '@smoke' || '' }}
+          HOSTED_SPECS: ${{ needs.select.outputs.hosted_specs }}
+          HOSTED_GREP: ${{ needs.select.outputs.hosted_grep }}
+        # A touched spec joins @smoke through --grep, which Playwright matches against the file name too; `all` drops the filter.
+        run: |
+          [ "$HOSTED_SPECS" = all ] && SMOKE_ONLY=
+          [ -n "$SMOKE_ONLY" ] && [ -n "$HOSTED_GREP" ] && SMOKE_ONLY="$SMOKE_ONLY|$HOSTED_GREP"
+          pnpm exec playwright test --reporter=list,html,json ${SMOKE_ONLY:+--grep "$SMOKE_ONLY"}
+      # The journey spec's wall time against its 180 s budget (gs#495), on the job summary; "unknown" if no result. It reports, never gates.
+      - name: journey time
+        if: ${{ !cancelled() }}
+        run: node tests/journey-time.mjs test-results/results.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hosted-playwright-report
+          path: |
+            apps/hosted/playwright-report/
+            apps/hosted/test-results/
+          if-no-files-found: ignore
+          retention-days: 3
+      - if: always() && steps.wrap.outputs.on == 'true'
+        run: sccache --show-stats; echo "CARGO_INCREMENTAL=${CARGO_INCREMENTAL-unset}"
+
+  # The user guide in book/ (mdBook), built and not hosted. mdbook is not on the runners, so the job installs it at a pinned version. mdbook
+  # 0.5.4 logs a failed {{#include}} as an ERROR line and still exits 0, so the build log is read back and any ERROR or WARN line fails the
+  # job. An include of a missing anchor expands to nothing and logs nothing, so the keys page is also checked for its table.
+  # The API reference is part of this build (scripts/book-api.ts adds the pages `pnpm docs:book` writes, which need the `wasm` job's bindings), so the
+  # `hosted` book spec and `deploy` use this job's `book` artifact and build no mdbook of their own. When `select` says no code changed, `wasm` is
+  # skipped, there are no bindings, and the book builds without the reference (BOOK_API=skip); nothing is deployed on such a run.
+  book:
+    needs: [select, wasm]
+    if: ${{ (always() && needs.select.result == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci"]') }}
+    timeout-minutes: 10
+    env:
+      CODE: ${{ needs.select.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/wasm-bindings
+        if: ${{ env.CODE == 'true' }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: mdbook@0.5.4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ${{ env.WEB_ROOT }}/package.json
+          dest: ~/setup-pnpm-${{ runner.name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # the check runs a .ts file by type stripping, which needs Node 22.18 or later.
+          check-latest: true
+          cache: pnpm
+          cache-dependency-path: ${{ env.WEB_ROOT }}/pnpm-lock.yaml
+      # setup-node falls back to a cached 22.x, maybe older than 22.18, if its manifest lookup fails (gs#620); this reads the `node` the later steps run.
+      - name: node is 22.18 or later
+        run: |
+          have=$(node -p process.versions.node)
+          [ "$(printf '22.18.0\n%s\n' "$have" | sort -V | head -n 1)" = 22.18.0 ] || { echo "::error::the book page check needs Node 22.18 or later (type stripping); this runner has node '$have'"; exit 1; }
+      - name: API reference pages
+        if: ${{ env.CODE == 'true' }}
+        working-directory: ${{ env.WEB_ROOT }}
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm docs:book
+      - name: mdbook build
+        env:
+          BOOK_API: ${{ env.CODE == 'true' && 'pages' || 'skip' }}
+        run: |
+          mdbook build book > "$RUNNER_TEMP/mdbook.log" 2>&1 || status=$?
+          cat "$RUNNER_TEMP/mdbook.log"
+          if [ "${status:-0}" -ne 0 ] || grep -E '^ *(ERROR|WARN)' "$RUNNER_TEMP/mdbook.log"; then
+            echo "::error::mdbook build failed or logged an ERROR or WARN line"
+            exit 1
+          fi
+      - name: user pages link the hosted samples
+        run: node scripts/check-book-pages.ts
+      - name: keys page holds the README table
+        run: |
+          rows=$(grep -c '<tr>' book/book/keys.html || true)
+          test "$rows" -ge 5 || { echo "::error::book/book/keys.html has $rows table rows; the README keys anchor is missing or empty"; exit 1; }
+      # The built book is kept for one day, and only when a job that reads it runs: hosted-browser (the book spec) and deploy (publishes it to
+      # Pages). Both need code == 'true' (hosted-browser's own `if:`; deploy needs hosted, which has the same one), so a docs-only run uploads none.
+      - uses: actions/upload-artifact@v4
+        if: ${{ env.CODE == 'true' }}
+        with:
+          name: book
+          path: book/book/
+          retention-days: 1
+
+  # The one check a merge reads. It runs even when a job failed or was skipped. rust, wasm, smoke, web, hosted and hosted-browser may be skipped only when `select`
+  # said they are not needed; when it said they are, a skipped, cancelled or failed one fails this job. A skip by decision is written out in
+  # the job's summary. `web` is a four-shard matrix (gs#1122): its result is success only when all four shards succeeded.
+  ci-summary:
+    if: ${{ (always()) && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    needs: [select, rust, wasm, smoke, web, hosted, hosted-browser, book]
+    runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci"]') }}
+    timeout-minutes: 5
+    env:
+      CODE: ${{ needs.select.outputs.code }}
+      FULL: ${{ needs.select.outputs.full }}
+      WHY: ${{ needs.select.outputs.why }}
+      SELECT: ${{ needs.select.result }}
+      RUST: ${{ needs.rust.result }}
+      WASM: ${{ needs.wasm.result }}
+      SMOKE: ${{ needs.smoke.result }}
+      WEB: ${{ needs.web.result }}
+      WEB_SET: ${{ needs.select.outputs.web }}
+      HOSTED: ${{ needs.hosted.result }}
+      HOSTED_BROWSER: ${{ needs.hosted-browser.result }}
+      BOOK: ${{ needs.book.result }}
+    steps:
+      - name: judge
+        run: |
+          bad=0
+          fail() {
+            echo "::error::$1"
+            bad=1
+          }
+          [ "$SELECT" = success ] || fail "select made no decision (result: $SELECT)"
+          [ "$BOOK" = success ] || fail "book: $BOOK"
+          case "$FULL" in
+            true|false) ;;
+            *) fail "select gave no full true or false (full: '$FULL')" ;;
+          esac
+          case "$CODE" in
+            true)
+              want=success
+              ;;
+            false)
+              want=skipped
+              ;;
+            *)
+              want=none
+              fail "select gave no true or false (code: '$CODE')"
+              ;;
+          esac
+          if [ "$want" != none ]; then
+            for pair in "rust:$RUST" "wasm:$WASM" "smoke:$SMOKE" "web:$WEB" "hosted:$HOSTED" "hosted-browser:$HOSTED_BROWSER"; do
+              w=$want
+              # On the deploy path (full=false) rust and smoke are skipped by design; web follows select's web output (gantt#1578).
+              if [ "$FULL" = false ] && { [ "${pair%%:*}" = rust ] || [ "${pair%%:*}" = smoke ]; }; then w=skipped; fi
+              # On fast with no browser spec touched, select skips web (gs#1163).
+              if [ "$want" = success ] && [ "$WEB_SET" = none ] && [ "${pair%%:*}" = web ]; then w=skipped; fi
+              [ "${pair#*:}" = "$w" ] || fail "${pair%%:*}: ${pair#*:}, wanted $w (select code=$CODE full=$FULL)"
+            done
+          fi
+          if [ "$bad" -ne 0 ]; then
+            echo "ci-summary: FAIL" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          if [ "$CODE" = true ] && [ "$FULL" = false ]; then
+            echo "ci-summary: PASS (deploy path). wasm, hosted, hosted-browser and book passed; rust and smoke do not run on it; web ran ${WEB_SET} of the browser specs (the push's own)." | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$CODE" = true ] && [ "$WEB_SET" != all ]; then
+            echo "ci-summary: PASS. rust, wasm, smoke, hosted, hosted-browser (@smoke) and book passed; web ran ${WEB_SET} of the browser specs (the touched ones)." | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$CODE" = true ]; then
+            echo "ci-summary: PASS. rust, wasm, smoke, web, hosted, hosted-browser and book all passed." | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ci-summary: PASS BY DECISION, code jobs SKIPPED (rust, wasm, smoke, web, hosted, hosted-browser not run). select: $WHY" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
+
+  # The user guide, hosted on Cloudflare Pages (project gantt-book) behind a Cloudflare Access app (the ACCESS_GATE switch below; docs/ACCESS.md).
+  # The hosted app is at the site root and the book under /book/. Runs after `book`, `hosted` and `hosted-browser` pass, on a GitHub-hosted runner, and only
+  # for:
+  #   - a push to main: production, `--branch main`;
+  #   - a ready PR from this repo: a preview for the PR's branch, its URL posted as a PR comment.
+  # A draft push, a draft PR, a manual run and a PR from a fork never get here: a draft stays on the hub runners (ruling devteam-1-128), and
+  # a fork gets no Cloudflare credentials. scripts/test-deploy-conditions.mjs (run in the `web` job) evaluates this `if:` against those
+  # cases and checks the job's shape. The Access app and its policy are set up by hand. This job's actions are pinned to a commit.
+  # The last steps (from "list Pages projects") publish the product page to the gantt-product-page project, on a push to main only.
+  deploy:
+    needs: [book, hosted, hosted-browser]
+    # Main and release deploys never overlap: a newer one waits behind the running one or replaces a waiting one (#969).
+    concurrency:
+      group: deploy-${{ github.ref == 'refs/heads/main' && 'main' || github.ref == 'refs/heads/release' && 'release' || github.ref }}
+      cancel-in-progress: false
+    # A repository without the SITE_URL variable has no site to deploy to (and no Cloudflare secrets), so it skips the deploy.
+    if: ${{ vars.SITE_URL != '' && needs.book.result == 'success' && needs.hosted.result == 'success' && needs.hosted-browser.result == 'success' && ((github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release')) || (github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.head.repo.full_name == github.repository)) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      # The one Access switch: the two product-page probes (before and after the deploy) run unless the repository variable ACCESS_GATE is
+      # off, so the gate is on when the variable is unset or anything else. It changes no Access policy; docs/ACCESS.md says when to turn it off.
+      ACCESS_GATE: ${{ vars.ACCESS_GATE == 'off' && 'off' || 'on' }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      # One site, one Access sign-in: the hosted app at the root and the book under /book/
+      # (the address in vars.SITE_URL, and the project's pages.dev address). Old /app/ links redirect.
+      # The book is the `book` job's build, API reference included (it needs the wasm bindings, which this runner does not have).
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: book
+          path: site/book
+      # The hosted app is the `hosted` job's build, wasm included; the wasm is not rebuilt on this runner.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: hosted-dist
+          path: site/
+      # The product page's hero chart mounts from the package's own files: the stage steps below copy them beside the page as package/.
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: package-lib
+          path: package-lib
+      - name: redirects
+        run: printf '%s\n' '/app / 301' '/app/* /:splat 301' > site/_redirects
+      # A push to main is staging (a Pages preview, main.gantt-book.pages.dev); a push to release is production (the Pages production
+      # branch). A PR is a preview for its own branch name, cut down to the characters Pages keeps; no name reaches a shell.
+      - name: deploy branch
+        id: target
+        env:
+          EVENT: ${{ github.event_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            branch=$REF_NAME
+          else
+            branch=$(printf '%s' "$HEAD_REF" | tr -c 'A-Za-z0-9._/-' '-')
+            if [ -z "$branch" ] || [ "$branch" = main ] || [ "$branch" = release ]; then
+              echo "::error::a PR preview cannot use the branch name '$branch'"
+              exit 1
+            fi
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+      # The token and account id reach only this step, as inputs (masked in the log).
+      - name: deploy to Cloudflare Pages
+        id: pages
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.153.0
+          command: pages deploy site --project-name gantt-book --branch=${{ steps.target.outputs.branch }}
+      # One comment per PR: the next push edits it in place.
+      - name: comment the preview URL
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BRANCH_URL: ${{ steps.pages.outputs.pages-deployment-alias-url }}
+          DEPLOY_URL: ${{ steps.pages.outputs.deployment-url }}
+        run: |
+          marker='<!-- gantt-book-preview -->'
+          if [ -z "$DEPLOY_URL" ]; then
+            echo "::error::the deploy step gave no deployment URL"
+            exit 1
+          fi
+          {
+            echo "$marker"
+            echo "Preview (app at /, book at /book/) for \`${HEAD_SHA:0:7}\`: ${BRANCH_URL:-$DEPLOY_URL}"
+            echo
+            echo "This deploy only: $DEPLOY_URL"
+            echo
+            echo "While the Access gate is on, the page asks you to sign in."
+          } > "$RUNNER_TEMP/preview-comment.md"
+          id=$(gh api "repos/$REPO/issues/$PR/comments" --paginate --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -F body=@"$RUNNER_TEMP/preview-comment.md" > /dev/null
+          else
+            gh api "repos/$REPO/issues/$PR/comments" -F body=@"$RUNNER_TEMP/preview-comment.md" > /dev/null
+          fi
+      # A push to release also publishes the product page to the public-site project (the product's own domain), but only while the repository
+      # variable SITE_LIVE is exactly "true" (set after Dave's yes: release also ships the app, and a release alone must not publish the site) and only
+      # after scripts/site-claims.ts finds no claim left in the pages. A failing claims check stops the job before the deploy. The domain, its DNS
+      # and certificate are already on public-site: these steps write nothing to Cloudflare but the deploy. The variable SITE_URL holds the
+      # page's address for the check after the deploy: the product's name is written only in BRAND_FILES (crates/app/tests/architecture/name.rs).
+      # GitHub's == ignores case, so `vars.SITE_LIVE == 'true'` would publish on TRUE: this one step compares the exact string and sets the
+      # output the later steps gate on.
+      - name: SITE_LIVE is exactly true
+        id: site
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release' }}
+        env:
+          SITE_LIVE: ${{ vars.SITE_LIVE }}
+        run: |
+          if [ "$SITE_LIVE" = true ]; then echo live=true >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release' && steps.site.outputs.live == 'true' }}
+        with: {node-version: 22, check-latest: true}
+      - name: stage the product page for public-site
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release' && steps.site.outputs.live == 'true' }}
+        run: cp -r apps/site site-page && rm site-page/launch.html && cp -r package-lib site-page/package
+      # The checks read the staged copy, so they see what would ship: no draft text, no link to a page the stage removed, and no claim left.
+      # grep exits 1 when nothing matches; any other status means it could not read the pages, which also stops the job.
+      - name: the address is set and no draft text, removed-page link or unproven claim is left in the product pages
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release' && steps.site.outputs.live == 'true' }}
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          [ -n "$SITE_URL" ] || { echo "::error::set the SITE_URL repository variable (the page's address) before SITE_LIVE"; exit 1; }
+          rc=0
+          grep -rlizE "draft, (not published|unpublished)|href[[:space:]]*=[[:space:]]*[\"']?[[:space:]]*[^\"' >[:space:]]*launch\.html" --include='*.html' site-page || rc=$?
+          [ "$rc" = 1 ] || { echo "::error::a staged page says draft, links to a page the stage removed, or could not be read"; exit 1; }
+          node scripts/site-claims.ts site-page/index.html site-page/how-it-works.html site-page/features.html
+      # public-site's production branch is main, so a release job passes `--branch=main` to publish to production, not a preview.
+      - name: deploy the product page to public-site
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release' && steps.site.outputs.live == 'true' }}
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.153.0
+          command: pages deploy site-page --project-name public-site --branch=main
+      # The address must be the product's apex, read from PRODUCT_NAME as packages/gantt/vite.lib.config.ts does, and answer 200 with the
+      # deployed page's title, not a 302 to Access; five tries, ten seconds apart. A wrong address fails before any curl. A failure fails the
+      # job and deletes nothing.
+      - name: the address serves the product page
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/release' && steps.site.outputs.live == 'true' }}
+        env:
+          SITE_URL: ${{ vars.SITE_URL }}
+        run: |
+          name=$(sed -n 's/^export const PRODUCT_NAME = "\(.*\)";$/\1/p' packages/gantt/src/product.ts | tr 'A-Z' 'a-z')
+          [ -n "$name" ] || { echo "::error::no PRODUCT_NAME in packages/gantt/src/product.ts"; exit 1; }
+          case "$SITE_URL" in "https://$name.com" | "https://$name.com/") ;; *) echo "::error::SITE_URL is not the product's apex address"; exit 1;; esac
+          title=$(grep -o '<title>[^<]*</title>' site-page/index.html | head -n 1)
+          [ -n "$title" ] || { echo "::error::the staged page has no title"; exit 1; }
+          for i in 1 2 3 4 5; do
+            code=$(curl -sS --max-time 20 -o "$RUNNER_TEMP/page.html" -w '%{http_code}' "$SITE_URL") || code=curl-failed
+            echo "attempt $i: $code"
+            if [ "$code" = 200 ] && grep -qF "$title" "$RUNNER_TEMP/page.html"; then exit 0; fi
+            [ "$i" = 5 ] || sleep 10
+          done
+          echo "::error::$SITE_URL did not answer 200 with $title after the deploy"
+          exit 1
+      # The product page (apps/site) is its own Pages project, gantt-product-page, and a push to main puts it on a preview address
+      # (main.gantt-product-page.pages.dev). Only a push to main reaches these steps: no PR preview, no release deploy. The project is created
+      # here if missing, empty, so it serves nothing. The job then stops until the Access app of the book names the project's pages.dev
+      # hostnames (docs/ACCESS.md): a run before the Access edit fails at that gate, and a re-run after it deploys. The product's own domain is
+      # not attached to the project.
+      - name: list Pages projects
+        id: projects
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.153.0
+          command: pages project list --json
+      - name: create the gantt-product-page project if it is missing
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(steps.projects.outputs.command-output, '"gantt-product-page",') }}
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.153.0
+          command: pages project create gantt-product-page --production-branch=release
+      # A project with a custom domain is a live site: the product's own domain is attached to `public-site`, whose deploy is the production
+      # cut-over and needs Dave's yes. Deploy only to a project whose one domain is its pages.dev name.
+      - name: the project has no custom domain
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        env:
+          PROJECTS: ${{ steps.projects.outputs.command-output }}
+        run: |
+          printf '%s' "$PROJECTS" | jq -e '[.[] | select(.["Project Name"] == "gantt-product-page") | .["Project Domains"]] | all(. == "gantt-product-page.pages.dev")' > /dev/null \
+            || { echo "::error::gantt-product-page has a custom domain or another pages.dev name: deploy nothing"; exit 1; }
+      # Access answers ahead of the origin, so the bare name answers 302 before the first deploy; main.* and a random label have no certificate
+      # until the project's first deploy and fail the TLS handshake, which serves nothing, so a TLS failure passes that host. A deploy lands on
+      # main.* and on a <hash>.* address, not on the bare production alias. The third host is a fully random label, so no partial wildcard
+      # destination can match it: only the full wildcard that covers the preview and the per-deploy address passes. The step after the deploy
+      # probes again, now that every certificate exists.
+      - name: the project's pages.dev addresses are behind Access
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.ACCESS_GATE == 'on' }}
+        run: |
+          label=$(od -An -N6 -tx1 /dev/urandom | tr -d " \n")
+          for host in gantt-product-page.pages.dev main.gantt-product-page.pages.dev "$label.gantt-product-page.pages.dev"; do
+            rc=0
+            out=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code} %{redirect_url}' "https://$host") || rc=$?
+            case $rc in
+              0) ;;
+              35|51|60|83|91) echo "$host answers no TLS handshake (curl exit $rc): nothing is served there"; continue ;;
+              *) echo "::error::$host: curl failed (exit $rc): deploy nothing"; exit 1 ;;
+            esac
+            echo "$host answers: $out"
+            [[ "$out" =~ ^302\ https://[a-z0-9-]+\.cloudflareaccess\.com/ ]] || { echo "::error::$host is not behind Access: add gantt-product-page.pages.dev and *.gantt-product-page.pages.dev to the Access app, then re-run"; exit 1; }
+          done
+      # launch.html holds the launch-day blocks and is not published.
+      - name: stage the product page
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: cp -r apps/site site-page && rm site-page/launch.html && cp -r package-lib site-page/package
+      - name: deploy the product page to its preview
+        id: product
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.153.0
+          command: pages deploy site-page --project-name gantt-product-page --branch=main
+      # The same three probes after the deploy. Every certificate exists now, so only a 302 to the Access login passes: a page served, any other
+      # answer and a TLS failure all fail the step, and the next step deletes the deployment. The secrets stay in wrangler-action inputs.
+      - name: the deployed product page is still behind Access
+        id: postcheck
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && env.ACCESS_GATE == 'on' }}
+        run: |
+          label=$(od -An -N6 -tx1 /dev/urandom | tr -d " \n")
+          bad=0
+          for host in gantt-product-page.pages.dev main.gantt-product-page.pages.dev "$label.gantt-product-page.pages.dev"; do
+            out=$(curl -sS --max-time 20 -o /dev/null -w '%{http_code} %{redirect_url}' "https://$host") || { echo "::error::$host: curl failed after the deploy (exit $?)"; bad=1; continue; }
+            echo "$host answers: $out"
+            [[ "$out" =~ ^302\ https://[a-z0-9-]+\.cloudflareaccess\.com/ ]] || { echo "::error::$host is not behind Access after the deploy"; bad=1; }
+          done
+          [ "$bad" = 0 ]
+      - name: delete the deployment that is not behind Access
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && failure() && steps.postcheck.outcome == 'failure' }}
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: 4.153.0
+          command: pages deployment delete ${{ steps.product.outputs.pages-deployment-id }} --project-name gantt-product-page --force

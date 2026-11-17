@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+  <StartDate>2026-01-05T08:00:00</StartDate>
+  <Tasks>
+    <Task><UID>1</UID><Name>Roll-up</Name><OutlineLevel>1</OutlineLevel><Summary>1</Summary><Cost>90000</Cost></Task>
+    <Task><UID>2</UID><Name>Costs</Name><OutlineLevel>2</OutlineLevel><Duration>PT8H0M0S</Duration><Cost>50000</Cost></Task>
+    <Task><UID>3</UID><Name>Fixed cost</Name><OutlineLevel>2</OutlineLevel><Duration>PT8H0M0S</Duration><FixedCost>25000</FixedCost></Task>
+    <Task><UID>4</UID><Name>Actual cost</Name><OutlineLevel>2</OutlineLevel><Duration>PT8H0M0S</Duration><ActualCost>15000</ActualCost></Task>
+    <Task><UID>5</UID><Name>Free</Name><OutlineLevel>2</OutlineLevel><Duration>PT8H0M0S</Duration><Cost>0</Cost><FixedCost>0.00</FixedCost><ActualCost>0</ActualCost></Task>
+  </Tasks>
+</Project>

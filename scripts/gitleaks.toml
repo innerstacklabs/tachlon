@@ -1,0 +1,8 @@
+# gitleaks rules for scripts/public-history.ts: the default rules minus one false positive, found by the gantt#1954 dry run.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "keyboard key names in the key-map spec ('Alt+Shift+ArrowUp') read as a generic API key; 5 findings, read by eye"
+targetRules = ["generic-api-key"]
+paths = ['''packages/gantt/tests/key-map\.spec\.ts''']

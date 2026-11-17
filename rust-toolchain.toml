@@ -1,0 +1,7 @@
+# Pins the toolchain that hub and CI both build with. The `dtolnay/rust-toolchain@stable`
+# steps in .github/workflows/ci.yml stay; rustup follows this file on the first cargo call.
+# To move to a new stable, change `channel` here and fix the lints the new clippy raises.
+[toolchain]
+channel = "1.100.0"
+components = ["clippy", "rustfmt"]
+targets = ["wasm32-unknown-unknown"]

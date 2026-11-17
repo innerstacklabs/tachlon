@@ -1,0 +1,32 @@
+/* The edge note (`offscreen.ts`): where the work went when no row in the window has any. Inside the root, in the canvas's grid
+   cell, at the vertical middle of the rows: against the left edge for earlier work, the right edge for later work, centred for
+   both. It is a button without a tab stop that takes no focus; it wears the same chip as the other canvas notes. */
+.gantt [data-part=offscreen-note] {
+  position: absolute;
+  grid-area: 2 / 2;
+  align-self: center;
+  justify-self: center;
+  z-index: 4;
+  max-width: calc(100% - 16px);
+  margin: 0 8px;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 12px/1.4 var(--gantt-font);
+}
+.gantt [data-part=offscreen-note][data-side="before"] {
+  justify-self: start;
+}
+.gantt [data-part=offscreen-note][data-side="after"] {
+  justify-self: end;
+}
+.gantt [data-part=offscreen-note][hidden] {
+  display: none;
+}

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+  <StartDate>2026-01-05T08:00:00</StartDate>
+  <CalendarUID>1</CalendarUID>
+  <Calendars>
+    <Calendar>
+      <UID>1</UID>
+      <Name>Unreadable times</Name>
+      <IsBaseCalendar>1</IsBaseCalendar>
+      <BaseCalendarUID>-1</BaseCalendarUID>
+      <WeekDays>
+        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
+        <!-- Monday: ToTime 25:00:00 does not parse; 08:00 to 12:00 stays. -->
+        <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes>
+          <WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+          <WorkingTime><FromTime>13:00:00</FromTime><ToTime>25:00:00</ToTime></WorkingTime>
+        </WorkingTimes></WeekDay>
+        <!-- Tuesday: a missing ToTime and a FromTime that is not a time; 09:00 to 17:00 stays. -->
+        <WeekDay><DayType>3</DayType><DayWorking>1</DayWorking><WorkingTimes>
+          <WorkingTime><FromTime>06:00:00</FromTime></WorkingTime>
+          <WorkingTime><FromTime>noon</FromTime><ToTime>14:00:00</ToTime></WorkingTime>
+          <WorkingTime><FromTime>09:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime>
+        </WorkingTimes></WeekDay>
+        <WeekDay><DayType>4</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <!-- Thursday: the only period is unreadable; the day has no working time. -->
+        <WeekDay><DayType>5</DayType><DayWorking>1</DayWorking><WorkingTimes>
+          <WorkingTime><FromTime>08:00:00</FromTime><ToTime>24:00:00</ToTime></WorkingTime>
+        </WorkingTimes></WeekDay>
+        <WeekDay><DayType>6</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
+      </WeekDays>
+      <Exceptions>
+        <!-- A working Monday 2026-01-12: ToTime 99:00:00 is unreadable; 09:00 to 12:00 stays. -->
+        <Exception>
+          <EnteredByOccurrences>0</EnteredByOccurrences><DayWorking>1</DayWorking>
+          <TimePeriod><FromDate>2026-01-12T00:00:00</FromDate><ToDate>2026-01-12T23:59:00</ToDate></TimePeriod>
+          <WorkingTimes>
+            <WorkingTime><FromTime>09:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+            <WorkingTime><FromTime>14:00:00</FromTime><ToTime>99:00:00</ToTime></WorkingTime>
+          </WorkingTimes>
+        </Exception>
+        <!-- A working range 2026-01-19 to 2026-01-20 whose only period is unreadable: ignored. -->
+        <Exception>
+          <EnteredByOccurrences>0</EnteredByOccurrences><DayWorking>1</DayWorking>
+          <TimePeriod><FromDate>2026-01-19T00:00:00</FromDate><ToDate>2026-01-20T23:59:00</ToDate></TimePeriod>
+          <WorkingTimes>
+            <WorkingTime><FromTime>nine</FromTime><ToTime>12:00:00</ToTime></WorkingTime>
+          </WorkingTimes>
+        </Exception>
+      </Exceptions>
+    </Calendar>
+    <!-- A second, valid calendar: it is kept and gets no note. -->
+    <Calendar>
+      <UID>2</UID>
+      <Name>Valid</Name>
+      <IsBaseCalendar>1</IsBaseCalendar>
+      <BaseCalendarUID>-1</BaseCalendarUID>
+      <WeekDays>
+        <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes>
+          <WorkingTime><FromTime>07:00:00</FromTime><ToTime>15:00:00</ToTime></WorkingTime>
+        </WorkingTimes></WeekDay>
+      </WeekDays>
+    </Calendar>
+  </Calendars>
+  <Tasks>
+    <Task><UID>1</UID><Name>One</Name><Duration>PT8H0M0S</Duration></Task>
+  </Tasks>
+</Project>

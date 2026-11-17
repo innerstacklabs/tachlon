@@ -1,0 +1,356 @@
+/* The table and the canvas sit in row 2 whether or not the toolbar and status line are there. */
+.gantt [data-part=table] {
+  grid-area: 2 / 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-inline-end: 1px solid var(--gantt-rule);
+  color: var(--gantt-text);
+  font-family: var(--gantt-font);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+/* The list divider (split.ts): a 6 px strip over the table's right border, 3 px of it on the canvas side. */
+.gantt [data-part=table] {
+  position: relative;
+  /* The progress layout sizes Task from the pane's width (--progress-task, 100cqw). */
+  container-type: inline-size;
+}
+.gantt [data-part=split] {
+  position: absolute;
+  top: 0;
+  inset-inline-end: -3px;
+  bottom: 0;
+  width: 6px;
+  z-index: 3;
+  cursor: col-resize;
+  touch-action: none;
+}
+.gantt [data-part=split]:hover,
+.gantt [data-part=split]:focus-visible,
+.gantt [data-part=split][data-dragging="true"] {
+  background: linear-gradient(to right, transparent 2px, var(--gantt-sel-edge) 2px, var(--gantt-sel-edge) 4px, transparent 4px);
+  outline: none;
+}
+/* Native scrolling; main.ts shares scrollTop with the canvas. The columns can need more room than the pane: the body then scrolls sideways
+   and table.ts scrolls the head with it, after giving the head the body's scrollbar width as right padding so the two are the same width. */
+.gantt [data-part=table-body] {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: scroll;
+}
+.gantt [data-part=table-head] {
+  overflow: hidden;
+}
+/* "Row N of M" (row-position.ts): at the list's right edge, below the head and left of the scrollbar, for one second after a scroll. */
+.gantt [data-part=row-position] {
+  position: absolute;
+  inset-inline-end: 20px;
+  top: calc(var(--gantt-axis-h) + 6px);
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--gantt-text);
+  color: var(--gantt-bg);
+  pointer-events: none;
+}
+.gantt [data-part=row-position][hidden] {
+  display: none;
+}
+.gantt [data-part=table-rows] {
+  position: relative;
+}
+/* The empty-list line (`apps/chrome/src/blank-note.ts`): in the body under the rows, which are 0 px high while the schedule has no tasks. */
+.gantt [data-part=table-empty] {
+  margin: 0;
+  padding: 16px 12px;
+  color: var(--gantt-muted);
+  font: 13px/1.4 var(--gantt-font);
+}
+.gantt [data-part=table-empty][hidden] {
+  display: none;
+}
+/* --gantt-id-track is empty unless the table shows the ID column; it is the one track in front of --gantt-cols. */
+.gantt [data-part=table][data-ids="true"] {
+  --gantt-id-track: var(--gantt-id-col, 92px);
+}
+/* --gantt-var-track is empty unless a baseline is set (the toolbar sets data-variance): the three variance tracks after Float. */
+.gantt [data-part=table][data-variance="true"] {
+  --gantt-var-track: var(--gantt-var-col) var(--gantt-var-col) var(--gantt-var-col);
+}
+/* The Variance button (variance-toggle.ts) hides the three columns: no tracks, no width, and the three heads go. */
+.gantt [data-part=table][data-variance="true"][data-variance-hidden] {
+  --gantt-var-track: ;
+  --variance-w: 0px;
+}
+.gantt [data-part=table][data-variance-hidden] [data-part=table-head] .cols > :is(.var-start, .var-finish, .var-float) {
+  display: none;
+}
+/* What each optional column adds to the width the columns need: its track and one 6px column gap. */
+.gantt [data-part=table] {
+  --ids-w: 0px;
+  --wbs-w: 0px;
+  --progress-w: 0px;
+  --variance-w: 0px;
+  /* The left gutter is the first grid track (12px plus the 6px gap after it = 18px): the critical diamond and the selected-row edge sit
+     in it, and it sticks with the frozen cells, so a table scrolled sideways keeps both markers on screen. */
+  --gutter-track: 12px;
+}
+.gantt [data-part=table][data-ids="true"] {
+  --ids-w: calc(var(--gantt-id-col, 92px) + 6px);
+}
+.gantt [data-part=table][data-wbs="true"] {
+  --wbs-w: calc(var(--gantt-wbs-col, 72px) + 6px);
+}
+.gantt [data-part=table][data-progress="true"] {
+  --progress-w: 416px;
+  /* gs#974: % complete follows Task. Task is the width the names need (task-width.ts), at most the pane less the gutter, ID, WBS and
+     % complete (88px) and 22px spare, and at least 60px, so % complete is whole on open and the table keeps to its half. */
+  --progress-task: max(60px, min(var(--gantt-task-fit, var(--gantt-task-min)), calc(100cqw - 128px - var(--ids-w) - var(--wbs-w))));
+}
+.gantt [data-part=table][data-variance="true"] {
+  --variance-w: calc(3 * (var(--gantt-var-col) + 6px));
+}
+.gantt .cols {
+  display: grid;
+  grid-template-columns: var(--gutter-track) var(--gantt-id-track, ) var(--gantt-cols) var(--gantt-var-track, );
+  column-gap: 6px;
+  padding-inline: 0 6px;
+  height: 100%;
+  align-items: center;
+  box-sizing: border-box;
+  /* The least the columns need: the Task minimum, the fixed tracks of --gantt-cols (Dur 60px, two date columns, Float 46px), five gaps (30px),
+     the gutter track (12px) and the end padding (6px), then
+     the optional columns above. A pane narrower than this scrolls sideways; the Task column does not give way. */
+  min-width: calc(var(--gantt-task-fit, var(--gantt-task-min)) + 154px + 2 * var(--gantt-date-col) + var(--ids-w) + var(--wbs-w) + var(--variance-w) + var(--progress-w) - var(--hidden-w, 0px));
+}
+/* The gutter cover: the first track, stuck at the left like the frozen cells and filled like the row (the head's fill for the head), so
+   the scrolled cells do not show in it. It stretches 6px over the gap after it, and it carries the selected-row edge, which the row
+   would otherwise scroll away with itself. */
+.gantt .cols::after {
+  content: "";
+  grid-area: 1 / 1;
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 2;
+  align-self: stretch;
+  margin-inline-end: -6px;
+  background: var(--row-fill, var(--gantt-bg));
+}
+.gantt [data-part=table-head] .cols::after {
+  background: var(--gantt-axis);
+}
+/* The WBS column (table.ts sets data-wbs) is one --gantt-wbs-col track after the ID track and before --gantt-cols. */
+.gantt [data-part=table][data-wbs="true"] .cols {
+  grid-template-columns: var(--gutter-track) var(--gantt-id-track, ) var(--gantt-wbs-col, 72px) var(--gantt-cols) var(--gantt-var-track, );
+}
+/* With Progress on, `order` puts % complete after Task, then Actual start, Actual finish, Remaining, then Dur, Start, Finish, Float and the
+   variance columns; the DOM order is unchanged and the tracks follow the visual order. */
+.gantt [data-part=table][data-progress="true"] .cols {
+  /* The tracks' sum: a narrower row ends a frozen cell early. */
+  min-width: calc(var(--progress-task) + 154px + 2 * var(--gantt-date-col) + var(--ids-w) + var(--wbs-w) + var(--variance-w) + var(--progress-w) - var(--hidden-w, 0px));
+  grid-template-columns: var(--gutter-track) var(--gantt-id-track, ) var(--progress-task) 88px 116px 116px 72px var(--movable-tracks) var(--gantt-var-track, );
+}
+.gantt [data-part=table][data-wbs="true"][data-progress="true"] .cols {
+  grid-template-columns: var(--gutter-track) var(--gantt-id-track, ) var(--gantt-wbs-col, 72px) var(--progress-task) 88px 116px 116px 72px var(--movable-tracks) var(--gantt-var-track, );
+}
+.gantt [data-part=table][data-progress="true"] .cols > .percent { order: 1; }
+.gantt [data-part=table][data-progress="true"] .cols > .actual-start { order: 2; }
+.gantt [data-part=table][data-progress="true"] .cols > .actual-finish { order: 3; }
+.gantt [data-part=table][data-progress="true"] .cols > .remaining { order: 4; }
+.gantt [data-part=table-head] .cols {
+  align-items: center;
+  box-sizing: border-box;
+}
+.gantt [data-part=table-head] .cols > span {
+  white-space: nowrap;
+}
+.gantt .row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: var(--gantt-row-h);
+  line-height: var(--gantt-row-h);
+  white-space: nowrap;
+  /* The row's fill is a variable so the frozen cells, which cover what scrolls under them, can take the same fill. */
+  background: var(--row-fill, var(--gantt-bg));
+}
+/* A row's fill, first match wins: selected, hovered, summary band, odd
+   stripe. The canvas draws the same order with the same tokens
+   (scene::build_marked), so the two halves of a row read as one. The
+   rules below run from lowest to highest priority, at equal specificity. */
+.gantt .row.odd {
+  --row-fill: var(--gantt-stripe);
+}
+.gantt .row:is([data-kind="1"], [data-kind="3"]),
+.gantt .row:is([data-kind="2"], [data-kind="4"]) {
+  --row-fill: var(--gantt-band);
+  font-weight: 600;
+}
+.gantt .row[data-hover="true"] {
+  --row-fill: var(--gantt-hov);
+}
+/* A row in the range selection (gs#423): the selected row's fill, so the range reads as the selection grown, and a thin edge on
+   the left (drawn on the gutter cover, which stays put when the table scrolls); the anchor row, which is the selected one, keeps the thicker edge below. range.ts sets data-range. */
+.gantt .row[data-range="true"] {
+  --row-fill: var(--gantt-sel);
+}
+.gantt .row[data-range="true"]::after {
+  box-shadow: inset 1px 0 0 var(--gantt-sel-edge);
+}
+.gantt .row[data-selected="true"] {
+  --row-fill: var(--gantt-sel);
+}
+.gantt .row[data-selected="true"]::after {
+  box-shadow: inset 3px 0 0 var(--gantt-sel-edge);
+}
+/* The cell cursor (gs#416): the selected row's cell, drawn inside the cell so the overflow clip leaves it whole. It reuses
+   --gantt-sel-edge, the selected row's edge colour, so no token is added. cursor.ts sets data-cursor. */
+.gantt .row > [data-cursor="true"] {
+  outline: 2px solid var(--gantt-sel-edge);
+  outline-offset: -2px;
+}
+/* A critical task: a filled diamond in the left gutter and a semibold red float. The diamond is a sticky grid item in the gutter track,
+   over the gutter cover (::after), so it stays on screen when the table scrolls sideways. */
+.gantt .row.critical::before {
+  content: "";
+  grid-area: 1 / 1;
+  position: sticky;
+  /* Stuck 7px in from the pane's edge, which is also where it sits at rest: sticky offsets the border box, a margin would not hold. */
+  inset-inline-start: 7px;
+  justify-self: start;
+  width: 6px;
+  height: 6px;
+  background: var(--gantt-crit);
+  transform: rotate(45deg);
+  z-index: 3;
+}
+.gantt .row.critical .float {
+  color: var(--gantt-crit-text);
+  font-weight: 600;
+}
+/* While a bar is dragged the three variance cells are one empty cell over their three tracks (table.ts), so what follows keeps its column. */
+.gantt .row .var-hold {
+  grid-column: span 3;
+}
+/* The variance columns: a later finish and less float read in the warning amber (red means the critical path only, tl#1193), no change in the muted colour, the rest is plain text. */
+.gantt .row .var-finish.late,
+.gantt .row .var-float.lost {
+  color: var(--gantt-warn);
+}
+/* No change is a middot in the muted colour, so the eye goes to the cells that moved. */
+.gantt .row .var-start.zero,
+.gantt .row .var-finish.zero,
+.gantt .row .var-float.zero {
+  color: var(--gantt-muted);
+}
+.gantt .row .name,
+.gantt .row .dur {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+/* The ID column exists only for a file with activity IDs (main.ts adds the cells and sets data-ids). */
+.gantt .row .code,
+.gantt .row .wbs {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--gantt-muted);
+}
+/* The frozen columns: ID, WBS and Task stay at the left while the others scroll (P6 and MS Project do the same). Each sticks at the offset
+   it has at rest, past the 18px gutter, and fills with its row's fill so the scrolled cells do not show through. The left offsets add up
+   the tracks before the cell; the 6px gap is part of the ID and WBS widths above. */
+.gantt .row > .code,
+.gantt .row > .wbs,
+.gantt .row > .name,
+.gantt [data-part=table-head] .cols > .code,
+.gantt [data-part=table-head] .cols > .wbs,
+.gantt [data-part=table-head] .cols > .name {
+  position: sticky;
+  z-index: 1;
+  inset-inline-start: 18px;
+  /* A cell with no text (a summary has no ID) still fills the row's height. */
+  align-self: stretch;
+  background: var(--row-fill, var(--gantt-bg));
+}
+.gantt [data-part=table-head] .cols > .code,
+.gantt [data-part=table-head] .cols > .wbs,
+.gantt [data-part=table-head] .cols > .name {
+  display: flex;
+  align-items: center;
+  background: var(--gantt-axis);
+}
+.gantt .row > .wbs,
+.gantt [data-part=table-head] .cols > .wbs {
+  inset-inline-start: calc(18px + var(--ids-w));
+}
+.gantt .row > .name,
+.gantt [data-part=table-head] .cols > .name {
+  inset-inline-start: calc(18px + var(--ids-w) + var(--wbs-w));
+}
+/* The 6px gap after the ID and WBS cells is covered too, or the scrolled cells show in it. */
+.gantt .row > .code,
+.gantt .row > .wbs {
+  box-shadow: 6px 0 0 0 var(--row-fill, var(--gantt-bg));
+}
+.gantt [data-part=table-head] .cols > .code,
+.gantt [data-part=table-head] .cols > .wbs {
+  box-shadow: 6px 0 0 0 var(--gantt-axis);
+}
+/* Once the table has scrolled (table.ts sets data-scrolled): a hairline closes the frozen block on the right, where the scrolled columns
+   slide under it. */
+.gantt [data-part=table][data-scrolled="true"] .row > .name {
+  box-shadow: 1px 0 0 0 var(--gantt-rule);
+}
+.gantt [data-part=table][data-scrolled="true"] [data-part=table-head] .cols > .name {
+  box-shadow: 1px 0 0 0 var(--gantt-rule);
+}
+/* A column the frozen block cuts (frozen-edge.ts names its first class in data-edge-cut) is hidden in the head and every row, so no sliver
+   of a cell shows beside the edge. The cells keep their boxes and their hit targets; the column shows again once it clears the edge. */
+.gantt [data-part=table][data-edge-cut="dur"] .cols > .dur,
+.gantt [data-part=table][data-edge-cut="start"] .cols > .start,
+.gantt [data-part=table][data-edge-cut="finish"] .cols > .finish,
+.gantt [data-part=table][data-edge-cut="float"] .cols > .float,
+.gantt [data-part=table][data-edge-cut="var-start"] .cols > .var-start,
+.gantt [data-part=table][data-edge-cut="var-finish"] .cols > .var-finish,
+.gantt [data-part=table][data-edge-cut="var-float"] .cols > .var-float,
+.gantt [data-part=table][data-edge-cut="var-hold"] .cols > .var-hold,
+.gantt [data-part=table][data-edge-cut="actual-start"] .cols > .actual-start,
+.gantt [data-part=table][data-edge-cut="actual-finish"] .cols > .actual-finish,
+.gantt [data-part=table][data-edge-cut="remaining"] .cols > .remaining,
+.gantt [data-part=table][data-edge-cut="percent"] .cols > .percent {
+  opacity: 0;
+}
+/* Positioned, so the canvas paints in document order with the table, which is positioned too. Unpositioned, it paints below the table, whose divider reaches 3 px over it, and the root is drawn into a full-size layer above the canvas. */
+.gantt [data-part=timeline] {
+  grid-area: 2 / 2;
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  touch-action: none;
+  cursor: grab;
+}
+/* A bar's finish edge: a two-way arrow over it, and for the whole edge drag (pointer.ts sets `resize`). */
+.gantt [data-part=timeline].resize { cursor: ew-resize; }
+.gantt [data-part=timeline].dragging { cursor: grabbing; }
+.gantt [data-part=timeline].dragging.resize { cursor: ew-resize; }
+.gantt [data-part=timeline].dragging.held {
+  cursor: not-allowed;
+}
+/* A link drag: a crosshair, and the refusal cursor while the target would refuse the link (gs#347). */
+.gantt [data-part=timeline].dragging.linking {
+  cursor: crosshair;
+}
+.gantt [data-part=timeline].dragging.linking.refused {
+  cursor: not-allowed;
+}
+/* gs#974: with Progress on and columns still to the right, a fade at the pane's right edge; table.ts sets data-more at a scroll of the table. */
+.gantt [data-part=table][data-progress="true"][data-more="true"]::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 28px; z-index: 2; pointer-events: none; background: linear-gradient(to right, transparent, var(--gantt-bg)); }
+/* gantt#1875: in a right-to-left chart the scrolled columns slide under the frozen block from the left, so its gap cover and hairline fall on the left, and the fade sits at the end of the pane. */
+.gantt[dir=rtl] .row > .code, .gantt[dir=rtl] .row > .wbs { box-shadow: -6px 0 0 0 var(--row-fill, var(--gantt-bg)); }
+.gantt[dir=rtl] [data-part=table-head] .cols > .code, .gantt[dir=rtl] [data-part=table-head] .cols > .wbs { box-shadow: -6px 0 0 0 var(--gantt-axis); }
+.gantt[dir=rtl] [data-part=table][data-scrolled="true"] .row > .name, .gantt[dir=rtl] [data-part=table][data-scrolled="true"] [data-part=table-head] .cols > .name { box-shadow: -1px 0 0 0 var(--gantt-rule); }
+.gantt[dir=rtl] [data-part=table][data-progress="true"][data-more="true"]::after { left: 0; right: auto; background: linear-gradient(to left, transparent, var(--gantt-bg)); }

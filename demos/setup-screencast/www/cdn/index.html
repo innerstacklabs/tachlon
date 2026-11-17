@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Plain page</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/__PKG__@__VERSION__/dist-lib/gantt.css" />
+<script type="importmap">{ "imports": { "__PKG__": "https://cdn.jsdelivr.net/npm/__PKG__@__VERSION__/dist-lib/__PKG__.js" } }</script>
+</head>
+<body>
+<input id="file" type="file" />
+<div id="chart" class="gantt" style="width: 100%; height: 480px"></div>
+<script type="module">
+import { mount } from "__PKG__";
+const tasks = [
+  { id: 1, name: "Design", start: "2026-11-02", duration: 3 },
+  { id: 2, name: "Build", start: "2026-11-05", duration: 5 },
+  { id: 3, name: "Ship", start: "2026-11-12", duration: 1 },
+];
+const links = [{ from: 1, to: 2 }, { from: 2, to: 3 }];
+const chart = await mount(document.getElementById("chart"), { tasks, links });
+document.getElementById("file").addEventListener("change", async (e) => {
+  const result = await chart.load({ file: e.target.files[0] });
+  if (!result.ok) console.error(result.error);
+});
+</script>
+</body>
+</html>

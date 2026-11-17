@@ -1,0 +1,7 @@
+test-*.mjs
+draft/
+out/
+dist/
+run.sh
+upload/
+copy-clips.mjs

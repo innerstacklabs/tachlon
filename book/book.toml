@@ -1,0 +1,23 @@
+[book]
+title = "Tachlon"
+description = "A guide to Tachlon for people who plan and review construction schedules."
+language = "en"
+src = "src"
+
+[build]
+create-missing = false
+
+# The book's theme: theme/ overrides mdBook's stock files (index.hbs, css/variables.css, the favicon); book.css adds
+# the book's own components. Two themes, Light and Dark; the menu offers no others.
+[output.html]
+theme = "theme"
+default-theme = "light"
+preferred-dark-theme = "navy"
+additional-css = ["theme/book.css"]
+no-section-label = true
+# Served under /book/ (the hosted app is at the site root), so the 404 page links resolve there.
+site-url = "/book/"
+
+# The API reference: one chapter per page that `pnpm docs:book` generates (scripts/book-api.ts); the build fails if they are missing.
+[preprocessor.api]
+command = "node ../scripts/book-api.ts"

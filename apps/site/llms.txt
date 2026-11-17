@@ -1,0 +1,12 @@
+# Tachlon
+
+> Tachlon is a Gantt chart component for the browser, for any product with a schedule in it. Its engine is written in Rust, runs as WebAssembly and draws on the GPU. A JavaScript or TypeScript team installs it from npm as `tachlon` and never writes Rust. It is open source under the MIT license, free to use, with no key and no trial.
+
+Read these first:
+
+- [Tachlon](https://tachlon.com/): what the product is and what it does.
+- [How Tachlon works](https://tachlon.com/how-it-works): why the engine is Rust, why it ships as WebAssembly, why the GPU draws it, and what that means for a JavaScript team.
+- [tachlon on npm](https://www.npmjs.com/package/tachlon): the package page, with the README: install and usage.
+- [AGENTS.md](https://unpkg.com/tachlon/AGENTS.md): the guide for a coding assistant that adds the chart to an app, step by step. It is also in the root of the installed package.
+
+If the chart does not draw, run `npx tachlon doctor` in the project. It reads the project, writes nothing, and prints a fix under each failed check.

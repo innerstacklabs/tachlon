@@ -1,0 +1,55 @@
+/* Ctrl+P (gs#703): the printed schedule is one svg per page from `App.print_pages`, in place of the toolbar, the canvas and the table. The text sheet below is the fallback when no page was filled. */
+.gantt [data-part=print-sheet],
+.gantt .gantt-print-pages {
+  display: none;
+}
+
+@media print {
+  .gantt {
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+
+  .gantt > :not([data-part=print-sheet]):not(.gantt-print-pages) {
+    display: none !important;
+  }
+
+  .gantt .gantt-print-pages:not(:empty) {
+    display: block;
+  }
+
+  .gantt .gantt-print-pages > svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    break-after: page;
+    /* The axis month row is `fill="currentColor"` (timeline's svg writer), and the pages are drawn on white in the light theme: without this a dark browser's light text makes it vanish (gantt#1748). Black is the ink the text sheet below uses. */
+    color: black;
+  }
+
+  .gantt .gantt-print-pages > svg:last-child {
+    break-after: auto;
+  }
+
+  .gantt [data-part=print-sheet] {
+    display: block;
+    margin: 0;
+    color: #000;
+    background: #fff;
+    font: 10pt/1.4 monospace;
+    white-space: pre;
+    tab-size: 14;
+  }
+
+  .gantt .gantt-print-pages:not(:empty) + [data-part=print-sheet] {
+    display: none;
+  }
+
+  .gantt [data-part=print-sheet]::before {
+    content: attr(data-title);
+    display: block;
+    margin-bottom: 0.5em;
+    font-weight: bold;
+  }
+}

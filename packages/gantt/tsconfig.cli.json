@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "module": "nodenext", "moduleResolution": "nodenext", "lib": ["ES2022"], "types": ["node"], "paths": {}, "noEmit": false, "allowImportingTsExtensions": false, "rewriteRelativeImportExtensions": true, "rootDir": "src", "outDir": "dist-lib" },
+  "include": [],
+  "files": ["src/cli/main.ts"]
+}

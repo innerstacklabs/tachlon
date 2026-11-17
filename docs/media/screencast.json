@@ -1,0 +1,31 @@
+{
+  "machine": "MacBook Pro",
+  "cpu": "Apple M3 Pro",
+  "date": "2026-10-29",
+  "commit": "eca49fe",
+  "branch": "docs/screencast-2026-10-29",
+  "backend": "WebGPU",
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)",
+  "browser": "151.0.7922.34",
+  "viewport": "1280x720",
+  "fps": 119.95201919232306,
+  "durationSeconds": 48.63,
+  "steps": [
+    "open",
+    "drag",
+    "fling",
+    "open-p6",
+    "code-filter",
+    "edit-link",
+    "show-moved",
+    "close"
+  ],
+  "gif": {
+    "bytes": 4427746,
+    "width": 480,
+    "fps": 8
+  },
+  "mp4": {
+    "bytes": 6175675
+  }
+}

@@ -1,0 +1,7 @@
+# cargo-deny policy. Advisories only for now: no licence or bans policy yet.
+# CI runs `cargo deny check advisories` in the `rust` job.
+
+[advisories]
+ignore = [
+    { id = "RUSTSEC-2026-0192", reason = "ttf-parser is unmaintained, with no patched release. It is a transitive dependency (glyphon -> cosmic-text -> fontdb -> ttf-parser) and there is no drop-in replacement we can swap in; the advisory names skrifa, which is a different API and is not ours to substitute inside fontdb. Revisit when cosmic-text or fontdb moves off ttf-parser." },
+]

@@ -1,0 +1,12 @@
+This is the public demo: fifty thousand tasks open in the browser, with bars, names and the critical path in red.
+Zoom from years down to days. Weekends shade in, and the view stays anchored under the cursor.
+Select a task and its driving path lights up, nearest predecessor first.
+Drag a critical task later, and the whole schedule re-solves as you move.
+Now scroll through all fifty thousand tasks, top to bottom. The slowest frame is in the caption.
+Critical only hides every task that has float, so the longest path stands alone.
+Lookahead keeps only the activities in a three-week window, with their summaries.
+Open a Primavera P6 file. Its actual dates, progress and data date all apply.
+Filter by an activity code, here the trade Mechanical, to see one crew's work.
+Change a link's type and lag, from start to start plus eight days to finish to start plus two.
+Show moved keeps only the tasks that edit moved, so you can see what it cost.
+Rust, WebAssembly and the GPU, built as a component you can put in your own product.

@@ -1,0 +1,92 @@
+{
+  "name": "tachlon",
+  "version": "0.3.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/innerstacklabs/tachlon.git",
+    "directory": "packages/gantt"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "bin": {
+    "tachlon": "./dist-lib/cli/main.js"
+  },
+  "files": [
+    "dist-lib",
+    "AGENTS.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist-lib/types/index.d.ts",
+      "default": "./dist-lib/tachlon.js"
+    },
+    "./react": {
+      "types": "./dist-lib/types/react.d.ts",
+      "default": "./dist-lib/react.js"
+    },
+    "./vue": {
+      "types": "./dist-lib/types/vue.d.ts",
+      "default": "./dist-lib/vue.js"
+    },
+    "./angular": {
+      "types": "./dist-lib/types/angular.d.ts",
+      "default": "./dist-lib/angular.js"
+    },
+    "./headless": {
+      "types": "./dist-lib/types/headless.d.ts",
+      "default": "./dist-lib/headless.js"
+    },
+    "./gantt.css": "./dist-lib/gantt.css",
+    "./schema.json": "./dist-lib/schema.json"
+  },
+  "peerDependencies": {
+    "@angular/core": ">=17",
+    "react": ">=18",
+    "vue": ">=3"
+  },
+  "peerDependenciesMeta": {
+    "@angular/core": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "vue": {
+      "optional": true
+    }
+  },
+  "packageManager": "pnpm@11.25.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:lib": "ngc -p tsconfig.ng.json && vite build --config vite.lib.config.ts && node ../../scripts/emit-types.ts . && node ../../scripts/emit-engine-size.ts . && tsc -p tsconfig.cli.json",
+    "docs:api": "api-extractor run && api-documenter markdown -i dist-docs/model -o dist-docs/pages",
+    "docs:book": "node ../../scripts/emit-types.ts . && pnpm docs:api",
+    "docs:check": "node ../../scripts/test-api-docs-check.ts && pnpm docs:api && node ../../scripts/api-docs-check.ts dist-docs/model/package.api.json",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p ../../scripts && oxlint .",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@angular/compiler": "22.2.5",
+    "@angular/compiler-cli": "22.2.5",
+    "@angular/core": "22.2.5",
+    "@microsoft/api-documenter": "7.30.20",
+    "@microsoft/api-extractor": "7.60.1",
+    "@playwright/test": "1.64.1",
+    "@types/node": "22.20.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "oxlint": "1.91.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "rxjs": "7.8.2",
+    "typescript": "7.0.2",
+    "vite": "8.3.4",
+    "vue": "3.5.45"
+  }
+}

@@ -1,0 +1,16 @@
+// The API reference's source: API Extractor reads the declarations `pnpm build:lib` emits (stripInternal already applied, so only what a
+// consumer can reach) and writes the doc model; `pnpm docs:api` then renders one page per export and member from it. Output goes under
+// dist-docs/ (git-ignored). scripts/api-docs-check.ts reads the model and fails on a public export with no doc comment.
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/api-extractor/v7/api-extractor.schema.json",
+  "projectFolder": ".",
+  "mainEntryPointFilePath": "<projectFolder>/dist-lib/types/index.d.ts",
+  "apiReport": { "enabled": false },
+  "docModel": { "enabled": true, "apiJsonFilePath": "<projectFolder>/dist-docs/model/package.api.json" },
+  "dtsRollup": { "enabled": false },
+  "tsdocMetadata": { "enabled": false },
+  "messages": {
+    // A type an export names but the entry does not export (HasOn, ErrorCode): a finding for a separate change, not this check's.
+    "extractorMessageReporting": { "ae-forgotten-export": { "logLevel": "none" }, "ae-missing-release-tag": { "logLevel": "none" } }
+  }
+}

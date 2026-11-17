@@ -1,0 +1,30 @@
+/* How it works: the layer diagram (where the host's code ends and the engine begins), the three "why" sections set like
+   numbered notes on a drawing, and the questions a JavaScript team asks, answered in a definition list. */
+.how-hero { display: grid; gap: 20px; justify-items: center; text-align: center; }
+.how-hero h1 { font-size: clamp(2.2rem, 6vw, 4.4rem); letter-spacing: -0.02em; max-width: 14ch; }
+.how-hero .lede { font-size: 1.15rem; max-width: 600px; }
+
+.layers { margin: 0; display: grid; gap: 0; max-width: 760px; justify-self: center; width: 100%; }
+.layer { display: grid; gap: 2px; padding: 14px 18px; border: 1.5px solid var(--ink); border-top-width: 0; }
+.layer:first-child { border-top-width: 1.5px; }
+.layer span { font-size: 14px; color: var(--muted); }
+.layer.api { border-bottom: 3px solid var(--ink); }
+.layer.core, .layer.gpu { background: var(--navy); color: var(--navy-ink); border-color: var(--navy); }
+.layer.core span, .layer.gpu span { color: var(--navy-muted); }
+.layer.gpu strong { color: #5aa9ff; }
+.layers figcaption { font-size: 13px; color: var(--muted); padding-top: 10px; text-align: center; }
+
+.why { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px 56px; border-top: 1px solid var(--rule); padding-top: 32px; }
+.why h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.why-body { display: grid; gap: 14px; }
+@media (max-width: 760px) { .why { grid-template-columns: 1fr; } }
+
+.stack { display: grid; gap: 24px; }
+.next { display: grid; gap: 12px; }
+.stack h2 { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+.faq { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 28px 40px; }
+.faq > article { display: grid; gap: 6px; align-content: start; }
+.faq > article.cloud { padding: 30px 28px 24px; }
+.faq h3 { font-size: 1rem; }
+.faq p { margin: 0; }
+.faq code, .how-hero code { font-family: "Liberation Mono", ui-monospace, monospace; font-size: 0.92em; }

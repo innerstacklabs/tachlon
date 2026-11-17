@@ -1,0 +1,31 @@
+<button data-part="filters-button" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="filters-panel" data-on="false" title="The filters: Critical only, Longest path, Near critical, Slipped, Joined critical, Left critical, Float lost, Show moved, activity code, Status, Check, Resource, Group, Start constraint and Lookahead">Filters</button>
+<div data-part="filters-panel" role="group" aria-label="Filters" hidden>
+  <p class="tb-hint">One filter at a time; Lookahead adds to it</p>
+  <button data-part="critical-toggle" type="button" aria-pressed="false" title="Show only critical tasks (Shift+C)">Critical only</button>
+  <button data-part="longest-toggle" type="button" aria-pressed="false" title="Show only the longest path (Shift+L)">Longest path</button>
+  <button data-part="near-critical-toggle" type="button" aria-pressed="false" title="Show only the tasks with up to ten working days of float">Near critical</button>
+  <button data-part="slipped-toggle" type="button" aria-pressed="false" title="Show only the tasks that finish later than the baseline (Shift+S)" hidden>Slipped</button>
+  <button data-part="joined-critical-toggle" type="button" aria-pressed="false" title="Show only the tasks that are critical now and were not in the baseline" hidden>Joined critical</button>
+  <button data-part="left-critical-toggle" type="button" aria-pressed="false" title="Show only the tasks that were critical in the baseline and are not now" hidden>Left critical</button>
+  <button data-part="float-lost-toggle" type="button" aria-pressed="false" title="Show only the tasks with five or more working days less float than the baseline" hidden>Float lost</button>
+  <button data-part="moved-filter" type="button" aria-pressed="false" title="Show only the tasks the last edit or drag moved (Shift+M)" disabled>Show moved</button>
+  <div data-part="code-filter" class="tb-group" role="group" aria-label="Activity code" hidden>
+    <select data-part="code-type" class="tb-input" aria-label="Activity code type" title="Show only the tasks that carry one value of a P6 activity code: choose the code type, then the value"><option value="">Activity code</option></select>
+    <select data-part="code-value" class="tb-input" aria-label="Activity code value" title="The value of the activity code to keep" hidden></select>
+    <button data-part="code-clear" type="button" aria-pressed="false" title="Show every task again" hidden>Clear</button>
+  </div>
+  <select data-part="status-filter" class="tb-input" aria-label="Status" title="Show only the tasks that are In progress, Not started or Complete"><option value="">Status</option><option value="in-progress">In progress</option><option value="not-started">Not started</option><option value="complete">Complete</option></select>
+  <select data-part="check-filter" class="tb-input" aria-label="Check" title="Show only the tasks a check counts: Missing logic, Open starts, Open ends, High float, High duration, Invalid dates, Missing resources, Missed, Hard constraints or Negative float"><option value="">Check</option><option value="missing-logic">Missing logic</option><option value="open-start">Open starts</option><option value="open-end">Open ends</option><option value="high-float">High float</option><option value="high-duration">High duration</option><option value="invalid-dates">Invalid dates</option><option value="missing-resources">Missing resources</option><option value="missed">Missed</option><option value="hard-constraints">Hard constraints</option><option value="negative-float">Negative float</option></select>
+  <select data-part="resource-filter" class="tb-input" aria-label="Resource" title="Show only the tasks that name one resource" hidden><option value="">Resource</option></select>
+  <select data-part="group-by" class="tb-input" aria-label="Group" title="Group the rows under one header per value of an activity code type" hidden><option value="">Group</option></select>
+  <button data-part="start-constraint-toggle" type="button" aria-pressed="false" title="Show only the tasks with a start constraint above their import floor">Start constraint</button>
+  <div class="tb-group" role="group" aria-label="Lookahead">
+    <button data-part="lookahead-toggle" type="button" aria-pressed="false" title="Show only the tasks active in a date window, from the start date for the number of weeks">Lookahead</button>
+    <span data-part="lookahead-window" class="tb-inline" hidden>
+      <input data-part="lookahead-start" class="tb-input" type="date" aria-label="Lookahead start date" title="First day of the window">
+      <input data-part="lookahead-weeks" class="tb-input tb-weeks" type="number" min="1" max="520" step="1" aria-label="Lookahead length in weeks" title="Length of the window in weeks">
+      <span class="tb-label">weeks</span>
+    </span>
+  </div>
+  <button data-part="filters-clear" type="button" title="Turn every filter and Lookahead off, so every row shows again" hidden>Clear filters</button>
+</div>

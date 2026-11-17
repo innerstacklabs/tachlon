@@ -1,0 +1,6 @@
+{
+  "bytes": 2876788,
+  "measured": 2739798,
+  "date": "2026-11-12",
+  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on main caf5ac4d, plus 5%. It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose (A devteam-1-1287, the gantt#1875 gaps)."
+}

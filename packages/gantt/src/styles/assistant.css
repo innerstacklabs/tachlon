@@ -1,0 +1,31 @@
+/* The assistant's chat panel (gantt#1875, assistant/panel.ts): written into a root the host gives, in the theme's tokens only. */
+.gantt [data-part=assistant] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-rule);
+  font: 12px/1.4 var(--gantt-font);
+}
+.gantt [data-part=assistant] [role=log] {
+  flex: 1;
+  overflow-y: auto;
+}
+.gantt [data-part=assistant] p {
+  margin: 0 0 4px;
+}
+.gantt [data-part=assistant] p[data-role=user] {
+  color: var(--gantt-muted);
+}
+.gantt [data-part=assistant] :is(form, [data-part=assistant-actions]) {
+  display: flex;
+  gap: 6px;
+}
+.gantt [data-part=assistant] input {
+  flex: 1;
+}
+.gantt [data-part=assistant] [hidden] {
+  display: none;
+}

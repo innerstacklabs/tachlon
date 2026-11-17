@@ -1,0 +1,109 @@
+// What `doctor` asks a real browser about the GPU: it opens a page of its own, headless, in a Chrome, Edge or Chromium found on this machine, and reads the answer the page writes.
+// Only this file starts a browser; `doctor.ts` turns what it returns into a finding.
+import { spawn } from "node:child_process";
+import { accessSync, constants, mkdtempSync, writeFileSync } from "node:fs";
+import { rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { delimiter, join } from "node:path";
+import { pathToFileURL } from "node:url";
+import { PRODUCT_NAME } from "../product.ts";
+
+/** What the browser said: the graphics path the chart takes (WebGPU first, then WebGL2, as `mount` tries them) and the adapter's name; or why no browser could say. */
+export type Gpu = { api: "webgpu" | "webgl2" | "none"; adapter: string; /** True when the browser only started after a retry with `--no-sandbox`. */ noSandbox?: true } | { unavailable: string };
+
+/** The environment variable that names the browser to ask, for a machine where it is not on the path. */
+export const BROWSER_VARIABLE = `${PRODUCT_NAME.toUpperCase()}_BROWSER`;
+const NAMES = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge"];
+const APPS = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"];
+const TIMEOUT_MS = 30_000;
+/** The page: it asks as `mount` does, and writes the answer into its title, which `--dump-dom` prints. A file address is a secure context, where `navigator.gpu` exists. */
+const PAGE = `<!doctype html><title></title><script>
+(async () => {
+  const adapter = await navigator.gpu?.requestAdapter().catch(() => null);
+  if (adapter) return { api: "webgpu", adapter: [adapter.info.vendor, adapter.info.architecture, adapter.info.description].filter(Boolean).join(" ") || "unnamed adapter" };
+  const gl = document.createElement("canvas").getContext("webgl2");
+  if (!gl) return { api: "none", adapter: "" };
+  const info = gl.getExtension("WEBGL_debug_renderer_info");
+  return { api: "webgl2", adapter: String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) };
+})().then((answer) => (document.title = "gpu=" + encodeURIComponent(JSON.stringify(answer))));
+</script>`;
+
+const why = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/\s+/g, " ").slice(0, 200);
+
+/** The browser to ask: the one the environment variable names, else the first of the usual names on the path, else the usual place of an app on a Mac. */
+function findBrowser(env: NodeJS.ProcessEnv): string | undefined {
+  if (env[BROWSER_VARIABLE]) return env[BROWSER_VARIABLE];
+  const runnable = (file: string) => {
+    try {
+      accessSync(file, constants.X_OK);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const onPath = (env.PATH ?? "").split(delimiter).filter(Boolean).flatMap((d) => NAMES.map((n) => join(d, n)));
+  return [...onPath, ...APPS].find(runnable);
+}
+
+/** The first line `stderr` holds, the one that says why a browser failed to start. */
+const firstLine = (stderr: string): string => stderr.split("\n").map((l) => l.trim()).find(Boolean) ?? "";
+
+/** What `browser` prints with `args`, or an error once `ms` pass; one that exits with a code says its first line of stderr, kept as `stderr` on the error. It runs as a process group that a SIGKILL ends whole, and the wait ends on the timer even when a helper of the browser still holds the output pipe open. */
+function output(browser: string, args: string[], ms: number): Promise<string> {
+  let timer: NodeJS.Timeout | undefined;
+  return new Promise<string>((done, fail) => {
+    const child = spawn(browser, args, { detached: true, stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk: string) => (stdout += chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr = (stderr + chunk).slice(0, 4000)));
+    child.on("error", fail).on("close", (code) => {
+      const line = firstLine(stderr);
+      return code === 0 ? done(stdout) : fail(Object.assign(new Error(`exited with code ${code}${line ? `: ${line}` : ""}`), { stderr: line }));
+    });
+    timer = setTimeout(() => {
+      try {
+        process.kill(-(child.pid as number), "SIGKILL");
+      } catch {
+        /* the group is gone */
+      }
+      fail(new Error(`no answer in ${ms / 1000} s`));
+    }, ms);
+  }).finally(() => clearTimeout(timer));
+}
+
+/** Opens the page in the browser `env` leads to and returns what it said; no browser, one that fails or does not answer in `timeoutMs`, or one that prints no report is `unavailable`, with the reason. It never throws. */
+export async function askBrowser(env: NodeJS.ProcessEnv = process.env, timeoutMs = TIMEOUT_MS): Promise<Gpu> {
+  const browser = findBrowser(env);
+  if (!browser) return { unavailable: `no Chrome, Edge or Chromium was found on this machine (name one with ${BROWSER_VARIABLE})` };
+  let dir: string | undefined;
+  try {
+    const folder = (dir = mkdtempSync(join(tmpdir(), "doctor-gpu-")));
+    const page = join(folder, "gpu.html");
+    writeFileSync(page, PAGE);
+    const flags = (profile: string, more: string[] = []) => ["--headless=new", "--no-first-run", "--disable-background-networking", "--disable-component-update", `--user-data-dir=${join(folder, profile)}`, ...more, "--virtual-time-budget=10000", "--dump-dom", pathToFileURL(page).href];
+    let stdout: string;
+    let noSandbox = false;
+    try {
+      stdout = await output(browser, flags("profile"), timeoutMs);
+    } catch (e) {
+      // A browser that cannot start its sandbox (AppArmor blocks user namespaces on Ubuntu) is asked once more without it; any other failure is the answer.
+      if (!/sandbox/i.test((e as { stderr?: string }).stderr ?? "")) throw e;
+      try {
+        stdout = await output(browser, flags("profile-no-sandbox", ["--no-sandbox"]), timeoutMs);
+        noSandbox = true;
+      } catch (again) {
+        return { unavailable: `${browser} did not answer: ${why(e)}; retried without the sandbox, which also failed: ${why(again)}` };
+      }
+    }
+    const report = /<title>gpu=([^<]*)<\/title>/.exec(stdout)?.[1];
+    const got = report === undefined ? undefined : (JSON.parse(decodeURIComponent(report)) as Partial<Extract<Gpu, { api: string }>>);
+    if (got?.api !== "webgpu" && got?.api !== "webgl2" && got?.api !== "none") return { unavailable: `${browser} ran the page but sent no GPU report` };
+    return { api: got.api, adapter: String(got.adapter ?? ""), ...(noSandbox ? { noSandbox: true as const } : {}) };
+  } catch (e) {
+    return { unavailable: `${browser} did not answer: ${why(e)}` };
+  } finally {
+    // A folder left behind is not worth losing the answer for.
+    if (dir) await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }).catch(() => undefined);
+  }
+}

@@ -1,0 +1,120 @@
+/* The "what moved" note: inside the root, anchored to the canvas's grid cell (row 2, column 2) so it follows the canvas as
+   the task list divider and the ID column move it. It is always in the accessibility tree and hidden by opacity 0 (the
+   page sets the opacity while a report shows). It takes the pointer only while it has text, so pointing at it holds the
+   report (`moved.ts`) and an empty one, which only looks hidden, lets the pointer through to the chart. */
+.gantt [data-part=moved-note] {
+  position: absolute;
+  grid-area: 2 / 2;
+  top: 4px;
+  inset-inline-end: 8px;
+  z-index: 5;
+  max-width: 60%;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-muted);
+  border-radius: 6px;
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 12px/1.4 var(--gantt-font);
+}
+.gantt [data-part=moved-note]:not(:empty) {
+  pointer-events: auto;
+}
+/* Present but empty (before the first report, and after one faded): no box to see. It stays in the accessibility tree,
+   because a live region that is out of the tree (`hidden`, `display: none`) can miss the text set when it comes back. */
+.gantt [data-part=moved-note]:empty {
+  padding: 0;
+  background: none;
+  border: 0;
+}
+/* The Show moved button: a sibling of the note, never inside the live region, under the time axis at the canvas's top right, so it hides no date. It shows
+   while a report exists and the rows are not already filtered to it (`moved.ts`). */
+.gantt [data-part=moved-show] {
+  position: absolute;
+  grid-area: 2 / 2;
+  top: calc(var(--gantt-axis-h) + 4px);
+  inset-inline-end: 8px;
+  z-index: 5;
+  padding: 2px 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  font: 12px/1.4 var(--gantt-font);
+}
+.gantt [data-part=moved-show][hidden] {
+  display: none;
+}
+/* The baseline summary: the standing line for a baseline that is set, at the canvas's bottom right (`baseline-summary.ts`). It
+   takes no pointer, so the chart under it still answers, and it wears the same chip as the note in both themes. */
+.gantt [data-part=baseline-summary],
+.gantt [data-part=path-line] {
+  position: absolute;
+  grid-area: 2 / 2;
+  align-self: end;
+  justify-self: end;
+  margin: 0 8px 8px 0;
+  z-index: 4;
+  max-width: calc(100% - 16px);
+  box-sizing: border-box;
+  padding: 4px 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-muted);
+  border-radius: 6px;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font: 12px/1.4 var(--gantt-font);
+  font-variant-numeric: tabular-nums;
+}
+/* The drag note (`drag-note.ts`): the same chip, at the canvas's bottom right, above the baseline summary when that shows. */
+.gantt [data-part=drag-note],
+.gantt [data-part=save-note] {
+  position: absolute;
+  grid-area: 2 / 2;
+  align-self: end;
+  justify-self: end;
+  margin: 0 8px 8px 0;
+  z-index: 4;
+  box-sizing: border-box;
+  padding: 4px 8px;
+  background: var(--gantt-surface);
+  color: var(--gantt-text);
+  border: 1px solid var(--gantt-muted);
+  border-radius: 6px;
+  pointer-events: none;
+  /* The note is a sentence or two: it wraps, so the whole text shows. */
+  width: max-content;
+  max-width: min(480px, calc(100% - 16px));
+  white-space: normal;
+  font: 12px/1.4 var(--gantt-font);
+}
+.gantt [data-part=baseline-summary]:not([hidden]) ~ [data-part=drag-note],
+.gantt [data-part=baseline-summary]:not([hidden]) ~ [data-part=save-note] {
+  margin-bottom: 40px;
+}
+/* The save note (`save` in `index.ts`) sits in the same corner; it rises above a drag note that shows, and above both chips when the baseline summary shows too. */
+.gantt [data-part=drag-note]:not([hidden]) ~ [data-part=save-note] {
+  margin-bottom: 40px;
+}
+.gantt [data-part=baseline-summary]:not([hidden]) ~ [data-part=drag-note]:not([hidden]) ~ [data-part=save-note] {
+  margin-bottom: 72px;
+}
+.gantt [data-part=drag-note][hidden],
+.gantt [data-part=save-note][hidden] {
+  display: none;
+}
+.gantt [data-part=baseline-summary][hidden] {
+  display: none;
+}
+/* The longest-path line (`apps/chrome/src/path-line.ts`) is that chip at the canvas's bottom left; with no text, or no chrome to write it, it is hidden. */
+.gantt [data-part=path-line] { justify-self: start; margin: 0 0 8px 8px; }
+.gantt [data-part=path-line]:not(:has([data-part=path-text]:not(:empty))) { display: none; }

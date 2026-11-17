@@ -1,0 +1,71 @@
+[workspace]
+resolver = "3"
+members = ["crates/engine", "crates/timeline", "crates/app", "crates/import", "crates/xer"]
+
+[workspace.package]
+edition = "2024"
+license = "MIT"
+publish = false
+
+# Dev and test builds carry line tables for the workspace crates (a test panic
+# or a backtrace still names file and line) and no debug info for dependencies.
+# Full debug info made each test binary link near 800 MB. `split-debuginfo`
+# keeps what debug info remains out of the linker's input; "unpacked" is the
+# Linux setting and the default on macOS. `cargo test` builds its dependencies
+# in the dev profile, so these settings reach the test builds too.
+[profile.dev]
+debug = "line-tables-only"
+split-debuginfo = "unpacked"
+
+[profile.dev.package."*"]
+debug = 0
+
+# The brute-force oracle in crates/engine/tests scans every minute of the
+# schedule horizon; optimised test builds keep `cargo test` to seconds.
+[profile.test]
+opt-level = 2
+
+# The browser build (scripts/build-web.sh). Fat LTO and one codegen unit
+# take the wasm from 7.6 MB to 6.2 MB (gzip 2.4 to 2.0 MB); a separate
+# profile so native release and bench builds keep their build times.
+[profile.wasm-release]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+# The graphics and shader crates are built for size (wasm 7% smaller); the font crates keep the speed setting.
+[profile.wasm-release.package.wgpu]
+opt-level = "s"
+[profile.wasm-release.package.wgpu-core]
+opt-level = "s"
+[profile.wasm-release.package.wgpu-hal]
+opt-level = "s"
+[profile.wasm-release.package.wgpu-types]
+opt-level = "s"
+[profile.wasm-release.package.wgpu-naga-bridge]
+opt-level = "s"
+[profile.wasm-release.package.naga]
+opt-level = "s"
+[profile.wasm-release.package.naga-types]
+opt-level = "s"
+[profile.wasm-release.package.glyphon]
+opt-level = "s"
+
+# The browser build for checks (build-web.sh --profile wasm-dev): a rebuild
+# in about 9 s, not 21, for a larger wasm; CI's size budget stays on wasm-release.
+[profile.wasm-dev]
+inherits = "release"
+lto = "thin"
+codegen-units = 16
+
+# The strict lint rules. Every crate opts in with `[lints] workspace = true`;
+# `architecture::lints::every_crate_opts_in_to_the_strict_lints` (check 16) enforces it.
+[workspace.lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+unwrap_used = "warn"
+panic_in_result_fn = "warn"
+allow_attributes = "warn"
+allow_attributes_without_reason = "warn"
+dbg_macro = "warn"
+todo = "warn"
+print_stdout = "warn"
+print_stderr = "warn"

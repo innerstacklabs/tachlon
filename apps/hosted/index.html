@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gantt</title>
+    <!-- The tab's mark is the site's favicon.svg, inline so the page makes no request for it (the sample specs expect the sample file to be the only one). -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22streak%22%20gradientUnits%3D%22userSpaceOnUse%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%229%22%20y2%3D%220%22%3E%3Cstop%20offset%3D%220%22%20stop-color%3D%22%235aa9ff%22%20stop-opacity%3D%220%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%235aa9ff%22%20stop-opacity%3D%220.9%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%227%22%20fill%3D%22%230e1630%22%2F%3E%3Cg%20transform%3D%22translate(16%2016)%20scale(.76)%20skewX(-14)%20translate(-16%20-16)%22%3E%3Cpath%20d%3D%22M11%205h20v5.5H11z%20M31%2010.5v5l-5-5z%20M17%2010.5h5V29h-5z%22%20fill%3D%22%235aa9ff%22%2F%3E%3Cpath%20d%3D%22M0%205h9v2H0z%20M2%208.5h7v2H2z%22%20fill%3D%22url(%23streak)%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E" />
+    <style>
+      /* The host page: one box that holds the chart. The chart is as big as that box and reads no window size. */
+      html, body { height: 100%; margin: 0; }
+      /* The page follows the system's light or dark setting, as the chart in it does. */
+      :root { color-scheme: light dark; }
+      body { background: Canvas; color: CanvasText; }
+      body { display: flex; flex-direction: column; font: 13px/1.4 system-ui, sans-serif; }
+      /* A printed sheet is US Letter landscape (gs#703). The rule lives here, not in the chart's package CSS, so a page that embeds the chart keeps its own print settings (apps/hosted/tests/print.spec.ts). */
+      @page { size: letter landscape; margin: 0; }
+      .host-box { flex: 1; min-height: 0; }
+      .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+      /* "Open…" is the chart's own toolbar button; main.ts makes it the menu's button, and the menu's list and status line go in its file group. No selector here starts with the chart's class (decision 0007), so the list's button rule carries two attribute selectors to outrank the toolbar's own button rule (packages/gantt/src/styles/chrome.css). */
+      /* The list hangs below the toolbar over the chart, and so does the status line, so neither changes the chart's box or the toolbar's width. */
+      #toolbar-file { position: relative; }
+      #sample-list { position: absolute; top: calc(100% + 6px); left: 0; z-index: 10; display: flex; flex-direction: column; min-width: 340px; padding: 4px; background: var(--gantt-surface); color: var(--gantt-text); border: 1px solid var(--gantt-rule); border-radius: 6px; box-shadow: 0 4px 16px #0004; white-space: normal; max-height: calc(100dvh - var(--gantt-toolbar-h, 36px) - var(--first-screen-line-h, 0px) - 16px); overflow-y: auto; }
+      #sample-list[hidden] { display: none; }
+      #sample-list button[type][role="menuitem"] { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; width: 100%; height: auto; padding: 6px 8px; border: 0; border-radius: 4px; background: none; font-size: 13px; text-align: left; }
+      #sample-list button[type][role="menuitem"]:hover, #sample-list button[type][role="menuitem"]:focus-visible { background: var(--gantt-hov); }
+      #sample-list [data-export-csv], #sample-list [data-export-xlsx], #sample-list [data-copy-list], #sample-list [data-export-image], #sample-list [data-print], #sample-list [data-layout] { display: flex; flex-direction: column; box-sizing: border-box; width: 100%; padding: 6px 8px; border-radius: 4px; font-size: 13px; cursor: pointer; }
+      #sample-list [data-export-csv]:hover, #sample-list [data-export-csv]:focus-visible, #sample-list [data-export-xlsx]:hover, #sample-list [data-export-xlsx]:focus-visible, #sample-list [data-copy-list]:hover, #sample-list [data-copy-list]:focus-visible, #sample-list [data-export-image]:hover, #sample-list [data-export-image]:focus-visible, #sample-list [data-print]:hover, #sample-list [data-print]:focus-visible, #sample-list [data-layout]:hover, #sample-list [data-layout]:focus-visible { background: var(--gantt-hov); }
+      #sample-list [data-new-tab] { display: flex; flex-direction: column; box-sizing: border-box; width: 100%; padding: 6px 8px; border-radius: 4px; font-size: 13px; color: inherit; text-decoration: none; cursor: pointer; }
+      #sample-list [data-new-tab]:hover, #sample-list [data-new-tab]:focus-visible { background: var(--gantt-hov); }
+      #sample-list .sample-meta { font-size: 12px; color: var(--gantt-muted); }
+      /* A paths-to-come item: greyed out, still in the accessibility tree, and no hover or focus fill because nothing happens on it. */
+      #sample-list .menu-rule { margin: 4px 0; border: 0; border-top: 1px solid var(--gantt-rule); }
+      #sample-list [role="menuitem"][aria-disabled="true"] { display: flex; flex-direction: column; box-sizing: border-box; width: 100%; padding: 6px 8px; font-size: 13px; cursor: default; color: var(--gantt-muted); }
+      #sample-list [role="menuitem"][aria-disabled="true"]:hover, #sample-list [role="menuitem"][aria-disabled="true"]:focus-visible { background: none; }
+      #sample-list [role="menuitem"][aria-disabled="true"]:focus-visible { outline: 1px dashed var(--gantt-muted); outline-offset: -1px; }
+      #sample-status { position: absolute; top: calc(100% + 4px); left: 0; z-index: 9; padding: 2px 8px; border: 1px solid var(--gantt-rule); border-radius: 4px; background: var(--gantt-surface); color: var(--gantt-text); white-space: nowrap; }
+      #sample-status:empty { visibility: hidden; }
+      /* The block a page that cannot start shows (main.ts puts it in the chart's root, which carries the theme's tokens): centered over the box, in the chart's own surface colours. */
+      #start-failure { position: absolute; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center; padding: 24px; box-sizing: border-box; background: var(--gantt-bg); }
+      #start-failure .start-failure-box { max-width: 520px; padding: 20px 24px; background: var(--gantt-surface); color: var(--gantt-text); border: 1px solid var(--gantt-rule); border-radius: 6px; }
+      #start-failure h1 { margin: 0 0 8px; font-size: 16px; }
+      #start-failure p { margin: 0 0 8px; }
+      #start-failure p:last-child { margin-bottom: 0; }
+      #start-failure .start-failure-reason { font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+      #start-failure .start-failure-needs { color: var(--gantt-muted); }
+      /* The first-screen line: a strip over the chart's bottom edge, so the chart keeps the whole window (hosted.spec.ts, sample-in-toolbar.spec.ts). While it is open the chart borders its bottom by the line's height (src/first-screen-line.ts sets the variable), so the strip sits on that border, not on the legend row or the baseline note. A border, not padding: the baseline note is placed against the chart's padding edge, which padding would leave at the window's bottom. */
+      #app { box-sizing: border-box; border-bottom: var(--first-screen-line-h, 0px) solid transparent; }
+      #first-screen-line { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--gantt-surface, Canvas); display: flex; align-items: center; gap: 12px; padding: 6px 12px; border-top: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+      #first-screen-line p { flex: 1; margin: 0; }
+      #first-screen-line button { font: inherit; }
+      /* The speed line (gantt#1790): `s` shows it, src/speed-line.ts fills it. Fixed over the chart's bottom edge, above the first-screen line, so the chart's box is the same shown and hidden (tests/speed-line.spec.ts). It takes the first-screen line's colors, which follow the chart's theme and the system's light or dark setting. */
+      #speed-line { position: fixed; right: 0; bottom: var(--first-screen-line-h, 0px); z-index: 6; box-sizing: border-box; max-width: 100%; padding: 2px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px/1.4 ui-monospace, monospace; background: var(--gantt-surface, Canvas); color: var(--gantt-text, CanvasText); border: 1px solid color-mix(in srgb, currentColor 25%, transparent); border-right: 0; border-bottom: 0; }
+      #speed-line[hidden] { display: none; }
+      @media (max-width: 480px) { #first-screen-line { font-size: 12px; line-height: 1.3; } }
+      /* A printed sheet is the chart's pages alone; the line is fixed to the window's bottom, so it would print across page 1 (gantt#1604). */
+      @media print { #first-screen-line, #speed-line { display: none; } }
+    </style>
+  </head>
+  <body>
+    <!-- The sample menu's list and status line wait here until the chart's toolbar exists; then main.ts puts them in the file group, under "Open…". -->
+    <template id="sample-controls">
+      <div id="sample-list" role="menu" aria-label="Open a file or a sample" hidden></div>
+      <span id="sample-status" role="status" aria-live="polite"></span>
+    </template>
+    <!-- "New schedule" (gs#703) is the menu's first item: an empty schedule that starts on this week's Monday. A button menuitem, so the arrow keys reach it; main.ts puts it before "Open a file…" and gives it the call. -->
+    <template id="new-schedule-item">
+      <button type="button" role="menuitem" data-new-schedule="true"><span class="sample-label">New schedule</span><span class="sample-meta">No tasks, starting this week</span></button>
+    </template>
+    <!-- "Compare with a file..." (gs#703) is live, next to "Open a file…", in the same two lines: it sets last month's file as the baseline. A button menuitem, so the arrow keys reach it; main.ts places it after Open and gives it the chooser and the call. -->
+    <template id="compare-item">
+      <button type="button" role="menuitem" data-compare="true"><span class="sample-label">Compare with a file...</span><span class="sample-meta">Last month's P6 or MS Project file, as a baseline</span></button>
+      <input id="compare-input" type="file" accept=".xer,.xml" hidden />
+    </template>
+    <!-- "Open another schedule in a new tab" (gs#703) is a link to this page, so a second tab starts with its own schedule and this one keeps its schedule and its edits. -->
+    <template id="new-tab-item">
+      <a role="menuitem" href="./" target="_blank" rel="noopener" data-new-tab="true"><span class="sample-label">Open another schedule in a new tab</span><span class="sample-meta">This tab keeps its schedule and edits</span></a>
+    </template>
+    <!-- Save is live: main.ts gives it the call Ctrl+S makes, so choosing it downloads <file>.gantt. It sits under the samples, above the paths that are not built yet. -->
+    <template id="save-item">
+      <hr class="menu-rule" role="separator" />
+      <button type="button" role="menuitem" data-save="true"><span class="sample-label">Save</span><span class="sample-meta">Downloads a .gantt file</span></button>
+    </template>
+    <!-- The save and export paths that are not built yet, under Save. main.ts marks each item that has data-coming-soon as disabled; an item comes alive when its flag is removed and its handler is added. -->
+    <template id="coming-soon-items">
+      <div role="menuitem" data-coming-soon="save-to-cloud" title="Coming soon"><span class="sample-label">Save to cloud</span><span class="sample-meta">Coming soon</span></div>
+      <div role="menuitem" data-coming-soon="share-link" title="Coming soon"><span class="sample-label">Share a link</span><span class="sample-meta">Coming soon</span></div>
+    </template>
+    <!-- What a viewer reads when the engine cannot start (the wasm file did not load, or the browser has no WebGL2 or WebGPU). main.ts fills the reason and puts the block in the chart's root. -->
+    <template id="start-failure-template">
+      <div id="start-failure" role="alert">
+        <div class="start-failure-box">
+          <h1>The chart could not start</h1>
+          <p class="start-failure-reason" data-reason="true"></p>
+          <p class="start-failure-needs">This page needs a current browser with WebGL2 or WebGPU turned on, and its engine file (a .wasm file) has to load. Check the connection, reload, or try another browser.</p>
+        </div>
+      </div>
+    </template>
+    <!-- "Export the list as CSV" (gs#703) is live, under Save and above the paths that are not built yet. It is a div menuitem, not a button, so the sample list's buttons stay the samples and Save; export-items.ts gives it its click and key handlers. -->
+    <template id="export-csv-item">
+      <div role="menuitem" tabindex="0" data-export-csv="true"><span class="sample-label">Export the list as CSV</span><span class="sample-meta">The visible rows, as Ctrl+C copies them</span></div>
+    </template>
+    <!-- "Export the list as Excel" (gantt#1875) is live, under "Export the list as CSV": the same rows as an .xlsx file. A div menuitem like that item; export-items.ts gives it its click and key handlers. -->
+    <template id="export-xlsx-item">
+      <div role="menuitem" tabindex="0" data-export-xlsx="true"><span class="sample-label">Export the list as Excel</span><span class="sample-meta">The visible rows, as an .xlsx file</span></div>
+    </template>
+    <!-- "Copy the list" (gs#703) is live, under "Export the list as Excel": the same rows as tab-separated text on the clipboard. A div menuitem like that item; main.ts gives it its click and key handlers. -->
+    <template id="copy-list-item">
+      <div role="menuitem" tabindex="0" data-copy-list="true"><span class="sample-label">Copy the list</span><span class="sample-meta">The visible rows, as tab-separated text</span></div>
+    </template>
+    <!-- "Save image (PNG)" (gs#703) is live, under "Copy the list": a picture of the first printed page. A div menuitem like that item; main.ts gives it its click and key handlers. -->
+    <template id="export-image-item">
+      <div role="menuitem" tabindex="0" data-export-image="true"><span class="sample-label">Save image (PNG)</span><span class="sample-meta">The first printed page, as a picture</span></div>
+    </template>
+    <!-- "Print..." (gs#703) is live, under "Save image (PNG)". It is a div menuitem like that item; main.ts gives it its click and key handlers, and it calls window.print(), as Ctrl+P does. "Print on A4..." under it prints once on A4 paper. -->
+    <template id="print-item">
+      <div role="menuitem" tabindex="0" data-print="true"><span class="sample-label">Print...</span><span class="sample-meta">On US Letter paper, as Ctrl+P prints them</span></div>
+    </template>
+    <template id="print-a4-item">
+      <div role="menuitem" tabindex="0" data-print="a4"><span class="sample-label">Print on A4...</span><span class="sample-meta">The same pages, on A4 paper</span></div>
+    </template>
+    <!-- "Save layout..." and "Apply layout..." (gantt#703) are live, under "Print on A4...": they keep the print setup on screen under a name in this browser (src/layouts.ts), and put a kept one back, on this schedule or another. Div menuitems like the print items; main.ts gives them their click and key handlers. -->
+    <template id="save-layout-item">
+      <div role="menuitem" tabindex="0" data-layout="save"><span class="sample-label">Save layout...</span><span class="sample-meta">The print setup on screen, kept by name in this browser</span></div>
+    </template>
+    <template id="apply-layout-item">
+      <div role="menuitem" tabindex="0" data-layout="apply"><span class="sample-label">Apply layout...</span><span class="sample-meta">A layout kept in this browser, on this schedule</span></div>
+    </template>
+    <!-- The first screen's one line (src/first-screen-line.ts puts it on the page, over the chart's bottom edge). -->
+    <template id="first-screen-line-template">
+      <div id="first-screen-line"><p>This is a sample schedule. Open… takes a P6 XER or MS Project XML file (from Microsoft Project, save as XML first).</p><button type="button" aria-label="Dismiss">✕</button></div>
+    </template>
+    <!-- The renderer is not on the main screen: it is the toolbar's tooltip ("Drawing with WebGL2"), this hidden label, and the console line. -->
+    <span class="sr-only" id="backend-label">…</span>
+    <!-- The speed line (src/speed-line.ts): the open's time and the frames' numbers, shown and hidden by the chart's `s` key. -->
+    <div id="speed-line" hidden></div>
+    <main class="host-box">
+      <div id="app" class="gantt" tabindex="0"><p role="status" style="grid-column: 1 / -1; margin: 0; padding: 12px 16px; background: var(--gantt-surface, Canvas); color: var(--gantt-text, CanvasText); border-bottom: 1px solid var(--gantt-rule, currentColor)">Loading…</p></div>
+      <noscript><p style="grid-column: 1 / -1; margin: 0; padding: 12px 16px; background: var(--gantt-surface, Canvas); color: var(--gantt-text, CanvasText); border-bottom: 1px solid var(--gantt-rule, currentColor)">This page needs JavaScript to run.</p></noscript>
+    </main>
+    <script type="module" src="/src/first-screen-line.ts"></script>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
