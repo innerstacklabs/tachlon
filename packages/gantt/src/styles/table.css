@@ -102,8 +102,8 @@
   --ids-w: calc(var(--gantt-id-col, 92px) + 6px);
 }
 .gantt [data-part=table][data-pred] {
-  --pred-track: var(--gantt-pred-col, 132px);
-  --pred-w: calc(var(--gantt-pred-col, 132px) + 6px);
+  --pred-track: 132px;
+  --pred-w: 138px;
 }
 .gantt [data-part=table][data-wbs="true"] {
   --wbs-w: calc(var(--gantt-wbs-col, 72px) + 6px);
