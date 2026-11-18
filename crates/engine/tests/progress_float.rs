@@ -37,7 +37,7 @@ fn a_finished_task_has_no_float_and_a_finished_successor_leaves_its_predecessor_
     s.set_actual_start(f, Some(at(0, 8, 0))).expect("exists");
     s.set_actual_finish(f, Some(at(0, 17, 0))).expect("exists");
     dep(&mut s, p, f, FS, 0);
-    s.set_data_date(Some(at(3, 8, 0)));
+    s.set_data_date(Some(at(3, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!(sol.project_finish, at(9, 17, 0));
     let df = sol.get(f);
@@ -83,7 +83,7 @@ fn a_started_task_has_float_from_its_early_finish() {
     let b = task(&mut s, c, days(1), None);
     let l = task(&mut s, c, days(5), None);
     dep(&mut s, a, b, FS, 0);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!(sol.project_finish, at(8, 17, 0));
     let (da, db, dl) = (sol.get(a), sol.get(b), sol.get(l));
@@ -110,7 +110,7 @@ fn a_started_task_has_late_dates_from_its_remaining_work_before_a_finish_to_star
     let b = task(&mut s, c, days(1), None);
     let _l = task(&mut s, c, days(5), None);
     dep(&mut s, a, b, FS, 0);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     let (da, db) = (sol.get(a), sol.get(b));
     assert_eq!((da.ls, da.lf), (at(4, 8, 0), at(7, 17, 0)));

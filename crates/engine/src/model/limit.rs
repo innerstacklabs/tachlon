@@ -1,5 +1,6 @@
 //! The date limits a task can carry beyond start-no-earlier-than (gantt#1875).
 
+use super::range::check_limit;
 use super::{Schedule, ScheduleError, TaskId};
 use crate::calendar::Instant;
 
@@ -72,9 +73,12 @@ impl Schedule {
     ///
     /// # Errors
     ///
-    /// Returns [`ScheduleError::UnknownTask`] for an unknown or deleted task.
+    /// Returns [`ScheduleError::UnknownTask`] for an unknown or deleted task and
+    /// [`ScheduleError::OutOfRange`] for a date, a pin included, out of range.
     pub fn set_limit(&mut self, task: TaskId, limit: Limit) -> Result<(), ScheduleError> {
-        self.live_mut(task)?.limit = limit;
+        let t = self.live_mut(task)?;
+        check_limit(task, &limit)?;
+        t.limit = limit;
         self.limited |= limit != Limit::default();
         Ok(())
     }

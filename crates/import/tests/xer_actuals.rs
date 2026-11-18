@@ -69,7 +69,10 @@ fn file(tasks: &[&str]) -> Vec<u8> {
 /// The schedule as the app builds it: the data date and each activity's actuals handed to the
 /// engine before the first compute.
 fn solve(imported: &mut Imported) -> Solution {
-    imported.schedule.set_data_date(imported.data_date);
+    imported
+        .schedule
+        .set_data_date(imported.data_date)
+        .expect("in range");
     for (index, task) in imported.tasks.iter().enumerate() {
         let id = engine::TaskId(index as u32);
         imported

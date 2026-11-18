@@ -76,7 +76,7 @@ fn session(
     for dep in links {
         schedule.add_dependency(*dep).expect("tasks exist");
     }
-    schedule.set_data_date(data_date);
+    schedule.set_data_date(data_date).expect("in range");
     let solution = schedule.compute().expect("the fixture has no loop");
     let metas: Vec<_> = (0..days.len())
         .map(|i| TaskMeta {

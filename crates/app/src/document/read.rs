@@ -134,7 +134,9 @@ pub fn read(text: impl Into<String>, now: &dyn Fn() -> f64) -> Result<Document, 
     let options = read_options(&root).map_err(invalid)?;
     let finish_by = read_finish_by(&root).map_err(invalid)?;
 
-    schedule.set_data_date(data_date);
+    schedule
+        .set_data_date(data_date)
+        .map_err(|e| invalid(format!("data_date: {e}")))?;
     schedule.set_options(options);
     schedule.set_finish_by(finish_by);
     // Everything read from the tree is owned now. Wasm memory never shrinks, so the tree's bytes

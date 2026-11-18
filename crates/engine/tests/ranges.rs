@@ -1,14 +1,14 @@
-//! The ranges of decision 0020: a lag or a duration outside its range is refused at each door and
-//! nothing changes; the sizes the bounds rest on; and a chain at the bounds computes the dates
-//! worked out by hand, in the overflow-checked test profile.
+//! The ranges of decision 0020: a lag, a duration or a date outside its range is refused at each
+//! door and nothing changes; the sizes the bounds rest on; and a chain at the bounds computes the
+//! dates worked out by hand, in the overflow-checked test profile.
 
 mod common;
 
 use common::{check_invariants, dep, std_cal, task};
 use engine::LinkType::FS;
 use engine::{
-    Calendar, DepId, Dependency, LagCalendar, MAX_DATE, MAX_DURATION, MAX_LAG, RangeInput,
-    RangeItem, Schedule, ScheduleError, Task, TaskId, WEEK,
+    Calendar, DepId, Dependency, LagCalendar, MAX_DATE, MAX_DURATION, MAX_LAG, MIN_DATE, Pin,
+    RangeInput, RangeItem, Schedule, ScheduleError, Task, TaskId, WEEK,
 };
 
 /// Two tasks on the standard calendar, linked by dependency 0 when `linked`.
@@ -16,6 +16,7 @@ fn base(linked: bool) -> Schedule {
     let mut s = Schedule::new();
     let cal = s.add_calendar(std_cal(&[]));
     let (a, b) = (task(&mut s, cal, 60, None), task(&mut s, cal, 60, None));
+    s.set_data_date(Some(480)).expect("in range");
     if linked {
         dep(&mut s, a, b, FS, 0);
     }
@@ -30,8 +31,8 @@ fn link(lag: i64) -> Dependency {
 
 type Door<'a> = &'a dyn Fn(&mut Schedule, i64) -> Result<(), ScheduleError>;
 
-/// Each of `bad` is refused with `want(value)` and leaves the tasks and dependencies as they were;
-/// each of `good` is accepted.
+/// Each of `bad` is refused with `want(value)` and leaves the tasks, dependencies and data date as
+/// they were; each of `good` is accepted.
 fn check_door(s0: &Schedule, door: Door, bad: &[i64], want: Want, good: &[i64]) {
     for &v in bad {
         let mut s = s0.clone();
@@ -42,6 +43,7 @@ fn check_door(s0: &Schedule, door: Door, bad: &[i64], want: Want, good: &[i64]) 
             s0.dependencies(),
             "dependencies after {v}"
         );
+        assert_eq!(s.data_date(), s0.data_date(), "data date after {v}");
     }
     for &v in good {
         assert_eq!(door(&mut s0.clone(), v), Ok(()), "value {v}");
@@ -52,30 +54,79 @@ type Want<'a> = &'a dyn Fn(i64) -> ScheduleError;
 
 #[test]
 fn a_duration_outside_its_range_is_refused() {
-    let want = |id| {
+    let want = |input, id| {
         move |value| match value {
             ..0 => ScheduleError::NegativeDuration(TaskId(id)),
             _ => ScheduleError::OutOfRange {
-                input: RangeInput::Duration,
+                input,
                 item: RangeItem::Task(TaskId(id)),
                 value,
             },
         }
     };
     let bad = [i64::MIN, -1, MAX_DURATION + 1, i64::MAX];
-    let check =
-        |door: Door, id| check_door(&base(false), door, &bad, &want(id), &[0, MAX_DURATION]);
-    check(
-        &|s, v| {
-            s.add_task(Task {
-                duration: v,
-                ..s.tasks()[0].clone()
-            })
-            .map(drop)
-        },
-        2,
-    );
-    check(&|s, v| s.set_duration(TaskId(0), v), 0);
+    let s0 = base(false);
+    let check = |door: Door, input, id| {
+        check_door(&s0, door, &bad, &want(input, id), &[0, MAX_DURATION]);
+    };
+    let (dur, rem) = (RangeInput::Duration, RangeInput::Remaining);
+    let add = |s: &mut Schedule, set: Field, v| {
+        let mut t = s.tasks()[0].clone();
+        set(&mut t, v);
+        s.add_task(t).map(drop)
+    };
+    check(&|s, v| add(s, |t, v| t.duration = v, v), dur, 2);
+    check(&|s, v| s.set_duration(TaskId(0), v), dur, 0);
+    check(&|s, v| add(s, |t, v| t.remaining = Some(v), v), rem, 2);
+    check(&|s, v| s.set_remaining(TaskId(0), Some(v)), rem, 0);
+}
+
+type Field = fn(&mut Task, i64);
+
+/// Each date input is refused at `add_task` and at its setter, and accepted at either bound.
+#[test]
+fn a_date_outside_its_range_is_refused() {
+    use RangeInput::{ActualFinish, ActualStart, DataDate, FinishPin, Fnet, Fnlt};
+    use RangeInput::{Resume, Snet, Snlt, StartPin};
+    const T: TaskId = TaskId(0);
+    let fields: [(RangeInput, Field); 9] = [
+        (Snet, |t, v| t.snet = Some(v)),
+        (Snlt, |t, v| t.limit.snlt = Some(v)),
+        (Fnet, |t, v| t.limit.fnet = Some(v)),
+        (Fnlt, |t, v| t.limit.fnlt = Some(v)),
+        (Resume, |t, v| t.limit.resume = Some(v)),
+        (StartPin, |t, v| t.limit.pin = Some(Pin::Start(v))),
+        (FinishPin, |t, v| t.limit.pin = Some(Pin::Finish(v))),
+        (ActualStart, |t, v| t.actual_start = Some(v)),
+        (ActualFinish, |t, v| t.actual_finish = Some(v)),
+    ];
+    let bad = [i64::MIN, MIN_DATE - 1, MAX_DATE + 1, i64::MAX];
+    let check = |input, item, door: Door| {
+        let want = |value| ScheduleError::OutOfRange { input, item, value };
+        check_door(&base(false), door, &bad, &want, &[MIN_DATE, MAX_DATE]);
+    };
+    for (input, set) in fields {
+        let with = |s: &Schedule, v| {
+            let mut t = s.tasks()[0].clone();
+            set(&mut t, v);
+            t
+        };
+        check(input, RangeItem::Task(TaskId(2)), &|s, v| {
+            s.add_task(with(s, v)).map(drop)
+        });
+        check(input, RangeItem::Task(T), &|s, v| {
+            let t = with(s, v);
+            match input {
+                Snet => s.set_snet(T, t.snet),
+                ActualStart => s.set_actual_start(T, t.actual_start),
+                ActualFinish => s.set_actual_finish(T, t.actual_finish),
+                _ => s.set_limit(T, t.limit),
+            }
+        });
+    }
+    check(DataDate, RangeItem::Schedule, &|s, v| {
+        s.set_data_date(Some(v))
+    });
 }
 
 #[test]

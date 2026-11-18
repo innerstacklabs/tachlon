@@ -130,7 +130,7 @@ fn a_started_task_behind_plan_shows_its_actual_start() {
     let next = task(&mut s, c, days(1), None);
     let waiting = task(&mut s, c, days(5), None);
     dep(&mut s, behind, next, FS, 0);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     assert_eq!(shown_both_ways(&mut s, behind), (at(4, 8, 0), at(0, 8, 0)));
     let sol = s.compute().expect("computes");
     assert_eq!(sol.get(waiting).es, at(2, 8, 0));
@@ -152,7 +152,7 @@ fn a_task_started_before_its_predecessor_finished_shows_its_actual_start() {
         .expect("exists");
     s.set_remaining(started, Some(days(2))).expect("exists");
     dep(&mut s, before, started, FS, 0);
-    s.set_data_date(Some(at(1, 8, 0)));
+    s.set_data_date(Some(at(1, 8, 0))).expect("in range");
     let (p6, project) = shown_both_ways(&mut s, started);
     assert_eq!(project, at(1, 8, 0));
     assert!(p6 >= at(7, 8, 0), "the remaining work waits: {p6}");
@@ -176,7 +176,7 @@ fn a_started_task_that_misses_its_limit_shows_its_actual_start_beside_a_finished
     s.set_actual_start(done, Some(at(0, 8, 0))).expect("exists");
     s.set_actual_finish(done, Some(at(1, 17, 0)))
         .expect("exists");
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let (p6, project) = shown_both_ways(&mut s, late);
     assert_eq!(project, at(0, 8, 0));
     assert_ne!(p6, project);

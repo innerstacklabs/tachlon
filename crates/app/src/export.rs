@@ -234,7 +234,7 @@ fn drift(bytes: &[u8], expected: &[Option<Instant>]) -> Vec<(usize, Instant)> {
     let Ok(mut read) = import::parse_mspdi(text) else {
         return Vec::new();
     };
-    read.schedule.set_data_date(read.data_date);
+    let _ = read.schedule.set_data_date(read.data_date);
     // The data date and the actuals shape the first compute, as `load_bytes` does.
     for (at, task) in read.tasks.iter().enumerate() {
         #[expect(
@@ -364,7 +364,7 @@ fn empty_like(live: &Schedule) -> Schedule {
         schedule.add_calendar(calendar.clone());
     }
     let _ = schedule.set_lag_calendar(live.lag_calendar());
-    schedule.set_data_date(live.data_date());
+    let _ = schedule.set_data_date(live.data_date());
     schedule.set_options(live.options());
     schedule
 }

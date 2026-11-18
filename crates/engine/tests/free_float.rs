@@ -102,7 +102,7 @@ fn a_started_successor_is_read_at_its_remaining_start() {
         },
     )
     .unwrap();
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     assert_eq!(floats(&mut s).0[0], 2 * D);
 }
 
@@ -113,7 +113,7 @@ fn a_finished_task_has_none_and_a_finished_successor_takes_none() {
     let mut s = net(&[DAY, DAY, (5 * D, None)], &[(0, 1, FS, 0)]);
     s.set_actual_start(TaskId(1), Some(at(0, 8, 0))).unwrap();
     s.set_actual_finish(TaskId(1), Some(at(0, 17, 0))).unwrap();
-    s.set_data_date(Some(at(3, 8, 0)));
+    s.set_data_date(Some(at(3, 8, 0))).expect("in range");
     assert_eq!(floats(&mut s).0, [4 * D, 0, 0]);
 }
 

@@ -26,7 +26,7 @@ fn finishing_the_only_task_leaves_the_critical_path_and_reopening_it_rejoins() {
 
     s.set_actual_start(t, Some(at(0, 8, 0))).expect("exists");
     s.set_actual_finish(t, Some(at(0, 17, 0))).expect("exists");
-    s.set_data_date(Some(at(1, 8, 0)));
+    s.set_data_date(Some(at(1, 8, 0))).expect("in range");
     let finished = s.compute().expect("computes");
     assert_eq!(finished.get(t).float, 0);
     assert!(
@@ -64,7 +64,7 @@ fn finishing_a_task_that_was_never_critical_changes_neither_list() {
 
     s.set_actual_start(p, Some(at(0, 8, 0))).expect("exists");
     s.set_actual_finish(p, Some(at(0, 17, 0))).expect("exists");
-    s.set_data_date(Some(at(1, 8, 0)));
+    s.set_data_date(Some(at(1, 8, 0))).expect("in range");
     let after = s.compute().expect("computes");
     assert!(!after.get(p).is_critical());
     assert!(after.get(l).is_critical());
@@ -87,7 +87,7 @@ fn finishing_the_head_of_a_chain_drops_only_the_head() {
 
     s.set_actual_start(a, Some(at(0, 8, 0))).expect("exists");
     s.set_actual_finish(a, Some(at(0, 17, 0))).expect("exists");
-    s.set_data_date(Some(at(1, 8, 0)));
+    s.set_data_date(Some(at(1, 8, 0))).expect("in range");
     let after = s.compute().expect("computes");
 
     let got = diff(&before, &after);

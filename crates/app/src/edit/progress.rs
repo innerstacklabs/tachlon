@@ -30,12 +30,17 @@ impl Session {
         let before = &self.schedule.tasks()[task.0 as usize];
         let (was_start, was_finish, was_remaining) =
             (before.actual_start, before.actual_finish, before.remaining);
-        // The remaining duration is checked first: it is the one setter that can refuse.
-        self.schedule.set_remaining(task, remaining)?;
-        let _ = self.schedule.set_actual_start(task, actual_start);
-        let _ = self.schedule.set_actual_finish(task, actual_finish);
         let restore =
             |s: &mut Session| put(&mut s.schedule, task, was_start, was_finish, was_remaining);
+        let apply = |s: &mut Schedule| {
+            s.set_remaining(task, remaining)?;
+            s.set_actual_start(task, actual_start)?;
+            s.set_actual_finish(task, actual_finish)
+        };
+        if let Err(refused) = apply(&mut self.schedule) {
+            restore(self);
+            return Err(refused.into());
+        }
         let elapsed = self.solve_full(Some(task), restore)?;
         let inverse = Edit::SetProgress {
             task,

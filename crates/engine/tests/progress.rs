@@ -44,7 +44,7 @@ fn an_actual_start_pins_the_start_and_remaining_runs_from_the_data_date() {
     let a = started(&mut s, c, 5, at(0, 8, 0), Some(2));
     let b = task(&mut s, c, days(1), None);
     dep(&mut s, a, b, FS, 0);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!(sol.get(a).es, at(0, 8, 0));
     assert_eq!(sol.get(a).ef, at(3, 17, 0));
@@ -69,7 +69,7 @@ fn a_finished_task_is_fixed_at_its_actuals() {
     s.set_actual_finish(a, Some(at(1, 15, 0))).expect("exists");
     let b = task(&mut s, c, days(1), None);
     dep(&mut s, a, b, FS, 0);
-    s.set_data_date(Some(at(3, 8, 0)));
+    s.set_data_date(Some(at(3, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     let d = sol.get(a);
     assert_eq!((d.es, d.ef), (at(0, 10, 0), at(1, 15, 0)));
@@ -87,7 +87,7 @@ fn a_started_task_without_a_remaining_duration_has_all_its_duration_left() {
     let mut s = Schedule::new();
     let c = s.add_calendar(std_cal(&[]));
     let a = started(&mut s, c, 1, at(0, 8, 0), None);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!((sol.get(a).es, sol.get(a).ef), (at(0, 8, 0), at(2, 17, 0)));
 }
@@ -103,7 +103,7 @@ fn the_remaining_work_of_a_started_task_waits_for_its_predecessors() {
     let p = task(&mut s, c, days(2), None);
     let a = started(&mut s, c, 3, at(0, 8, 0), Some(1));
     dep(&mut s, p, a, FS, 0);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!((sol.get(p).es, sol.get(p).ef), (at(2, 8, 0), at(3, 17, 0)));
     assert_eq!((sol.get(a).es, sol.get(a).ef), (at(0, 8, 0), at(4, 17, 0)));
@@ -121,7 +121,7 @@ fn a_finished_task_ignores_a_predecessor_that_has_not_finished() {
     s.set_actual_start(f, Some(at(0, 8, 0))).expect("exists");
     s.set_actual_finish(f, Some(at(0, 17, 0))).expect("exists");
     dep(&mut s, p, f, FS, 0);
-    s.set_data_date(Some(at(3, 8, 0)));
+    s.set_data_date(Some(at(3, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!((sol.get(f).es, sol.get(f).ef), (at(0, 8, 0), at(0, 17, 0)));
     assert_eq!((sol.get(p).es, sol.get(p).ef), (at(3, 8, 0), at(3, 17, 0)));
@@ -137,7 +137,7 @@ fn an_actual_start_replaces_the_start_no_earlier_than() {
     let c = s.add_calendar(std_cal(&[]));
     let a = task(&mut s, c, days(1), Some(at(2, 8, 0)));
     s.set_actual_start(a, Some(at(0, 8, 0))).expect("exists");
-    s.set_data_date(Some(at(1, 8, 0)));
+    s.set_data_date(Some(at(1, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!((sol.get(a).es, sol.get(a).ef), (at(0, 8, 0), at(1, 17, 0)));
 }
@@ -150,7 +150,7 @@ fn the_remaining_work_never_begins_before_the_actual_start() {
     let mut s = Schedule::new();
     let c = s.add_calendar(std_cal(&[]));
     let a = started(&mut s, c, 1, at(2, 8, 0), Some(1));
-    s.set_data_date(Some(at(0, 8, 0)));
+    s.set_data_date(Some(at(0, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!((sol.get(a).es, sol.get(a).ef), (at(2, 8, 0), at(2, 17, 0)));
 }
@@ -165,7 +165,7 @@ fn a_task_ahead_of_its_plan_has_late_dates_from_its_remaining_work() {
     let mut s = Schedule::new();
     let c = s.add_calendar(std_cal(&[]));
     let a = started(&mut s, c, 10, at(2, 8, 0), Some(2));
-    s.set_data_date(Some(at(3, 8, 0)));
+    s.set_data_date(Some(at(3, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     let d = sol.get(a);
     assert_eq!((d.es, d.ef), (at(2, 8, 0), at(4, 17, 0)));
@@ -180,7 +180,7 @@ fn an_actual_start_outside_working_time_is_kept() {
     let c = s.add_calendar(std_cal(&[]));
     // Saturday of the origin week is day 5.
     let a = started(&mut s, c, 1, at(5, 10, 0), Some(1));
-    s.set_data_date(Some(at(5, 12, 0)));
+    s.set_data_date(Some(at(5, 12, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!((sol.get(a).es, sol.get(a).ef), (at(5, 10, 0), at(7, 17, 0)));
 }
@@ -198,7 +198,7 @@ fn links_read_the_pinned_dates() {
     let b = task(&mut s, c, days(1), None);
     dep(&mut s, a, b, SS, 0);
     dep(&mut s, a, b, FF, 0);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     assert_eq!((sol.get(a).es, sol.get(a).ef), (at(0, 8, 0), at(2, 17, 0)));
     assert_eq!((sol.get(b).es, sol.get(b).ef), (at(2, 8, 0), at(2, 17, 0)));
@@ -274,7 +274,7 @@ fn a_cone_beside_a_started_task_equals_a_full_compute() {
     dep(&mut s, p, a, FS, 0);
     dep(&mut s, a, b, FS, 0);
     dep(&mut s, b, f, FS, 0);
-    s.set_data_date(Some(at(1, 8, 0)));
+    s.set_data_date(Some(at(1, 8, 0))).expect("in range");
     let mut sol = s.compute().expect("computes");
     s.set_snet(p, Some(at(3, 8, 0))).expect("exists");
     s.recompute_cone(&mut sol, p).expect("solves");
@@ -304,7 +304,7 @@ fn a_started_task_is_not_late_for_a_start_to_start_successor() {
     let succ = task(&mut s, c, days(10), None);
     dep(&mut s, q, p, FS, 0);
     dep(&mut s, p, succ, SS, days(1));
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     let (dp, dq, ds) = (sol.get(p), sol.get(q), sol.get(succ));
     assert_eq!((dq.es, dq.ef), (at(2, 8, 0), at(2, 17, 0)));
@@ -343,7 +343,7 @@ fn a_started_task_is_not_late_for_a_start_to_finish_successor() {
     let succ = task(&mut s, c, days(10), None);
     dep(&mut s, q, p, FS, 0);
     dep(&mut s, p, succ, SF, days(5));
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     let (dp, dq, ds) = (sol.get(p), sol.get(q), sol.get(succ));
     assert_eq!((dq.es, dq.ef), (at(2, 8, 0), at(2, 17, 0)));

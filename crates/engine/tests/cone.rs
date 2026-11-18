@@ -211,9 +211,10 @@ fn cone_equals_full_recompute_with_a_data_date() {
         let Ok(plain) = s.compute() else { continue };
         let mut rng = Rng::new(seed ^ 0xda7a);
         for round in 0..3 {
-            s.set_data_date(Some(rng.range(0, 10 * DAY)));
+            s.set_data_date(Some(rng.range(0, 10 * DAY)))
+                .expect("in range");
             let Ok(with) = s.compute() else {
-                s.set_data_date(None);
+                s.set_data_date(None).expect("in range");
                 continue;
             };
             schedules += 1;
@@ -240,7 +241,8 @@ fn cone_equals_full_recompute_with_a_data_date_on_generated_schedules() {
         let mut s = generate(seed, 1_500);
         let mut rng = Rng::new(seed ^ 0xda7a);
         let plain = s.compute().expect("the base schedule computes");
-        s.set_data_date(Some(plain.project_finish / 2));
+        s.set_data_date(Some(plain.project_finish / 2))
+            .expect("in range");
         assert_ne!(s.compute().expect("computes"), plain, "seed {seed}");
         let seen = run_chain(
             &mut s,

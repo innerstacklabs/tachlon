@@ -153,7 +153,8 @@ pub fn schedule(seed: u64) -> Schedule {
 /// dates fall in the first `span` minutes and may land outside working time, as typed dates do.
 pub fn add_progress(s: &mut Schedule, seed: u64, share: f64, span: i64) {
     let mut rng = Rng::new(seed ^ 0x0ac7_0a15);
-    s.set_data_date(rng.chance(0.7).then(|| rng.range(0, span)));
+    s.set_data_date(rng.chance(0.7).then(|| rng.range(0, span)))
+        .expect("in range");
     for i in 0..s.tasks().len() {
         if !rng.chance(share) {
             continue;

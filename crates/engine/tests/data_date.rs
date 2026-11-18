@@ -24,7 +24,7 @@ fn lone_task() -> (Schedule, TaskId) {
 #[test]
 fn an_unstarted_task_starts_no_earlier_than_the_data_date() {
     let (mut s, a) = lone_task();
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     check_invariants(&s, &sol);
     assert_eq!(sol.get(a).es, at(2, 8, 0));
@@ -41,7 +41,7 @@ fn an_unstarted_task_starts_no_earlier_than_the_data_date() {
 #[test]
 fn a_data_date_outside_working_time_starts_the_task_at_the_next_working_instant() {
     let (mut s, a) = lone_task();
-    s.set_data_date(Some(at(2, 17, 30)));
+    s.set_data_date(Some(at(2, 17, 30))).expect("in range");
     let sol = s.compute().expect("computes");
     check_invariants(&s, &sol);
     assert_dates(
@@ -62,7 +62,7 @@ fn a_later_bound_beats_the_data_date() {
     let b = task(&mut s, c, 8 * 60, None);
     let free = task(&mut s, c, 8 * 60, None);
     dep(&mut s, a, b, FS, 0);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let sol = s.compute().expect("computes");
     check_invariants(&s, &sol);
     // A: Thursday 08:00 to 16:00. B: from A's finish, Thursday 16:00, eight hours (one left on
@@ -80,10 +80,10 @@ fn clearing_the_data_date_restores_the_origin() {
     let (mut s, a) = lone_task();
     let before = s.compute().expect("computes");
     assert_eq!(before.get(a).es, at(0, 8, 0));
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     assert_eq!(s.data_date(), Some(at(2, 8, 0)));
     assert_eq!(s.compute().expect("computes").get(a).es, at(2, 8, 0));
-    s.set_data_date(None);
+    s.set_data_date(None).expect("in range");
     assert_eq!(s.data_date(), None);
     assert_eq!(s.compute().expect("computes"), before);
 }
@@ -104,7 +104,7 @@ fn the_duration_cone_keeps_the_data_date() {
         task(&mut s, c, 60, None);
     }
     dep(&mut s, a, b, FS, 0);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let mut sol = s.compute().expect("computes");
     s.set_duration(a, 6 * 60).expect("task exists");
     let mut moved = Vec::new();

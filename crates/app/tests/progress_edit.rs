@@ -14,7 +14,10 @@ use app::{
     meta::TaskMeta,
 };
 use common::{clock, collapse::standard_calendar};
-use engine::{Dependency, Instant, LinkType, Schedule, Task, TaskId};
+use engine::{
+    Dependency, Instant, LinkType, MAX_DATE, RangeInput, RangeItem, Schedule, ScheduleError, Task,
+    TaskId,
+};
 use timeline::Timeline;
 
 const HOUR: i64 = 60;
@@ -175,6 +178,26 @@ fn a_negative_remaining_is_refused() {
     });
     assert!(matches!(result, Err(EditError::Schedule(_))));
     assert_eq!(s.schedule().tasks()[0].actual_start, None);
+}
+
+#[test]
+fn an_actual_start_past_the_range_is_refused_and_changes_nothing() {
+    let mut s = session();
+    s.edit(started_wednesday()).unwrap();
+    let (before, history) = (fields(&s), s.history_len());
+    let result = s.edit(Edit::SetProgress {
+        task: FIRST,
+        actual_start: Some(MAX_DATE + 1),
+        actual_finish: None,
+        remaining: Some(4 * HOUR),
+    });
+    let want = ScheduleError::OutOfRange {
+        input: RangeInput::ActualStart,
+        item: RangeItem::Task(FIRST),
+        value: MAX_DATE + 1,
+    };
+    assert_eq!(result, Err(EditError::Schedule(want)));
+    assert_eq!((fields(&s), s.history_len()), (before, history));
 }
 
 #[test]
