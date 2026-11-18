@@ -88,10 +88,10 @@ A `MountError`'s `code`, when it has one, is one of these, and its `fix` is the 
 A plain page with no build step can load the package from a CDN. `import { mount } from "tachlon"` needs an import map to say where `tachlon` is, because a page has nothing else to resolve a bare name:
 
 ```html
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tachlon@0.3.0/dist-lib/gantt.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tachlon@0.3.1/dist-lib/gantt.css">
 <div id="chart" class="gantt" style="width: 800px; height: 300px"></div>
 <script type="importmap">
-  { "imports": { "tachlon": "https://cdn.jsdelivr.net/npm/tachlon@0.3.0/dist-lib/tachlon.js" } }
+  { "imports": { "tachlon": "https://cdn.jsdelivr.net/npm/tachlon@0.3.1/dist-lib/tachlon.js" } }
 </script>
 <script type="module">
   import { mount } from "tachlon";
