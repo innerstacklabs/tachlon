@@ -37,7 +37,7 @@ struct Entry {
     range: Range<usize>,
 }
 
-/// The map's hasher: a key's hash is mixed in its high bits, so the multiply gives the low bits, which the table reads, their share.
+/// The map's hasher: `hash` already mixes the low bits the table reads; the multiply fills the high bits, which a `u32` leaves zero.
 #[derive(Default)]
 struct Spread(u64);
 
