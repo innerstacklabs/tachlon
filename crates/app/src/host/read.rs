@@ -7,9 +7,7 @@ use engine::{Instant, Minutes};
 impl Session {
     /// The start-kind date `value` holds, `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm`, or `None` for anything else.
     pub(super) fn read_date(&self, value: &Value) -> Option<Instant> {
-        let Value::Str(text) = value else {
-            return None;
-        };
+        let text = value.as_str().filter(|text| !text.contains(' '))?;
         self.parse_start(&text.replacen('T', " ", 1)).ok()?
     }
 }
