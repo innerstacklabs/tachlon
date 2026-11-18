@@ -16,13 +16,16 @@ function dayOfKey(app: PublicApp): (key: unknown) => number {
   return (key) => days.get(key as string) ?? list[0]!.day;
 }
 
-/** Answer what `app.update_tasks` answers for `records`; `busy` is `Gantt.busy()` and `unit` the unit of the host's durations. */
-export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["durationUnit"], records: unknown): UpdateResult {
+/** Answer what `app.update_tasks` answers for `records`; `busy` is `Gantt.busy()`, `unit` the unit of the host's durations, and `wrote` is told the slots of the tasks written (the table's). */
+export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["durationUnit"], records: unknown, wrote: (slots: readonly number[]) => void): UpdateResult {
   if (!Array.isArray(records)) return Object.freeze({ ok: false, reason: "badRecords", message: "update takes an array of records." });
   if (busy()) return refused("busy");
   const day = unit === "hours" || unit === "minutes" || !records.some(hasDuration) ? () => 0 : dayOfKey(app);
   const answer = readAnswer(app.update_tasks(JSON.stringify(records.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
-  if (answer.ok) return Object.freeze({ ok: true, updated: answer.updated! });
+  if (answer.ok) {
+    wrote(JSON.parse(app.task_slots(records.map((record) => (record as { key: string }).key))) as number[]); // an accepted record names a live task by its key
+    return Object.freeze({ ok: true, updated: answer.updated! });
+  }
   const key = (records[answer.record ?? -1] as { key?: unknown } | undefined)?.key;
   return Object.freeze({ ...answer, message: `Nothing changed: ${answer.reason}${answer.record === undefined ? "" : ` in record ${answer.record}`}${answer.member === undefined ? "" : ` (${answer.member})`}.`, ...(typeof key === "string" ? { key } : {}) });
 }

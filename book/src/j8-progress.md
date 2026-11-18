@@ -1,8 +1,7 @@
 # Update progress against a data date
 <!-- journey: J8 -->
 
-**Goal:** each period, record what happened on site and move the data date forward, and see the
-schedule follow. The progress cells hold the actuals; the data date says where "now" is.
+**Goal:** record the progress of each task, move the data date forward, and see the schedule follow. The progress cells hold the actuals; the data date says where "now" is.
 
 <figure class="shot">
 <img src="media/j8-progress.webp" alt="A P6 office fit-out file five weeks in: the task list shows the % complete, Actual start and Actual finish cells filled in, and the chart has a dashed Data date line with finished tasks to its left and the critical path in red to its right">
@@ -12,7 +11,7 @@ schedule follow. The progress cells hold the actuals; the data date says where "
 ## By hand
 
 1. **Show the progress cells.** The **Progress** button in the toolbar adds four cells to the task
-   list, after Float: **Actual start**, **Actual finish**, **Remaining** and **% complete**. A file
+   list, right after Task, in this order: **% complete**, **Actual start**, **Actual finish**, **Remaining**. A file
    that carries actuals opens with them showing; on a file with none they start off, and the
    button turns them on, empty. Press it again to take them away. The button shows whether they
    are on.
@@ -20,9 +19,10 @@ schedule follow. The progress cells hold the actuals; the data date says where "
    `Enter`. Actual start and Actual finish take a day written `YYYY-MM-DD`; Remaining takes a
    duration such as `4h` or `2d`; % complete takes a whole number from 0 to 100, with or without
    the `%` sign, such as `75` or `75%`. `Enter` commits and `Escape` discards. `Tab` commits and
-   moves to the next progress cell, `Shift+Tab` to the previous one, and either wraps to the next
-   or previous row. Each commit is one undo step (`Ctrl+Z`). Committing the text a cell already
-   shows is no edit, and an actual start that has a time of day keeps it when you commit the same
+   walks Actual start, Actual finish, Remaining, % complete, so from Remaining it goes back to % complete, the cell nearest
+   Task, and from % complete to Actual start on the next row; `Shift+Tab` walks the other way, to the previous row's % complete
+   from Actual start. Each commit is one undo step (`Ctrl+Z`). Committing the text a cell already
+   shows adds no undo step, and an actual start that has a time of day keeps it when you commit the same
    day.
 3. **How the cells depend on each other.** Setting Remaining on a started task sets its %
    complete from the task's duration: a task of eight working hours with `4h` remaining reads
@@ -30,25 +30,29 @@ schedule follow. The progress cells hold the actuals; the data date says where "
    `100` finishes the task: it gets an actual finish and `0` remaining, and one `Ctrl+Z` puts the
    three cells back as they were. Setting an Actual finish also sets Remaining to `0`.
 4. **A refused entry.** A bad entry leaves the editor open with the reason under it, and changes
-   nothing. An actual finish before the actual start gives "The actual finish is before the actual
-   start."; text that is not a day gives "Write the date as YYYY-MM-DD."; a % complete outside 0
-   to 100 gives "Write the percent complete as a whole number from 0 to 100, such as 75 or 75%.";
-   an actual start or finish after the data date, or a % complete that would set one, gives "An actual date cannot be after the data
-   date. Move the data date first, or write a date on or before it." (an actual the task already
-   holds passes, so its remaining can still be edited).
+   nothing:
+
+   | Entry | Message |
+   |---|---|
+   | An actual finish before the actual start | "The actual finish is before the actual start." |
+   | Text that is not a day | "Write the date as YYYY-MM-DD." |
+   | A % complete outside 0 to 100 | "Write the percent complete as a whole number from 0 to 100, such as 75 or 75%." |
+   | An actual start or finish after the data date, or a % complete that would set one | "An actual date cannot be after the data date. Move the data date first, or write a date on or before it." |
+
+   An actual the task already holds passes, so its remaining can still be edited.
    Typing clears the reason, and `Escape` leaves the task as it was. A summary row takes no
    progress entry, because its figures come from the tasks under it.
 5. **Read a summary.** A summary row's % complete is the duration-weighted share of the leaves
    under it: with two leaves of eight hours and one of them finished, the summary reads `50%`. A
    summary with nothing started under it shows nothing.
 6. **Move the data date.** The data date shows in the toolbar as `Data date YYYY-MM-DD HH:MM`
-   and as a line on the chart. With no data date, an empty box labelled **Data date** sits there
+   and as a line on the chart. With no data date, an empty box labeled **Data date** sits there
    instead. To move it, click the date (or focus it and press `Enter` or `Space`) and type a day
    written `YYYY-MM-DD`, then press `Enter`. `ArrowUp` and `ArrowDown` step the box by a day and
    `Shift` with either steps a week; the date applies only when you press `Enter`, and `Escape`
    puts the shown date back. Text that is not a date is refused in the alert line ("Write the data
    date as YYYY-MM-DD."), and the box keeps focus and your text. An empty box plus `Enter` clears
-   the data date. `Enter` on the date as it stands is no edit.
+   the data date. `Enter` on the date as it stands adds no undo step.
 7. **What changes when it moves.** The line moves to 00:00 on the day. Work that has not started
    cannot start before the data date, so every such bar that sat before it moves right to the
    new date, and the tasks after it follow. Started and finished tasks are fixed at their actuals
@@ -60,7 +64,7 @@ schedule follow. The progress cells hold the actuals; the data date says where "
 8. **Go to the data date.** With the chart focused and the cell cursor not in the list, `t` pans
    the chart to the data date, keeping the zoom. With no data date it does nothing.
 9. **Filter by status.** The **Status** choice in the Filters panel keeps only the tasks that are
-   *In progress*, *Not started* or *Complete*; the empty entry clears it. It is one filter at a
+   *In progress*, *Not started* or *Complete*; the **Status** entry at the top clears it. It is one filter at a
    time like the others in [Find your way around a big schedule](j2-navigate.md).
 
 ## Where it is checked

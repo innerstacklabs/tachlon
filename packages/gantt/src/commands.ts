@@ -77,8 +77,8 @@ export interface Commands {
   deleteLink(): LinkResult | undefined;
   /** Move the data date to 00:00 on `day`, written `YYYY-MM-DD`, and recompute, or clear it with null. `{ ok: true }`, or `{ ok: false, reason }` changing nothing (`"badDate"` for any other value). One undo step; the day already in force (`state().dataDate`) changes nothing and records none, even when it is a file's data date that is not the schedule's floor: no floor is set, so a host that wants one sets a different day first. */
   setDataDate(day: string | null): EditResult | undefined;
-  /** Keep every task's dates as they are now as the baseline, replacing one already set. One undo step. */
-  setBaseline(): EditResult | undefined;
+  /** Keep every task's dates as they are now as the baseline, replacing one already set. One undo step. With `records` (`[{ key: "t1", start: "2026-03-02", finish: "2026-03-06" }]`) make those dates by task key the baseline instead; a `YYYY-MM-DD` finish is the end of that day. A refusal sets nothing: `"badRecords"` (not an array, or one JSON cannot hold), or a record's reason with its `record` from 0: `"noKey"`, `"unknownKey"`, `"duplicateKey"`, `"badValue"` (its `member`) or `"finishBeforeStart"`. */
+  setBaseline(records?: readonly { key: string; start: string; finish: string }[]): EditResult | undefined;
   /** Drop the baseline. `"noBaseline"` with none. One undo step. */
   clearBaseline(): EditResult | undefined;
   /** Give the tasks added since the baseline their current dates as baseline, keeping every other entry. `"noBaseline"` with none. One undo step. */

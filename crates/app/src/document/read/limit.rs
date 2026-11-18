@@ -3,7 +3,7 @@
 
 use super::{Field, int, within};
 use crate::document::json_read::Value;
-use engine::{Limit, Pin};
+use engine::{Limit, Milestone, Pin};
 
 /// The limit a task object saves; no `limit` key is the default, a task with no limits.
 pub(super) fn read_limit(task: &Value) -> Field<Limit> {
@@ -33,6 +33,13 @@ fn members(value: &Value) -> Field<Limit> {
             "resume" => limit.resume = Some(int(value, key)?),
             "pin_start" => limit.pin = pin(Pin::Start, limit.pin)?,
             "pin_finish" => limit.pin = pin(Pin::Finish, limit.pin)?,
+            "milestone" => {
+                limit.milestone = Some(match value.as_str() {
+                    Some("start") => Milestone::Start,
+                    Some("finish") => Milestone::Finish,
+                    _ => return Err(format!("{key}: expected \"start\" or \"finish\"")),
+                });
+            }
             "alap" => match value {
                 Value::Bool(alap) => limit.alap = *alap,
                 other => {

@@ -153,6 +153,7 @@ fn a_created_task_writes_its_limits_actuals_color_and_label_in_the_host_names() 
         pin: Some(Pin::Start(0)),
         alap: true,
         resume: Some(0),
+        milestone: None,
     };
     s.edit(Edit::SetLimit { task: FIRST, limit }).unwrap();
     s.edit(Edit::SetProgress {

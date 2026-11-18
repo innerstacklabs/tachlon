@@ -4,6 +4,10 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+### New
+
+- After `chart.update(records)`, each cell in view whose shown value changed (the values the host sent and the ones the new plan moved) is highlighted for 1.5 seconds, with no fade under `prefers-reduced-motion: reduce`, and a row marked with `setPending` that the call wrote stops being dimmed.
+
 ### Fixed
 
 - A typed percent complete of `0` (in the percent cell, the task dialog and the by-key update's `progress`) leaves a task that has not started with no actual start and no remaining work; it used to give it its early start. A typed percent that would put an actual start or finish after the data date is refused with `actualAfterDataDate`, as the actual date cells and the by-key update already refuse it.

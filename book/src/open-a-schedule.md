@@ -76,7 +76,7 @@ In the Microsoft Project desktop program, save the project as an XML file:
 4. **The critical path.** Critical bars are red. Press <kbd>Shift</kbd>+<kbd>C</kbd> to show only them.
 
 <div class="book-tip">
-<img src="media/icon.png" alt="">
+<img src="media/icon.svg" alt="">
 <p><strong>Tip from Tachlon.</strong> Press <kbd>Shift</kbd>+<kbd>C</kbd> to show only the critical path, and again to go back to the view you had. A plain <kbd>c</kbd> jumps to the next critical activity.</p>
 </div>
 

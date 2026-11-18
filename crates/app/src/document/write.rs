@@ -6,7 +6,7 @@ use crate::constraint::fallback_floor;
 use crate::json::quote;
 use engine::{
     Calendar, CalendarId, DEFAULT_STARTED_LATE_START, DEFAULT_UNSTARTED_REMAINING, DepId,
-    LagCalendar, Limit, LinkType, Pin, ScheduleOptions, TaskId,
+    LagCalendar, Limit, LinkType, Milestone, Pin, ScheduleOptions, TaskId,
 };
 use std::fmt::Write;
 
@@ -296,6 +296,15 @@ fn push_limit(out: &mut String, limit: &Limit) {
     }
     if limit.alap {
         let _ = write!(out, "{sep}\"alap\":true");
+        sep = ",";
+    }
+    if let Some(kind) = limit.milestone {
+        let name = if kind == Milestone::Start {
+            "start"
+        } else {
+            "finish"
+        };
+        let _ = write!(out, "{sep}\"milestone\":\"{name}\"");
     }
     out.push('}');
 }

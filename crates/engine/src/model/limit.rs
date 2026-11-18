@@ -31,6 +31,19 @@ pub struct Limit {
     /// Ignored until the task has an actual start, and for a finished task. A resume before the
     /// data date changes nothing.
     pub resume: Option<Instant>,
+    /// The kind of a task with no duration. None keeps today's rule. A task with a duration
+    /// ignores it, and so does a calendar that works every minute of the week, which has no
+    /// period start or end.
+    pub milestone: Option<Milestone>,
+}
+
+/// Where a zero-duration task sits in working time, as a host's start and finish milestones do.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Milestone {
+    /// At the start of a working period: 08:00 the next working day, not 17:00 the day before.
+    Start,
+    /// At the end of a working period: 17:00 on a working day, not 08:00 the day after.
+    Finish,
 }
 
 /// A date a task must start on or finish on, as P6 and MS Project files carry one. The date

@@ -20,7 +20,7 @@ impl Schedule {
             Some(_) => succ.duration,
             None => succ.work(self.options.unstarted_remaining),
         };
-        let a = Admissible::new(self.calendar_of(d.succ), work);
+        let a = Admissible::new(self.calendar_of(d.succ), work).kind(succ.limit.milestone);
         let finish_bound = |bound: Instant| a.earliest(0, bound.max(0), |t| a.fin(t) >= bound);
         match d.kind {
             LinkType::FS => Some(a.next(cal_l.add(dates.ef, d.lag).max(0))),

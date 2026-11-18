@@ -6,7 +6,7 @@
 mod common;
 
 use common::{at, dep, std_cal, task};
-use engine::{Admissible, Calendar, DayPeriod, LinkType, Schedule};
+use engine::{Admissible, Calendar, DAY, DayPeriod, Limit, LinkType, Milestone, Schedule};
 
 #[test]
 fn end_of_day_finishes_at_the_period_end() {
@@ -283,4 +283,108 @@ fn a_milestone_may_sit_on_a_shortened_day_period_end() {
     assert_eq!(sol.get(b).es, at(3, 8, 0));
     common::check_invariants(&s, &sol);
     common::oracle::assert_matches(&mut s, "milestone on a 4 h day");
+}
+
+/// Mon-Fri 08:00-12:00 and 13:00-17:00.
+fn split_cal() -> Calendar {
+    let mut week: [Vec<DayPeriod>; 7] = Default::default();
+    week[..5].fill(vec![(480, 720), (780, 1020)]);
+    Calendar::new(week, &[]).expect("a valid calendar")
+}
+
+#[test]
+fn a_start_milestone_sits_where_a_period_starts_and_a_finish_milestone_where_one_ends() {
+    let c = split_cal();
+    let edge = |kind, t| match kind {
+        Milestone::Start => c.is_working(t) && !c.is_working(t - 1),
+        Milestone::Finish => !c.is_working(t) && c.is_working(t - 1),
+    };
+    for kind in [Milestone::Start, Milestone::Finish] {
+        let a = Admissible::new(&c, 0).kind(Some(kind));
+        for t in DAY..8 * DAY {
+            assert_eq!(a.contains(t), edge(kind, t), "{kind:?} contains({t})");
+            assert_eq!(
+                Some(a.next(t)),
+                (t..t + DAY * 3).find(|&u| edge(kind, u)),
+                "{kind:?} next({t})"
+            );
+            assert_eq!(
+                Some(a.prev(t)),
+                (0..=t).rev().find(|&u| edge(kind, u)),
+                "{kind:?} prev({t})"
+            );
+        }
+    }
+    let prev = |kind, t| Admissible::new(&c, 0).kind(Some(kind)).prev(t);
+    assert_eq!(
+        prev(Milestone::Start, -1),
+        at(-3, 13, 0),
+        "the pattern runs on before the origin"
+    );
+    assert_eq!(prev(Milestone::Finish, -1), at(-3, 17, 0));
+    let timed = Admissible::new(&c, 60).kind(Some(Milestone::Start));
+    assert_eq!(
+        timed.next(at(0, 10, 30)),
+        at(0, 10, 30),
+        "a task with a duration ignores it"
+    );
+    let all_week = common::cont_cal();
+    let cont = Admissible::new(&all_week, 0).kind(Some(Milestone::Start));
+    assert_eq!(
+        cont.next(at(2, 10, 30)),
+        at(2, 10, 30),
+        "a week with no break has no period start"
+    );
+    let mut week: [Vec<DayPeriod>; 7] = Default::default();
+    week.fill(vec![(0, 1440)]);
+    week[2].clear();
+    let no_wednesday = Calendar::new(week, &[]).expect("a valid calendar");
+    let start = Admissible::new(&no_wednesday, 0).kind(Some(Milestone::Start));
+    assert!(!start.contains(0), "the origin follows a working Sunday");
+    assert!(start.contains(at(3, 0, 0)));
+}
+
+#[test]
+fn a_milestone_kind_moves_a_link_and_a_floor_to_a_period_edge() {
+    let (start, finish) = (Some(Milestone::Start), Some(Milestone::Finish));
+    // (kind, after a task done at 10:30, floor at 10:30 Tuesday, floor at noon Saturday)
+    let rows = [
+        (None, at(0, 10, 30), at(1, 10, 30), at(7, 8, 0)),
+        (start, at(0, 13, 0), at(1, 13, 0), at(7, 8, 0)),
+        (finish, at(0, 12, 0), at(1, 12, 0), at(7, 12, 0)),
+    ];
+    let mut s = Schedule::new();
+    let cal = s.add_calendar(split_cal());
+    let a = task(&mut s, cal, 150, Some(at(0, 8, 0)));
+    let milestone = |s: &mut Schedule, kind, floor| {
+        let m = task(s, cal, 0, floor);
+        s.set_limit(
+            m,
+            Limit {
+                milestone: kind,
+                ..Limit::default()
+            },
+        )
+        .unwrap();
+        m
+    };
+    let ids: Vec<_> = rows
+        .iter()
+        .map(|&(kind, ..)| {
+            let linked = milestone(&mut s, kind, None);
+            dep(&mut s, a, linked, LinkType::FS, 0);
+            let floors = [at(1, 10, 30), at(5, 12, 0)].map(|f| milestone(&mut s, kind, Some(f)));
+            [linked, floors[0], floors[1]]
+        })
+        .collect();
+    let sol = s.compute().unwrap();
+    for (&(kind, fs, tue, sat), ids) in rows.iter().zip(ids) {
+        assert_eq!(ids.map(|id| sol.get(id).es), [fs, tue, sat], "{kind:?}");
+        assert_eq!(
+            ids.map(|id| sol.get(id).ef),
+            [fs, tue, sat],
+            "{kind:?} finish"
+        );
+    }
+    common::check_invariants(&s, &sol);
 }

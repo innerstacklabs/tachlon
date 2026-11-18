@@ -97,7 +97,11 @@ Each cell reads "Tachlon / the other chart" in milliseconds (the last row in MB)
 | Drag commit, 50,000 tasks | 17.8 / 263.7 | 18.1 / 63.8 | 17.9 / 15.9 |
 | Memory, 50,000 tasks (MB) | 420.1 / 445.3 | 422.1 / 378.7 | 419.2 / 393.0 |
 
-<sub>DHTMLX and SVAR load 10,000 tasks sooner, SVAR loads 50,000 tasks sooner, and both use less memory; neither reschedules after a drag, so their commit time is a write to their store. The method, the machine and how to rerun it: [docs/research/2026-11-13-gantt-comparison.md](docs/research/2026-11-13-gantt-comparison.md) and [docs/MEASURING.md](docs/MEASURING.md).</sub>
+- A drag frame is the interval between two frames while the first leaf in view is dragged, and p95 means 95 of 100 of those intervals were this short or shorter ([Driving any Gantt the same way](docs/MEASURING.md#driving-any-gantt-the-same-way-gs1199)).
+- A drag commit is the time from the release to the chart's commit, once what follows the dragged task is rescheduled: ours when the schedule's revision changes ([the drag commit](docs/MEASURING.md#bryntum-8-community-against-ours-and-the-drag-commit-gantt1949)).
+- For a chart that does not reschedule, DHTMLX and SVAR here, the commit is the write of the dragged task's start to its store ([the drag commit](docs/MEASURING.md#bryntum-8-community-against-ours-and-the-drag-commit-gantt1949)).
+
+<sub>DHTMLX and SVAR load 10,000 tasks sooner, SVAR loads 50,000 tasks sooner, and both use less memory. The method, the machine and how to rerun it: [docs/research/2026-11-13-gantt-comparison.md](docs/research/2026-11-13-gantt-comparison.md) and [docs/MEASURING.md](docs/MEASURING.md).</sub>
 
 </details>
 

@@ -25,6 +25,6 @@ work, start no later than, finish no earlier than and finish no later than toget
 4. **A refused field.** When the chart refuses a value, the dialog stays open and says why, in a
    line that starts with the field's name, for example `Duration:` for a duration it cannot read.
    Nothing has changed, not even the fields before it. Correct the value and save again.
-5. **Leave without a change.** **Cancel** or `Escape` closes the dialog and changes nothing. After
-   any of the three ways out, the chart has focus again, so its keys work.
+5. **Leave without a change.** **Cancel** or `Escape` closes the dialog and changes nothing.
+   When the dialog closes, by Save, Cancel or Escape, the chart has focus again, so its keys work.
 <!-- ANCHOR_END: steps -->
