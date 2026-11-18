@@ -6,14 +6,23 @@ use super::planned::Plan;
 use crate::{Session, edit::EditError};
 
 impl Session {
+    /// Read-only mode alone, ahead of an action's row checks; the host function is not asked.
+    ///
+    /// # Errors
+    /// [`EditError::ReadOnly`] while the chart is read-only.
+    pub(crate) fn refuse_read_only(&self) -> Result<(), EditError> {
+        if self.host.read_only {
+            return Err(EditError::ReadOnly);
+        }
+        Ok(())
+    }
+
     /// Whether the person's action `plan` describes may go ahead.
     ///
     /// # Errors
     /// [`EditError::ReadOnly`], else [`EditError::Refused`] with the host function's reason.
     pub(crate) fn gate(&self, plan: &Plan) -> Result<(), EditError> {
-        if self.host.read_only {
-            return Err(EditError::ReadOnly);
-        }
+        self.refuse_read_only()?;
         if let Some(before) = &self.host.before_edit {
             before(&self.planned(plan)).map_err(EditError::Refused)?;
         }
