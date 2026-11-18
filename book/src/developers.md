@@ -1,6 +1,7 @@
 # How it is built and checked
 
-This part of the guide is for people working on the app, not for schedulers. The other
+This chapter is for people who work on Tachlon itself. To put the chart in your own product, start at
+[Install it in your app](install.md). The other
 developer references are `docs/DEMOS.md` (how to build, test and run the demos),
 `docs/MEASURING.md` (frame times), `docs/ARCHITECTURE.md` and the [Architecture](architecture.md) chapter.
 
