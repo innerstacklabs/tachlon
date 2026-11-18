@@ -33,12 +33,12 @@ pub(crate) enum Plan<'a> {
 /// for `drag` the start or duration its first frame asks for; for `setTaskFields` each field of the
 /// dialog, read against the chart before the dialog applies any (a finish after a start reads the
 /// old start); for `insertMany` a task create with its name; for `linkRelease` a link create with
-/// `from` and `to`. An insert, delete, restore, outline move, link edit, baseline edit or data-date
-/// edit carries the records its commit writes (see `values.rs`), read against the chart before it;
-/// a plan of two or more of those (a group, a multi-step undo or redo) and `discardWhatIf` carry no
-/// structural values, only `kind` and every task they touch. `tasks` names the tasks
-/// the action touches, both ends of a link included; an outline move names the moved task only, and
-/// the siblings it adopts or releases come with the values.
+/// `from` and `to`. A delete, restore, outline move, link edit and data-date edit carry the records
+/// their commit writes (`values.rs`, read before the edit); an insert carries only the place and
+/// name the edit names, a baseline edit the `baseline` field though its commit writes no change. A
+/// plan of two or more of those (a group, a multi-step undo or redo), an undo or redo of a data-date
+/// edit and `discardWhatIf` carry only `kind` and the tasks they touch. `tasks` names them, both ends
+/// of a link included; an outline move names only the moved task, its siblings come with the values.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Planned {
     /// The action: `setDuration`, `rename` and the like for a plain edit, `group`, `undo`, `drag`.
