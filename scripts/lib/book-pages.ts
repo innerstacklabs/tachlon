@@ -94,7 +94,7 @@ export function checkBook(summary: string, samplesSource: string, read: (page: s
 /** The largest a file under `media/` may be, in bytes. Today's largest is `screencast.mp4`, 6,175,675 bytes (a link to `docs/media/`). */
 export const MEDIA_BUDGET_BYTES = 7_000_000;
 
-/** Media files kept without a page: the mascot, which `book/src/developers.md` says lives in `media/`. */
+/** Media files kept without a page: the mascot. */
 export const KEPT_UNUSED: ReadonlySet<string> = new Set(["media/mascot.webp"]);
 
 /** Link targets that are not files in `book/src/`: URLs and root-relative paths. */

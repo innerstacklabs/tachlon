@@ -12,8 +12,6 @@
 - [Run the engine in Node](dev-node.md)
 - [Give an AI assistant the engine tools](dev-assistant.md)
 - [Install it in your app](install.md)
-- [How it is built and checked](developers.md)
-- [Architecture](architecture.md)
 
 # Guide
 

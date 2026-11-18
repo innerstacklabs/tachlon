@@ -1,5 +1,5 @@
 /* The book: what the stock mdBook stylesheets do not cover. Loaded after them (book.toml,
-   additional-css). The colours come from theme/css/variables.css; nothing here names a colour twice. */
+   additional-css). The colors come from theme/css/variables.css; nothing here names a color twice. */
 
 /* Type: the chart's own stack (web/src/styles/tokens.css), not the bundled Open Sans. */
 html, body, .sidebar, .menu-bar, .nav-chapters, .searchbar {
@@ -79,7 +79,7 @@ html, body, .sidebar, .menu-bar, .nav-chapters, .searchbar {
     font-weight: 650;
 }
 
-/* The tip from the mascot: the one place in a chapter where the mascot speaks. */
+/* The tip: the one place in a chapter where the product speaks, with its mark beside the text. */
 .content .book-tip {
     display: flex;
     gap: 14px;
@@ -104,7 +104,7 @@ html, body, .sidebar, .menu-bar, .nav-chapters, .searchbar {
     margin-top: 0.5em;
 }
 
-/* A plain note (a limit, a status), without the mascot. */
+/* A plain note (a limit, a status), without the mark. */
 .content .note {
     margin: 1.25em 0;
     padding: 10px 14px;
