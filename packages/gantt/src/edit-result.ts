@@ -40,11 +40,15 @@ export type EditRefusal =
   | "refused"
   /** The page's before-edit function threw or answered with a promise: nothing changed, and `error` fired with the source `beforeEdit`. */
   | "beforeEditFailed"
+  /** `update` with a value that is not an array of records. */
+  | "badRecords"
+  /** `update`: a record the app could not read (`badJson`), with no `key` (`noKey`) or a key an earlier record holds (`duplicateKey`), naming no task (`unknownKey`), setting a member or a summary it cannot set (`notUpdatable`), or holding a value it cannot take (`badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`). */
+  | "badJson" | "noKey" | "duplicateKey" | "unknownKey" | "notUpdatable" | "badValue" | "badPercent" | "emptyName" | "invalidName" | "actualAfterDataDate"
   /** Anything else the schedule refused (rare: a solve that fails). */
   | "other";
 
 /** Why nothing changed: `reason` to match on, `message` to show (the chart's own sentence for it). */
-export type Refusal = { ok: false; reason: EditRefusal; message: string };
+export type Refusal = { ok: false; reason: EditRefusal; message: string; record?: number; member?: string };
 
 /** What `setDataDate`, `setBaseline`, `clearBaseline`, `addNewToBaseline` and, in a promise, `setBaselineFromFile` answer. */
 export type EditResult = { ok: true } | Refusal;
@@ -81,14 +85,15 @@ const PUBLIC_REASON: Readonly<Record<string, EditRefusal>> = {
   keyTaken: "keyTaken",
   unknownTask: "unknownTask",
   unknownLink: "unknownLink",
+  ...Object.fromEntries(["badJson", "noKey", "duplicateKey", "unknownKey", "notUpdatable", "badValue", "badPercent", "emptyName", "invalidName", "actualAfterDataDate"].map((kind) => [kind, kind as EditRefusal])),
 };
 
 /** Read the JSON a `try_*` export answered. */
-export function readAnswer(json: string): { ok: true; task?: number; link?: number; changes?: number } | Refusal {
-  const answer = JSON.parse(json) as { ok: true; task?: number; link?: number; changes?: number } | { ok: false; reason: string; message: string };
+export function readAnswer(json: string): { ok: true; task?: number; link?: number; changes?: number; updated?: number } | Refusal {
+  const answer = JSON.parse(json) as { ok: true; task?: number; link?: number; changes?: number; updated?: number } | { ok: false; reason: string; message?: string; record?: number; member?: string };
   if (answer.ok) return Object.freeze(answer);
   const reason = Object.hasOwn(PUBLIC_REASON, answer.reason) ? PUBLIC_REASON[answer.reason]! : "other";
-  return Object.freeze({ ok: false, reason, message: answer.message });
+  return Object.freeze({ ...answer, reason, message: answer.message ?? answer.reason });
 }
 
 /** A refusal the page makes before asking the app, worded by the app: `"busy"`, `"readOnly"`, or `"badDate"` for a day that is not one. */
