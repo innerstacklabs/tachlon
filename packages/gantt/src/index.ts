@@ -80,7 +80,7 @@ import "./styles/print.css";
 export { fromBryntum, fromDhtmlx, fromTasks, PlainDataError, toPlain, validate } from "./adapters/index.js";
 export type { BryntumResult, DhtmlxOptions, DhtmlxResult, PlainCalendar, PlainIssue, PlainLink, PlainOptions, PlainResult, PlainTask, PlainValidation, ScheduleDocument } from "./adapters/index.js";
 // The chart's own types (`gantt-types.ts`).
-export type { BeforeEdit, BeforeEditChange, Gantt, MountOptions } from "./gantt-types.js";
+export type { BeforeEdit, BeforeEditChange, Gantt, MountOptions, TaskUpdate, UpdateResult } from "./gantt-types.js";
 export type { Commands, ScrollTarget } from "./commands.js";
 export type { Change, Commit, CommitSource, GanttEvents } from "./events.js";
 export type { OpenOptions, PickerProject } from "./open-schedule.js";
@@ -119,12 +119,12 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
   // The page's own `document`, or its `tasks` and `links`, are held only until the chart has started: a restart on WebGL2 reads the running chart's schedule
   // (`webgl-switch.ts`), so a large list is not kept alive for it. No closure below holds `options`, only the fields it needs.
   let plain: StartSource = options.document === undefined ? { tasks: options.tasks, links: options.links, dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
-  const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant } = options;
+  const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit } = options;
   const start = (source: StartSource, run: Run): Promise<Started> => {
     const again = measured && schedule !== undefined && source !== undefined && "document" in source;
     const from = again ? schedule : (source ?? plain);
     if (from === undefined) return Promise.reject(new MountError("schedule", "The chart could not read its schedule to start again: the page's tasks and links were let go once it had started."));
-    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant));
+    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit));
   };
   const gantt = await mountSwitching(root, { schedule, forceWebgl, readOnly: options.readOnly, beforeEdit: options.beforeEdit }, start, page?.fallback ?? null, restart);
   plain = undefined;
@@ -132,7 +132,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
 }
 
 /** One start of the chart in `root`, on `source`, as `run` says; `own` holds what `destroy` takes down, and its app once made. */
-async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"]): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
+async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"]): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const { disposers } = own;
   root.innerHTML = chartHtml;
   applyTexts(root, texts);
@@ -325,7 +325,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
 
   const gantt = createGantt({
     shell, reason, name: () => name, setName: (n) => { name = n; }, save, note, printOn, openFile: (f, options) => opener.openFile(f, options),
-    adopt, busy, guard, hostView, events, setPending: table.setPending, speed: () => speedOf(info.open, metrics.view()),
+    adopt, busy, guard, hostView, events, setPending: table.setPending, speed: () => speedOf(info.open, metrics.view()), unit,
   });
   // The panel is written beside the chart, not in its root; the switch to WebGL2 takes it down with this start and writes a new one with no history.
   if (assistant !== undefined) disposers.push(mountAssistantPanel(assistant.into, assistant.send, gantt.commands, texts).destroy);

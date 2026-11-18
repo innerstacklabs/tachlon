@@ -4,10 +4,20 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+## 0.3.1
+
+A page that runs on 0.3.0 behaves the same apart from the fix below. TypeScript code that handles every `EditRefusal` reason or every `error` source with no default case (an exhaustive `switch`, or a `Record` keyed by the type) needs the new cases the entries under "New" name.
+
+### Fixed
+
+- A link that one undo step both adds and deletes, because the step also removes the task at its end, is listed in the `edit` event's commits as neither created nor deleted.
+
 ### New
 
+- The package's command line gains `describe`, which answers what the installed package offers, from the package in `node_modules`, so the answer matches the version you installed. `describe options`, `events`, `commands`, `tokens` and `errors` list each name with its type, what it does and its default when it has one; `--json` prints the same as data for a coding assistant. `describe fit` prints the steps that make the chart fit your product: its look, then its behavior.
 - `mount({ beforeEdit })` (a prop or input of the same name in React, Vue and Angular, which ask the latest function without mounting the chart again) gives the chart a function it asks before each change a person makes. The function sees the action and the changes it would make with their old and new values (the README's "Control editing" says which actions carry values), and answers a string to refuse the change with that reason, which the chart shows. A refusal changes nothing and carries the new `EditRefusal` reason `"refused"`; a throw or a promise refuses the change, fires `error` with the source `beforeEdit` and carries the new reason `"beforeEditFailed"`. A `switch` over the reasons with no `default` needs both new cases.
-- The by-key update (`App.update_tasks` and `Session::update_tasks`, no JavaScript call yet) also takes `name` and `progress` in a record. A name is checked as a typed rename is, and a progress (a whole percent from 0 to 100) as a typed percent is, and is refused if it sets an actual after the data date. A progress is taken against the dates the record's `duration`, `start` and `snet` leave, so the chart works the plan out twice when a call mixes them, and once otherwise.
+- The by-key update (`App.update_tasks` and `Session::update_tasks`, which `chart.update` below calls) also takes `name` and `progress` in a record. A name is checked as a typed rename is, and a progress (a whole percent from 0 to 100) as a typed percent is, and is refused if it sets an actual after the data date. A progress is taken against the dates the record's `duration`, `start` and `snet` leave, so the chart works the plan out twice when a call mixes them, and once otherwise.
+- `chart.update(records)` gives the chart new names, starts, durations, start-no-earlier-than dates and progress for many tasks by `key`, in place, so a host that recalculates elsewhere hands back the result with no new `mount`. The selection, the scroll position and the undo list stay as they were, and the call is not an edit (no `edit` event, no undo step). A duration counts `mount`'s `durationUnit`; the answer is `{ ok: true, updated }` or a refusal that changed nothing (`Refusal` now also carries `record` and `member`, and `EditRefusal` the reasons of `update`).
 
 ## 0.3.0
 

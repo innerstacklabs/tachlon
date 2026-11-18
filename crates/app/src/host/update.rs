@@ -63,7 +63,7 @@ struct Progress {
 impl Session {
     /// Set the durations, starts, names and progress that `json`, an array of records, gives, each record
     /// naming its task by `key`. `duration` is a whole number of working minutes; `start`
-    /// is held as `snet` unless the record has an `snet`; `snet` takes a date or `null`. `name` is trimmed
+    /// is held as `snet` unless the record has an `snet`; `start` and `snet` take a date or `null`. `name` is trimmed
     /// and checked as a typed rename is. `progress` is a whole percent from 0 to 100, set as a typed percent
     /// sets it, and refused as a typed actual is when an actual it sets is after the data date. The call
     /// applies every record's `duration`, `start`, `snet` and `name` first and works each `progress` out
@@ -103,11 +103,11 @@ impl Session {
                     .any(|member| record.get(member).is_some())
             });
         let mut done = Vec::with_capacity(planned.len());
-        for (task, (new, old)) in &planned {
+        for (at, (task, (new, old))) in planned.iter().enumerate() {
             done.push((*task, old.clone()));
             if let Err(error) = self.put(*task, new) {
                 self.put_back(&done);
-                return Err(refuse(error));
+                return Err(UpdateError::new(error.kind(), Some(at), None));
             }
         }
         if progress {
@@ -202,7 +202,9 @@ impl Session {
             match &**name {
                 "key" => {}
                 "duration" => new.duration = read_duration(value).ok_or_else(bad)?,
-                "start" if record.get("snet").is_some() => {}
+                "start" if record.get("snet").is_some() => {
+                    date(value)?;
+                }
                 "start" | "snet" => new.snet = date(value)?,
                 "name" => {
                     let text = value.as_str().ok_or_else(bad)?.trim();
