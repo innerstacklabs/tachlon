@@ -102,6 +102,16 @@ test("a duration is counted in the unit the chart mounted with: hours, minutes, 
   expect(await set({ document, durationUnit: "day" }, 3), "a unit that is not one of the three counts days, as the reader does").toEqual([1440]);
 });
 
+test("a null start clears the floor a record gave: the type takes it and the chart leaves the date", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(3) });
+  const start = () => page.evaluate(() => window.upChart.snapshot().tasks[0]!.start);
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", start: "2026-03-09" }]))).toEqual({ ok: true, updated: 1 });
+  const floored = await start();
+  expect(floored, "the record gave k0 a later start").toMatch(/^2026-03-09/);
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", start: null }]))).toEqual({ ok: true, updated: 1 });
+  expect(await start(), "start: null takes the floor away").not.toBe(floored);
+});
+
 const shown = (page: Page) => page.evaluate(() => [...document.querySelectorAll<HTMLElement>("#table-rows .row[data-task] > span")].map((c) => ({ text: c.textContent, marked: c.dataset.changed === "true", motion: getComputedStyle(c).animationName })));
 
 test("an update highlights the cells in view whose shown value changed and no others, and the mark goes after its timer", async ({ page }) => {
