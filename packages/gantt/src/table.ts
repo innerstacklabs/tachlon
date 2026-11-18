@@ -82,7 +82,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   if (headCols) {
     const refit = watching(shell, new MutationObserver(fitTask));
     refit.observe(headCols, { childList: true });
-    refit.observe(tableEl, { attributes: true, attributeFilter: ["data-ids", "data-wbs", "data-progress", "data-variance", "data-variance-hidden", ...HIDE_FLAGS, ORDER_FLAG] });
+    refit.observe(tableEl, { attributes: true, attributeFilter: ["data-ids", "data-wbs", "data-pred", "data-progress", "data-variance", "data-variance-hidden", ...HIDE_FLAGS, ORDER_FLAG] });
   }
   const hideCutColumn = frozenEdge(tableEl, headCols);
   // data-more is set while more columns lie to the right of the pane (gs#974): the stylesheet draws a fade there with Progress on. It is read at a
@@ -95,7 +95,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     }
   };
   watching(shell, new ResizeObserver(markMore)).observe(tableBody);
-  watching(shell, new MutationObserver(markMore)).observe(tableEl, { attributes: true, attributeFilter: ["data-ids", "data-wbs", "data-progress", "data-variance", "data-variance-hidden", ...HIDE_FLAGS, ORDER_FLAG] });
+  watching(shell, new MutationObserver(markMore)).observe(tableEl, { attributes: true, attributeFilter: ["data-ids", "data-wbs", "data-pred", "data-progress", "data-variance", "data-variance-hidden", ...HIDE_FLAGS, ORDER_FLAG] });
   tableBody.addEventListener("scroll", () => {
     markMore();
     if (tableHead.scrollLeft !== tableBody.scrollLeft) tableHead.scrollLeft = tableBody.scrollLeft;
@@ -144,6 +144,15 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     }
   };
   showWbsColumn();
+  // The Predecessors column shows for exactly the files the ID column does, since a typed list names Activity IDs; asked once per opened file.
+  let hasPreds = false;
+  const showPredColumn = (): void => {
+    hasPreds = app.has_codes();
+    headCols?.querySelector(".pred")?.remove();
+    tableEl.toggleAttribute("data-pred", hasPreds);
+    if (hasPreds) headCols?.querySelector(".float")?.after(Object.assign(document.createElement("span"), { className: "pred", textContent: nameOf(root, "predecessors") }));
+  };
+  showPredColumn();
   let hasResources = false;
   const showResourcesColumn = (): void => {
     hasResources = app.has_resources();
@@ -320,7 +329,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     // A clicked chevron is replaced with its row; focus must not fall to the page, or the chart's keys stop working.
     const focusWasInRows = tableRows.contains(document.activeElement);
     tableRows.replaceChildren(
-      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending })),
+      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending })),
     );
     if (focusWasInRows) root.focus({ preventScroll: true });
     markRows(s, true);
@@ -347,6 +356,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
       sizeCodeTracks();
       taskNeed = measureTaskNeed(tableEl, app.longest_name() as string[]);
       showWbsColumn();
+      showPredColumn();
       showResourcesColumn();
       showProgressColumns(progressOn());
       fitTask();
