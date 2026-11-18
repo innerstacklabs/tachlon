@@ -2,5 +2,5 @@
   "bytes": 2880424,
   "measured": 2878708,
   "date": "2026-11-17",
-  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the by-key update row (tachlon pull request 11), plus the 1716 B of room main had. It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose (A devteam-1-1543: the by-key update adds about 3.6 KB of wasm). Before it: bytes 2876788, measured 2739798 on 2026-11-12."
+  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the by-key update row, plus the 1716 B of room main had. It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose (A devteam-1-1543: the by-key update adds about 3.6 KB of wasm). Before it: bytes 2876788, measured 2739798 on 2026-11-12."
 }
