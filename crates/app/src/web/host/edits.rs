@@ -3,7 +3,7 @@
 use super::{App, answer};
 use crate::Session;
 use crate::edit::{Edit, EditError};
-use crate::host::UpdateError;
+use crate::host::{BaselineRecordsError, UpdateError};
 use crate::json::quote;
 use wasm_bindgen::prelude::*;
 
@@ -53,15 +53,17 @@ impl App {
     pub fn update_tasks(&mut self, json: &str) -> String {
         match self.session.update_tasks(json) {
             Ok(done) => format!(r#"{{"ok":true,"updated":{}}}"#, done.tasks),
-            Err(UpdateError {
-                kind,
-                record,
-                member,
-            }) => {
-                let at = record.map_or(String::new(), |n| format!(r#","record":{n}"#));
-                let of = member.map_or(String::new(), |m| format!(r#","member":{}"#, quote(&m)));
-                format!(r#"{{"ok":false,"reason":"{kind}"{at}{of}}}"#)
-            }
+            Err(error) => record_refusal(error),
+        }
+    }
+
+    /// `set_baseline_records`, answered as JSON: `{"ok":true}`, a record's refusal as `update_tasks` answers it, or
+    /// the edit's as `try_set_baseline` does (`busy`, `readOnly`, `notAllowed`, `refused`).
+    pub fn try_set_baseline_records(&mut self, json: &str) -> String {
+        match self.session.set_baseline_records(json) {
+            Ok(()) => r#"{"ok":true}"#.to_string(),
+            Err(BaselineRecordsError::Record(error)) => record_refusal(error),
+            Err(BaselineRecordsError::Edit(error)) => answer(Err(error), &self.session.texts),
         }
     }
 
@@ -90,6 +92,13 @@ impl App {
             &self.session.texts,
         )
     }
+}
+
+/// `{"ok":false,"reason":"<kind>"}`, with `"record":n` and `"member":m` when the refusal names them.
+fn record_refusal(error: UpdateError) -> String {
+    let at = (error.record).map_or(String::new(), |n| format!(r#","record":{n}"#));
+    let of = (error.member).map_or(String::new(), |m| format!(r#","member":{}"#, quote(&m)));
+    format!(r#"{{"ok":false,"reason":"{}"{at}{of}}}"#, error.kind)
 }
 
 impl App {

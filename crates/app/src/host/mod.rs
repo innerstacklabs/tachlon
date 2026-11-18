@@ -2,6 +2,7 @@
 //! top-level `Session` field. Today that is the outbox and the key maps. The capabilities
 //! (decisions 0016, 0018 and 0019) join it as their rows land.
 
+mod baseline;
 mod capabilities;
 mod gate;
 mod keys;
@@ -12,6 +13,7 @@ mod results;
 mod update;
 mod values;
 
+pub use baseline::BaselineRecordsError;
 pub(crate) use capabilities::Capabilities;
 pub(crate) use keys::Kind;
 pub use keys::{KeyTarget, Keys};
