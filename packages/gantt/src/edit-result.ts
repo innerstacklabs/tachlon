@@ -44,8 +44,8 @@ export type EditRefusal =
   | "beforeEditFailed"
   /** `update` with a value that is not an array of records. */
   | "badRecords"
-  /** `update`: a record the app could not read (`badJson`), with no `key` (`noKey`) or a key an earlier record holds (`duplicateKey`), naming no task (`unknownKey`), setting a member or a summary it cannot set (`notUpdatable`), or holding a value it cannot take (`badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`). */
-  | "badJson" | "noKey" | "duplicateKey" | "unknownKey" | "notUpdatable" | "badValue" | "badPercent" | "emptyName" | "invalidName" | "actualAfterDataDate"
+  /** `update` or `setBaseline` records: a record the app could not read (`badJson`), with no `key` (`noKey`) or a key an earlier record holds (`duplicateKey`), naming no task (`unknownKey`), setting a member or a summary it cannot set (`notUpdatable`), or holding a value it cannot take (`badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`). */
+  | "finishBeforeStart" | "badJson" | "noKey" | "duplicateKey" | "unknownKey" | "notUpdatable" | "badValue" | "badPercent" | "emptyName" | "invalidName" | "actualAfterDataDate"
   /** Anything else the schedule refused (rare: a solve that fails). */
   | "other";
 
@@ -88,7 +88,7 @@ const PUBLIC_REASON: Readonly<Record<string, EditRefusal>> = {
   keyTaken: "keyTaken",
   unknownTask: "unknownTask",
   unknownLink: "unknownLink",
-  ...Object.fromEntries(["badJson", "noKey", "duplicateKey", "unknownKey", "notUpdatable", "badValue", "badPercent", "emptyName", "invalidName", "actualAfterDataDate"].map((kind) => [kind, kind as EditRefusal])),
+  ...Object.fromEntries(["finishBeforeStart", "badJson", "noKey", "duplicateKey", "unknownKey", "notUpdatable", "badValue", "badPercent", "emptyName", "invalidName", "actualAfterDataDate"].map((kind) => [kind, kind as EditRefusal])),
 };
 
 /** Read the JSON a `try_*` export answered. */

@@ -25,7 +25,7 @@ export interface HostCommands {
   deleteRow(): RowResult | undefined;
   deleteLink(): LinkResult | undefined;
   setDataDate(day: string | null): EditResult | undefined;
-  setBaseline(): EditResult | undefined;
+  setBaseline(records?: readonly { key: string; start: string; finish: string }[]): EditResult | undefined;
   clearBaseline(): EditResult | undefined;
   addNewToBaseline(): EditResult | undefined;
   setBaselineFromFile(file: File): Promise<CompareResult>;
@@ -132,7 +132,12 @@ export function createHostCommands(app: PublicApp, busy: () => boolean, reason: 
       if (day !== null && day.trim() === app.data_date_text().slice(0, 10)) return Object.freeze({ ok: true });
       return edit(() => app.try_set_data_date(day ?? ""));
     },
-    setBaseline: () => edit(() => app.try_set_baseline()),
+    setBaseline(records) {
+      let json: string | undefined;
+      try { json = Array.isArray(records) ? JSON.stringify(records) : undefined; } catch { /* a BigInt or a cycle: no JSON */ }
+      if (records === undefined) return edit(() => app.try_set_baseline());
+      return json === undefined ? Object.freeze({ ok: false, reason: "badRecords", message: "setBaseline takes an array of records." }) : edit(() => app.try_set_baseline_records(json));
+    },
     clearBaseline: () => edit(() => app.try_clear_baseline()),
     addNewToBaseline: () => edit(() => app.try_add_new_to_baseline()),
     setBaselineFromFile: async (file) => (busy() ? refused("busy") : setBaselineFromFile(app, file, reason)),

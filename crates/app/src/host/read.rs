@@ -2,13 +2,23 @@
 //! field, a duration as whole working minutes, the engine's own unit.
 
 use crate::{Session, document::json_read::Value};
-use engine::{Instant, Minutes};
+use engine::{DAY, Instant, Minutes};
 
 impl Session {
     /// The start-kind date `value` holds, `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm`, or `None` for anything else.
     pub(super) fn read_date(&self, value: &Value) -> Option<Instant> {
         let text = value.as_str().filter(|text| !text.contains(' '))?;
         self.parse_start(&text.replacen('T', " ", 1)).ok()?
+    }
+
+    /// The finish-kind date `value` holds: a date-only text is the end of that day, a text with a time that minute.
+    pub(super) fn read_finish(&self, value: &Value) -> Option<Instant> {
+        let at = self.read_date(value)?;
+        Some(if value.as_str()?.contains('T') {
+            at
+        } else {
+            at + DAY
+        })
     }
 }
 

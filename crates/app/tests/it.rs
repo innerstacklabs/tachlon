@@ -23,6 +23,7 @@ mod baseline_add;
 mod baseline_bars;
 mod baseline_frames;
 mod baseline_open;
+mod baseline_records;
 mod baseline_summary_rows;
 mod baseline_task;
 mod baseline_variance;

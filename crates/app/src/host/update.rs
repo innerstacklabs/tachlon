@@ -31,7 +31,7 @@ pub struct UpdateError {
 }
 
 impl UpdateError {
-    fn new(kind: &'static str, record: Option<usize>, member: Option<&str>) -> Self {
+    pub(super) fn new(kind: &'static str, record: Option<usize>, member: Option<&str>) -> Self {
         let member = member.map(str::to_owned);
         Self {
             kind,
