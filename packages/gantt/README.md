@@ -206,51 +206,26 @@ Do the `fix:`, then run `doctor` again; a clean run ends with `No problems found
 
 `import "tachlon/gantt.css"` once in your app. The chart's colors, bar shape, row height and type are CSS tokens, in light and dark, that your own CSS can set.
 
-The 34 color tokens, each set for light and for dark, are `--gantt-bg`, `--gantt-surface`, `--gantt-band`, `--gantt-rule`, `--gantt-text`, `--gantt-muted`, `--gantt-bar`, `--gantt-bar-edge`, `--gantt-crit-fill`, `--gantt-crit`, `--gantt-crit-edge`, `--gantt-bar-soft`, `--gantt-crit-soft`, `--gantt-bar-ink`, `--gantt-crit-text`, `--gantt-sum`, `--gantt-sel`, `--gantt-sel-edge`, `--gantt-hov`, `--gantt-link`, `--gantt-today`, `--gantt-nonwork`, `--gantt-grid`, `--gantt-grid-major`, `--gantt-axis`, `--gantt-stripe`, `--gantt-bar-text`, `--gantt-bar-sel-progress`, `--gantt-held`, `--gantt-link-refused`, `--gantt-warn`, `--gantt-link-terminal`, `--gantt-baseline` and `--gantt-scrim`. Set one on the chart's root element, for example `.my-host .gantt { --gantt-bar: #0a7; }`; your rule wins over the stylesheet whatever its order.
+Set a token on the chart's root element, for example `.my-host .gantt { --gantt-bar: #0a7; }`; your rule wins over the stylesheet whatever its order. `npx tachlon describe tokens` prints every token with what it styles and its default.
 
 ## Ask the engine
 
 `chart.commands` holds typed calls that ask the engine about the schedule. A question changes nothing: no edit, no undo step, no `change` event. Each call answers `{ ok: true, ... }` or `{ ok: false, reason, message }` and never throws; it answers `"busy"` while a bar is pressed or dragged, and returns `undefined` once `chart.destroy()` has run. A task is its task number, the `task` a `select` event gives.
 
-What moves if a task slips a week (up to 10 tasks), or takes 3 more working days:
+`whatIf` and `whatIfLonger` answer the tasks that move, and `explain` answers the chain of driving predecessors, nearest first:
 
 ```js
 const slip = chart.commands.whatIf([2]);
-const longer = chart.commands.whatIfLonger(2, 3);
 // { ok: true, finishWas, finishNow, moved: [{ task, id, name, startWas, startNow, finishWas, finishNow }] }
-```
-
-Why a task starts when it does, nearest driving predecessor first:
-
-```js
 const why = chart.commands.explain(3);
 // { ok: true, start, chain: [{ task, id, name, float }], capped }
 ```
 
-How healthy the schedule is, and which tasks are critical (each list holds its true `count` and the first 50 `tasks`):
+`health` answers `counts`, each `{ count, tasks }` holding the true count and the first 50 tasks: `openEnds`, `hardConstraints`, `negativeFloat`, `missingLogic`, `openStarts`, `highFloat`, `highDuration`, `invalidDates`, `missingResources` and `missed`.
 
-```js
-const { counts } = chart.commands.health(); // counts.openEnds, counts.hardConstraints and counts.negativeFloat = { count, tasks: [{ task, id, name }] }
-const { critical, longest } = chart.commands.criticalPath(); // critical.count, longest.tasks
-```
+`propose` holds a change apart from the schedule while the chart draws a dashed ghost where each task it would move goes, and the call answers as `whatIf` does. Up to 10 changes are held; a second change of the same kind to a task replaces the first.
 
-`counts` also holds `missingLogic`, `openStarts`, `highFloat`, `highDuration`, `invalidDates`, `missingResources` and `missed`.
-
-To hold a proposed edit, call `propose`. The change waits apart from the schedule while the chart draws a dashed ghost where each task it would move goes, and the call answers as `whatIf` does. Up to 10 changes are held; a second change of the same kind to a task replaces the first.
-
-```js
-chart.commands.propose({ kind: "move", task: 2, start: "2026-11-09" });
-chart.commands.propose({ kind: "duration", task: 3, days: 9 });
-chart.commands.propose({ kind: "progress", task: 3, actualFinish: "2026-11-13" }); // a progress report, one of actualStart, actualFinish, remaining (days) or progress (percent); Accept sets it
-chart.commands.propose({ kind: "link", pred: 1, succ: 3, text: "SS+2d" }); // or { kind: "unlink", pred, succ }
-
-chart.commands.acceptProposed({ kind: "move", task: 2 }); // one change, one undo step; the others stay held
-chart.commands.rejectProposed({ kind: "duration", task: 3 }); // true when it was held
-chart.commands.acceptProposal(); // every change left, one undo step: { ok: true, changes }
-chart.commands.rejectProposal(); // drops every change left
-```
-
-An accept with nothing held answers `{ ok: false, reason: "noProposal" }`, and one the schedule now refuses (a task that has started) changes nothing and leaves the proposal held.
+`npx tachlon describe commands` prints every call with its arguments and what it does.
 
 ## Tools for an AI assistant
 
@@ -303,27 +278,15 @@ const { rowCount } = chart.state(); // `chart.on("change", ...)` fires when it m
 
 ## Events
 
-`chart.on(name, handler)` calls `handler` with the payload below and returns the function that removes it. An event fires once per change, never once per frame.
+`chart.on(name, handler)` calls `handler` with the event's payload and returns the function that removes it. An event fires once per change, never once per frame. A handler added to `load` after the first frame is still called, once. With a handler on `find`, the browser's find does not open. The task number in a `select` payload is valid only until the next load or open: store your own `key`, never the number. The `projects` of an `error` payload lists the projects of a multi-project XER file.
 
-| Event | Fires when | Payload |
-|---|---|---|
-| `select` | the selected task changed | `{ task, key }`: the task number, valid until the next load or open and never to store, and your own `key` for it (`null` when it has none) |
-| `edit` | an edit, an undo or a redo changed the schedule | `{ revision, commits, snapshot, seq }`, as below |
-| `move` | a bar drag was released and moved a task | `{ task, key, start }`: the task number, its `key`, and its early start as `YYYY-MM-DDTHH:mm` |
-| `open` | a file was opened in place | `{ epoch }` |
-| `load` | the first frame was drawn; a handler added later is still called, once | `{}` |
-| `change` | what `chart.state()` returns changed | the state `chart.state()` returns |
-| `error` | a file could not be opened, a frame failed, or WebGPU failed and the chart moved to WebGL2 | `{ source, message, fatal, projects? }`; `source` is `"open"`, `"frame"`, `"backend"` or `"beforeEdit"` (your `beforeEdit` function threw or answered with a promise), and `projects` lists the projects of a multi-project XER file |
-| `find` | Ctrl+F or Cmd+F was pressed in the chart; with a handler the browser's find does not open | `{}` |
-| `toggle-status` | `s` was pressed in the chart | `{}` |
-| `choose-file` | Ctrl+O or Cmd+O was pressed in the chart | `{}` |
-| `toggle-keys` | `?` was pressed in the chart | `{}` |
+`npx tachlon describe events` prints every event with its payload and when it fires.
 
 An `edit` event carries the undo steps made since the last one, oldest first. Each commit is `{ seq, source, changes }`: `seq` counts from 1 in a session and is never reused, `source` says where the step came from (`typed`, `drag`, `dialog`, `paste`, `proposal`, `undo` or `redo`), and each change names a task, link or the data date with its old and new values in the names of the host record vocabulary. A bar drag is one commit, which comes with an `edit` at its release (fired even when the revision did not move), so a held bar carries none. `seq` is the latest commit's. When `snapshot` is true, commits were lost (more than 1,000 unread, or the chart moved to WebGL2): save `chart.snapshot()` and read on from `seq`.
 
 ## Read-only
 
-Start the chart read-only with `mount(root, { tasks, readOnly: true })`, or switch it for the person using it at any time: `chart.setReadOnly(true)` and `chart.setReadOnly(false)`; `chart.readOnly()` says which. The chart does not start again, and the schedule is not an edit (no undo step, no `edit` event). In the React, Vue and Angular components `readOnly` is a prop or input, and changing it calls `setReadOnly` on the chart that is mounted.
+Start the chart read-only with the `readOnly` option of `mount`, or switch it for the person using it at any time: `chart.setReadOnly(true)` and `chart.setReadOnly(false)`; `chart.readOnly()` says which. The chart does not start again, and the schedule is not an edit (no undo step, no `edit` event). In the React, Vue and Angular components `readOnly` is a prop or input, and changing it calls `setReadOnly` on the chart that is mounted. `npx tachlon describe options` prints `readOnly` and every other option of `mount`.
 
 While it is on, nothing changes the schedule: the cell editor and the task dialog do not open, and the chart says it is read-only; a bar, finish-edge or link drag, the keys (insert, delete, indent, outdent, undo, redo), paste and the edit commands are refused (the commands answer `{ ok: false, reason: "readOnly" }`). A click on a row still selects it. A bar or finish-edge drag already past the drag threshold when you switch finishes; a link drag in flight, or a bar press still under the threshold, is refused at release. A switch to WebGL2 keeps the setting.
 
@@ -335,7 +298,7 @@ A change the host turned off is refused on every path: the cell editor, the task
 
 ## Control editing
 
-Give `mount` a `beforeEdit` function, as in `mount(root, { tasks, links, beforeEdit: ({ tasks }) => (tasks.some(isLocked) ? "A planner has locked this task." : undefined) })`, and the chart asks it before each change a person makes (a typed edit, a bar or link drag, the task dialog, paste, undo, redo), once for each action and after read-only. A refusal changes nothing: no schedule change, no undo step, no `edit` event.
+Give `mount` a `beforeEdit` function, as in `mount(root, { tasks, links, beforeEdit: ({ tasks }) => (tasks.some(isLocked) ? "A planner has locked this task." : undefined) })`, and the chart asks it before each change a person makes (a typed edit, a bar or link drag, the task dialog, paste, undo, redo), once for each action and after read-only. A refusal changes nothing: no schedule change, no undo step, no `edit` event. `npx tachlon describe options` prints `beforeEdit` with the other options of `mount`; what the function receives and how it answers are below.
 
 Answer at once. `undefined`, `null` or `true` lets the change through. A string refuses it and the chart shows the string as the reason. `false` refuses it with the chart's own sentence, "This change is not allowed.". A throw, a promise or any other value refuses the change, changes nothing and fires one `error` event with the source `"beforeEdit"`. A command refused by a string or `false` answers `{ ok: false, reason: "refused", message }`; one refused by a throw or a promise answers `reason: "beforeEditFailed"` with the sentence "This change was not made: the page's before-edit function failed.".
 
