@@ -229,6 +229,18 @@ fn a_summary_is_refused() {
     assert_eq!(*s.solution(), before);
 }
 
+#[test]
+fn a_typed_0_on_a_summary_is_refused() {
+    let mut s = common::collapse::session(60);
+    let summary = common::collapse::summaries(&s)[0];
+    let error = s.set_percent_text(summary, "0").unwrap_err();
+    assert!(
+        matches!(error, EditError::ProgressOnSummary { .. }),
+        "{error}"
+    );
+    assert_eq!(s.history_len().0, 0);
+}
+
 /// A task of three working days (24 hours) with a one-day successor.
 fn three_day_pair() -> Session {
     let mut schedule = Schedule::new();

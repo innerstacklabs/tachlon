@@ -57,7 +57,8 @@ impl Session {
 
     /// Whether `edit` would set no actual start, no actual finish and no remaining on a live task
     /// that holds none (a typed `0` on an unstarted task): [`Session::edit`] makes no edit of it,
-    /// after its gate, so no undo step undoes nothing.
+    /// after its gate, so no undo step undoes nothing. Never true during a press or for a summary,
+    /// which `run_set_progress` refuses.
     pub(crate) fn is_unstarted_zero(&self, edit: &Edit) -> bool {
         let Edit::SetProgress {
             task,
@@ -68,7 +69,8 @@ impl Session {
         else {
             return false;
         };
-        if !self.is_live(*task) {
+        let summary = self.outline.as_ref().is_some_and(|o| o.is_summary(*task));
+        if self.busy() || summary || !self.is_live(*task) {
             return false;
         }
         let held = &self.schedule.tasks()[task.0 as usize];
