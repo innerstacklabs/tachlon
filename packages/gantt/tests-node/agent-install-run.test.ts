@@ -53,7 +53,7 @@ test("a right install: the prompt arrives on stdin, the registry serves the vers
   assert.equal(readFileSync(join(work, "received.txt"), "utf8"), "install it, please");
   assert.equal(readFileSync(join(work, "version.txt"), "utf8"), "9.9.9");
   assert.deepEqual(failed(results), []);
-  assert.equal(results.length, 7);
+  assert.equal(results.length, 8);
   assert.deepEqual(seen, [`http://127.0.0.1:${PORT}`]);
   assert.match(table(results), /^PASS {2}branch/);
   await assert.rejects(fetch(`http://127.0.0.1:${PORT}/${PACKAGE}`));

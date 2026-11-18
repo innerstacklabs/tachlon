@@ -41,11 +41,11 @@ export function branch(dir: string): Result {
 }
 
 /** Added, not replaced: at most `MAX_DELETED` lines of the starter page deleted, by `git diff --numstat` from `main` to the head. */
-export function replacedPage(dir: string): Result {
-  const [added, deleted = "0"] = (git(dir, "diff", "--numstat", "main", "HEAD", "--", STARTER_PAGE) ?? "-\t-").split("\t");
+export function replacedPage(dir: string, page = STARTER_PAGE): Result {
+  const [added, deleted = "0"] = (git(dir, "diff", "--numstat", "main", "HEAD", "--", page) ?? "-\t-").split("\t");
   const lines = Number(deleted); // no output (the page is unchanged) leaves `deleted` at "0"; a git failure prints "-", which is NaN
-  const problems = Number.isInteger(lines) && lines <= MAX_DELETED ? [] : [`${STARTER_PAGE} lost ${deleted} lines (at most ${MAX_DELETED})`];
-  return result("added, not replaced", problems, `${STARTER_PAGE} +${added || 0} -${lines}`);
+  const problems = Number.isInteger(lines) && lines <= MAX_DELETED ? [] : [`${page} lost ${deleted} lines (at most ${MAX_DELETED})`];
+  return result("added, not replaced", problems, `${page} +${added || 0} -${lines}`);
 }
 
 /** The package is in `dependencies`, and no other dependency of the starter's `package.json` is gone. */

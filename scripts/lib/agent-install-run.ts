@@ -20,7 +20,7 @@ export type Probes = {
 export const WALL_MS = 600_000; // one run, ten minutes at most
 const TOOLS = ["Bash(npm *)", "Bash(npx *)", "Bash(git *)", "Bash(node *)", "Read", "Edit", "Write", "Glob", "Grep"];
 export const ASSISTANTS: Record<string, Assistant> = {
-  claude: { bin: "claude", args: ["-p", "--permission-mode", "acceptEdits", "--allowedTools", TOOLS.join(","), "--max-budget-usd", "1"] },
+  claude: { bin: "claude", args: ["-p", "--model", "sonnet", "--setting-sources", "project", "--strict-mcp-config", "--disable-slash-commands", "--permission-mode", "acceptEdits", "--allowedTools", TOOLS.join(","), "--max-budget-usd", "1"] },
   codex: { bin: "codex", args: ["exec", "-s", "workspace-write", "-c", "sandbox_workspace_write.network_access=true", "-"] },
 };
 /** Codex gets the app's git folder writable, so the check measures whether it makes the branch and the commit, not whether its sandbox lets it. */
@@ -29,10 +29,10 @@ const FIXTURE = resolve(import.meta.dirname, "../fixtures/agent-install/app");
 const git = (dir: string, ...args: string[]) => execFileSync("git", ["-C", dir, ...args], { stdio: "pipe" });
 
 /** Runs `assistant` on `prompt` in a fresh copy of the test app; `work` holds `app/`, the assistant's log and any file a caller wants kept. */
-export async function runInstall(assistant: Assistant, prompt: string, tarball: { file: string; version: string }, probes: Probes, options: { port?: number } = {}): Promise<{ work: string; results: Result[] }> {
+export async function runInstall(assistant: Assistant, prompt: string, tarball: { file: string; version: string }, probes: Probes, options: { port?: number; scaffold?: (dir: string) => void; page?: string; then?: string } = {}): Promise<{ work: string; results: Result[]; later: Result[][] }> {
   const work = mkdtempSync(join(tmpdir(), "agent-install-run-"));
   const dir = join(work, "app");
-  cpSync(FIXTURE, dir, { recursive: true });
+  (options.scaffold ?? ((to) => cpSync(FIXTURE, to, { recursive: true })))(dir);
   git(dir, "init", "-q", "-b", "main");
   git(dir, "config", "user.name", "install-check");
   git(dir, "config", "user.email", "install-check@example.invalid");
@@ -43,18 +43,25 @@ export async function runInstall(assistant: Assistant, prompt: string, tarball: 
   const port = options.port ?? 4871;
   const registry = await startRegistry(tarball.file, tarball.version, port).catch((e: Error) => { throw new CouldNotRun(`the local registry did not start: ${e.message}`); });
   let wall: NodeJS.Timeout | undefined;
-  const env = { ...process.env, npm_config_registry: `http://127.0.0.1:${port}` };
+  const env = { ...process.env, npm_config_registry: `http://127.0.0.1:${port}`, TELEGRAM_BOT_TOKEN: undefined, TELEGRAM_STATE_DIR: undefined }; // a child assistant must not reach its parent pane's chat
   try {
-    const log = openSync(join(work, "assistant.log"), "w");
-    const child = spawn(assistant.bin, argsFor(assistant, dir), { cwd: dir, env, stdio: ["pipe", log, log] }); // async: this process serves the registry
-    wall = setTimeout(() => child.kill(), WALL_MS);
-    child.stdin?.end(prompt);
-    await new Promise((done, fail) => {
-      child.once("error", (e: NodeJS.ErrnoException) => fail(e.code === "ENOENT" ? new CouldNotRun(`${assistant.bin} is not installed`) : e));
-      child.once("close", done);
-    });
-    const results = [branch(dir), replacedPage(dir), dependency(dir), build(await probes.build(dir, env)), doctor(await probes.doctor(dir, env)), mount(await probes.mount(dir)), noPush(dir)];
-    return { work, results };
+    const ask = async (text: string, n: number) => { // each ask is a fresh session in the same folder; the log of the first is assistant.log
+      const was = String(git(dir, "rev-parse", "HEAD"));
+      const log = openSync(join(work, n ? `assistant-${n + 1}.log` : "assistant.log"), "w");
+      const child = spawn(assistant.bin, argsFor(assistant, dir), { cwd: dir, env, stdio: ["pipe", log, log] }); // async: this process serves the registry
+      wall = setTimeout(() => child.kill(), WALL_MS);
+      child.stdin?.end(text);
+      await new Promise((done, fail) => {
+        child.once("error", (e: NodeJS.ErrnoException) => fail(e.code === "ENOENT" ? new CouldNotRun(`${assistant.bin} is not installed`) : e));
+        child.once("close", done);
+      });
+      clearTimeout(wall);
+      const moved = String(git(dir, "rev-parse", "HEAD")) !== was;
+      return [branch(dir), replacedPage(dir, options.page), dependency(dir), build(await probes.build(dir, env)), doctor(await probes.doctor(dir, env)), mount(await probes.mount(dir)), noPush(dir), { check: "new commit", ok: moved, why: moved ? "the head moved" : "the session made no commit" }];
+    };
+    const results = await ask(prompt, 0);
+    const later = options.then ? [await ask(options.then, 1)] : [];
+    return { work, results, later };
   } finally {
     clearTimeout(wall);
     registry.close();
