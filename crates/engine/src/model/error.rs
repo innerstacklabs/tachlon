@@ -15,7 +15,7 @@ pub enum ScheduleError {
     UnknownTask(TaskId),
     /// A negative task duration.
     NegativeDuration(TaskId),
-    /// A value outside the range its input allows (`MAX_DURATION`, `MAX_LAG`); nothing changed.
+    /// A value outside the range its input allows (`MAX_DATE`, `MAX_DURATION`, `MAX_LAG`); nothing changed.
     OutOfRange {
         /// The input.
         input: RangeInput,

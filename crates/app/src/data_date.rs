@@ -21,13 +21,13 @@ impl Session {
             floor: self.schedule.data_date(),
             shown: self.data_date,
         };
-        self.schedule.set_data_date(to.floor);
+        self.schedule.set_data_date(to.floor)?;
         let (old_finish, held) = (self.solution.project_finish, self.reports.held);
         let t0 = (self.clock)();
         let solution = match self.schedule.compute() {
             Ok(solution) => solution,
             Err(error) => {
-                self.schedule.set_data_date(before.floor);
+                let _ = self.schedule.set_data_date(before.floor);
                 return Err(error.into());
             }
         };

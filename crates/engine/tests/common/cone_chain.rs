@@ -146,14 +146,15 @@ pub fn stress_progress_sweep(seed_list: Vec<u64>) -> Seen {
             // An actual start set on a task, or the data date moved; a refused edit is taken back.
             let (old_start, old_dd) = (s.tasks()[task.0 as usize].actual_start, s.data_date());
             if round == 1 {
-                s.set_data_date(Some(rng.range(0, span / 2)));
+                s.set_data_date(Some(rng.range(0, span / 2)))
+                    .expect("in range");
             } else {
                 s.set_actual_start(task, Some(at))
                     .expect("the edit is accepted");
             }
             if s.compute().is_err() {
                 // Retained logic can make an edit infeasible.
-                s.set_data_date(old_dd);
+                s.set_data_date(old_dd).expect("in range");
                 s.set_actual_start(task, old_start)
                     .expect("the edit is accepted");
             }

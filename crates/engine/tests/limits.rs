@@ -6,8 +6,8 @@ mod common;
 
 use common::{at, dep, oracle, std_cal, task};
 use engine::{
-    CalendarId, DurationCone, FallbackReason, Instant, Limit, LinkType, Pin, Schedule, Solution,
-    TaskId,
+    CalendarId, DurationCone, FallbackReason, Instant, Limit, LinkType, MIN_DATE, Pin, Schedule,
+    Solution, TaskId,
 };
 
 const D: i64 = 540;
@@ -158,28 +158,23 @@ fn a_finish_pin_two_days_early_makes_the_first_task_two_days_late() {
     path([3, 2], set, [late(0, 3, 2), late(1, 2, 0)]);
 }
 
-/// A late limit or a finish pin at `i64::MIN` (a sentinel, no date) reads as `i64::MIN / 4`: the
-/// solve returns, with the dates that limit gives, capped less than a week before it.
+/// A late limit or a finish pin at `MIN_DATE`, the earliest date allowed, solves: the late date is
+/// capped less than a week before it, and the floats are negative.
 #[test]
-fn a_late_limit_at_the_lowest_instant_reads_as_a_quarter_of_it() {
+fn a_late_limit_at_the_lowest_date_gives_a_negative_float() {
     let cases: [fn(&mut Schedule, TaskId, Instant); 3] = [
         |s, t, c| limit(s, t, [Some(c), None, None]),
         |s, t, c| limit(s, t, [None, None, Some(c)]),
         |s, t, c| pin(s, t, Pin::Finish(c)),
     ];
-    let floor = i64::MIN / 4;
     for (i, set) in cases.into_iter().enumerate() {
-        let solve = |c: Instant| {
-            let (mut s, cal) = week();
-            let (a, b) = chain(&mut s, cal);
-            set(&mut s, b, c);
-            let sol = s.compute().expect("a negative float, not an error");
-            (dates(&sol, a), dates(&sol, b))
-        };
-        let (a, b) = solve(i64::MIN);
-        assert_eq!((a, b), solve(floor), "case {i}");
+        let (mut s, cal) = week();
+        let (a, b) = chain(&mut s, cal);
+        set(&mut s, b, MIN_DATE);
+        let sol = s.compute().expect("a negative float, not an error");
+        let (a, b) = (dates(&sol, a), dates(&sol, b));
         let capped = if i == 0 { b.2 } else { b.3 };
-        assert!(capped <= floor && floor - capped < 7 * 1440, "{i}: {b:?}");
+        assert!((0..7 * 1440).contains(&(MIN_DATE - capped)), "{i}: {b:?}");
         assert!(a.3 <= b.2 && a.4 < 0 && b.4 < 0, "case {i}: {a:?} {b:?}");
     }
 }

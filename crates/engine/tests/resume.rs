@@ -50,7 +50,7 @@ fn a_resume_before_the_data_date_changes_nothing() {
     let mut s = Schedule::new();
     let c = s.add_calendar(std_cal(&[]));
     let a = started(&mut s, c);
-    s.set_data_date(Some(at(2, 8, 0)));
+    s.set_data_date(Some(at(2, 8, 0))).expect("in range");
     let before = s.compute().expect("computes");
     resume(&mut s, a, at(1, 8, 0));
     let sol = s.compute().expect("computes");

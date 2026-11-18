@@ -213,7 +213,7 @@ pub fn load_bytes(
     }
 
     // The data date and the actuals (decision 0008) shape the first compute, as they do in P6.
-    schedule.set_data_date(data_date);
+    schedule.set_data_date(data_date).map_err(failed)?;
     for (index, task) in tasks.iter().enumerate() {
         #[expect(
             clippy::cast_possible_truncation,

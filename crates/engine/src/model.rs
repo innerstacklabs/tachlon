@@ -179,7 +179,8 @@ impl Schedule {
     ///
     /// Returns [`ScheduleError::UnknownCalendar`] if the task's calendar does not exist and
     /// [`ScheduleError::NegativeDuration`] if its duration or remaining duration is negative and
-    /// [`ScheduleError::OutOfRange`] if its duration is over [`MAX_DURATION`].
+    /// [`ScheduleError::OutOfRange`] if a duration or a date, a limit and a pin included, is out of
+    /// range.
     pub fn add_task(&mut self, task: Task) -> Result<TaskId, ScheduleError> {
         #[expect(
             clippy::cast_possible_truncation,
@@ -190,10 +191,7 @@ impl Schedule {
         if task.calendar.0 as usize >= self.calendars.len() {
             return Err(ScheduleError::UnknownCalendar(task.calendar));
         }
-        range::check_duration(id, task.duration)?;
-        if task.remaining.is_some_and(|r| r < 0) {
-            return Err(ScheduleError::NegativeDuration(id));
-        }
+        range::check_task(id, &task)?;
         self.limited |= task.limit != Limit::default();
         self.tasks.push(task);
         self.graph = None;
@@ -234,9 +232,12 @@ impl Schedule {
     ///
     /// # Errors
     ///
-    /// Returns [`ScheduleError::UnknownTask`] for an unknown or deleted task.
+    /// Returns [`ScheduleError::UnknownTask`] for an unknown or deleted task and
+    /// [`ScheduleError::OutOfRange`] for a date out of range.
     pub fn set_snet(&mut self, task: TaskId, snet: Option<Instant>) -> Result<(), ScheduleError> {
-        self.live_mut(task)?.snet = snet;
+        let t = self.live_mut(task)?;
+        range::check_date(RangeInput::Snet, RangeItem::Task(task), snet)?;
+        t.snet = snet;
         Ok(())
     }
 
@@ -247,14 +248,14 @@ impl Schedule {
     /// The data date reaches every unstarted task, so the cones
     /// ([`Schedule::recompute_cone`], [`Schedule::recompute_duration_cone_moved`]) cannot bring a
     /// solution up to date after it changes: call [`Schedule::compute`].
-    pub fn set_data_date(&mut self, data_date: Option<Instant>) {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`ScheduleError::OutOfRange`] for a date out of range, and nothing changes.
+    pub fn set_data_date(&mut self, data_date: Option<Instant>) -> Result<(), ScheduleError> {
+        range::check_date(RangeInput::DataDate, RangeItem::Schedule, data_date)?;
         self.data_date = data_date;
-    }
-
-    /// The data date, if one is set ([`Schedule::set_data_date`]).
-    #[must_use]
-    pub fn data_date(&self) -> Option<Instant> {
-        self.data_date
+        Ok(())
     }
 
     /// Set a task's duration, in working minutes of its calendar (zero makes
@@ -268,7 +269,7 @@ impl Schedule {
     /// [`ScheduleError::OutOfRange`] for one over [`MAX_DURATION`].
     pub fn set_duration(&mut self, task: TaskId, duration: Minutes) -> Result<(), ScheduleError> {
         let t = self.live_mut(task)?;
-        range::check_duration(task, duration)?;
+        range::check_duration(RangeInput::Duration, task, duration)?;
         t.duration = duration;
         Ok(())
     }

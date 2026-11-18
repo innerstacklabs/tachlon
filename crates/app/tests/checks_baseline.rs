@@ -88,7 +88,7 @@ fn session(
             })
             .expect("calendar belongs to the schedule");
     }
-    schedule.set_data_date(data_date);
+    schedule.set_data_date(data_date).expect("in range");
     let solution = schedule.compute().expect("the fixture has no loop");
     let metas: Vec<_> = parents
         .iter()

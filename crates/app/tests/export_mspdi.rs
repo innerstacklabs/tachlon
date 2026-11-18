@@ -207,7 +207,9 @@ fn export_of_fixture() -> Vec<u8> {
 /// The start of every task in outline order, as the written file schedules them.
 fn starts_of_file(bytes: &[u8]) -> Vec<engine::Instant> {
     let mut read = parse_mspdi(std::str::from_utf8(bytes).expect("UTF-8")).expect("reads back");
-    read.schedule.set_data_date(read.data_date);
+    read.schedule
+        .set_data_date(read.data_date)
+        .expect("in range");
     let solution = read.schedule.compute().expect("solves");
     (0..read.tasks.len())
         .map(|i| solution.get(TaskId(i as u32)).es)
