@@ -11,7 +11,7 @@ impl Session {
     /// Set a task's percent complete from the text its cell shows: `75` or `75%`, a whole number
     /// from 0 to 100. The task keeps that share of its duration as done and the rest as
     /// remaining; a task with no actual start takes its early start as one, except for `0`, which
-    /// leaves it unstarted. `100` finishes the task at its early finish (or at its actual start,
+    /// leaves it unstarted (and, on a task that holds no progress, makes no edit and no undo step). `100` finishes the task at its early finish (or at its actual start,
     /// if that is later); any other value clears the actual finish. One undo step. Text that is
     /// not a percent from 0 to 100, a summary and an actual date after the data date are refused,
     /// changing nothing.
@@ -21,6 +21,9 @@ impl Session {
     /// an actual date after the data date.
     pub fn set_percent_text(&mut self, task: TaskId, text: &str) -> Result<(), EditError> {
         let edit = self.plan_percent_text(task, text)?;
+        if self.is_unstarted_zero(&edit) {
+            return Ok(());
+        }
         self.edit(edit)?;
         #[expect(
             clippy::cast_possible_truncation,
@@ -53,6 +56,22 @@ impl Session {
             actual_finish,
             remaining,
         })
+    }
+
+    /// Whether `edit`, planned from a typed `0`, would set nothing on a task that holds nothing: no
+    /// edit is made then, so no undo step undoes nothing.
+    pub(super) fn is_unstarted_zero(&self, edit: &Edit) -> bool {
+        let Edit::SetProgress {
+            task,
+            actual_start: None,
+            actual_finish: None,
+            remaining: None,
+        } = edit
+        else {
+            return false;
+        };
+        let held = &self.schedule.tasks()[task.0 as usize];
+        held.actual_start.is_none() && held.actual_finish.is_none() && held.remaining.is_none()
     }
 
     /// The actual start, actual finish and remaining work that `percent` of `duration` sets on a live

@@ -1,5 +1,5 @@
 //! Typing a percent complete (gs#703): the typed percent becomes the remaining duration, a task
-//! with no actual start takes one, 100 finishes the task, 0 keeps the start and leaves the whole
+//! with no actual start takes one (except for 0, which leaves it unstarted), 100 finishes the task, 0 keeps the start and leaves the whole
 //! duration remaining, and undo puts the three progress fields back. The dates are worked out by
 //! hand: a task of four working days (32 hours) with a successor of one day, on a Monday-to-Friday
 //! calendar with 08:00-12:00 and 13:00-17:00 shifts; day 0 is the origin Monday, so Monday 08:00
@@ -153,6 +153,11 @@ fn typing_0_on_a_task_that_has_not_started_leaves_it_unstarted_in_the_cell_and_t
     s.set_task_fields(FIRST, &[("percent", "0")])
         .expect("0 applies");
     assert_eq!(fields(&s), (None, None, None), "the dialog");
+    assert_eq!(
+        s.history_len().0,
+        0,
+        "a 0 that changes nothing is no undo step"
+    );
     s.set_percent_text(FIRST, "50").expect("50 starts it");
     assert_eq!(fields(&s), (Some(at(0, 8)), None, Some(16 * HOUR)));
     s.set_percent_text(FIRST, "0").expect("0 applies");

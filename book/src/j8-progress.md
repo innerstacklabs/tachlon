@@ -26,7 +26,7 @@ schedule follow. The progress cells hold the actuals; the data date says where "
    day.
 3. **How the cells depend on each other.** Setting Remaining on a started task sets its %
    complete from the task's duration: a task of eight working hours with `4h` remaining reads
-   `50%`. Setting % complete sets Remaining, so `75%` on that task reads `2h`. A % complete from 1 to 99 on a task with no actual start also gives it one, its early start; from then it is started and fixed there (step 7). A `0` on a task with no actual start leaves it unstarted, with no actual start and no remaining. A % complete of
+   `50%`. Setting % complete sets Remaining, so `75%` on that task reads `2h`. A % complete from 1 to 99 on a task with no actual start also gives it one, its early start (with a data date set, a % complete that would put that start after the data date is refused); from then it is started and fixed there (step 7). A `0` on a task with no actual start leaves it unstarted, with no actual start and no remaining. A % complete of
    `100` finishes the task: it gets an actual finish and `0` remaining, and one `Ctrl+Z` puts the
    three cells back as they were. Setting an Actual finish also sets Remaining to `0`.
 4. **A refused entry.** A bad entry leaves the editor open with the reason under it, and changes
