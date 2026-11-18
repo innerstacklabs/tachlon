@@ -18,7 +18,7 @@ export interface BeforeEditChange { kind: string; source: CommitSource; tasks: r
 /** The answer: `undefined`, `null` or `true` allows the change; a string refuses it with that reason, which the chart shows; `false` refuses it with the chart's own sentence. Answer at once: a promise, a throw or any other value refuses the change and fires `error` with the source `beforeEdit`. Never call the chart from inside it. */
 export type BeforeEdit = (change: BeforeEditChange) => string | boolean | null | undefined;
 
-/** What `update` sets on one task: its `key`, and any of `name`, `start` (held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet` (a date, or `null` for none) and `progress` (a whole percent). A member left out keeps its value. */
+/** What `update` sets on one task: its `key`, and any of `name`, `start` (a date, or `null` for none; held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet` (a date, or `null` for none) and `progress` (a whole percent). A member left out keeps its value. */
 export interface TaskUpdate { key: string; name?: string; start?: string | null; duration?: number; snet?: string | null; progress?: number }
 
 /** What `update` answers: how many tasks it set, or why it changed none (`reason`, `message`, and `record` from 0, `member` and the record's `key` when they are known). */
