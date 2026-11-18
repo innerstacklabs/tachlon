@@ -109,6 +109,7 @@ impl Build {
             _ => &[],
         };
         self.until(Step::Done, members);
+        self.keys.shrink();
         self.error.take().map_or(Ok(self), Err)
     }
 
