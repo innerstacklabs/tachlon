@@ -1,12 +1,23 @@
 # Tachlon
 
-*A guide for people who plan and review construction schedules.*
+*A guide for developers who put a Gantt chart in their own product, and for the people who use that chart.*
 
-Tachlon opens a whole P6 schedule in the browser and keeps it moving: 50,000 activities, zoom, pan and drag, with every change re-solved as you make it. MS Project XML files open too.
+Tachlon is a Gantt and scheduling component that you put in your own product, in the same category as Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt. It is fully featured, blazingly fast, and open source with no strings. It is built for developers who work with an AI assistant: the package carries an `AGENTS.md` written for the assistant, and one prompt installs the chart.
 
-This guide assumes you know your way around P6 or MS Project, and nothing about how the app is built. Each chapter is one task: what you can do, a short clip of it, the steps, and a tip. To try Tachlon without a file of your own, [open the office fit-out sample](/?sample=office-fitout), the small schedule the app starts with; **Open…** loads a file of your own.
+This book has two parts, for two readers.
+
+- **You are a developer and you want the chart in your product.** Start at [Install it in your app](install.md), the first chapter of the part for developers.
+- **You use a chart built with Tachlon.** Read the guide chapters. Each chapter is one task: what you can do, a short clip of it, the steps, and a tip. They assume nothing about how the chart is built.
+
+To try the chart without a file of your own, [open the office fit-out sample](/?sample=office-fitout), the small schedule the hosted app starts with; **Open…** loads a P6 or MS Project file of your own.
 
 ## Contents
+
+**For developers**
+
+- [Install it in your app](install.md): install the package, let `npx tachlon init` write the chart component, and open a schedule file.
+- [How it is built and checked](developers.md): for people who work on Tachlon itself.
+- [Architecture](architecture.md): the crates, the layers a frame passes through, and the invariants each one keeps.
 
 **Guide**
 
@@ -14,18 +25,14 @@ This guide assumes you know your way around P6 or MS Project, and nothing about 
 2. [Find your way around a big schedule](j2-navigate.md): zoom, collapse, filter and find.
 3. [Build a schedule from the keyboard](j6-build.md): insert rows, type names and durations, indent and outdent.
 4. [Change dates and see what moved](j7-change.md): drag a bar or edit a date, then see which tasks moved.
-5. [Update progress against a data date](j8-progress.md): record what happened on site and move the data date forward.
-6. [Set a baseline, read what slipped](baseline.md): keep the agreed plan and read what has slipped against it.
-7. [Check a schedule](j4-checks.md): count the tasks tied to nothing, odd links, and tasks that are very long or very loose.
-8. [Print a schedule](j5-print.md): put the schedule on paper or in a PDF, with a header and a legend.
-9. [Save, reopen and export a schedule](j9-save.md): keep your work in a file, and write a P6 or MS Project file for someone else.
-10. [Keys](keys.md): every key and what it does.
-11. [What's coming](coming.md): the chapters whose features are not built yet.
-
-**For developers**
-
-12. [How it is built and checked](developers.md)
-13. [Architecture](architecture.md)
+5. [Edit a task in its dialog](j10-task-dialog.md): change several of a task's fields in one place, and undo the whole change in one step.
+6. [Update progress against a data date](j8-progress.md): record what happened on site and move the data date forward.
+7. [Set a baseline, read what slipped](baseline.md): keep the agreed plan and read what has slipped against it.
+8. [Check a schedule](j4-checks.md): count the tasks tied to nothing, odd links, and tasks that are very long or very loose.
+9. [Print a schedule](j5-print.md): put the schedule on paper or in a PDF, with a header and a legend.
+10. [Save, reopen and export a schedule](j9-save.md): keep your work in a file, and write a P6 or MS Project file for someone else.
+11. [Keys](keys.md): every key and what it does.
+12. [What's coming](coming.md): the chapters whose features are not built yet.
 
 ## See it move
 

@@ -5,17 +5,23 @@
 html, body, .sidebar, .menu-bar, .nav-chapters, .searchbar {
     font-family: -apple-system, "Segoe UI", Inter, Roboto, system-ui, sans-serif;
 }
+/* mdBook's root font size is 62.5%, so 1rem is 10px here and the body text is 18px. Headings and captions are sized
+   in em, as ratios to that text. The stock sheet sets line-height on p, ol and ul, so main's own value does not
+   reach them. */
 .content main {
-    font-size: 1.05rem;
+    font-size: 1.8rem;
+    line-height: 1.6;
+}
+.content p, .content ol, .content ul {
     line-height: 1.6;
 }
 .content h1, .content h2, .content h3 {
     font-weight: 650;
     letter-spacing: -0.01em;
 }
-.content h1 { font-size: 2.1rem; margin-block-end: 0.4em; }
-.content h2 { font-size: 1.45rem; margin-block-start: 2.2em; }
-.content h3 { font-size: 1.15rem; }
+.content h1 { font-size: 2em; margin-block-end: 0.4em; }
+.content h2 { font-size: 1.4em; margin-block-start: 2.2em; }
+.content h3 { font-size: 1.1em; }
 .content p { margin: 0.75em 0; }
 .content code { border-radius: 4px; }
 
@@ -56,7 +62,7 @@ html, body, .sidebar, .menu-bar, .nav-chapters, .searchbar {
 .content figure.shot figcaption {
     margin-top: 0.5em;
     color: var(--book-muted);
-    font-size: 0.9rem;
+    font-size: 0.85em;
 }
 
 /* Steps: numbered in teal, with room between them. */
@@ -182,7 +188,7 @@ html, body, .sidebar, .menu-bar, .nav-chapters, .searchbar {
 .chapter li.part-title {
     margin-top: 1.4em;
     color: var(--book-muted);
-    font-size: 0.78rem;
+    font-size: 0.9em;
     font-weight: 650;
     letter-spacing: 0.06em;
     text-transform: uppercase;

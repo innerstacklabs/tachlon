@@ -1,6 +1,6 @@
 [book]
 title = "Tachlon"
-description = "A guide to Tachlon for people who plan and review construction schedules."
+description = "A guide to Tachlon, a Gantt and scheduling component: for developers who put a Gantt chart in their own product, and for the people who use that chart."
 language = "en"
 src = "src"
 
