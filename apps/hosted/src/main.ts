@@ -352,7 +352,7 @@ async function main(): Promise<void> {
   placeNewSchedule(list, () => menuButton, gantt, status);
   placeCompare(list, () => menuButton, chrome.compare);
   placeNewTab(list, () => menuButton);
-  placeSave(list, () => menuButton, () => gantt.save());
+  placeSave(list, () => menuButton, () => gantt.download());
   placeCsvExport(list, () => menuButton, gantt);
   placeExcelExport(list, () => menuButton, gantt);
   placeCopyList(list, () => menuButton, gantt);

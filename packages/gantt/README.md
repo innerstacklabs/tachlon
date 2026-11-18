@@ -257,11 +257,11 @@ An assistant that edits your project also has a skill: `npx tachlon init --skill
 ## Save, export and read the state
 
 ```js
-await chart.save(); // downloads `<name>.gantt`
+await chart.download(); // downloads `<name>.gantt`
 const { rowCount } = chart.state(); // `chart.on("change", ...)` fires when it moves
 ```
 
-- `chart.save()` downloads the schedule as a `.gantt` document and clears the unsaved mark; it never writes over the opened file.
+- `chart.download()` downloads the schedule as a `.gantt` document and clears the unsaved mark; it never writes over the opened file.
 - `chart.exportCsv()` downloads the visible list as `<name>.csv`.
 - `chart.exportXlsx()` downloads the same list as an Excel file, `<name>.xlsx`, with the dates as Excel dates.
 - `chart.copyList()` puts the same list on the clipboard as tab-separated text, and rejects when the browser refuses.

@@ -23,7 +23,7 @@ interface Chart {
   destroy(): void;
   backend(): string;
   open(file: File): Promise<void>;
-  save(): Promise<void>;
+  download(): Promise<void>;
   load(source: { document: unknown }): Promise<unknown>;
   newSchedule(): Promise<unknown>;
   exportCsv(): void;
@@ -245,7 +245,7 @@ test("a second destroy changes nothing, and every other method refuses once the 
     const file = new File([new Uint8Array(0)], "empty.gantt");
     const asyncCalls: Record<string, () => Promise<unknown>> = {
       open: () => gantt.open(file),
-      save: () => gantt.save(),
+      download: () => gantt.download(),
       load: () => gantt.load({ document: {} }),
       newSchedule: () => gantt.newSchedule(),
       exportImage: () => gantt.exportImage(),
@@ -276,13 +276,13 @@ test("a second destroy changes nothing, and every other method refuses once the 
         throws[method] = message(err);
       }
     }
-    return { first, second, secondThrew, rejects, throws };
+    return { first, second, secondThrew, rejects, throws, saveType: typeof (gantt as unknown as { save?: unknown }).save };
   });
   expect(result.secondThrew, "a second destroy returns without throwing").toBe(false);
   expect(result.second, "a second destroy changes nothing: counts, root and frames are as the first left them").toEqual(result.first);
-  expect(result.rejects, "open, save, load, newSchedule, exportImage and exportXlsx reject once destroyed").toEqual({
+  expect(result.rejects, "open, download, load, newSchedule, exportImage and exportXlsx reject once destroyed").toEqual({
     open: "this chart was destroyed",
-    save: "this chart was destroyed",
+    download: "this chart was destroyed",
     load: "this chart was destroyed",
     newSchedule: "this chart was destroyed",
     exportImage: "this chart was destroyed",
@@ -296,6 +296,7 @@ test("a second destroy changes nothing, and every other method refuses once the 
     checks: "this chart was destroyed",
     backend: "this chart was destroyed",
   });
+  expect(result.saveType, "the chart has no save method: the download is `download`, and `save` is free for the host").toBe("undefined");
   expect(errors, "no page error").toEqual([]);
 });
 

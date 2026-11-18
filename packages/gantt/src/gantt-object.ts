@@ -61,7 +61,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       await p.openFile(file, options);
     },
-    save: async () => {
+    download: async () => {
       alive();
       await p.save();
     },

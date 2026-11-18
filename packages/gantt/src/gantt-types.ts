@@ -93,7 +93,7 @@ export interface Gantt extends HasOn {
    * for a sample. Never writes over the opened file. Resolves once the download has started; it does not wait for the file to be
    * written. It clears the unsaved mark beside the file name, as of the schedule when the save began. The write runs on the main thread.
    */
-  save(): Promise<void>;
+  download(): Promise<void>;
   /** Download the visible list as `<name>.csv` (`untitled.csv` for a sample), the rows and columns Ctrl+C copies, as the hosted file menu's "Export the list as CSV". UTF-8 with a byte order mark; the note at the bottom right then says how many rows it wrote. */
   exportCsv(): void;
   /** Download the visible list as `<name>.xlsx` (`untitled.xlsx` for a sample), the rows and columns `exportCsv` writes, with the dates as Excel dates; the note at the bottom right then says how many rows it wrote. Resolves once the download has started; rejects once the chart is destroyed. */
@@ -117,7 +117,7 @@ export interface Gantt extends HasOn {
    * does; Cancel keeps the schedule and resolves `{ ok: false, error }`, as does a cell edit or a drag under way.
    */
   newSchedule(): Promise<LoadResult>;
-  /** The open schedule as a document, the JSON that `save` writes (gzipped) and `load({ document })` reads. Reads the session and changes nothing. */
+  /** The open schedule as a document, the JSON that `download` writes (gzipped) and `load({ document })` reads. Reads the session and changes nothing. */
   toDocument(): unknown;
   /** The open schedule as plain `tasks` and `links` (`fromTasks` reads them back) and `leftOut`, one line for each thing plain data cannot carry. Each task's `start` is the one the chart has solved now, so it can differ from the task's own start limit; `toDocument` stays the lossless save. Reads the session and changes nothing; it throws while the chart switches to WebGL2. */
   snapshot(): { tasks: PlainTask[]; links: PlainLink[]; leftOut: string[]; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions };
@@ -150,7 +150,7 @@ export interface Gantt extends HasOn {
   /**
    * Take the chart down: stop the frame loop, remove what it put on `window`, `document` and the media queries, disconnect its observers,
    * free the WASM app (which lets the GPU device go) and empty the root. Safe to call twice. Every other method throws once it has run
-   * (`open` and `save` reject), and a call already waiting on the app, such as an `open` that has not resolved, is not waited for.
+   * (`open` and `download` reject), and a call already waiting on the app, such as an `open` that has not resolved, is not waited for.
    */
   destroy(): void;
   commands: Commands; // The page's own buttons; also the `detail` of a bubbling `gantt:ready` event on the root.
