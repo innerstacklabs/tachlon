@@ -29,6 +29,18 @@ async function view(g: Gantt): Promise<{ t: [number, number]; scale: number; top
   return { t: s.t, scale: s.pxPerMinute, top: s.scrollY / s.rowHeight, scrollY: s.scrollY };
 }
 
+/** The view once it has stopped moving: finding a name flies the view to it over 300 ms of the session clock (`crates/app/src/fly.rs`), so a few frames can land mid-flight on a fast runner. */
+async function settledView(g: Gantt): Promise<Awaited<ReturnType<typeof view>>> {
+  let last = await view(g);
+  for (let k = 0; k < 200; k++) {
+    await g.nextFrame(2);
+    const now = await view(g);
+    if (now.t[0] === last.t[0] && now.t[1] === last.t[1] && now.scale === last.scale && now.scrollY === last.scrollY) return now;
+    last = now;
+  }
+  throw new Error("the view never settled");
+}
+
 /** The median leaf start's day: a date with rows before it and rows after it. */
 function aDay(rows: Row[]): string {
   const leaves = rows.filter((row) => row[5] === 0).map((row) => row[1]).sort();
@@ -82,7 +94,7 @@ test("the keystroke that completes a date does not jump to a name that holds it,
   await find.pressSequentially(day.slice(0, 9));
   await g.nextFrame(3);
   expect(await selected(g), "a partial date searches names as usual").toBe(early);
-  const before = await view(g);
+  const before = await settledView(g);
 
   await find.press(day.slice(9));
   await g.nextFrame(3);
