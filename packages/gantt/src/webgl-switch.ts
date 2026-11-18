@@ -36,6 +36,8 @@ export interface Run {
   file: FileRecord | null;
   /** Whether the host has the chart read-only now: the start passes it to its app as the app is made. */
   readOnly: () => boolean;
+  /** What the host last said its database can take: the start passes it to its app as the app is made. */
+  capabilities: () => MountOptions["capabilities"];
   beforeEdit: MountOptions["beforeEdit"];
 }
 
@@ -130,6 +132,8 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
   // What the host last asked for, read by each start as it makes its app, so a switch to WebGL2 and a call during one both keep it.
   let readOnly = options.readOnly === true;
   const readOnlyNow = (): boolean => readOnly;
+  let capabilities = options.capabilities;
+  const capabilitiesNow = (): MountOptions["capabilities"] => capabilities;
   let current: Started;
   let switching: Promise<void> | null = null;
   let failed: string | null = null;
@@ -198,7 +202,7 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
     // The old start's loop has stopped: the new start's first status is compared with nothing, and its view state fires one `change`.
     events.restart();
     try {
-      current = await startWebgl(start, source, { forceWebgl: true, fallback: why, events, reads, lost, first: false, unsaved, file, readOnly: readOnlyNow, beforeEdit: options.beforeEdit });
+      current = await startWebgl(start, source, { forceWebgl: true, fallback: why, events, reads, lost, first: false, unsaved, file, readOnly: readOnlyNow, capabilities: capabilitiesNow, beforeEdit: options.beforeEdit });
       kept = null;
       if (destroyed) {
         current.gantt.destroy();
@@ -236,13 +240,13 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
   }
 
   try {
-    current = await start(options.schedule, { forceWebgl: forced, fallback: pageFallback, events, reads, lost, first: true, unsaved: false, file: null, readOnly: readOnlyNow, beforeEdit: options.beforeEdit });
+    current = await start(options.schedule, { forceWebgl: forced, fallback: pageFallback, events, reads, lost, first: true, unsaved: false, file: null, readOnly: readOnlyNow, capabilities: capabilitiesNow, beforeEdit: options.beforeEdit });
   } catch (err) {
     // A WebGPU start that failed without a panic starts again on WebGL2; a panic, or a WebGL2 start that failed, is the caller's.
     // `last_panic` is asked last: it needs the engine, which a `"engine"` failure never loaded.
     if (forced || !(err instanceof MountError) || err.stage !== "render" || last_panic() != null) throw err;
     console.warn(`gantt: WebGPU failed to start: ${err.message}`);
-    current = await start(options.schedule, { forceWebgl: true, fallback: err.message, events, reads, lost, first: false, unsaved: false, file: null, readOnly: readOnlyNow, beforeEdit: options.beforeEdit });
+    current = await start(options.schedule, { forceWebgl: true, fallback: err.message, events, reads, lost, first: false, unsaved: false, file: null, readOnly: readOnlyNow, capabilities: capabilitiesNow, beforeEdit: options.beforeEdit });
     announce(`WebGPU failed, so the chart draws with WebGL2: ${err.message}`);
   }
 
@@ -304,6 +308,10 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
       readOnly = on;
     },
     readOnly: () => readOnly,
+    setCapabilities: (next) => {
+      if (switching === null || destroyed) now().setCapabilities(next);
+      capabilities = next;
+    },
     // While the chart switches it can take no edit: busy, as a host that asks before an edit command would want.
     busy: () => (switching !== null && !destroyed ? true : now().busy()),
     on: (name, handler) => {

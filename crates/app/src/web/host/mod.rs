@@ -5,6 +5,7 @@
 //! session calls. `edits`, `proposals` and `reads` hold one kind each; this file holds what they share.
 
 mod before_edit;
+mod capabilities;
 mod edits;
 mod keys;
 mod proposals;

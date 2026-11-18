@@ -73,3 +73,27 @@ fn a_gate_call_in_run_or_a_missing_one_fails() {
     one(&failures, "undo does not call gate");
     assert_eq!(failures.len(), GATED.split(' ').count());
 }
+
+fn documents_naming_the_profile(files: &[SourceFile]) -> Vec<String> {
+    let in_document = |file: &&SourceFile| file.path.contains("crates/app/src/document/");
+    let names = |file: &&SourceFile| find_bounded(&file.text, "Capabilities").is_some();
+    let found = files.iter().filter(in_document).filter(names);
+    found
+        .map(|file| format!("{} names Capabilities", file.path))
+        .collect()
+}
+
+#[test]
+fn nothing_under_document_names_the_capability_profile() {
+    let files = rust_sources();
+    assert!(files.iter().any(|file| file.path.contains("src/document/")));
+    let failures = documents_naming_the_profile(&files);
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+#[test]
+fn a_document_file_that_names_the_profile_fails() {
+    let text = "use crate::host::Capabilities;";
+    let failures = documents_naming_the_profile(&[file("crates/app/src/document/read.rs", text)]);
+    one(&failures, "document/read.rs names Capabilities");
+}
