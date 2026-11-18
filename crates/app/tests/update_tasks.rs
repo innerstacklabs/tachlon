@@ -146,6 +146,16 @@ fn each_refusal_is_named_and_leaves_the_document_byte_equal() {
             Some("start"),
         ),
         (
+            r#"{"key":"k2","snet":"2026-03-09","start":"garbage"}"#,
+            "badValue",
+            Some("start"),
+        ),
+        (
+            r#"{"key":"k2","start":"2026-03-09 09:30"}"#,
+            "badValue",
+            Some("start"),
+        ),
+        (
             r#"{"key":"k2","duration":-1}"#,
             "badValue",
             Some("duration"),
@@ -201,6 +211,7 @@ fn a_setter_refusal_at_record_15_puts_back_records_1_to_14() {
     );
     let error = session.update_tasks(&json).unwrap_err();
     assert_eq!(error.kind, "schedule");
+    assert_eq!(error.record, Some(14));
     assert_eq!(saved(&session), before);
 }
 
