@@ -23,11 +23,11 @@
 @media (max-width: 600px) { .cloud { padding: 34px 20px 26px; } }
 
 /* Code, set like the chart's own type: the one place for a monospace face. */
-pre { margin: 0; background: var(--navy); color: var(--navy-ink); padding: 16px 18px; overflow-x: auto; font: 14px/1.6 var(--mono); border-radius: 2px; }
+pre { margin: 0; background: var(--dark); color: var(--dark-ink); padding: 16px 18px; overflow-x: auto; font: 14px/1.6 var(--mono); border-radius: 2px; }
 pre code { background: none; color: inherit; padding: 0; font: inherit; }
-pre .k { color: var(--accent-on-navy); }
+pre .k { color: var(--accent-on-dark); }
 pre .s { color: #9fe0c6; }
-pre .c { color: var(--navy-muted); }
+pre .c { color: var(--dark-muted); }
 .install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px 40px; align-items: start; }
 .install-text { grid-column: 1 / -1; display: grid; gap: 12px; }
 .install figure { margin: 0; display: grid; gap: 8px; }
