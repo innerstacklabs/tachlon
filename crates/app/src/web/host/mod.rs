@@ -11,6 +11,7 @@ mod keys;
 mod proposals;
 mod read_only;
 mod reads;
+mod saves;
 
 use super::App;
 use crate::edit::EditError;

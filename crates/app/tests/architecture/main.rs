@@ -77,7 +77,7 @@
 //!     and a root that names no member fails.
 //! 17. The history stacks change in one place (gantt#2077, decision 0019, `history_writes.rs`): in
 //!     `crates/app/src/history.rs` and `crates/app/src/history/`, a push, pop or clear of the undo or redo
-//!     stack, or a call to `History::push`, outside `Session::commit` and `impl History` fails and names the
+//!     stack, or a call to `History::push`, `move_to_redo` or `move_to_undo`, outside `Session::commit` and `impl History` fails and names the
 //!     file and line. An empty read fails.
 //! 18. A late start is read in one place (decision 0018, rule 7, `late_start.rs`): in `crates/*/src`, the name `ls` is
 //!     allowed only in the engine's `cpm`, the error's own field and `Schedule::late_start_shown`; any other use fails.

@@ -9,7 +9,8 @@ use crate::texts::{
     HAS_CHILDREN_ONE, HAS_KEY, HAS_LINKS, INSERT_GROUPED, INVALID_NAME, KEY_TAKEN, LINK_TO_SUMMARY,
     NO_BASELINE, NO_LINK_SELECTED, NO_NEXT_SIBLING, NO_OUTLINE, NO_PREVIOUS_SIBLING, NO_SELECTION,
     NOT_ALLOWED, NOT_IN_BASELINE, PROGRESS_ON_SUMMARY, READ_ONLY, REFUSED, REPARENT_FILTERED,
-    REPARENT_GROUPED, SEVERAL_ROWS, Texts, UNKNOWN_LINK, UNKNOWN_TASK, Worded, english_display,
+    REPARENT_GROUPED, ROLLBACK_GONE, SEVERAL_ROWS, Texts, UNKNOWN_LINK, UNKNOWN_TASK, Worded,
+    english_display,
 };
 use engine::{DepId, ScheduleError, TaskId};
 
@@ -125,6 +126,9 @@ pub enum EditError {
     NotAllowed(&'static str),
     /// The host's before-edit function refused it: its reason, or the default sentence when empty.
     Refused(String),
+    /// The host asked to go back to a change the chart can no longer go back to: it was saved, or the
+    /// history or the unsaved list dropped it.
+    RollbackGone,
     /// The host's before-edit function threw or answered with something it must not (a promise): nothing changed.
     BeforeEditFailed,
 }
@@ -179,6 +183,7 @@ impl EditError {
             Self::ReadOnly => "readOnly",
             Self::NotAllowed(_) => "notAllowed",
             Self::Refused(_) => "refused",
+            Self::RollbackGone => "rollbackGone",
             Self::BeforeEditFailed => "beforeEditFailed",
         }
     }
@@ -251,6 +256,7 @@ impl Worded for EditError {
             Self::NotAllowed(what) => texts.say(&NOT_ALLOWED, &[("what", what)]),
             Self::Refused(reason) if !reason.is_empty() => reason.clone(),
             Self::Refused(_) => plain(&REFUSED),
+            Self::RollbackGone => plain(&ROLLBACK_GONE),
             Self::BeforeEditFailed => plain(&BEFORE_EDIT_FAILED),
         }
     }

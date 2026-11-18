@@ -166,6 +166,7 @@ mod resource_filter;
 mod resources_card;
 mod results;
 mod reveal;
+mod rollback;
 mod schedule;
 mod select;
 mod set_limit;
