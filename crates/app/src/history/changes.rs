@@ -85,12 +85,15 @@ impl Session {
             };
             steps.iter().filter_map(task).collect()
         };
-        changes.extend(self.links_gone(&tasks(true), &steps));
+        let (deletes, creates) = self.link_lists(&tasks(true), &tasks(false), &steps);
+        changes.extend(deletes);
         for step in &steps {
-            changes.extend(self.step_links(&step.edit, &tasks(false), &steps));
+            if matches!(step.edit, Edit::SetLink { .. }) {
+                changes.extend(self.link_changes(&step.edit));
+            }
             changes.extend(self.outline_changes(step));
         }
-        changes.extend(self.links_made(&tasks(false), &steps));
+        changes.extend(creates);
         if let Entry::DataDates(old) = inverse {
             let (old, new) = (self.date(old.shown), self.date(self.data_date));
             changes.extend(schedule_update("dataDate", &old, &new));

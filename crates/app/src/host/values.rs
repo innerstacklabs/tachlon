@@ -61,7 +61,7 @@ impl Session {
                     task: *task,
                     place: Place::of(outline, *task),
                 };
-                let mut out = self.links_gone(&[*task], &[]);
+                let mut out = self.links_gone(&[*task]);
                 out.extend(self.outline_changes(&Step::plain(restore)));
                 out
             }),

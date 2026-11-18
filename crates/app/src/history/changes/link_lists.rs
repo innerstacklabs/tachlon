@@ -1,32 +1,18 @@
-//! The link records of one commit: the deletes that go with its deleted tasks and the creates that
-//! go with its created ones.
+//! The link records that say whether a link exists: the deletes and creates of one commit.
 
 use super::{Edit, Step};
 use crate::Session;
 use engine::{DepId, TaskId};
 
-/// Whether a step of the commit adds `dep`: the step is a `RemoveLink`, the inverse of an add.
-fn adds(steps: &[&Step], dep: DepId) -> bool {
-    let adds = |s: &&Step| matches!(s.edit, Edit::RemoveLink { dep: d } if d == dep);
-    steps.iter().any(adds)
-}
-
-/// Whether a step of the commit deletes `dep`: the step is a `RestoreLink`, the inverse of a remove.
-fn removes(steps: &[&Step], dep: DepId) -> bool {
-    let removes = |s: &&Step| matches!(s.edit, Edit::RestoreLink { dep: d } if d == dep);
-    steps.iter().any(removes)
-}
-
 impl Session {
-    /// The link deletes that go with the `gone` tasks of one commit (decision 0017), each link
-    /// once, but not a link a step of the commit adds: the links held when the commit ended, with
-    /// the deleted ends of `gone` still counting as held.
-    pub(crate) fn links_gone(&self, gone: &[TaskId], steps: &[&Step]) -> Vec<String> {
+    /// The link deletes a delete of the `gone` tasks writes (decision 0017), each link once: the
+    /// links held now, with the deleted ends of `gone` still counting as held.
+    pub(crate) fn links_gone(&self, gone: &[TaskId]) -> Vec<String> {
         let held = |t: &TaskId| !self.schedule.is_deleted(*t) || gone.contains(t);
         let mut deps: Vec<DepId> = gone
             .iter()
             .flat_map(|&t| self.schedule.task_links(t))
-            .filter(|(dep, d)| !adds(steps, *dep) && held(&d.pred) && held(&d.succ))
+            .filter(|(_, d)| held(&d.pred) && held(&d.succ))
             .map(|(dep, _)| dep)
             .collect();
         deps.sort_by_key(|dep| dep.0);
@@ -35,36 +21,44 @@ impl Session {
         deps.into_iter().flat_map(delete).collect()
     }
 
-    /// The link creates that go with the `made` tasks of one commit, each link once: the links in
-    /// force after it, except those a step of the commit adds itself.
-    pub(super) fn links_made(&self, made: &[TaskId], steps: &[&Step]) -> Vec<String> {
-        let own = |dep| adds(steps, dep);
-        let live = self.schedule.live_dependencies();
-        let mine = live
-            .filter(|(dep, d)| !own(*dep) && (made.contains(&d.pred) || made.contains(&d.succ)));
-        mine.flat_map(|(dep, _)| self.link_changes(&Edit::RemoveLink { dep }))
-            .collect()
-    }
-
-    /// The records of one step of the commit. A link the step adds and an end of which is deleted
-    /// `RestoreLink` of a link with an end among the `made` tasks, which the host never held. So is
-    /// a link the commit both adds and removes: the host never held it, and does not after.
-    /// `RestoreLink` of a link with an end among the `made` tasks, which the host never held.
-    pub(super) fn step_links(&self, edit: &Edit, made: &[TaskId], steps: &[&Step]) -> Vec<String> {
-        let ends = |dep: DepId| self.schedule.dependencies()[dep.0 as usize];
-        let lost = |d: engine::Dependency| {
-            self.schedule.is_deleted(d.pred) || self.schedule.is_deleted(d.succ)
+    /// The link deletes and the link creates of one commit, for each link the commit touches: a
+    /// create when the chart holds the link after the commit and did not before it, a delete when
+    /// it held the link before and not after, nothing otherwise. A link is held when it is not
+    /// removed and neither end is deleted. The chart now is the state after the commit. Before it, a
+    /// link is not held when the commit's first step on it adds it, and a `gone` task is held while
+    /// a `made` one is not.
+    pub(super) fn link_lists(
+        &self,
+        gone: &[TaskId],
+        made: &[TaskId],
+        steps: &[&Step],
+    ) -> (Vec<String>, Vec<String>) {
+        let link = |s: &&Step| match s.edit {
+            Edit::RemoveLink { dep } | Edit::RestoreLink { dep } => Some(dep),
+            _ => None,
         };
-        let remade = |d: engine::Dependency| made.contains(&d.pred) || made.contains(&d.succ);
-        match *edit {
-            Edit::RemoveLink { dep } | Edit::RestoreLink { dep }
-                if adds(steps, dep) && removes(steps, dep) =>
-            {
-                Vec::new()
+        let near = gone
+            .iter()
+            .chain(made)
+            .flat_map(|&t| self.schedule.task_links(t));
+        let mut deps: Vec<DepId> = near.map(|(dep, _)| dep).collect();
+        deps.extend(steps.iter().filter_map(link));
+        deps.sort_by_key(|dep| dep.0);
+        deps.dedup();
+        let alive =
+            |t: TaskId| !made.contains(&t) && (gone.contains(&t) || !self.schedule.is_deleted(t));
+        let (mut deletes, mut creates) = (Vec::new(), Vec::new());
+        for dep in deps {
+            let d = self.schedule.dependencies()[dep.0 as usize];
+            let first = steps.iter().find(|s| link(s) == Some(dep));
+            let added = first.is_some_and(|s| matches!(s.edit, Edit::RemoveLink { .. }));
+            let before = !added && alive(d.pred) && alive(d.succ);
+            match (before, self.schedule.is_dependency_live(dep)) {
+                (true, false) => deletes.extend(self.link_changes(&Edit::RestoreLink { dep })),
+                (false, true) => creates.extend(self.link_changes(&Edit::RemoveLink { dep })),
+                _ => {}
             }
-            Edit::RemoveLink { dep } if lost(ends(dep)) => Vec::new(),
-            Edit::RestoreLink { dep } if remade(ends(dep)) => Vec::new(),
-            _ => self.link_changes(edit),
         }
+        (deletes, creates)
     }
 }

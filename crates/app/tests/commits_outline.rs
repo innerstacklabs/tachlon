@@ -184,7 +184,7 @@ fn a_created_task_writes_its_limits_actuals_color_and_label_in_the_host_names() 
 
 /// Link A to B and B to C, run `delete`, then undo and redo it, each time checking that a copy of
 /// the starting schedule kept from the records holds what the session does, each record once.
-fn replayed_from_the_records(delete: fn(&mut Session)) {
+fn replayed_from_the_records(delete: impl Fn(&mut Session)) {
     let mut s = outlined(&[Some("a1"), None, Some("c3")]);
     let held = |s: &Session| -> BTreeSet<String> {
         let links = s.schedule().live_dependencies();
@@ -243,40 +243,33 @@ fn a_link_between_two_tasks_deleted_in_one_commit_is_deleted_and_created_once() 
 }
 
 #[test]
-fn a_link_added_and_lost_with_its_end_in_one_commit_is_listed_as_neither_created_nor_deleted() {
-    replayed_from_the_records(|s| {
-        let (pred, succ) = (FIRST, TaskId(2));
-        let link = Edit::AddLink {
-            pred,
-            succ,
-            kind: LinkType::FS,
-            lag: 0,
-        };
-        let steps = vec![link, Edit::Delete { task: succ }];
-        s.edit_group(steps, Source::Typed).unwrap();
-    });
-    replayed_from_the_records(|s| {
-        let steps = vec![
-            Edit::RemoveLink { dep: DepId(0) },
-            Edit::Delete { task: TaskId(1) },
-        ];
-        s.edit_group(steps, Source::Typed).unwrap();
-    });
-    replayed_from_the_records(|s| {
-        let (pred, succ) = (FIRST, TaskId(2));
-        let (kind, lag) = (LinkType::FS, 0);
-        let steps = vec![
-            Edit::AddLink {
-                pred,
-                succ,
-                kind,
-                lag,
-            },
-            Edit::RemoveLink { dep: DepId(2) },
-            Edit::Delete { task: succ },
-        ];
-        s.edit_group(steps, Source::Typed).unwrap();
-    });
+fn a_copy_made_from_the_records_matches_the_session_after_a_commit_of_link_steps() {
+    let add = Edit::AddLink {
+        pred: FIRST,
+        succ: TaskId(2),
+        kind: LinkType::FS,
+        lag: 0,
+    };
+    let (cut, back) = (
+        |d| Edit::RemoveLink { dep: DepId(d) },
+        |d| Edit::RestoreLink { dep: DepId(d) },
+    );
+    let end = Edit::Delete { task: TaskId(1) };
+    let last = Edit::Delete { task: TaskId(2) };
+    for steps in [
+        vec![add.clone(), last.clone()],
+        vec![cut(0), end.clone()],
+        vec![add.clone(), cut(2), last],
+        vec![add.clone(), cut(2), back(2)],
+        vec![cut(0), back(0), cut(0)],
+        vec![cut(0), back(0), end],
+        vec![add, cut(2)],
+        vec![cut(0), back(0)],
+    ] {
+        replayed_from_the_records(|s| {
+            s.edit_group(steps.clone(), Source::Typed).unwrap();
+        });
+    }
 }
 
 fn up(task: u32, key: &Value, field: &str, old: &Value, new: &Value) -> Value {
