@@ -437,7 +437,7 @@ The app scans only the visible rows each time the status is read and keeps nothi
 | `Commit` | One undo step, as an `edit` event carries it. | `{ seq: number; source: CommitSource; changes: Change[] }`. `seq` counts from 1 in a session and is never reused. |
 | `CommitSource` | Where a commit came from. | `"typed"`, `"drag"`, `"dialog"`, `"paste"`, `"proposal"`, `"undo"` or `"redo"`. |
 | `Change` | One change inside a commit, in the names of decision 0017. | `{ record: "task" \| "link" \| "schedule"; op: "update" \| "create" \| "delete"; key?; task?; link?; field?; old?; new?; fields? }`; `App.take_commits` lists the fields of each form. `task` and `link` are session slots: never store them. |
-| `ScrollTarget` | The type of `Commands.scrollTo`'s argument. | `{ task: number }` or `{ date: string }`, a day as `YYYY-MM-DD`. |
+| `ScrollTarget` | The type of `Commands.scrollTo`'s argument. | `{ task: number \| string }` or `{ date: string }`, a day as `YYYY-MM-DD`. A text `task` is the host's key, a number the chart's own task number. |
 | `Filter` | The type of `Commands.setFilter`'s argument. | A `PlainFilter`, `{ status: StatusKind }`, `{ check: CheckKind }`, `{ code: CodeValue }`, `{ resource: string }` (a non-empty name) or `{ lookahead: { start: string; weeks: number } \| null }`, `start` a day as `YYYY-MM-DD`. `setFilter(state().filter)` does not type-check for `"status"`, `"check"`, `"code"` and `"resource"`, by design: those need their value. |
 | `PlainFilter` | The row filters that take no value. | `RowFilterName` without `"status"`, `"check"`, `"code"` and `"resource"`: `"off"`, `"critical"`, `"longestPath"`, `"nearCritical"`, `"slipped"`, `"floatLost"`, `"joinedCritical"`, `"leftCritical"`, `"moved"` and `"startConstraint"`. |
 | `ViewState` | [What `Gantt.state()` returns and the `change` event carries: the state a toolbar shows.](#viewstate) | |
@@ -587,9 +587,9 @@ The `Shell` keeps a list of disposers, and each `install*` that registers someth
 
 <a id="commands"></a>`zoomIn()` and `zoomOut()` zoom one step (about 2x) about the middle of the chart, as the toolbar's buttons do (`App.wheel` with zoom on).
 `fit()` is `App.fit_project`.
-`scrollTo(target)` takes a `ScrollTarget`: `{ date }` is `App.go_to_date`; `{ task }` is `App.select_task`, which selects the task and brings its row and its bar into view.
+`scrollTo(target)` takes a `ScrollTarget`: `{ date }` is `App.go_to_date`; `{ task }` is `App.select_task`, which selects the task and brings its row and its bar into view; a text `task` is a host's key, turned into its slot by `App.task_slots` first, and a key no live task holds (a deleted task's key too) gives false.
 It gives false, changing nothing, for a task with no row (deleted, unknown, under a collapsed summary or hidden by the row filter), for text that is not a date, and during a bar press or drag; a day outside the schedule is not refused, the chart pans to it.
-`select(task)` is the same call as `scrollTo({ task })`, `App.select_task`, under the name a host expects for selecting; it refuses in the same cases.
+`select(task)` is the same call as `scrollTo({ task })`, `App.select_task`, under the name a host expects for selecting (a text is a key, a number the slot); it refuses in the same cases.
 `setFilter(filter)` takes a `Filter`:
 each row filter is the toolbar's own call (`"critical"` `App.set_critical_only`, `"longestPath"` `set_longest_path`, `"nearCritical"` `set_near_critical`, `"slipped"` `set_slipped_only`, `"floatLost"` `set_float_lost`, `"joinedCritical"` `set_joined_critical`, `"leftCritical"` `set_left_critical`, `"moved"` `set_moved_only`, `"startConstraint"` `set_start_constraint_filter`, `{ status }` `set_status_filter`, `{ check }` `set_check_filter`,
 `{ code: { type, value } }` `set_activity_code_filter`, `{ resource }` `set_resource_filter`) and replaces the row filter that is on;
