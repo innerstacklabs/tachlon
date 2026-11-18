@@ -145,6 +145,28 @@ fn each_refusal_is_named_and_leaves_the_document_byte_equal() {
             "badValue",
             Some("duration"),
         ),
+        (r#"{"key":"k2","name":"  "}"#, "emptyName", Some("name")),
+        (
+            r#"{"key":"k2","name":"a / b"}"#,
+            "invalidName",
+            Some("name"),
+        ),
+        (r#"{"key":"k2","name":7}"#, "badValue", Some("name")),
+        (
+            r#"{"key":"k2","progress":101}"#,
+            "badPercent",
+            Some("progress"),
+        ),
+        (
+            r#"{"key":"k2","progress":-1}"#,
+            "badPercent",
+            Some("progress"),
+        ),
+        (
+            r#"{"key":"k2","progress":"5"}"#,
+            "badValue",
+            Some("progress"),
+        ),
     ];
     for (bad, kind, member) in cases {
         let before = saved(&session);
@@ -197,4 +219,53 @@ fn an_update_during_a_bar_press_is_refused_as_busy() {
     session.pointer_down(x, y, false);
     let json = r#"[{"key":"k0","duration":1}]"#;
     assert_eq!(session.update_tasks(json).unwrap_err().kind, "busy");
+}
+
+#[test]
+fn a_name_is_trimmed_as_a_typed_rename_is_and_the_undo_list_is_left() {
+    let (mut session, leaves) = keyed();
+    let depth = session.history_len();
+    session
+        .update_tasks(r#"[{"key":"k4","name":"  Pour slab "}]"#)
+        .unwrap();
+    assert_eq!(session.meta()[leaves[4].0 as usize].name, "Pour slab");
+    assert_eq!(session.history_len(), depth);
+}
+
+#[test]
+fn a_progress_sets_what_a_typed_percent_sets_against_the_records_own_duration() {
+    let (mut session, leaves) = keyed();
+    let (mut typed, _) = keyed();
+    let task = leaves[4];
+    typed
+        .update_tasks(r#"[{"key":"k4","duration":480}]"#)
+        .unwrap();
+    typed.set_percent_text(task, "33").unwrap();
+    let depth = session.history_len();
+    session
+        .update_tasks(r#"[{"key":"k4","duration":480,"progress":33}]"#)
+        .unwrap();
+    let progress = |s: &Session| {
+        let t = &s.schedule().tasks()[task.0 as usize];
+        (t.actual_start, t.actual_finish, t.remaining)
+    };
+    assert_eq!(progress(&session), progress(&typed));
+    assert_eq!(progress(&session).2, Some(300));
+    assert_eq!(session.task_percent(task.0), "33%");
+    assert_eq!(session.history_len(), depth);
+}
+
+#[test]
+fn a_progress_that_sets_an_actual_after_the_data_date_is_refused_and_changes_nothing() {
+    let (session, leaves) = keyed();
+    let early = session.solution().dates[leaves[4].0 as usize].es - 1;
+    let mut session = session.with_data_date(Some(early));
+    let before = saved(&session);
+    let json = r#"[{"key":"k1","name":"Renamed"},{"key":"k4","progress":50}]"#;
+    let error = session.update_tasks(json).unwrap_err();
+    assert_eq!(
+        (error.kind, error.record, error.member.as_deref()),
+        ("actualAfterDataDate", Some(1), Some("progress"))
+    );
+    assert_eq!(saved(&session), before);
 }
