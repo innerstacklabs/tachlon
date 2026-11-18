@@ -84,13 +84,13 @@ The README's "How it compares" section is this table, and `node scripts/features
 Cites are paths at `origin/main` `3135461a` or merged PR numbers. "pkg README" is `packages/gantt/README.md`.
 
 - 1: `crates/engine/src/model.rs` (`LinkType`, lag); pkg README "Quick start" (link `type`).
-- 2, 3: `crates/engine/src/cpm.rs`; `chart.commands.criticalPath()` (`npx tachlon describe commands`).
+- 2, 3: `crates/engine/src/cpm.rs`; `chart.commands.criticalPath()` (the package's `describe commands`).
 - 4: `crates/engine/src/model/limit.rs` (`Limit`: `snlt`, `fnet`, `fnlt`, `Pin::Start`, `Pin::Finish`, `alap`; SNET is `snet`, ASAP the default); readers and writers #1881, #1884, #1888, #1890, #1895, #1901, #1902, #1903, #1904; kept in a saved document, `crates/app/src/document/read/limit.rs` (#1900); set and undone in the app #1987; edited in the task dialog #1991. Reached through files, `chart.load({ document })` and the dialog; the plain `tasks` data has no constraint field (`packages/gantt/src/adapters/plain.schema.json`). Root README: a constraint with no date or of an unknown type is not applied.
 - 5: `crates/engine/src/calendar.rs`; per-task calendar in `model.rs`; read from XER and MS Project files and from a document's `calendars`. The plain `tasks` data uses one calendar (`adapters/plain.ts`).
 - 6: Baseline button and `chart.commands.setBaseline()`, `setBaselineFromFile()` (`packages/gantt/src/commands.ts`); DHTMLX planned dates open as the baseline #1979. One baseline; P6 baselines are not read (README, "Not yet").
 - 7, 8, 9: docs/JOURNEYS.md, journeys J3, J8; `model.rs` ("Zero makes a milestone"); the site Features page (`apps/site/features.html`).
 - 11: resource filter `{ resource }` (`packages/gantt/src/commands.ts`); names are display-only (`crates/app/src/resources.rs`).
-- 14: 14 counts in `chart.commands.health()` (`npx tachlon describe commands`; docs/JOURNEYS.md J4); Show buttons #1985, #1986.
+- 14: 14 counts in `chart.commands.health()` (the package's `describe commands`; docs/JOURNEYS.md J4); Show buttons #1985, #1986.
 - 15: `chart.commands.whatIf`, `whatIfLonger`, `explain` (pkg README).
 - 16: Compare with a file, `setBaselineFromFile` (docs/JOURNEYS.md J3).
 - 17: `packages/gantt/src/task-dialog.ts` (name, duration, start, finish, percent, actual dates, remaining, SNLT, FNET, FNLT; one undo step) #1909; opened by `Shift+Enter`, a double-click on a bar or an uneditable cell #1918; limits #1991. It has no links, resources or notes fields.
@@ -105,7 +105,7 @@ Cites are paths at `origin/main` `3135461a` or merged PR numbers. "pkg README" i
 - 31: `fromDhtmlx`, `fromBryntum` (pkg README).
 - 32: root README speed table (Bryntum 8 Community, DHTMLX 10 Community and SVAR at 10,000 and 50,000 tasks, measured 2026-11-13) #1958.
 - 33: `book/src/j2-navigate.md`; `chart.commands.zoomIn`, `zoomOut`, `fit`.
-- 34: 34 color tokens in light and dark (`npx tachlon describe tokens`).
+- 34: 34 color tokens in light and dark (the package's `describe tokens`).
 - 35: #2001 draws a bar in its own color, #2008 keeps a task's `color` and `label` in the schedule document that `chart.load` reads, #2012 takes a `color` (`#rrggbb`) on a task given to `fromTasks`, and #2016 adds `label` there and `color` to `fromDhtmlx` (pkg README; `docs/WASM_API.md`, `PlainTask` and `App.save`).
 - 37: docs/KEYS.md.
 - 38: the task list is an ARIA tree grid (`packages/gantt/src/table-aria.ts`); the timeline canvas is one `role="img"` (`packages/gantt/src/chart.html`). The bars are spoken through the `card-live` live region when the selection moves: dates, float, critical state, percent complete, link counts and baseline start (`packages/gantt/src/bar-speech.ts`) #2014, #2017. The wording was not tried with a screen reader.
