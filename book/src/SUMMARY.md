@@ -19,6 +19,10 @@
 
 # For developers
 
+- [Put a chart on a page](dev-page.md)
+- [Give it your data and keep your own ids](dev-data.md)
+- [Listen for edits and save them](dev-save.md)
+- [Make it read-only and theme it](dev-look.md)
 - [Install it in your app](install.md)
 - [How it is built and checked](developers.md)
 - [Architecture](architecture.md)
