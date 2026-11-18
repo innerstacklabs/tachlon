@@ -9,9 +9,9 @@
 .layer:first-child { border-top-width: 1.5px; }
 .layer span { font-size: 14px; color: var(--muted); }
 .layer.api { border-bottom: 3px solid var(--ink); }
-.layer.core, .layer.gpu { background: var(--navy); color: var(--navy-ink); border-color: var(--navy); }
-.layer.core span, .layer.gpu span { color: var(--navy-muted); }
-.layer.gpu strong { color: #5aa9ff; }
+.layer.core, .layer.gpu { background: var(--dark); color: var(--dark-ink); border-color: var(--dark); }
+.layer.core span, .layer.gpu span { color: var(--dark-muted); }
+.layer.gpu strong { color: var(--accent-on-dark); }
 .layers figcaption { font-size: 13px; color: var(--muted); padding-top: 10px; text-align: center; }
 
 .why { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 16px 56px; border-top: 1px solid var(--rule); padding-top: 32px; }

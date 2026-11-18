@@ -26,6 +26,13 @@ test("the_ai_section_leads_with_the_prompt_in_a_copy_box_then_the_by_hand_instal
   expect(ai).toContain(`${N} is free and open source under the MIT license: no key, no trial and no mark on the chart.`);
 });
 
+test("the_hero_leads_with_the_same_prompt_and_a_copy_button_then_the_by_hand_install", () => {
+  const hero = /<div class="wrap hero-top">[\s\S]*?<div class="wrap demo"/.exec(site("index.html"))?.[0] ?? "";
+  expect(hero).toContain(`<pre id="hero-prompt">${PROMPT}</pre>`);
+  expect(hero, "a button copies it").toMatch(/<button class="btn [^"]*" type="button" data-copy="hero-prompt"/);
+  expect(hero.indexOf(`<code>npm install ${n}</code>`), "the by-hand install follows the prompt").toBeGreaterThan(hero.indexOf(PROMPT));
+});
+
 test("the_readme_holds_the_same_prompt_as_the_site", () => {
   const readme = /Using an AI assistant\? Paste this:\n\n```text\n(.*)\n```/.exec(read("packages/gantt/README.md"))?.[1];
   const page = /<pre id="prompt">(.*)<\/pre>/.exec(site("index.html"))?.[1];
