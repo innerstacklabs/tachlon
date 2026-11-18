@@ -8,13 +8,12 @@ import { nameOf } from "./field-names.js";
 import { frozenEdge } from "./frozen-edge.js";
 import { installRowPosition } from "./row-position.js";
 import { type Shell, watching } from "./shell.js";
+import { trackChanged } from "./table-changed.js";
 import { buildRow } from "./table-row.js";
 import { fitTaskWidth, measureTaskNeed } from "./task-width.js";
 
 /** Rows kept in the DOM above and below the visible ones. */
 const TABLE_OVERSCAN = 6;
-/** How long a cell an `update` changed stays highlighted, in milliseconds. */
-const CHANGED_MS = 1500;
 
 export interface Table {
   /** Scroll, select, hover and draw the rows for this status. */
@@ -202,13 +201,8 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   // so marks made right after a `load` (before that frame) stay.
   let pending: ReadonlySet<number> = new Set();
   let pendingEpoch = s0.epoch;
-  // After `wrote` the next redraw marks each cell whose text differs from the one shown (data-changed); a timer clears the marks, and a redraw before then keeps them (`changed`).
-  let comparing = false;
-  let changed: ReadonlySet<string> = new Set();
-  let fade: ReturnType<typeof setTimeout> | undefined;
-  shell.disposers.push(() => clearTimeout(fade));
-  const cellsShown = (): NodeListOf<HTMLElement> => tableRows.querySelectorAll<HTMLElement>(".row[data-task] > span");
-  const cellKey = (cell: HTMLElement): string => `${cell.parentElement?.dataset["task"]}/${cell.className.split(" ")[0]}`; // a task slot and a column
+  // After `wrote` the next redraw marks each cell whose text differs from the one shown (data-changed, table-changed.ts).
+  const changed = trackChanged(tableRows, (undo) => shell.disposers.push(undo));
   let extentRow: number | null = null; // the range's moving end at the last frame
   tableBody.addEventListener("scroll", () => {
     // Within a pixel of the canvas's own value is the echo of our write below.
@@ -284,7 +278,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     canvasScrollY = s.scrollY;
     if (s.epoch !== pendingEpoch) {
       pending = new Set();
-      changed = new Set();
+      changed.drop();
       pendingEpoch = s.epoch;
     }
     if (s.rowCount !== spacerRows) {
@@ -340,21 +334,11 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const data = JSON.parse(app.table_rows(first, last)) as (TableRow | HeaderRow)[];
     // A clicked chevron is replaced with its row; focus must not fall to the page, or the chart's keys stop working.
     const focusWasInRows = tableRows.contains(document.activeElement);
-    const shownBefore = comparing ? new Map([...cellsShown()].map((cell) => [cellKey(cell), cell.textContent])) : null;
-    comparing = false;
+    changed.before();
     tableRows.replaceChildren(
       ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending })),
     );
-    const moved = shownBefore === null ? [] : [...cellsShown()].filter((cell) => shownBefore.has(cellKey(cell)) && shownBefore.get(cellKey(cell)) !== cell.textContent);
-    changed = new Set([...changed, ...moved.map(cellKey)]);
-    for (const cell of changed.size === 0 ? [] : cellsShown()) if (changed.has(cellKey(cell))) cell.dataset["changed"] = "true";
-    if (moved.length > 0) {
-      clearTimeout(fade);
-      fade = setTimeout(() => {
-        changed = new Set();
-        for (const cell of tableRows.querySelectorAll<HTMLElement>("[data-changed]")) delete cell.dataset["changed"];
-      }, CHANGED_MS);
-    }
+    changed.after();
     if (focusWasInRows) root.focus({ preventScroll: true });
     markRows(s, true);
   };
@@ -377,7 +361,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     wrote: (slots) => {
       const written = new Set(slots);
       pending = new Set([...pending].filter((slot) => !written.has(slot)));
-      comparing = true;
+      changed.arm();
       drawn = { first: -1, last: -1, stamp: -1, variance: "off" };
     },
     reset: () => {

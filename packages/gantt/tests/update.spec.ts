@@ -108,7 +108,7 @@ test("an update highlights the cells in view whose shown value changed and no ot
   await mountHost(page, { tasks: tasks(40) });
   const before = await shown(page);
   await page.evaluate((ks) => window.upChart.update(ks.map((key) => ({ key, duration: 5 }))), keys(0, 20));
-  await frames(page);
+  await expect(page.locator("#table-rows [data-changed]").first()).toBeAttached();
   const after = await shown(page);
   expect(after.map((c) => c.marked), "a cell is marked when its text differs from the one shown before").toEqual(after.map((c, i) => c.text !== before[i]!.text));
   expect(after.filter((c) => c.marked).length, "some changed").toBeGreaterThan(0);
@@ -124,7 +124,7 @@ test("an update that sends the values already shown marks nothing, and with redu
   await frames(page);
   expect((await shown(page)).filter((c) => c.marked), "the same values change no cell").toEqual([]);
   await page.evaluate((ks) => window.upChart.update(ks.map((key) => ({ key, duration: 5 }))), keys(0, 20));
-  await frames(page);
+  await expect(page.locator("#table-rows [data-changed]").first()).toBeAttached();
   const marked = (await shown(page)).filter((c) => c.marked).map((c) => c.motion);
   expect([marked.length > 0, marked.every((a) => a === "none")], "marked, with no animation").toEqual([true, true]);
 });
@@ -140,4 +140,15 @@ test("a pending key the update wrote is no longer pending, and a refused update 
   await page.evaluate(() => window.upChart.update([{ key: "k1", duration: 9 }]));
   await frames(page);
   expect(await pending(), "only the task written leaves").toEqual(["2"]);
+});
+
+test("an update followed by a load before the next frame highlights nothing in the new schedule", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(10) });
+  await page.evaluate(async (ks) => {
+    const document = window.upChart.toDocument() as { tasks: { duration: number }[] };
+    window.upChart.update(ks.map((key) => ({ key, duration: 5 })));
+    await window.upChart.load({ document: { ...document, tasks: document.tasks.map((t) => ({ ...t, duration: 9 })) } });
+  }, keys(0, 10));
+  await frames(page);
+  expect(await page.locator("#table-rows [data-changed]").count(), "the new schedule's cells are not marked").toBe(0);
 });
