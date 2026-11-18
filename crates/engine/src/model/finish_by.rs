@@ -5,7 +5,8 @@
 //! the late path read negative float; when it beats the date, the critical path stays at zero and
 //! [`Schedule::buffer`] reports the time to spare.
 
-use super::Schedule;
+use super::range::{self, RangeInput, RangeItem};
+use super::{Schedule, ScheduleError};
 use crate::calendar::{DAY, Instant, Minutes};
 use crate::cpm::Solution;
 
@@ -26,9 +27,14 @@ impl Schedule {
     /// engine error. Keeps the cached topological order. The date changes every late date, which
     /// the cones ([`Schedule::recompute_cone`], [`Schedule::recompute_duration_cone_moved`]) do
     /// not re-derive: call [`Schedule::compute`] after changing it.
-    pub fn set_finish_by(&mut self, date: Option<Instant>) {
+    ///
+    /// # Errors
+    /// Returns [`ScheduleError::OutOfRange`] for a date out of range, and nothing changes.
+    pub fn set_finish_by(&mut self, date: Option<Instant>) -> Result<(), ScheduleError> {
+        range::check_date(RangeInput::FinishBy, RangeItem::Schedule, date)?;
         self.finish_by = date;
         self.limited |= date.is_some();
+        Ok(())
     }
 
     /// The must-finish-by date, if one is set ([`Schedule::set_finish_by`]).

@@ -19,7 +19,7 @@ const root = mkdtempSync(join(tmpdir(), "test-stage-package-"));
 try {
   // A package that holds every file the real pack check expects, one source file the tarball leaves out, and the three private keys beside the keys a consumer needs.
   const src = join(root, "src-pkg");
-  const files = ["README.md", "LICENSE", "AGENTS.md", "size-budget.json", "src/secret.ts", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/NOTICE.md", "dist-lib/OFL.txt"];
+  const files = ["README.md", "LICENSE", "AGENTS.md", "size-budget.json", "src/secret.ts", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt"];
   for (const f of files) {
     mkdirSync(dirname(join(src, f)), { recursive: true });
     writeFileSync(join(src, f), f === "dist-lib/a.js" ? "#!/usr/bin/env node\n" : "x\n");

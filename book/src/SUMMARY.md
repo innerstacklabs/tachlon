@@ -2,6 +2,16 @@
 
 [Welcome](index.md)
 
+# For developers
+
+- [Put a chart on a page](dev-page.md)
+- [Give it your data and keep your own ids](dev-data.md)
+- [Listen for edits and save them](dev-save.md)
+- [Make it read-only and theme it](dev-look.md)
+- [Install it in your app](install.md)
+- [How it is built and checked](developers.md)
+- [Architecture](architecture.md)
+
 # Guide
 
 - [Open a schedule](open-a-schedule.md)
@@ -16,9 +26,3 @@
 - [Save, reopen and export a schedule](j9-save.md)
 - [Keys](keys.md)
 - [What's coming](coming.md)
-
-# For developers
-
-- [Install it in your app](install.md)
-- [How it is built and checked](developers.md)
-- [Architecture](architecture.md)

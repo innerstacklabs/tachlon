@@ -153,7 +153,7 @@ fn a_must_finish_by_date_moves_total_float_and_not_free_float() {
         (Some(at(1, 17, 0)), D),
         (Some(at(9, 17, 0)), 2 * D),
     ] {
-        s.set_finish_by(date);
+        s.set_finish_by(date).expect("in range");
         let (free, total) = floats(&mut s);
         assert_eq!(
             (free[0], total[0], free[3]),

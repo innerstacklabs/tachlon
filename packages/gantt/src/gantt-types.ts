@@ -25,6 +25,7 @@ export interface MountOptions {
   document?: unknown;
   /** Plain tasks to draw when there is no `schedule` and no `document`, and the links between them (`fromTasks`). The chart keeps neither list once it has started; it holds the schedule they made. With no `schedule`, `document` or `tasks` the chart opens with no tasks and waits for `load` or `open`. */
   tasks?: PlainTask[];
+  /** The links between the plain `tasks` (`fromTasks`). */
   links?: PlainLink[];
   /** The day the plain `tasks` are as of (`YYYY-MM-DD[THH:mm]`, 00:00 of the day when it is a date alone): work that has not started cannot start before it. Read with `tasks`, and kept no longer than they are. */
   dataDate?: string;
@@ -34,13 +35,17 @@ export interface MountOptions {
   options?: ScheduleOptions;
   /** The working calendars of the plain `tasks` (`PlainCalendar`): a task's `calendar` names one by `key`, and the first is every other task's. Without them the one Monday to Friday calendar, 08:00 to 17:00 with an hour at noon, is used. Read with `tasks`, and ignored when there is a `schedule` or a `document`. */
   calendars?: PlainCalendar[];
-  /** What the plain `tasks` count `duration`, `remaining` and `lag` in: `"days"` (default; a day is the working day of the calendar that measures the value), `"hours"` or `"minutes"`. Read with `tasks`, and kept no longer than they are. */
+  /** What the plain `tasks` count `duration`, `remaining` and `lag` in: `"days"` (default; a day is the working day of the calendar that measures the value), `"hours"` or `"minutes"`. Read with `tasks`, and kept no longer than they are.
+   * @defaultValue `"days"` */
   durationUnit?: "days" | "hours" | "minutes";
-  /** The calendar a lag day is counted on for the plain `tasks`: `"successor"` (default), `"predecessor"`, `"24h"` or `{ calendar: key }`. Read with `tasks`, and kept no longer than they are. */
+  /** The calendar a lag day is counted on for the plain `tasks`: `"successor"` (default), `"predecessor"`, `"24h"` or `{ calendar: key }`. Read with `tasks`, and kept no longer than they are.
+   * @defaultValue `"successor"` */
   lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string };
-  /** Draw with WebGL2 and never try WebGPU. Without it a WebGPU failure switches the chart to WebGL2 in its root, and `on("error")` says so. */
+  /** Draw with WebGL2 and never try WebGPU. Without it a WebGPU failure switches the chart to WebGL2 in its root, and `on("error")` says so.
+   * @defaultValue `false` */
   forceWebgl?: boolean;
-  /** Start the chart read-only (`Gantt.setReadOnly`). Without it the chart can be edited. */
+  /** Start the chart read-only (`Gantt.setReadOnly`). Without it the chart can be edited.
+   * @defaultValue `false` */
   readOnly?: boolean;
   /** A function the chart asks before each change a person makes; it can refuse the change with a reason the chart shows (README, "Control editing"). Without it every change goes ahead. */
   beforeEdit?: BeforeEdit;

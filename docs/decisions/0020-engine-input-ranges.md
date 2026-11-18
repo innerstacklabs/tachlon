@@ -12,7 +12,7 @@ The engine's dates and durations are `i64` minutes (`Instant` and `Minutes` in `
 
    | Constant | Value | Applies to |
    |---|---|---|
-   | `MAX_DATE` | `1000 * 366 * DAY` minutes from the origin, either side (`MIN_DATE = -MAX_DATE`) | `snet`, the limit dates `snlt`, `fnet`, `fnlt` and `resume`, both pins, `actual_start`, `actual_finish`, the data date |
+   | `MAX_DATE` | `1000 * 366 * DAY` minutes from the origin, either side (`MIN_DATE = -MAX_DATE`) | `snet`, the limit dates `snlt`, `fnet`, `fnlt` and `resume`, both pins, `actual_start`, `actual_finish`, the data date, the must-finish-by date |
    | `MAX_DURATION` | `100 * 366 * DAY` working minutes | `duration` and `remaining`, each from 0 |
    | `MAX_LAG` | `MAX_DURATION` | a lag, from `-MAX_LAG` |
 
@@ -21,7 +21,7 @@ The engine's dates and durations are `i64` minutes (`Instant` and `Minutes` in `
    - `add_task`: every field of the `Task` it is given, the `Limit` and its pin included;
    - `add_dependency`, which also covers `add_link`;
    - `set_dependency` and `set_dependency_replay` (`links.rs`), the review's `update_link`;
-   - the setters: `set_snet`, `set_limit`, `set_duration`, `set_actual_start`, `set_actual_finish`, `set_remaining` and `set_data_date`. `Decided here:` `set_snet`, the actuals and the data date are in the list although gantt#2106 names only lags, limits, pins, durations and remaining, because they are instants that reach the same calendar arithmetic. `set_data_date` returns nothing today and gains a `Result`.
+   - the setters: `set_snet`, `set_limit`, `set_duration`, `set_actual_start`, `set_actual_finish`, `set_remaining`, `set_data_date` and `set_finish_by`. `Decided here:` `set_snet`, the actuals, the data date and the must-finish-by date are in the list although gantt#2106 names only lags, limits, pins, durations and remaining, because they are instants that reach the same calendar arithmetic. `set_data_date` returns nothing today and gains a `Result`.
 3. **A check in the setters alone would miss most inputs,** which is why `add_task` and `add_dependency` check too. These callers build a `Task` or a `Dependency` literal from raw integers and never call a setter for those fields:
    - the document reader: `read_task` in `crates/app/src/document/read/items.rs` (the `Task`, with `read_limit`), added by `task` in `document/read/build.rs`; the link in `add_link` in `items.rs`; the data date in `read` in `document/read.rs`;
    - the MSPDI importer: `read_task` in `crates/import/src/tasks.rs` and `add_links` in `crates/import/src/tasks/links.rs`;

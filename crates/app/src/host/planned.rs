@@ -2,7 +2,8 @@
 //! each gated action hands the gate, and the [`Planned`] built from it only when a function is set.
 
 use crate::{
-    Session, edit::Edit, history::Source, history::link_create, json::quote, press::Press,
+    Session, edit::Edit, edit::EditError, history::Source, history::link_create, json::quote,
+    press::Press,
 };
 use engine::{LinkType, TaskId};
 use std::{borrow::Cow, collections::BTreeSet, rc::Rc, slice::from_ref};
@@ -53,8 +54,8 @@ pub struct Planned {
 /// A task field a plan changes: the task, the field, what the session holds and what it would hold.
 type Field<'a> = (TaskId, &'a str, String, String);
 
-/// The host's function, asked before each change a person makes: `Err(reason)` refuses it.
-pub type BeforeEdit = Rc<dyn Fn(&Planned) -> Result<(), String>>;
+/// The host's function, asked before each change a person makes: `Err` refuses it: [`EditError::Refused`] with its reason, or [`EditError::BeforeEditFailed`] when it failed.
+pub type BeforeEdit = Rc<dyn Fn(&Planned) -> Result<(), EditError>>;
 
 impl Session {
     /// Hand the session the host's before-edit function, or take it away with `None`.

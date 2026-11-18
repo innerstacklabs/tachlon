@@ -44,6 +44,7 @@ fn check_door(s0: &Schedule, door: Door, bad: &[i64], want: Want, good: &[i64]) 
             "dependencies after {v}"
         );
         assert_eq!(s.data_date(), s0.data_date(), "data date after {v}");
+        assert_eq!(s.finish_by(), s0.finish_by(), "finish by after {v}");
     }
     for &v in good {
         assert_eq!(door(&mut s0.clone(), v), Ok(()), "value {v}");
@@ -86,7 +87,7 @@ type Field = fn(&mut Task, i64);
 /// Each date input is refused at `add_task` and at its setter, and accepted at either bound.
 #[test]
 fn a_date_outside_its_range_is_refused() {
-    use RangeInput::{ActualFinish, ActualStart, DataDate, FinishPin, Fnet, Fnlt};
+    use RangeInput::{ActualFinish, ActualStart, DataDate, FinishBy, FinishPin, Fnet, Fnlt};
     use RangeInput::{Resume, Snet, Snlt, StartPin};
     const T: TaskId = TaskId(0);
     let fields: [(RangeInput, Field); 9] = [
@@ -126,6 +127,9 @@ fn a_date_outside_its_range_is_refused() {
     }
     check(DataDate, RangeItem::Schedule, &|s, v| {
         s.set_data_date(Some(v))
+    });
+    check(FinishBy, RangeItem::Schedule, &|s, v| {
+        s.set_finish_by(Some(v))
     });
 }
 

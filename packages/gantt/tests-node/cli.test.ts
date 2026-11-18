@@ -9,6 +9,7 @@ import { delimiter, dirname, join } from "node:path";
 import { after, test } from "node:test";
 import type { Gpu } from "../src/cli/gpu.ts";
 import { run, runAsync } from "../src/cli/run.ts";
+import { skillFile } from "../src/cli/skill.ts";
 
 const root = mkdtempSync(join(tmpdir(), "cli-"));
 after(() => rmSync(root, { recursive: true, force: true }));
@@ -182,6 +183,18 @@ test("init --skill is listed by --dry-run and --json, writes the skill once, and
   const bare = project(vitePlain, { "src/main.ts": "" });
   assert.equal(withFakeManager({}, () => write(bare)).code, 0);
   assert.equal(existsSync(join(bare, ".claude")), false, "init without --skill writes no skill");
+});
+
+test("the skill and AGENTS.md say `describe` exists and when to use it", () => {
+  const guide = readFileSync(new URL("../AGENTS.md", import.meta.url), "utf8");
+  for (const [where, text] of [["the skill", skillFile(NAME)], ["AGENTS.md", guide]] as const) {
+    for (const phrase of ["before you write code against an option, event, command or token", `npx ${NAME} describe`, `npx ${NAME} describe fit`, "before you theme the chart or wire saves"]) assert.ok(text.toLowerCase().includes(phrase.toLowerCase()), `${where} says: ${phrase}`);
+  }
+});
+
+test("the skill says when to run `doctor` and names AGENTS.md", () => {
+  const text = skillFile(NAME);
+  for (const phrase of ["does not draw or does not load", `npx ${NAME} doctor`, `node_modules/${NAME}/AGENTS.md`]) assert.ok(text.includes(phrase), `the skill says: ${phrase}`);
 });
 
 test("init --skill never overwrites a skill that is there: it stays as it is and the chart module is still written", () => {

@@ -4,7 +4,7 @@
 import { binProblems, cssUrlsOutsidePack, declarationsNamingWasm, manifestProblems, missingExpected, missingFromPack, strayFiles } from "./lib/pack-check.ts";
 
 // Files the tarball must hold that no `exports` entry names.
-const EXPECTED = ["README.md", "LICENSE", "AGENTS.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json"];
+const EXPECTED = ["README.md", "LICENSE", "AGENTS.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md"];
 
 // A publish ships the built library, the package's README, LICENSE and package.json, and nothing else (the npm publish workflow runs this check first).
 const ALLOWED_PREFIXES = ["dist-lib/"];
