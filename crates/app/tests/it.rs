@@ -29,6 +29,7 @@ mod baseline_variance;
 mod before_edit;
 mod before_edit_values;
 mod blank;
+mod capabilities;
 mod check_filter;
 mod checks;
 mod checks_baseline;

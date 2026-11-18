@@ -24,6 +24,12 @@ export interface TaskUpdate { key: string; name?: string; start?: string; durati
 /** What `update` answers: how many tasks it set, or why it changed none (`reason`, `message`, and `record` from 0, `member` and the record's `key` when they are known). */
 export type UpdateResult = { ok: true; updated: number } | (Refusal & { key?: string });
 
+/** What a host's database can take, as the host tells the chart (`mount`'s `capabilities`, `Gantt.setCapabilities`). Each member is on unless it is `false`. A change a person makes that a member turned off is refused with `"notAllowed"` on every path, undo and redo included, and the chart says the host does not allow it; a bar, edge or link drag says it in the drag note. `gestures` turns off moving a bar, stretching it and drawing a link. `editable` turns off a group of fields: `structure` (adding, deleting and moving rows, paste included), `names`, `dates` (start, duration and the date limits), `links`, `progress` (actual dates, remaining, percent and the data date) and `baseline`. A member the chart does not have is an error. */
+export interface HostCapabilities {
+  gestures?: { barMove?: boolean; resize?: boolean; link?: boolean };
+  editable?: { structure?: boolean; names?: boolean; dates?: boolean; links?: boolean; progress?: boolean; baseline?: boolean };
+}
+
 /** What `mount` takes: a `schedule`, a saved `document`, or `tasks` and `links` as `fromTasks` reads them; with none of the three the chart starts with no tasks and waits for `load`. */
 export interface MountOptions {
   /** A schedule file to read (XER or MS Project XML, every project of it, or a `.gantt` document), or the demo or the stress fixture at `n` tasks. */
@@ -54,6 +60,8 @@ export interface MountOptions {
   /** Start the chart read-only (`Gantt.setReadOnly`). Without it the chart can be edited.
    * @defaultValue `false` */
   readOnly?: boolean;
+  /** What the host's database can take (`HostCapabilities`, `Gantt.setCapabilities`). Without it the chart allows every kind of change. A member the chart does not have rejects `mount`. */
+  capabilities?: HostCapabilities;
   /** A function the chart asks before each change a person makes; it can refuse the change with a reason the chart shows (README, "Control editing"). Without it every change goes ahead. */
   beforeEdit?: BeforeEdit;
   /** Where to fetch the engine file (`app_bg.wasm`) from, a URL or an address read against the page's own. Without it the chart loads the file beside its script (`dist-lib/app_bg.wasm`). When `preloadEngine` already started the load, its `wasmUrl` is the one used. */
@@ -128,6 +136,8 @@ export interface Gantt extends HasOn {
   setReadOnly(on: boolean): void;
   /** Whether the chart is read-only. */
   readOnly(): boolean;
+  /** Tell the chart what the host's database can take, in place of the profile it had, at any time and without starting the chart again; `undefined` or `{}` allows every kind of change. It is not an edit, and a switch to WebGL2 keeps it. Throws, changing nothing, for a member the chart does not have. */
+  setCapabilities(capabilities: HostCapabilities | undefined): void;
   /** Mark the rows with these keys as waiting for the host's own recalculation, in place of the ones marked before: the chart dims them and tells a screen reader they are busy until the host calls `setPending` again without them (`[]` clears every mark). A hint, not a lock: the rows stay selectable and editable. Answers the keys that name no live task (a deleted task's counts), which it leaves out. The marks go when `open`, `load` or `newSchedule` replaces the schedule, and when a switch to WebGL2 restarts the chart (its `error` event, source `backend`, says so: mark the rows again). */
   setPending(keys: readonly string[]): string[];
   /** Give the chart new values for many tasks, each named by its `key`, in place: the selection, the scroll position and the person's undo list stay as they were, and the call is not an edit (no `edit` event, no undo step, no `beforeEdit` call; decision 0019, rule 13). It is one recompute, or two when a record mixes `progress` with `duration`, `start` or `snet`. `duration` is in `durationUnit`. A refusal changes nothing: `"badRecords"` (not an array), `"busy"` (a cell is being edited, a bar or link is being dragged, or the chart is switching to WebGL2), or the reason of a record (`EditRefusal`: `unknownKey`, `duplicateKey`, `notUpdatable` for a limit or pin it does not set and for a summary, `badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`). */

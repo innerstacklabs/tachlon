@@ -64,6 +64,7 @@ texts! {
     NOT_IN_BASELINE "notInBaseline" "\"{name}\" is not in the baseline. Use Add new.";
     SEVERAL_ROWS "severalRows" "Delete works on one row. Select a single row to delete it.";
     READ_ONLY "readOnly" "This chart is read-only, so nothing in it can be changed.";
+    NOT_ALLOWED "notAllowed" "The host does not allow {what}.";
     REFUSED "refused" "This change is not allowed.";
     ROLLBACK_GONE "rollbackGone" "The chart can no longer go back to before that change. Load the saved schedule again.";
     BEFORE_EDIT_FAILED "beforeEditFailed" "This change was not made: the page's before-edit function failed.";

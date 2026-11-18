@@ -112,7 +112,7 @@ pub struct Session {
     pub(crate) baseline: Option<std::sync::Arc<crate::baseline::Baseline>>,
     /// The percent typed per task id; shown only while the remaining still is what it set.
     pub(crate) typed_percent: std::collections::HashMap<u32, u8>,
-    /// What the host API keeps (see [`crate::host`]); `reopen` starts it empty but for `read_only` and `before_edit`.
+    /// What the host API keeps (see [`crate::host`]); `reopen` starts it empty but for `read_only`, `before_edit` and `capabilities`.
     pub(crate) host: crate::host::Host,
     /// The summary percents, kept per `(revision, stamp)` (gs#703); every new session starts empty.
     pub(crate) progress_rollup: crate::progress_rollup::Memo,
@@ -304,6 +304,7 @@ impl Session {
         session.texts.clone_from(&self.texts);
         session.host.read_only = self.host.read_only;
         session.host.before_edit.clone_from(&self.host.before_edit);
+        session.host.capabilities = self.host.capabilities;
         session.reports.carry_on(&self.reports);
         if let Some(outline) = outline {
             session = session.with_outline(outline)?;

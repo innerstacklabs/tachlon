@@ -20,9 +20,11 @@ impl Session {
     /// Whether the person's action `plan` describes may go ahead.
     ///
     /// # Errors
-    /// [`EditError::ReadOnly`], else the host function's [`EditError::Refused`] or [`EditError::BeforeEditFailed`].
+    /// [`EditError::ReadOnly`], else [`EditError::NotAllowed`] for what the capability profile turned
+    /// off, else the host function's [`EditError::Refused`] or [`EditError::BeforeEditFailed`].
     pub(crate) fn gate(&self, plan: &Plan) -> Result<(), EditError> {
         self.refuse_read_only()?;
+        self.refuse_unallowed(plan)?;
         if let Some(before) = &self.host.before_edit {
             before(&self.planned(plan))?;
         }

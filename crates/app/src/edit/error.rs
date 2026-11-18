@@ -8,8 +8,9 @@ use crate::texts::{
     EMPTY_KEY, EMPTY_NAME, FILTER_ACTIVE, FINISH_BEFORE_START, HAS_ACTUALS, HAS_CHILDREN_MANY,
     HAS_CHILDREN_ONE, HAS_KEY, HAS_LINKS, INSERT_GROUPED, INVALID_NAME, KEY_TAKEN, LINK_TO_SUMMARY,
     NO_BASELINE, NO_LINK_SELECTED, NO_NEXT_SIBLING, NO_OUTLINE, NO_PREVIOUS_SIBLING, NO_SELECTION,
-    NOT_IN_BASELINE, PROGRESS_ON_SUMMARY, READ_ONLY, REFUSED, REPARENT_FILTERED, REPARENT_GROUPED,
-    ROLLBACK_GONE, SEVERAL_ROWS, Texts, UNKNOWN_LINK, UNKNOWN_TASK, Worded, english_display,
+    NOT_ALLOWED, NOT_IN_BASELINE, PROGRESS_ON_SUMMARY, READ_ONLY, REFUSED, REPARENT_FILTERED,
+    REPARENT_GROUPED, ROLLBACK_GONE, SEVERAL_ROWS, Texts, UNKNOWN_LINK, UNKNOWN_TASK, Worded,
+    english_display,
 };
 use engine::{DepId, ScheduleError, TaskId};
 
@@ -121,6 +122,8 @@ pub enum EditError {
     SeveralRows,
     /// The host switched the chart to read-only for this person: no way to change the schedule is open.
     ReadOnly,
+    /// The host's capability profile turned this off; `what` says it in words (`moving a bar`).
+    NotAllowed(&'static str),
     /// The host's before-edit function refused it: its reason, or the default sentence when empty.
     Refused(String),
     /// The host asked to go back to a change the chart can no longer go back to: it was saved, or the
@@ -178,6 +181,7 @@ impl EditError {
             Self::ProgressOnSummary { .. } => "progressOnSummary",
             Self::SeveralRows => "severalRows",
             Self::ReadOnly => "readOnly",
+            Self::NotAllowed(_) => "notAllowed",
             Self::Refused(_) => "refused",
             Self::RollbackGone => "rollbackGone",
             Self::BeforeEditFailed => "beforeEditFailed",
@@ -249,6 +253,7 @@ impl Worded for EditError {
             Self::NotInBaseline { name } => named(&NOT_IN_BASELINE, name),
             Self::SeveralRows => plain(&SEVERAL_ROWS),
             Self::ReadOnly => plain(&READ_ONLY),
+            Self::NotAllowed(what) => texts.say(&NOT_ALLOWED, &[("what", what)]),
             Self::Refused(reason) if !reason.is_empty() => reason.clone(),
             Self::Refused(_) => plain(&REFUSED),
             Self::RollbackGone => plain(&ROLLBACK_GONE),
