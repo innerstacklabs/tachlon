@@ -4,7 +4,7 @@
 //! puts all three fields back.
 
 use super::{Edit, EditError};
-use crate::{Session, host::Plan};
+use crate::Session;
 use engine::{Instant, Minutes, ScheduleError, TaskDates, TaskId};
 
 impl Session {
@@ -21,10 +21,6 @@ impl Session {
     /// an actual date after the data date.
     pub fn set_percent_text(&mut self, task: TaskId, text: &str) -> Result<(), EditError> {
         let edit = self.plan_percent_text(task, text)?;
-        if self.is_unstarted_zero(&edit) {
-            self.gate(&Plan::Edit(&edit))?;
-            return Ok(());
-        }
         self.edit(edit)?;
         #[expect(
             clippy::cast_possible_truncation,
@@ -59,9 +55,10 @@ impl Session {
         })
     }
 
-    /// Whether `edit`, planned from a typed `0`, would set nothing on a task that holds nothing: no
-    /// edit is made then, so no undo step undoes nothing.
-    pub(super) fn is_unstarted_zero(&self, edit: &Edit) -> bool {
+    /// Whether `edit` would set no actual start, no actual finish and no remaining on a live task
+    /// that holds none (a typed `0` on an unstarted task): [`Session::edit`] makes no edit of it,
+    /// after its gate, so no undo step undoes nothing.
+    pub(crate) fn is_unstarted_zero(&self, edit: &Edit) -> bool {
         let Edit::SetProgress {
             task,
             actual_start: None,
@@ -71,6 +68,9 @@ impl Session {
         else {
             return false;
         };
+        if !self.is_live(*task) {
+            return false;
+        }
         let held = &self.schedule.tasks()[task.0 as usize];
         held.actual_start.is_none() && held.actual_finish.is_none() && held.remaining.is_none()
     }
