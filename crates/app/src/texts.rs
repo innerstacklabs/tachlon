@@ -65,6 +65,7 @@ texts! {
     SEVERAL_ROWS "severalRows" "Delete works on one row. Select a single row to delete it.";
     READ_ONLY "readOnly" "This chart is read-only, so nothing in it can be changed.";
     REFUSED "refused" "This change is not allowed.";
+    ROLLBACK_GONE "rollbackGone" "The chart can no longer go back to before that change. Load the saved schedule again.";
     LINK_CYCLE "linkCycle" "\"{pred}\" to \"{succ}\" would make a loop: {chain}.";
     LINK_CYCLE_ELIDED "linkCycleElided" "{first} → {second} → {third} → … ({count} tasks) → {last} → {first}";
     START_SUMMARY "startSummary" "\"{name}\" is a summary. Its start comes from its sub-tasks; set theirs instead.";

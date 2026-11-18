@@ -3,6 +3,7 @@
 mod changes;
 mod commit;
 mod record;
+mod rollback;
 
 use crate::whatif::Mark;
 use crate::{

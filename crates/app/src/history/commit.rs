@@ -14,6 +14,7 @@ pub enum Source {
     Proposal,
     Undo,
     Redo,
+    Rollback,
 }
 
 impl Session {
@@ -32,11 +33,18 @@ impl Session {
             }
             _ => self.history.push(inverse),
         }
+        let seq = self.record(source, &changes);
+        self.host.pending.push(seq, source);
+    }
+
+    /// Number a commit and put it in the outbox; `changes` is its changes, comma-joined.
+    pub(super) fn record(&mut self, source: Source, changes: &str) -> u64 {
         let outbox = &mut self.host.outbox;
         outbox.seq += 1;
         let (seq, source) = (outbox.seq, format!("{source:?}").to_lowercase());
         outbox.push(format!(
             r#"{{"seq":{seq},"source":"{source}","changes":[{changes}]}}"#
         ));
+        seq
     }
 }
