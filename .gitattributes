@@ -1,0 +1,3 @@
+* text=auto eol=lf
+apps/site/fonts/OFL-Inter.txt -text
+packages/gantt/tests/fixtures/two-projects.xer -text
