@@ -50,7 +50,7 @@ In the Microsoft Project desktop program, save the project as an XML file:
 5. The panel that lists what was not read is shut when a file opens. If the file had anything
    to report, the **N import notes** button appears in the toolbar; click it to open the panel.
    **Dismiss** shrinks the button to a small mark; a click on the mark lists the notes again.
-   A note that counts activities names at most its first five, as in "600 (first: A1010, A1020,
+6. A note that counts activities names at most its first five, as in "600 (first: A1010, A1020,
    A1030, A1040, A1050)". Tachlon keeps no list of the rest, so the count is the only complete figure.
 
 <figure class="shot">
@@ -71,9 +71,8 @@ In the Microsoft Project desktop program, save the project as an XML file:
 1. **The task table.** One row per activity, indented under its summary. A red diamond marks a
    critical activity. Click a summary's chevron to fold it.
 2. **The timeline.** Each activity is a bar on the time axis, with its links drawn between bars.
-   Grey bands are non-working days. The dashed line is the data date.
-3. **The toolbar.** **Open…**, the name of the file, **Filters**, the outline levels, zoom and
-   **Fit**, and the search box.
+   Gray bands are non-working days. The dashed line is the data date.
+3. **The toolbar.** **Open…**, **Export…** and **Checks**, the file name, **Filters**, **Baseline**, **Progress** and **Columns**, **Insert** and **Delete**, the outline levels, zoom and **Fit**, the data date, the find box and `?`.
 4. **The critical path.** Critical bars are red. Press <kbd>Shift</kbd>+<kbd>C</kbd> to show only them.
 
 <div class="book-tip">
@@ -138,8 +137,10 @@ finding would have been its summary tasks opens with no panel.
   seconds. On one machine, a MacBook Pro M3 Pro, a generated 50,000-activity P6 file opened in
   171.5 ms and a generated MS Project file in 171.0 ms at the 95th percentile
   (`docs/MEASURING.md`, "Open time"). No other machine has been measured.
-- A file that cannot be opened (cut short, neither format, empty, or over 256 MiB) shows the
-  reason on a red line under the toolbar. The schedule already on the page stays as it was.
+- A file that cannot be opened (a broken XML file, neither format, empty, or over 256 MiB) shows the
+  reason in the alert line, an amber box in the toolbar; the **×** closes it. The schedule already on
+  the page stays as it was. An XER file that stops early is not refused when what is left of it can
+  be read: it opens with what it holds and an import note ("The file has no end marker…").
 - The importer keeps tasks, the outline, durations, milestones, links with lag, calendars and
   holidays. XER and MS Project actuals are applied, and a P6 activity keeps both of its date rules,
   the main one and the second one. An MS Project task keeps its constraint, from as late as possible to

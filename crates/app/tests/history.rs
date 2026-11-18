@@ -7,7 +7,7 @@ use timeline::{Summaries, Timeline};
 
 type Snapshot = (Vec<Task>, Solution, Vec<TaskMeta>, Summaries);
 
-fn snapshot(session: &Session) -> Snapshot {
+pub(crate) fn snapshot(session: &Session) -> Snapshot {
     (
         session.schedule().tasks().to_vec(),
         session.solution().clone(),

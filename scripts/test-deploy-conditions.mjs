@@ -245,7 +245,7 @@ const summaryBody = summary.join('\n');
 check('ci-summary needs web and reads its aggregate result', /^ {4}needs:\s*\[[^\]]*\bweb\b[^\]]*\]/m.test(summaryBody) && /WEB: \$\{\{ needs\.web\.result \}\}/.test(summaryBody));
 check('ci-summary wants web success whenever the code jobs run', /"web:\$WEB"/.test(summaryBody) && /\[ "\$\{pair#\*:\}" = "\$w" \] \|\| fail/.test(summaryBody));
 [...hostedBrowserChecks(lines, jobBlock, summaryBody), ...wasmHandoffChecks(text, lines, jobBlock)].forEach(([name, ok, detail]) => check(name, ok, detail)); // gantt#1163: hosted-browser is waited on wherever hosted is
-check('hosted runs the package size check right after it builds the package', /pnpm build:lib\n\s+working-directory: packages\/gantt\n(?: *#.*\n)*\s+- name: package size\n\s+working-directory: packages\/gantt\n\s+run: node "\$GITHUB_WORKSPACE\/scripts\/package-size\.ts" \.\n/.test((jobBlock(lines, 'hosted') ?? []).join('\n') + '\n'));
+check('hosted runs the package size check right after it builds the package', /pnpm build:lib\n\s+working-directory: packages\/gantt\n(?: *#.*\n)*\s+- name: package size\n\s+id: size\n\s+working-directory: packages\/gantt\n\s+env:\n\s+GITHUB_TOKEN: .*\n\s+run: \|\n(?:\s+.*\n)*?\s+node "\$GITHUB_WORKSPACE\/scripts\/package-size\.ts" \. \|\| rc=\$\?\n/.test((jobBlock(lines, 'hosted') ?? []).join('\n') + '\n'));
 
 const deploy = jobBlock(lines, 'deploy');
 check('job deploy exists', deploy !== null);

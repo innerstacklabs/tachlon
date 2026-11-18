@@ -30,10 +30,13 @@ env:
 jobs:
   # Decides once which tier this run is (scripts/lib/ci-tier.ts: fast, full, nightly or deploy) and whether the code jobs (rust, wasm, web,
   # hosted) run, so no other job guesses. It is on a self-hosted runner (GitHub-hosted minutes are billable on this repo, A devteam-1-375).
-  # Any tier but fast, and anything it cannot judge, says code true. A fast branch says false only when every changed file is a page directly
-  # under docs/ that no test reads: docs/WASM_API.md (the architecture tests) and docs/decisions/ (the architecture tests and the
-  # deploy-conditions test) always say true, and so does a page or path that names an old project name, which the architecture tests scan
-  # for in every tracked file. `ci-summary` reads this output. It also decides which browser specs `web` runs (scripts/lib/touched-specs.ts,
+  # Any tier but fast, and anything it cannot judge, says code true. A fast branch says false only when every changed file is a book chapter
+  # (book/src/*.md), one of the three book-page scripts or a page directly under docs/ that no source names (scripts/lib/docs-only.ts); then
+  # `book` runs the four chapter tests itself. docs/WASM_API.md (the architecture tests) and docs/decisions/ (the architecture tests and the
+  # deploy-conditions test) always say true, and so does a file or path that names an old project name, which the architecture tests scan
+  # for in every tracked file, or a page that names the product. `browser` is true on a false run that changes book/src/SUMMARY.md:
+  # `hosted-browser` (its book spec reads the Welcome page's Next link) and the `wasm` bindings it builds from run then.
+  # `ci-summary` reads this output. It also decides which browser specs `web` runs (scripts/lib/touched-specs.ts,
   # gs#1163): on fast only the specs the diff touches, or none, and never the batch-only measure.spec; on deploy the specs the push's commits touch; on every other tier all of them. It
   # also decides which crates' tests `rust` runs (scripts/lib/touched-crates.ts, gantt#1456): on fast the crates the diff touches and
   # their dependents, or all of them when it cannot tell; on every other tier all of them.
@@ -45,6 +48,7 @@ jobs:
     outputs:
       code: ${{ steps.pick.outputs.code }}
       why: ${{ steps.pick.outputs.why }}
+      browser: ${{ steps.pick.outputs.browser }}
       tier: ${{ steps.tier.outputs.tier }}
       # false only on the deploy tier: it runs the deploy path (wasm, hosted, book) and skips rust, which already passed on the PR head
       # and run again nightly (gs#1117). `web` runs there too when the push touches a browser spec (gantt#1578); `deploy` does not wait for it.
@@ -91,6 +95,7 @@ jobs:
           node scripts/test-ci-tier.ts
           node --test scripts/test-ci-measure.ts
           node scripts/test-ci-wired.ts
+          node scripts/test-docs-only.ts
           node scripts/test-site-claims.ts
           node scripts/test-features-links.ts
           node scripts/features-links.ts apps/site/features.html
@@ -114,38 +119,10 @@ jobs:
         env:
           TIER: ${{ steps.tier.outputs.tier }}
         run: |
-          decide() {
-            echo "code=$1" >> "$GITHUB_OUTPUT"
-            echo "why=$2" >> "$GITHUB_OUTPUT"
-            echo "select: code=$1 ($2)"
-            exit 0
-          }
-          if [ "$TIER" != fast ]; then
-            decide true "the $TIER tier runs every job"
+          if [ "$TIER" = fast ]; then
+            git fetch --no-tags origin main || { printf 'code=true\nbrowser=false\nwhy=could not fetch main\n' >> "$GITHUB_OUTPUT"; exit 0; }
           fi
-          git fetch --no-tags origin main || decide true "could not fetch main"
-          files=$(git diff --name-only --no-renames origin/main...HEAD) || decide true "could not diff against main"
-          [ -n "$files" ] || decide true "no changed files against main to judge"
-          # The old project names, and the product's name, are built here so this file does not hold them (the architecture tests
-          # scan every tracked file for both: the product's name may be written only in the files `name.rs` lists).
-          a=gantt
-          b=spike
-          c=man
-          d=tis
-          e=tach
-          g=lon
-          pattern="${a}[-_]${b}|${c}${d}|${e}${g}"
-          while IFS= read -r f; do
-            case "$f" in
-              docs/WASM_API.md | docs/*/*) decide true "$f is read by a test" ;;
-              docs/*.md) ;;
-              *) decide true "$f is not a page under docs/" ;;
-            esac
-            if printf '%s\n' "$f" | grep -qiE "$pattern" || grep -qiE "$pattern" "$f" 2> /dev/null; then
-              decide true "$f names an old project name or the product, which the architecture tests scan for"
-            fi
-          done <<< "$files"
-          decide false "only docs pages changed: $(printf '%s' "$files" | tr '\n' ' ')"
+          node scripts/docs-only.ts "$TIER" >> "$GITHUB_OUTPUT"
       # Runs after `pick`, which fetched main on fast; a diff it cannot read runs every spec.
       - name: specs
         id: specs
@@ -232,7 +209,7 @@ jobs:
   # The browser app's Rust side: wasm32 clippy and build, then wasm-bindgen, handed to the web job as an artifact.
   wasm:
     needs: select
-    if: ${{ (needs.select.outputs.code == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ (needs.select.outputs.code == 'true' || needs.select.outputs.browser == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci"]') }}
     steps:
       - id: wrap
@@ -477,6 +454,10 @@ jobs:
     if: ${{ (needs.select.outputs.code == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci","tachlon-browser"]') }}
     timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     defaults:
       run:
         working-directory: apps/hosted
@@ -511,9 +492,22 @@ jobs:
       - run: pnpm build:lib
         working-directory: packages/gantt
       # The package size check runs where the package is built: `web` is skipped when only a README changes, `hosted` is not.
+      # A branch fails when its tarball grew over 8192 B since its merge base, whose size main's run recorded (scripts/package-size.ts,
+      # docs/CONTRIBUTING.md "Package size"); main only records its size. It reads runs, artifacts and the branch's pull request body, so the job grants read scopes only.
       - name: package size
+        id: size
         working-directory: packages/gantt
-        run: node "$GITHUB_WORKSPACE/scripts/package-size.ts" .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          rc=0
+          node "$GITHUB_WORKSPACE/scripts/package-size.ts" . || rc=$?
+          # Exit 2 is "unknown": no size was compared, so it is a warning and never a pass; the lines above say why.
+          if [ "$rc" = 2 ]; then echo "::warning title=package size unknown::the tarball was not compared with its merge base"; elif [ "$rc" != 0 ]; then exit "$rc"; fi
+      - name: record package size
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.size.outputs.bytes != '' }}
+        uses: actions/upload-artifact@v4
+        with: {name: "package-size-${{ steps.size.outputs.bytes }}", path: "${{ runner.temp }}/package-size.txt", retention-days: 90}
       # The product page's hero chart mounts from this build (the deploy job stages it as package/ beside apps/site).
       - uses: actions/upload-artifact@v4
         with:
@@ -556,7 +550,7 @@ jobs:
   # job too (scripts/test-deploy-conditions.mjs checks it), so nothing deploys or reports green before both pass.
   hosted-browser:
     needs: [select, wasm, book]
-    if: ${{ (needs.select.outputs.code == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ (needs.select.outputs.code == 'true' || needs.select.outputs.browser == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci","tachlon-browser"]') }}
     timeout-minutes: 20
     defaults:
@@ -619,8 +613,9 @@ jobs:
           PLAYWRIGHT_HTML_OPEN: never
           SMOKE_ONLY: ${{ needs.select.outputs.tier == 'fast' && '@smoke' || '' }}
           HOSTED_SPECS: ${{ needs.select.outputs.hosted_specs }}
-          HOSTED_GREP: ${{ needs.select.outputs.hosted_grep }}
-        # A touched spec joins @smoke through --grep, which Playwright matches against the file name too; `all` drops the filter.
+          HOSTED_GREP: ${{ needs.select.outputs.browser == 'true' && 'book-next-arrow' || needs.select.outputs.hosted_grep }}
+        # A touched spec joins @smoke through --grep, which Playwright matches against the file name too; `all` drops the filter. A run that only
+        # changes book/src/SUMMARY.md (browser true) adds the book spec.
         run: |
           [ "$HOSTED_SPECS" = all ] && SMOKE_ONLY=
           [ -n "$SMOKE_ONLY" ] && [ -n "$HOSTED_GREP" ] && SMOKE_ONLY="$SMOKE_ONLY|$HOSTED_GREP"
@@ -653,6 +648,7 @@ jobs:
     timeout-minutes: 10
     env:
       CODE: ${{ needs.select.outputs.code }}
+      BROWSER: ${{ needs.select.outputs.browser }}
     steps:
       - uses: actions/checkout@v4
       - uses: taiki-e/install-action@v2
@@ -684,10 +680,21 @@ jobs:
         run: |
           rows=$(grep -c '<tr>' book/book/keys.html || true)
           test "$rows" -ge 5 || { echo "::error::book/book/keys.html has $rows table rows; the keys anchor in docs/KEYS.md is missing or empty"; exit 1; }
+      # `smoke` runs every tests-node file when the code jobs run; a run that skips them (select, `pick`) gets the four chapter tests here.
+      - if: ${{ env.CODE != 'true' }}
+        uses: pnpm/action-setup@v4
+        with: {package_json_file: "${{ env.WEB_ROOT }}/package.json", dest: "~/setup-pnpm-${{ runner.name }}"}
+      - name: chapter tests (code jobs skipped)
+        if: ${{ env.CODE != 'true' }}
+        working-directory: ${{ env.WEB_ROOT }}
+        run: |
+          pnpm install --frozen-lockfile
+          node --test tests-node/book-*.test.ts
       # The built book is kept for one day, and only when a job that reads it runs: hosted-browser (the book spec) and deploy (publishes it to
-      # Pages). Both need code == 'true' (hosted-browser's own `if:`; deploy needs hosted, which has the same one), so a docs-only run uploads none.
+      # Pages). hosted-browser runs when code or browser is 'true' (its own `if:`); deploy needs hosted, which needs code, so a docs-only run
+      # that changes no contents page uploads none.
       - uses: actions/upload-artifact@v4
-        if: ${{ env.CODE == 'true' }}
+        if: ${{ env.CODE == 'true' || env.BROWSER == 'true' }}
         with:
           name: book
           path: book/book/
@@ -705,6 +712,7 @@ jobs:
       CODE: ${{ needs.select.outputs.code }}
       FULL: ${{ needs.select.outputs.full }}
       WHY: ${{ needs.select.outputs.why }}
+      BROWSER: ${{ needs.select.outputs.browser }}
       SELECT: ${{ needs.select.result }}
       RUST: ${{ needs.rust.result }}
       WASM: ${{ needs.wasm.result }}
@@ -747,7 +755,9 @@ jobs:
               if [ "$FULL" = false ] && { [ "${pair%%:*}" = rust ] || [ "${pair%%:*}" = smoke ]; }; then w=skipped; fi
               # On fast with no browser spec touched, select skips web (gs#1163).
               if [ "$want" = success ] && [ "$WEB_SET" = none ] && [ "${pair%%:*}" = web ]; then w=skipped; fi
-              [ "${pair#*:}" = "$w" ] || fail "${pair%%:*}: ${pair#*:}, wanted $w (select code=$CODE full=$FULL)"
+              # On a run that skips the code jobs but changes book/src/SUMMARY.md, hosted-browser runs, and wasm builds the bindings it needs.
+              if [ "$want" = skipped ] && [ "$BROWSER" = true ] && { [ "${pair%%:*}" = wasm ] || [ "${pair%%:*}" = hosted-browser ]; }; then w=success; fi
+              [ "${pair#*:}" = "$w" ] || fail "${pair%%:*}: ${pair#*:}, wanted $w (select code=$CODE browser=$BROWSER full=$FULL)"
             done
           fi
           if [ "$bad" -ne 0 ]; then
@@ -760,8 +770,10 @@ jobs:
             echo "ci-summary: PASS. rust, wasm, smoke, hosted, hosted-browser (@smoke) and book passed; web ran ${WEB_SET} of the browser specs (the touched ones)." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$CODE" = true ]; then
             echo "ci-summary: PASS. rust, wasm, smoke, web, hosted, hosted-browser and book all passed." | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$BROWSER" = true ]; then
+            echo "ci-summary: PASS BY DECISION, code jobs SKIPPED (rust, smoke, web, hosted not run); wasm and hosted-browser (@smoke and the book spec) ran because book/src/SUMMARY.md changed, and book ran the chapter tests. select: $WHY" | tee -a "$GITHUB_STEP_SUMMARY"
           else
-            echo "ci-summary: PASS BY DECISION, code jobs SKIPPED (rust, wasm, smoke, web, hosted, hosted-browser not run). select: $WHY" | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "ci-summary: PASS BY DECISION, code jobs SKIPPED (rust, wasm, smoke, web, hosted, hosted-browser not run); book ran the chapter tests. select: $WHY" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
 
   # The user guide, hosted on Cloudflare Pages (project gantt-book) behind a Cloudflare Access app (the ACCESS_GATE switch below; docs/ACCESS.md).
