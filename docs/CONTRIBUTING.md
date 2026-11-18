@@ -32,7 +32,7 @@ For the web package, run `bash scripts/build-web.sh --no-bundle` at the root, th
 
 Check 13 (`the_old_name_stays_out_of_the_repository` in `crates/app/tests/architecture/name.rs`) also keeps the product's name in a few files. A tracked file, or a tracked path, may name the product, in any case, only if it is in `BRAND_FILES` (the README, `apps/site/`, `book/`, `docs/PRODUCT.md`, `docs/decisions/` and five files of `packages/gantt/`) or is under `examples/`; every other line that names it is one failure. That includes scripts, tests, fixtures, the other docs and this guide. A script or test that needs the name reads `PRODUCT_NAME` from `packages/gantt/src/product.ts`, or uses a neutral name. Do not add a file to `BRAND_FILES` to pass the check: the list only shrinks (decision 0013 in `docs/decisions/`).
 
-A pull request with a user-visible change adds its line to the newest entry of `CHANGELOG.md`: what a developer must change, or what is new.
+A pull request with a user-visible change adds its line under `## Unreleased` in `CHANGELOG.md`, never under a published version: what a developer must change, or what is new. `packages/gantt/tests-node/changelog-sealed.test.ts` fails when a section whose version is in `packages/gantt/releases.json` differs from its `changelog` digest there; the release pull request renames `## Unreleased` to the new version and records the digest the test prints.
 
 ## Checking the install prompt
 
