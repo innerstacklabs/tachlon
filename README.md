@@ -59,7 +59,7 @@ With Vite, add `optimizeDeps: { exclude: ["tachlon"] }` to `vite.config.ts` ([ex
 
 ## A developer experience for you and your assistant
 
-Install is one prompt; the npm command is the second route. The package carries its own instructions (`AGENTS.md`), so your assistant reads the guide for the version it installed, not a web page that may describe another version. It checks its own work with `npx tachlon doctor`, and its errors name their fix, so a mistake is corrected without a person. `npx tachlon init --skill` writes a skill file that tells the assistant when to use the package and where its guide is ([Add it to a Vite app](packages/gantt/README.md#add-it-to-a-vite-app)).
+Install is one prompt; the npm command is the second route. The package carries its own instructions (`AGENTS.md`), so your assistant reads the guide for the version it installed, not a web page that may describe another version. It checks its own work with `npx tachlon doctor`, and each finding it prints has a `fix`, so your assistant reads what failed without parsing text. `npx tachlon init --skill` writes a skill file that tells the assistant when to use the package and where its guide is ([Add it to a Vite app](packages/gantt/README.md#add-it-to-a-vite-app)).
 
 What is in the box for an assistant, yours or the one in your product:
 
@@ -70,11 +70,11 @@ What is in the box for an assistant, yours or the one in your product:
 | [`tachlon doctor`](packages/gantt/README.md#check-an-install-with-tachlon-doctor) | Reads the project, writes nothing, and prints a fix under each failed check. |
 | [`validate`](packages/gantt/README.md#start-errors) | Checks plain task data without mounting the chart. |
 | [`init --skill`](packages/gantt/README.md#add-it-to-a-vite-app) | Writes `.claude/skills/tachlon/SKILL.md`: when to use the package, where its `AGENTS.md` is, and what never to do. |
-| [Engine tools](packages/gantt/README.md#tools-for-an-ai-assistant) | `toolDefinitions` gives the assistant in your product six typed tools that ask the engine about the schedule. |
+| [Engine tools](packages/gantt/README.md#tools-for-an-ai-assistant) | `toolDefinitions` gives the assistant in your product six typed tools: five ask the engine about the schedule, and one holds an edit for a person to accept. |
 | [In-chart assistant](packages/gantt/README.md#tools-for-an-ai-assistant) | Give `mount` an `assistant` option and the chart puts a chat box beside itself. Your own `send` calls your model. |
 | [Headless engine](packages/gantt/README.md#tools-for-an-ai-assistant) | `openHeadless` from `tachlon/headless` runs the engine in Node with no page, so an agent can check a schedule. |
 
-Coming, and not in the package yet: a `describe` command will list every option, event, command and CSS token of the version you installed, generated from the types, and a prompt will let your assistant turn the user guide into your own product's documentation ([#20](https://github.com/innerstacklabs/tachlon/issues/20)).
+Coming, and not in the package yet: a `describe` command will list every option, event, command and CSS token of the version you installed, generated from the types, and a prompt will let your assistant turn the user guide into your own product's documentation ([#20](https://github.com/innerstacklabs/tachlon/issues/20), [#23](https://github.com/innerstacklabs/tachlon/issues/23)).
 
 ## What your code can do
 
