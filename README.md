@@ -44,7 +44,7 @@ Prefer to do it yourself? See [Install by hand](#install-by-hand).
 - **Scheduling.** Four link types with lag and lead, dates recomputed from the links on every edit, critical path, eight constraint types, working calendars with holidays and a calendar per task, baselines with variance, progress against a data date, summary tasks and milestones.
 - **Answers.** Schedule-quality checks, what-if, "why does this task start here", and a comparison with an earlier file.
 - **Editing.** A task dialog, inline cells, drag to move, resize and link, grouping, and undo and redo.
-- **Files.** Opens and saves Primavera P6 XER and MS Project XML inside the browser, with no server or conversion service for you to run. Exports Excel, PDF and PNG, and prints with a header, page numbers and a legend.
+- **Files.** Opens and saves Primavera P6 XER and MS Project XML inside the browser, with no server or conversion service for you to run. The [live demo](https://app.tachlon.com) reads your file in the browser and sends it nowhere. Exports Excel, PDF and PNG, and prints with a header, page numbers and a legend.
 - **Display.** 50,000 tasks open and scroll. Zoom from years to hours, light and dark themes, a color per bar, keyboard navigation, screen-reader access to the bars, translated text and right-to-left layout.
 
 Every feature is a row in [Compared](#compared).
