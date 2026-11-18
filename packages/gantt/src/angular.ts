@@ -34,6 +34,7 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
   @Input() options?: MountOptions["options"];
   @Input() forceWebgl?: boolean;
   @Input() readOnly?: boolean;
+  @Input() beforeEdit?: MountOptions["beforeEdit"];
   @Input() wasmUrl?: MountOptions["wasmUrl"];
   @Input() locale?: MountOptions["locale"];
   @Input() texts?: MountOptions["texts"];
@@ -85,7 +86,7 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
       if (stopped) return;
       const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts } = this;
       try {
-        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: this.readOnly }));
+        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: this.readOnly, beforeEdit: (change) => this.beforeEdit?.(change) }));
       } catch (error) {
         return void (stopped || this.errors.handleError(error));
       }

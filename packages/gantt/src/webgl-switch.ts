@@ -36,6 +36,7 @@ export interface Run {
   file: FileRecord | null;
   /** Whether the host has the chart read-only now: the start passes it to its app as the app is made. */
   readOnly: () => boolean;
+  beforeEdit: MountOptions["beforeEdit"];
 }
 
 /** A file the chart opened: what was read, the importer's notes, and the notes the host said to leave out of the toolbar. */
@@ -197,7 +198,7 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
     // The old start's loop has stopped: the new start's first status is compared with nothing, and its view state fires one `change`.
     events.restart();
     try {
-      current = await startWebgl(start, source, { forceWebgl: true, fallback: why, events, reads, lost, first: false, unsaved, file, readOnly: readOnlyNow });
+      current = await startWebgl(start, source, { forceWebgl: true, fallback: why, events, reads, lost, first: false, unsaved, file, readOnly: readOnlyNow, beforeEdit: options.beforeEdit });
       kept = null;
       if (destroyed) {
         current.gantt.destroy();
@@ -235,13 +236,13 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
   }
 
   try {
-    current = await start(options.schedule, { forceWebgl: forced, fallback: pageFallback, events, reads, lost, first: true, unsaved: false, file: null, readOnly: readOnlyNow });
+    current = await start(options.schedule, { forceWebgl: forced, fallback: pageFallback, events, reads, lost, first: true, unsaved: false, file: null, readOnly: readOnlyNow, beforeEdit: options.beforeEdit });
   } catch (err) {
     // A WebGPU start that failed without a panic starts again on WebGL2; a panic, or a WebGL2 start that failed, is the caller's.
     // `last_panic` is asked last: it needs the engine, which a `"engine"` failure never loaded.
     if (forced || !(err instanceof MountError) || err.stage !== "render" || last_panic() != null) throw err;
     console.warn(`gantt: WebGPU failed to start: ${err.message}`);
-    current = await start(options.schedule, { forceWebgl: true, fallback: err.message, events, reads, lost, first: false, unsaved: false, file: null, readOnly: readOnlyNow });
+    current = await start(options.schedule, { forceWebgl: true, fallback: err.message, events, reads, lost, first: false, unsaved: false, file: null, readOnly: readOnlyNow, beforeEdit: options.beforeEdit });
     announce(`WebGPU failed, so the chart draws with WebGL2: ${err.message}`);
   }
 

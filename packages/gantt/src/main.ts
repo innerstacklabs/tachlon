@@ -1,6 +1,6 @@
 // The developer page (plan D2): it reads the URL knobs, then starts the chart through `mount` in `index.ts` and puts the app's chrome
 // (`@gantt/chrome`, the Filters menu and the find box) into it, as the hosted app does. The status line is this page's own.
-// `?n`, `?stress`, `?groups`, `?schedule`, `?backend=webgl`, `?fallback`, `?measure` (and its options, which also run on `?schedule`) and `?panic=init`
+// `?n`, `?stress`, `?groups`, `?schedule`, `?backend=webgl`, `?fallback`, `?beforeEdit`, `?measure` (and its options, which also run on `?schedule`) and `?panic=init`
 // are this page's; a host page gets none of them. Everything about the schedule and the drawing lives in the WASM
 // module, and the chart's wiring lives in `index.ts`.
 import { measureConfig } from "./measure.js";
@@ -91,7 +91,7 @@ async function main(): Promise<void> { // oxlint-disable-line max-lines-per-func
       // A panic leaves the module unusable, so this page starts again: on WebGL2 when WebGPU panicked, as it is otherwise.
       restart: (why) => (why !== null && !forceWebgl ? fallBackToWebgl(why) : location.reload()),
     });
-    const gantt = await mount(root, { schedule, forceWebgl });
+    const gantt = await mount(root, { schedule, forceWebgl, beforeEdit: params.has("beforeEdit") ? () => undefined : undefined });
     installChrome(gantt, root);
     gantt.on("toggle-status", statusLine.toggle);
   } catch (err) {

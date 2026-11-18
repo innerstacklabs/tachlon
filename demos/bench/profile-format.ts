@@ -15,6 +15,8 @@ export interface Args {
   ghosts: number;
   /** `--groups <k>`: the drag page groups its stress fixture by a `Phase` code with this many values (the page's `?groups=`); 0 is the plain fixture. */
   groups: number;
+  /** `--before-edit` (with `--drag`): the drag page hands the chart a before-edit function that allows every change (the page's `?beforeEdit`). */
+  beforeEdit: boolean;
   /** `--build-only`: build the bundles, print where they are and stop; nothing runs on the mini. */
   buildOnly: boolean;
   /** `--holder <name>`: the name this task took the mini's lock under; the command runs on the mini only while that is the lock's holder. */
@@ -30,12 +32,12 @@ export const lockProblem = (who: string, holder: string | null): string | undefi
 
 const DEFAULTS = { ghosts: "0", groups: "0", runs: "3", out: "profile-out", host: "mini", chrome: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", seed: "20261020" };
 
-/** `--cell <shape>-<size>` plus optional `--runs --compare --out --host --chrome --seed` `--ghosts` `--groups` and the flags `--memory-infra`, `--build-only` and `--drag`; undefined for anything else. */
+/** `--cell <shape>-<size>` plus optional `--runs --compare --out --host --chrome --seed` `--ghosts` `--groups` and the flags `--memory-infra`, `--build-only`, `--drag` and `--before-edit`; undefined for anything else. */
 export function parseArgs(argv: string[]): Args | undefined {
   const got = new Map<string, string>();
   const flags = new Set<string>();
   for (let i = 0; i < argv.length; i += 2) {
-    if (argv[i] === "--memory-infra" || argv[i] === "--drag" || argv[i] === "--build-only") {
+    if (argv[i] === "--memory-infra" || argv[i] === "--drag" || argv[i] === "--before-edit" || argv[i] === "--build-only") {
       if (flags.has(argv[i])) return undefined;
       flags.add(argv[i]);
       i--; // the flag has no value: the loop's step of 2 then moves on by one
@@ -49,8 +51,8 @@ export function parseArgs(argv: string[]): Args | undefined {
   }
   const cell = got.get("cell");
   const o = { ...DEFAULTS, ...Object.fromEntries(got) };
-  if (!cell || !/^[a-z0-9]+-\d+$/.test(cell) || !/^[1-9]\d*$/.test(o.runs) || !/^\d+$/.test(o.seed) || !/^\d+$/.test(o.ghosts) || !/^[1-9]\d*$/.test(got.get("groups") ?? "1") || (got.has("groups") && !flags.has("--drag"))) return undefined;
-  return { cell, runs: Number(o.runs), compare: got.get("compare") ?? null, out: o.out, host: o.host, chrome: o.chrome, seed: o.seed, memoryInfra: flags.has("--memory-infra"), drag: flags.has("--drag"), ghosts: Number(o.ghosts), groups: Number(o.groups), buildOnly: flags.has("--build-only"), holder: got.get("holder") ?? null };
+  if (!cell || !/^[a-z0-9]+-\d+$/.test(cell) || !/^[1-9]\d*$/.test(o.runs) || !/^\d+$/.test(o.seed) || !/^\d+$/.test(o.ghosts) || !/^[1-9]\d*$/.test(got.get("groups") ?? "1") || ((got.has("groups") || flags.has("--before-edit")) && !flags.has("--drag"))) return undefined;
+  return { cell, runs: Number(o.runs), compare: got.get("compare") ?? null, out: o.out, host: o.host, chrome: o.chrome, seed: o.seed, memoryInfra: flags.has("--memory-infra"), drag: flags.has("--drag"), ghosts: Number(o.ghosts), groups: Number(o.groups), beforeEdit: flags.has("--before-edit"), buildOnly: flags.has("--build-only"), holder: got.get("holder") ?? null };
 }
 
 /**

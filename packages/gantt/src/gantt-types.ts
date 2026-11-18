@@ -6,10 +6,16 @@ import type { Send } from "./assistant/loop.js";
 import type { PageSize } from "./api.js";
 import type { Commands } from "./commands.js";
 import type { ChecksReport, ExportResult, LoadResult, LoadSource } from "./document.js";
-import type { HasOn } from "./events.js";
+import type { Change, CommitSource, HasOn } from "./events.js";
 import type { OpenOptions } from "./open-schedule.js";
 import type { Speed } from "./speed.js";
 import type { FilterInputs, ViewState } from "./view-state.js";
+
+/** What the before-edit function is asked: the action (`kind`), what made it, the session slots of the tasks it touches and the changes it would make, as the `edit` event writes them. A change whose value is not known yet has no `new`. */
+export interface BeforeEditChange { kind: string; source: CommitSource; tasks: readonly number[]; changes: readonly Change[] }
+
+/** The answer: `undefined`, `null` or `true` allows the change; a string refuses it with that reason, which the chart shows; `false` refuses it with the chart's own sentence. Answer at once: a promise, a throw or any other value refuses the change and fires `error` with the source `beforeEdit`. Never call the chart from inside it. */
+export type BeforeEdit = (change: BeforeEditChange) => string | boolean | null | undefined;
 
 /** What `mount` takes: a `schedule`, a saved `document`, or `tasks` and `links` as `fromTasks` reads them; with none of the three the chart starts with no tasks and waits for `load`. */
 export interface MountOptions {
@@ -36,6 +42,8 @@ export interface MountOptions {
   forceWebgl?: boolean;
   /** Start the chart read-only (`Gantt.setReadOnly`). Without it the chart can be edited. */
   readOnly?: boolean;
+  /** A function the chart asks before each change a person makes; it can refuse the change with a reason the chart shows (README, "Control editing"). Without it every change goes ahead. */
+  beforeEdit?: BeforeEdit;
   /** Where to fetch the engine file (`app_bg.wasm`) from, a URL or an address read against the page's own. Without it the chart loads the file beside its script (`dist-lib/app_bg.wasm`). When `preloadEngine` already started the load, its `wasmUrl` is the one used. */
   wasmUrl?: string | URL;
   /** The language and region the chart runs in, a BCP 47 tag such as `"de"` or `"pt-BR"`: it is written as the root's `lang`, and the chart's numbers show in that region's style (`1.234,5` for `"de"`). Without it the numbers read as `"en-US"` and the root's `lang` stays the page's own. A tag that is not a language tag rejects `mount` with a `RangeError`, before it touches the root. */

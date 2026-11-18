@@ -8,7 +8,7 @@ import { allocatorTable, clusterTable, compareTable, foldStacks, holdGhosts, isO
 const run = (ready: number, peak = 100 * 1048576): Run => ({ marks: { "library-ready": 300, "data-start": 301, "mount-start": 500 }, readyMs: ready, peakLive: peak, allocations: 5000, memoryBuffer: 256 * 1048576, gpuProcess: 64 * 1048576 });
 
 test("arguments: a cell is required, the rest default, and anything else is refused", () => {
-  assert.deepEqual(parseArgs(["--cell", "chain-10000", "--runs", "5", "--compare", "main"]), { cell: "chain-10000", runs: 5, compare: "main", out: "profile-out", host: "mini", chrome: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", seed: "20261020", memoryInfra: false, drag: false, ghosts: 0, groups: 0, buildOnly: false, holder: null });
+  assert.deepEqual(parseArgs(["--cell", "chain-10000", "--runs", "5", "--compare", "main"]), { cell: "chain-10000", runs: 5, compare: "main", out: "profile-out", host: "mini", chrome: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", seed: "20261020", memoryInfra: false, drag: false, ghosts: 0, groups: 0, beforeEdit: false, buildOnly: false, holder: null });
   assert.equal(parseArgs(["--cell", "chain-10", "--compare", "main", "--drag"])?.drag, true);
   assert.deepEqual([parseArgs(["--cell", "tree4-50000", "--drag", "--runs", "3"])?.drag, parseArgs(["--cell", "tree4-50000", "--drag"])?.compare], [true, null]);
   for (const bad of [[], ["--cell", "chain"], ["--cell", "chain-10", "--runs", "0"], ["--cell", "chain-10", "--cell", "chain-20"], ["--cell", "chain-10", "--nope", "1"], ["--cell", "chain-10", "--runs"], ["--cell", "chain-10", "--memory-infra", "--memory-infra"], ["--cell", "chain-10", "--drag", "--drag"], ["--cell", "chain-10", "--compare", "main", "--drag", "--drag"]]) assert.equal(parseArgs(bad), undefined);
@@ -112,6 +112,11 @@ test("--groups takes a positive count and only with --drag; absent it is 0", () 
   assert.equal(parseArgs(["--cell", "tree4-50000", "--drag", "--groups", "12"])?.groups, 12);
   assert.equal(parseArgs(["--cell", "tree4-50000", "--drag"])?.groups, 0);
   for (const bad of [["--groups", "0", "--drag"], ["--groups", "x", "--drag"], ["--groups"], ["--groups", "12"], ["--groups", "2", "--groups", "3", "--drag"]]) assert.equal(parseArgs(["--cell", "tree4-50000", ...bad]), undefined);
+});
+
+test("--before-edit is a flag with no value, given once, and only with --drag", () => {
+  assert.equal(parseArgs(["--cell", "tree4-50000", "--drag", "--before-edit"])?.beforeEdit, true);
+  for (const bad of [["--before-edit"], ["--drag", "--before-edit", "--before-edit"]]) assert.equal(parseArgs(["--cell", "tree4-50000", ...bad]), undefined);
 });
 
 test("--ghosts takes a count, and holdGhosts holds week-late starts until that many tasks would move", () => {

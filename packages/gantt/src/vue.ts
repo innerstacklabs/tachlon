@@ -33,6 +33,7 @@ export const Gantt = defineComponent({
     options: { type: Object as PropType<NonNullable<MountOptions["options"]>>, default: undefined },
     forceWebgl: { type: Boolean, default: undefined },
     readOnly: { type: Boolean, default: undefined },
+    beforeEdit: { type: Function as PropType<NonNullable<MountOptions["beforeEdit"]>>, default: undefined },
     wasmUrl: { type: null as unknown as PropType<NonNullable<MountOptions["wasmUrl"]>>, default: undefined },
     locale: { type: String, default: undefined },
     texts: { type: Object as PropType<NonNullable<MountOptions["texts"]>>, default: undefined },
@@ -73,7 +74,7 @@ export const Gantt = defineComponent({
       queue = queue.then(async () => {
         if (stopped) return;
         try {
-          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly });
+          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly, beforeEdit: (change) => props.beforeEdit?.(change) });
         } catch (error) {
           return void (stopped || (failure.value = { error }));
         }

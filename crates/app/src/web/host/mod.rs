@@ -4,6 +4,7 @@
 //! (`insert_task`, `set_baseline` and the rest) keep throwing that sentence; the `try_` exports run the same
 //! session calls. `edits`, `proposals` and `reads` hold one kind each; this file holds what they share.
 
+mod before_edit;
 mod edits;
 mod keys;
 mod proposals;
