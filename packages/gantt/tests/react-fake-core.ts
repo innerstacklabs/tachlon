@@ -8,7 +8,7 @@ export async function mount(_root?: unknown, options?: unknown) {
   const hs = new Set<[string, H]>();
   let loaded = false;
   Promise.resolve().then(() => Promise.resolve().then(() => { for (const n of ["change", "load"]) hs.forEach(([k, h]) => k === n && h({})); loaded = true; }));
-  const chart = { destroy() { ((globalThis as { destroyed?: unknown[] }).destroyed ??= []).push(chart); }, setReadOnly(on: boolean) { ((globalThis as { switched?: boolean[] }).switched ??= []).push(on); }, setCapabilities(profile?: object) { ((globalThis as { profiled?: unknown[] }).profiled ??= []).push(profile ?? null); }, on(n: string, h: H) { ((globalThis as { listened?: string[] }).listened ??= []).push(n); const e: [string, H] = [n, h]; hs.add(e); if (n === "load" && loaded) queueMicrotask(() => hs.has(e) && h({})); return () => void hs.delete(e); } };
+  const chart = { destroy() { ((globalThis as { destroyed?: unknown[] }).destroyed ??= []).push(chart); }, setReadOnly(on: boolean) { ((globalThis as { switched?: boolean[] }).switched ??= []).push(on); }, setCapabilities(profile?: object) { if ((profile as { bad?: unknown } | undefined)?.bad) throw new Error("bad profile"); ((globalThis as { profiled?: unknown[] }).profiled ??= []).push(profile ?? null); }, on(n: string, h: H) { ((globalThis as { listened?: string[] }).listened ??= []).push(n); const e: [string, H] = [n, h]; hs.add(e); if (n === "load" && loaded) queueMicrotask(() => hs.has(e) && h({})); return () => void hs.delete(e); } };
   ((globalThis as { charts?: unknown[] }).charts ??= []).push(chart);
   return chart;
 }

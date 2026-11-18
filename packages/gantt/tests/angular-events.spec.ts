@@ -68,3 +68,12 @@ test("a new `capabilities` reaches the chart that is mounted without mounting it
   await page.evaluate("change(2)");
   expect.soft(await page.evaluate((p) => (window as any).caps(p), profile), "the next mount starts on the latest profile").toMatchObject({ mounts: [null, profile] });
 });
+
+test("a profile the chart rejects while `mount` is pending goes to the `ErrorHandler` and does not stall the next mount", async ({ page }) => {
+  const base = server.resolvedUrls!.local[0]!;
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction("window.start");
+  await page.evaluate("start()");
+  expect.soft(await page.evaluate("badCaps()"), "each start with the profile reports it, and a later start still mounts").toMatchObject({ errors: ["bad profile", "bad profile"], mounts: [1, 2, 3] });
+});

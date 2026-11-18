@@ -21,6 +21,7 @@ Object.assign(window, {
   listen: () => (outputs.chartFind!.subscribe(() => {}), report()),
   flip: (on: boolean) => ((chart.readOnly = on), chart.ngOnChanges({ readOnly: on } as never), report().then(() => ({ mounts: (g.mounts ?? []).length, switched: [...(g.switched ?? [])] }))),
   caps: (value?: object) => ((chart.capabilities = value), chart.ngOnChanges({ capabilities: value } as never), report().then(() => ({ mounts: (g.mounts ?? []).map((o) => o.capabilities ?? null), profiled: [...(g.profiled ?? [])] }))),
+  badCaps: () => { let release!: () => void; (globalThis as { gate?: Promise<void> }).gate = new Promise<void>((done) => (release = done)); const wait = (ms: number) => new Promise((done) => setTimeout(done, ms)); set({ demo: 2 }); return wait(100).then(() => ((chart.capabilities = { bad: 1 } as never), release(), report())).then(() => (set({ demo: 3 }), report())); },
   hold: () => { let release!: () => void; (globalThis as { gate?: Promise<void> }).gate = new Promise<void>((done) => (release = done)); const wait = (ms: number) => new Promise((done) => setTimeout(done, ms)); set({ demo: 2 }); return wait(100).then(() => ((chart.readOnly = true), chart.ngOnChanges({ readOnly: true } as never), wait(100))).then(() => (release(), report())).then(() => [...(g.switched ?? [])]); },
   fail: () => (set({ fail: 1 }), report()),
   stop: () => (chart.ngOnDestroy(), report()),

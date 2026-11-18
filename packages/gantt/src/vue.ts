@@ -82,7 +82,7 @@ export const Gantt = defineComponent({
         if (stopped) return started.destroy();
         live = { chart: started, heard: new Map(), loaded: false };
         started.setReadOnly(props.readOnly === true); // a change while `mount` was pending found no chart to switch
-        started.setCapabilities(props.capabilities);
+        try { started.setCapabilities(props.capabilities); } catch (error) { return void (failure.value = { error }); } // a profile the chart rejects fails like a start
         listen();
         emit("ready", started);
       });

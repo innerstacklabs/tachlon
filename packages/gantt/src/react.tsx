@@ -84,7 +84,7 @@ export function Gantt(props: GanttProps): JSX.Element {
       }
       if (stopped) return started.destroy();
       live.current = { chart: started, heard: new Map(), loaded: false };
-      (started.setReadOnly(latest.current.readOnly === true), started.setCapabilities(latest.current.capabilities)); // a change while `mount` was pending found no chart to switch
+      try { started.setReadOnly(latest.current.readOnly === true), started.setCapabilities(latest.current.capabilities); } catch (error) { return setFailure({ error }); } // a change while `mount` was pending found no chart to switch; a profile the chart rejects fails like a start
       listen();
       try {
         latest.current.onReady?.(started);

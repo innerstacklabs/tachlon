@@ -95,7 +95,7 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
       if (stopped) return started.destroy();
       const chart = (this.chart = started);
       chart.setReadOnly(this.readOnly === true); // a change while `mount` was pending found no chart to switch
-      chart.setCapabilities(this.capabilities);
+      try { chart.setCapabilities(this.capabilities); } catch (error) { return void this.errors.handleError(error); } // a profile the chart rejects fails like a start
       stops = EVENTS.filter(([output]) => this[output].observed).map(([output, name]) => (chart.on as Listen)(name, (detail) => this.zone.run(() => (this[output] as EventEmitter<unknown>).emit(detail))));
       this.zone.run(() => this.ready.emit(chart));
     });
