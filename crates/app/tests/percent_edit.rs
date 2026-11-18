@@ -230,6 +230,22 @@ fn a_summary_is_refused() {
 }
 
 #[test]
+fn an_empty_progress_edit_of_a_task_that_does_not_exist_is_unknown() {
+    let mut s = common::collapse::session(60);
+    let (task, empty) = (TaskId(9999), (None, None, None));
+    let edit = app::edit::Edit::SetProgress {
+        task,
+        actual_start: empty.0,
+        actual_finish: empty.1,
+        remaining: empty.2,
+    };
+    assert_eq!(
+        s.edit(edit),
+        Err(engine::ScheduleError::UnknownTask(task).into())
+    );
+}
+
+#[test]
 fn a_typed_0_on_a_summary_is_refused() {
     let mut s = common::collapse::session(60);
     let summary = common::collapse::summaries(&s)[0];

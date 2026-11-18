@@ -69,8 +69,10 @@ impl Session {
         else {
             return false;
         };
-        let summary = self.outline.as_ref().is_some_and(|o| o.is_summary(*task));
-        if self.busy() || summary || !self.is_live(*task) {
+        if self.busy() || !self.is_live(*task) {
+            return false;
+        }
+        if self.outline.as_ref().is_some_and(|o| o.is_summary(*task)) {
             return false;
         }
         let held = &self.schedule.tasks()[task.0 as usize];
