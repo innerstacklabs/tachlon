@@ -5,7 +5,7 @@ import type { BeforeEditChange, Gantt, GanttEvents } from "../src/index";
 import { chromePath } from "./support/knobs";
 
 declare global {
-  interface Window { beChart: Gantt; asked: BeforeEditChange[]; errors: GanttEvents["error"][]; mountBe(code: string, options?: Record<string, unknown>): Promise<unknown> }
+  interface Window { beChart: Gantt; asked: BeforeEditChange[]; answers: unknown[]; errors: GanttEvents["error"][]; mountBe(code: string, options?: Record<string, unknown>): Promise<unknown> }
 }
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">
   import { mount } from "/src/index.ts";
@@ -70,7 +70,7 @@ test("a drag asks once, when it starts, and not again while it moves or when it 
 });
 
 test("a function that throws, answers with a promise or calls the chart refuses the edit with the default sentence and fires one error event", async ({ page }) => {
-  for (const code of [`() => { throw new Error("boom"); }`, `async () => undefined`, `() => { window.beChart.insertRow(); }`]) {
+  for (const code of [`() => { throw new Error("boom"); }`, `async () => undefined`, `() => { window.beChart.toDocument(); }`]) {
     await mountHost(page, code);
     const [before, rows] = [await doc(page), await page.evaluate(() => window.beChart.state().rowCount)];
     await typeDuration(page);
@@ -79,6 +79,15 @@ test("a function that throws, answers with a promise or calls the chart refuses 
     expect(await page.evaluate(() => window.beChart.state().rowCount), `${code}: no row was added`).toBe(rows);
     expect(await page.evaluate(() => window.errors.map(({ source, fatal }) => `${source} ${fatal}`)), code).toEqual(["beforeEdit false"]);
   }
+});
+
+test("a command called from inside the function returns busy and does nothing, so the edit goes on", async ({ page }) => {
+  await mountHost(page, `() => { window.answers = [window.beChart.commands.insertRow()]; }`);
+  const rows = await page.evaluate(() => window.beChart.state().rowCount);
+  await typeDuration(page);
+  await expect(page.locator("#table-rows .row").nth(6).locator(".dur")).toHaveText(/17/);
+  expect(await page.evaluate(() => window.answers), "the command answers busy").toMatchObject([{ ok: false, reason: "busy" }]);
+  expect(await page.evaluate(() => [window.beChart.state().rowCount, window.errors.length]), "no row was added and no error fired").toEqual([rows, 0]);
 });
 
 test("the function is still asked after the switch to WebGL2", async ({ page }) => {

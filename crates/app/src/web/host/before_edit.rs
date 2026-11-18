@@ -11,7 +11,7 @@ impl App {
     /// Hand the chart the page's before-edit function, or take it away with `None`. It is called once for each
     /// action a person takes, after read-only and before anything changes, with `{ kind, source, tasks, changes }`.
     /// `undefined`, `null` or `true` allows the action, a string refuses it with that reason, and anything else
-    /// (`false`, a throw, a promise) refuses it with the default sentence. It must not call the chart: that throws.
+    /// (`false`, a throw, a promise) refuses it with the default sentence. It must not call the chart: a call into it throws, or a command answers busy.
     pub fn set_before_edit(&mut self, before: Option<Function>) {
         let hand = |f: Function| -> BeforeEdit { Rc::new(move |planned| ask(&f, planned)) };
         self.session.set_before_edit(before.map(hand));
