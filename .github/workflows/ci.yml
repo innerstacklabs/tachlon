@@ -767,11 +767,12 @@ jobs:
             exit 1
           fi
           web_ran="${WEB_SET} of the browser specs"
-          [ "$WEB_SET" != checks ] || web_ran="its checks leg and none of the browser specs"
+          touched=" (the touched ones)"
+          [ "$WEB_SET" != checks ] || { web_ran="its checks leg and none of the browser specs"; touched=; }
           if [ "$CODE" = true ] && [ "$FULL" = false ]; then
             echo "ci-summary: PASS (deploy path). wasm, hosted, hosted-browser and book passed; rust and smoke do not run on it; web ran ${web_ran} (the push's own)." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$CODE" = true ] && [ "$WEB_SET" != all ]; then
-            echo "ci-summary: PASS. rust, wasm, smoke, hosted, hosted-browser (@smoke) and book passed; web ran ${web_ran} (the touched ones)." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "ci-summary: PASS. rust, wasm, smoke, hosted, hosted-browser (@smoke) and book passed; web ran ${web_ran}${touched}." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$CODE" = true ]; then
             echo "ci-summary: PASS. rust, wasm, smoke, web, hosted, hosted-browser and book all passed." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$BROWSER" = true ]; then

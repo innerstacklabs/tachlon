@@ -182,6 +182,7 @@ git("mv", `${WEB_ROOT}/src/find.ts`, "docs/find.md");
 git("commit", "-qam", "rename into docs");
 const renamed = spawnSync("node", [fileURLToPath(new URL("touched-specs.ts", import.meta.url)), "fast"], { cwd: repo, encoding: "utf8" });
 if (!renamed.stdout.includes("web=some")) fail(`a code file renamed into docs/ runs no spec: ${renamed.stdout.trim()} ${renamed.stderr.trim()}`);
+if (!renamed.stdout.includes('shards=[1,2,3,4,"checks"]\n')) fail(`the script prints no shards= line with the four shards for a web=some plan: ${renamed.stdout.trim()}`);
 
 // On deploy the diff against main is empty; the push's own commits (PUSH_BEFORE..HEAD) say what to run.
 const deployOut = (before: string): string => spawnSync("node", [fileURLToPath(new URL("touched-specs.ts", import.meta.url)), "deploy"], { cwd: repo, encoding: "utf8", env: { ...process.env, PUSH_BEFORE: before } }).stdout;
