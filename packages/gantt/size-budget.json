@@ -1,6 +1,6 @@
 {
-  "bytes": 2884356,
-  "measured": 2884263,
+  "bytes": 2885106,
+  "measured": 2884973,
   "date": "2026-11-17",
-  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the by-key name and progress row, as the hosted job measures it; main's own was 2883019 B there, so the row grows it by 1244 B of its own code (A devteam-1-1550: a feature row may re-base up to 8192 B of growth, and main had 93 B of room, so the budget is the head's size plus 93 B). It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose. Before it: bytes 2883112, measured 2883019 on 2026-11-17."
+  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the link-listing row, as the hosted job measures it, which grows the engine by its own feature code: main at 5a6ec24 measured 2884223 B against a budget of 2884356 B (room 133 B), the head 2884973 B, 750 B more, so the budget is the head plus that room (A devteam-1-1550). It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose. Before it: bytes 2884356, measured 2884263 on 2026-11-17."
 }
