@@ -169,6 +169,13 @@ fn typing_0_on_a_task_that_has_not_started_leaves_it_unstarted_in_the_cell_and_t
 }
 
 #[test]
+fn a_typed_0_that_changes_nothing_is_still_refused_in_read_only_mode() {
+    let mut s = session();
+    s.set_read_only(true);
+    assert_eq!(s.set_percent_text(FIRST, "0"), Err(EditError::ReadOnly));
+}
+
+#[test]
 fn a_typed_percent_that_puts_an_actual_after_the_data_date_is_refused() {
     let mut s = session().with_data_date(Some(at(0, 0)));
     let before = s.solution().clone();

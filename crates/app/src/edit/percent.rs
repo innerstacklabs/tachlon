@@ -4,7 +4,7 @@
 //! puts all three fields back.
 
 use super::{Edit, EditError};
-use crate::Session;
+use crate::{Session, host::Plan};
 use engine::{Instant, Minutes, ScheduleError, TaskDates, TaskId};
 
 impl Session {
@@ -22,6 +22,7 @@ impl Session {
     pub fn set_percent_text(&mut self, task: TaskId, text: &str) -> Result<(), EditError> {
         let edit = self.plan_percent_text(task, text)?;
         if self.is_unstarted_zero(&edit) {
+            self.gate(&Plan::Edit(&edit))?;
             return Ok(());
         }
         self.edit(edit)?;
