@@ -18,7 +18,7 @@ pub(crate) struct Proposal {
     ghosts: Vec<(u32, Instant, Instant)>,
     /// The progress changes as proposed, each planned again against its task when solved or accepted.
     reports: Vec<progress::Report>,
-    solved: Option<u32>,
+    pub(crate) solved: Option<u32>,
 }
 
 impl Proposal {

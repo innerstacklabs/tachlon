@@ -179,7 +179,7 @@ impl Session {
 
     /// [`Session::solve_links`] for an edit of `edited`: that task is reported apart and left out
     /// of the count, as a duration edit's is.
-    pub(super) fn solve_full(
+    pub(crate) fn solve_full(
         &mut self,
         edited: Option<TaskId>,
         rollback: impl FnOnce(&mut Session),

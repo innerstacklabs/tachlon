@@ -1,0 +1,200 @@
+//! A host sends new durations and start dates for many tasks by key: one recompute, the selection and the
+//! person's undo list kept, every refusal named and nothing written.
+
+#![expect(clippy::unwrap_used, reason = "a test's unwrap is its assertion")]
+
+use crate::common::{outline_session, setup};
+use app::{
+    Session,
+    document::{Extras, write},
+    edit::Edit,
+    host::KeyTarget,
+};
+use engine::TaskId;
+
+/// A session over the demo outline with its first 30 leaf tasks keyed `k0` to `k29`.
+fn keyed() -> (Session, Vec<TaskId>) {
+    let (mut session, _) = outline_session(80);
+    let outline = session.outline().unwrap();
+    let all = outline.preorder().iter().copied();
+    let summary = outline
+        .preorder()
+        .iter()
+        .copied()
+        .find(|&t| outline.is_summary(t));
+    let leaves: Vec<TaskId> = all.filter(|&t| !outline.is_summary(t)).take(30).collect();
+    for (n, &task) in leaves.iter().enumerate() {
+        session
+            .assign_key(KeyTarget::Task(task), &format!("k{n}"))
+            .unwrap();
+    }
+    session
+        .assign_key(KeyTarget::Task(summary.unwrap()), "sum")
+        .unwrap();
+    session
+        .edit(Edit::Rename {
+            task: leaves[25],
+            name: "Mine".into(),
+        })
+        .unwrap();
+    (session, leaves)
+}
+
+fn saved(session: &Session) -> String {
+    write(
+        session,
+        &Extras {
+            name: "u",
+            notes: &[],
+            source: None,
+        },
+    )
+}
+
+/// Records for `k0` to `k{count - 1}`: `120 + n` minutes and a start.
+fn records(count: usize) -> String {
+    let each = (0..count).map(|n| {
+        let day = 1 + n % 9;
+        format!(
+            r#"{{"key":"k{n}","duration":{},"start":"2026-03-0{day}"}}"#,
+            120 + n
+        )
+    });
+    format!("[{}]", each.collect::<Vec<_>>().join(","))
+}
+
+#[test]
+fn twenty_tasks_take_new_values_in_one_call_and_the_person_keeps_their_place() {
+    let (mut session, leaves) = keyed();
+    session.select(leaves[3].0);
+    session.scroll_by(60.0);
+    let (depth, revision, stamp) = (session.history_len(), session.revision(), session.stamp());
+    let view = session.timeline().viewport.clone();
+    let done = session.update_tasks(&records(20)).unwrap();
+    assert_eq!(done.tasks, 20);
+    let origin = session.origin();
+    for (n, &task) in leaves[..20].iter().enumerate() {
+        let got = &session.schedule().tasks()[task.0 as usize];
+        assert_eq!(got.duration, 120 + n as i64);
+        assert_eq!(
+            got.snet,
+            origin.parse_day(&format!("2026-03-0{}", 1 + n % 9))
+        );
+    }
+    let fresh = session.schedule().clone().compute().unwrap();
+    for &task in &leaves {
+        assert_eq!(
+            fresh.dates[task.0 as usize],
+            session.solution().dates[task.0 as usize]
+        );
+    }
+    assert_eq!(
+        (session.history_len(), session.revision()),
+        (depth, revision)
+    );
+    assert!(session.stamp() > stamp);
+    assert_eq!(session.selection().map(|s| s.task), Some(leaves[3].0));
+    assert_eq!(session.timeline().viewport, view);
+}
+
+#[test]
+fn an_undo_after_an_update_undoes_the_earlier_rename_and_leaves_the_values() {
+    let (mut session, leaves) = keyed();
+    session.update_tasks(&records(20)).unwrap();
+    assert!(session.undo().unwrap());
+    assert_ne!(session.meta()[leaves[25].0 as usize].name, "Mine");
+    assert_eq!(
+        session.schedule().tasks()[leaves[4].0 as usize].duration,
+        124
+    );
+}
+
+#[test]
+fn each_refusal_is_named_and_leaves_the_document_byte_equal() {
+    let (mut session, leaves) = keyed();
+    session.select(leaves[29].0);
+    session.delete_selected().unwrap();
+    let cases = [
+        (r#"{"key":"nope"}"#, "unknownKey", None),
+        (r#"{"key":"k29"}"#, "unknownKey", None),
+        (r#"{"key":"k1"}"#, "duplicateKey", None),
+        (r#"{"key":"sum","duration":1}"#, "notUpdatable", Some("key")),
+        (r#"{"duration":1}"#, "noKey", None),
+        (
+            r#"{"key":"k2","parent":"k3"}"#,
+            "notUpdatable",
+            Some("parent"),
+        ),
+        (
+            r#"{"key":"k2","mso":"2026-03-09"}"#,
+            "notUpdatable",
+            Some("mso"),
+        ),
+        (
+            r#"{"key":"k2","start":"2026-02-30"}"#,
+            "badValue",
+            Some("start"),
+        ),
+        (
+            r#"{"key":"k2","duration":-1}"#,
+            "badValue",
+            Some("duration"),
+        ),
+        (
+            r#"{"key":"k2","duration":"3"}"#,
+            "badValue",
+            Some("duration"),
+        ),
+    ];
+    for (bad, kind, member) in cases {
+        let before = saved(&session);
+        let json = format!(r#"[{{"key":"k1","duration":9}},{bad}]"#);
+        let error = session.update_tasks(&json).unwrap_err();
+        assert_eq!(
+            (error.kind, error.record, error.member.as_deref()),
+            (kind, Some(1), member)
+        );
+        assert_eq!(saved(&session), before, "{bad}");
+    }
+}
+
+#[test]
+fn a_setter_refusal_at_record_15_puts_back_records_1_to_14() {
+    let (mut session, _) = keyed();
+    let before = saved(&session);
+    let fourteen = records(14);
+    let json = format!(
+        r#"{},{{"key":"k14","duration":200000000}}]"#,
+        &fourteen[..fourteen.len() - 1]
+    );
+    let error = session.update_tasks(&json).unwrap_err();
+    assert_eq!(error.kind, "schedule");
+    assert_eq!(saved(&session), before);
+}
+
+#[test]
+fn a_start_is_held_as_snet_unless_the_record_has_one_and_null_clears_it() {
+    let (mut session, leaves) = keyed();
+    let at = leaves[0].0 as usize;
+    let day = |text: &str| session.origin().parse_day(text).unwrap();
+    let (monday, tuesday) = (day("2026-03-09"), day("2026-03-10"));
+    session
+        .update_tasks(r#"[{"key":"k0","start":"2026-03-09"}]"#)
+        .unwrap();
+    assert_eq!(session.schedule().tasks()[at].snet, Some(monday));
+    let both = r#"[{"key":"k0","snet":"2026-03-10T09:30","start":"2026-03-09"}]"#;
+    session.update_tasks(both).unwrap();
+    assert_eq!(session.schedule().tasks()[at].snet, Some(tuesday + 570));
+    session
+        .update_tasks(r#"[{"key":"k0","snet":null}]"#)
+        .unwrap();
+    assert_eq!(session.schedule().tasks()[at].snet, None);
+}
+
+#[test]
+fn an_update_during_a_bar_press_is_refused_as_busy() {
+    let (mut session, _, _, (x, y)) = setup();
+    session.pointer_down(x, y, false);
+    let json = r#"[{"key":"k0","duration":1}]"#;
+    assert_eq!(session.update_tasks(json).unwrap_err().kind, "busy");
+}
