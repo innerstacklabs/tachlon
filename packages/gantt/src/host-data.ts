@@ -25,17 +25,19 @@ function membersByKey(tasks: readonly PlainTask[]): Map<string, readonly unknown
   return byKey;
 }
 
-/** Remember the rows a start of the chart was given, at schedule `epoch`; the function answers `setData` against what it last accepted. */
+const weak = (list: object | undefined): WeakRef<object> | undefined => list && new WeakRef(list);
+
+/** Remember the rows a start of the chart was given, at schedule `epoch`; the function answers `setData` against what it last accepted. The page's own arrays are held weakly (the chart lets them go once it has started), only to skip the same array again. */
 export function hostData(first: HostRows, epoch: number): SetData {
-  let kept = { epoch, tasks: first.tasks, byKey: first.tasks && membersByKey(first.tasks), links: first.links ?? [], linkTexts: linkTexts(first.links ?? []) };
+  let kept = { epoch, tasks: weak(first.tasks), byKey: first.tasks && membersByKey(first.tasks), links: weak(first.links), linkTexts: linkTexts(first.links ?? []) };
   return (next, now, apply) => {
     const old = kept.byKey;
     if (old === undefined) return rowsChanged("the chart holds no rows of yours to compare with (every task needs its own text key).");
     if (kept.epoch !== now) return rowsChanged("a schedule was opened since the rows were given.");
-    if (next.links !== undefined && next.links !== kept.links && !same(linkTexts(next.links), kept.linkTexts)) return rowsChanged("a link was added, removed or changed.");
+    if (next.links !== undefined && next.links !== kept.links?.deref() &&!same(linkTexts(next.links), kept.linkTexts)) return rowsChanged("a link was added, removed or changed.");
     const byKey = new Map(old);
     const records: TaskUpdate[] = [];
-    if (next.tasks !== undefined && next.tasks !== kept.tasks) {
+    if (next.tasks !== undefined && next.tasks !== kept.tasks?.deref()) {
       const given = membersByKey(next.tasks);
       if (given === undefined) return rowsChanged("every task needs its own text key.");
       if (given.size !== old.size || [...given.keys()].some((key) => !old.has(key))) return rowsChanged("a task was added or removed.");
@@ -47,7 +49,7 @@ export function hostData(first: HostRows, epoch: number): SetData {
       }
     }
     const answer = records.length === 0 ? Object.freeze({ ok: true as const, updated: 0 }) : apply(records);
-    if (answer.ok && next.tasks !== undefined) kept = { ...kept, tasks: next.tasks, byKey };
+    if (answer.ok && next.tasks !== undefined) kept = { ...kept, tasks: weak(next.tasks), byKey };
     return answer;
   };
 }
