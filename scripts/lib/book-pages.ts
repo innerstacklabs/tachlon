@@ -1,5 +1,5 @@
-// What the book's user pages must keep. `SUMMARY.md` splits at the `# For developers` part title: the
-// pages above it are the user pages, the ones below are for developers. Pure functions over text; the
+// What the book's user pages must keep. In `SUMMARY.md` the `# For developers` part runs from its title to the next
+// part title: the pages in it are for developers, and every other page is a user page. Pure functions over text; the
 // CLI in `scripts/check-book-pages.ts` reads the files.
 
 import { posix } from "node:path";
@@ -16,13 +16,14 @@ export const REQUIRED_LINKS: ReadonlyArray<{ page: string; samples: readonly str
 /** Strings a user page must not contain: they point at the repository's own tooling, not at the app. */
 export const FORBIDDEN = ["demos/", "run.sh"] as const;
 
-/** The pages listed in SUMMARY.md above the developers part, in order, or an error if the part title is missing. */
+/** The pages listed in SUMMARY.md outside the developers part, in order, or an error if the part title is missing. */
 export function userPages(summary: string): { pages: string[] } | { error: string } {
   const lines = summary.split("\n");
   const at = lines.findIndex((l) => l.trim() === DEVELOPERS_TITLE);
   if (at < 0) return { error: `SUMMARY.md has no "${DEVELOPERS_TITLE}" title` };
   const pages: string[] = [];
-  for (const line of lines.slice(0, at)) {
+  const end = lines.findIndex((l, i) => i > at && l.startsWith("# "));
+  for (const line of [...lines.slice(0, at), ...(end < 0 ? [] : lines.slice(end))]) {
     const m = /\]\(([^)#]+\.md)(?:#[^)]*)?\)/.exec(line);
     if (m) pages.push(m[1]);
   }
