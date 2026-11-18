@@ -1,6 +1,6 @@
 {
-  "bytes": 2904356,
-  "measured": 2900260,
+  "bytes": 2910117,
+  "measured": 2906021,
   "date": "2026-11-18",
-  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the rollback row (tl2091rb), as the hosted job measures it: 2900260 B (run 44275642850, on the head before main's update row merged). The budget is that figure plus 4096 B of room (A devteam-1-1562), so 2904356 B; every re-base under A devteam-1-1550 uses measured + 4096. Main's own at 93b7205 measured 2897056 B on the hosted job, and the row grows it by 3204 B of its own code and text (rollback_to and acknowledge, the rollbackGone reason and its sentence, and their docs), within the 8192 B a row may re-base alone. Main's file at 31b0aa6 reads measured 2898609 B, below this row's figure, so the figure here is kept; the next hosted run on the merged head replaces it if it differs. It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose. Before it: bytes 2902705, measured 2898609 on 2026-11-18."
+  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the rollback row (tl2091rb) merged with main, as the hosted job measures it: 2906021 B (run 44294909654, on 2628d7b merged with main after the Predecessors column row, PR 45, merged). The budget is that figure plus 4096 B of room (A devteam-1-1562), so 2910117 B; every re-base under A devteam-1-1550 uses measured + 4096. The row's own growth stays 3204 B (rollback_to and acknowledge, the rollbackGone reason and its sentence, and their docs), within the 8192 B a row may re-base alone; the rest is PR 45's column. Main's commits after that run (PR 55, the guide frame) change no packed file. It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose. Before it: bytes 2904356, measured 2900260 on 2026-11-18."
 }
