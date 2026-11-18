@@ -15,7 +15,11 @@ fn watch(s: &mut Session, refuse: bool) -> Rc<RefCell<Vec<Planned>>> {
     let seen = Rc::clone(&asked);
     s.set_before_edit(Some(Rc::new(move |plan: &Planned| {
         seen.borrow_mut().push(plan.clone());
-        if refuse { Err("no".into()) } else { Ok(()) }
+        if refuse {
+            Err(EditError::Refused("no".into()))
+        } else {
+            Ok(())
+        }
     })));
     asked
 }
