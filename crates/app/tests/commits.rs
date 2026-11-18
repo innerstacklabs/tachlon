@@ -238,7 +238,7 @@ fn a_link_is_a_create_an_update_per_field_a_delete_and_its_undo_a_create() {
         json!([{"record":"link","key":null,"link":slot,"op":"create","fields":fields}])
     };
     let update = |field: &str, old: Value, new: Value| json!({"record":"link","key":null,"link":slot,"op":"update","field":field,"old":old,"new":new});
-    let delete = json!([{"record":"link","key":null,"link":slot,"op":"delete"}]);
+    let delete = json!([{"record":"link","key":null,"link":slot,"op":"delete","fields":create("SS", 2.0)[0]["fields"]}]);
     let want = [
         create("FS", 0.0),
         json!([

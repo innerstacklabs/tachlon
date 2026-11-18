@@ -145,7 +145,13 @@ impl Session {
                     head(task)
                 )]
             }
-            Edit::Restore { task, .. } => vec![format!(r#"{{{},"op":"delete"}}"#, head(task))],
+            Edit::Restore { task, place } => {
+                let fields = self.fields_in(task, place);
+                vec![format!(
+                    r#"{{{},"op":"delete","fields":{fields}}}"#,
+                    head(task)
+                )]
+            }
             Edit::Reparent {
                 task,
                 place,
@@ -238,7 +244,11 @@ impl Session {
                     &own,
                 )]
             }
-            Edit::RestoreLink { dep } => vec![format!(r#"{{{},"op":"delete"}}"#, link(dep))],
+            Edit::RestoreLink { dep } => {
+                let gone = self.link_changes(&Edit::RemoveLink { dep });
+                let delete = |c: &String| c.replacen(r#""op":"create""#, r#""op":"delete""#, 1);
+                gone.iter().map(delete).collect()
+            }
             Edit::SetLink {
                 dep,
                 kind,
