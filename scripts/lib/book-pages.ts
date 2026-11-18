@@ -96,8 +96,8 @@ export const MEDIA_BUDGET_BYTES = 7_000_000;
 /** Media files kept without a page: the mascot, which `book/src/developers.md` says lives in `media/`. */
 export const KEPT_UNUSED: ReadonlySet<string> = new Set(["media/mascot.webp"]);
 
-/** Link targets that are not files in `book/src/`: URLs, root-relative paths, and the API pages `pnpm docs:book` generates. */
-const NOT_SOURCE = /^(?:[a-z][a-z0-9+.-]*:|\/|api\/)/i;
+/** Link targets that are not files in `book/src/`: URLs and root-relative paths. */
+const NOT_SOURCE = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 
 const outsideFences = (text: string): string => {
   let fence = false;
