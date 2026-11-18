@@ -144,7 +144,6 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     }
   };
   showWbsColumn();
-  // The Resources column is last and exists only for a file that names a resource; asked once per opened file, like the WBS column.
   let hasResources = false;
   const showResourcesColumn = (): void => {
     hasResources = app.has_resources();
@@ -184,7 +183,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   root.style.setProperty("--gantt-axis-h", `${s0.axisHeight}px`);
   const position = installRowPosition(root, fmt);
   let canvasScrollY = 0; // the canvas's scroll_y at the last frame
-  let drawn: { first: number; last: number; stamp: number; variance: "off" | "on" | "hold" } = { first: -1, last: -1, stamp: -1, variance: "off" };
+  let drawn: { first: number; last: number; stamp: number; variance: string } = { first: -1, last: -1, stamp: -1, variance: "off" };
   let selectedTask: number | null = null;
   // The host's pending marks, by task slot, and the schedule (`Status.epoch`) they were made for: the first frame of another schedule drops them,
   // so marks made right after a `load` (before that frame) stay.
@@ -308,7 +307,8 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const varianceOn = tableEl.dataset.variance === "true" && tableEl.dataset.varianceHidden === undefined;
     const holdVariance = varianceOn && s.drag?.active === true;
     const withVariance = varianceOn && !holdVariance;
-    const varianceMode = holdVariance ? "hold" : withVariance ? "on" : "off";
+    const holdResources = hasResources && s.drag?.active === true;
+    const varianceMode = (holdVariance ? "hold" : withVariance ? "on" : "off") + (holdResources ? "+res" : "");
     if (inside && fresh && s.stamp === drawn.stamp && varianceMode === drawn.variance) {
       markRows(s, false);
       return;
@@ -320,7 +320,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     // A clicked chevron is replaced with its row; focus must not fall to the page, or the chart's keys stop working.
     const focusWasInRows = tableRows.contains(document.activeElement);
     tableRows.replaceChildren(
-      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasResources, hasProgress, holdVariance, withVariance, pending })),
+      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending })),
     );
     if (focusWasInRows) root.focus({ preventScroll: true });
     markRows(s, true);

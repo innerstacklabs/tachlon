@@ -1,10 +1,11 @@
 import { type Gantt, expect, test } from "./support/gantt";
+import { AXIS, ROW } from "./support/pixels";
 
-// The Resources column (gantt#1875), from an inline MS Project file (plain data cannot carry names yet): last in the list, names joined by commas, cut with an ellipsis.
+// The Resources column, from an inline MS Project file (plain data cannot carry names yet): last in the list, names joined by commas, cut with an ellipsis.
 const NAMES = ["Ana", "Ben", "Concrete crew C", "Concrete crew D", "Concrete crew E"];
-const task = (uid: number, name: string): string => `<Task><UID>${uid}</UID><Name>${name}</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>PT8H0M0S</Duration></Task>`;
+const task = (uid: number, name: string, level = 1, summary = 0): string => `<Task><UID>${uid}</UID><Name>${name}</Name><OutlineLevel>${level}</OutlineLevel><Summary>${summary}</Summary><Duration>PT8H0M0S</Duration></Task>`;
 const assign = (uid: number, count: number): string => NAMES.slice(0, count).map((_, i) => `<Assignment><TaskUID>${uid}</TaskUID><ResourceUID>${i + 1}</ResourceUID></Assignment>`).join("");
-const FILE = Buffer.from(`<Project xmlns="http://schemas.microsoft.com/project"><StartDate>2026-01-05T08:00:00</StartDate><Tasks>${task(1, "Five")}${task(2, "Two")}${task(3, "None")}</Tasks><Resources>${NAMES.map((name, i) => `<Resource><UID>${i + 1}</UID><Name>${name}</Name></Resource>`).join("")}</Resources><Assignments>${assign(1, 5)}${assign(2, 2)}</Assignments></Project>`);
+const FILE = Buffer.from(`<Project xmlns="http://schemas.microsoft.com/project"><StartDate>2026-01-05T08:00:00</StartDate><Tasks>${task(1, "Five")}${task(2, "Two")}${task(3, "None")}${task(4, "Group", 1, 1)}${task(5, "Child", 2)}</Tasks><Resources>${NAMES.map((name, i) => `<Resource><UID>${i + 1}</UID><Name>${name}</Name></Resource>`).join("")}</Resources><Assignments>${assign(1, 5)}${assign(2, 2)}${assign(4, 1)}</Assignments></Project>`);
 
 async function openFile(g: Gantt): Promise<void> {
   await g.open({ n: 50 });
@@ -34,6 +35,19 @@ test("a schedule with names shows the Resources column last: the names, the whol
   expect(list).toMatchObject({ lastHead: "Resources", aligned: true });
   expect(list.cells["Two"]).toEqual({ text: "Ana, Ben", title: "Ana, Ben", cut: false, last: true });
   expect(list.cells["Five"]).toMatchObject({ text: NAMES.join(", "), title: NAMES.join(", "), cut: true });
+  expect(list.cells["Group"], "a summary row shows no names, though the file assigns it one").toMatchObject({ text: "", title: "" });
+  const { x, y } = await g.box();
+  const at = x + (await g.page.evaluate(() => window.gantt!.app.x_of(window.gantt!.app.row_start(0)!))) + 8;
+  await g.page.mouse.move(at, y + AXIS + ROW / 2);
+  await g.nextFrame(2);
+  await g.page.mouse.down();
+  for (let k = 1; k <= 9; k++) await g.page.mouse.move(at + 15 * k, y + AXIS + ROW / 2);
+  await g.nextFrame(3);
+  expect((await g.status()).drag?.active, "the first task's bar is being dragged").toBe(true);
+  expect((await read(g)).cells["Two"], "every cell is empty while a bar is dragged").toMatchObject({ text: "", title: "" });
+  await g.page.mouse.up();
+  await g.nextFrame(3);
+  expect((await read(g)).cells["Two"], "the names return at the release").toMatchObject({ text: "Ana, Ben" });
 });
 
 test("a schedule with no names has no Resources column and no track beyond its cells", async ({ g }) => {

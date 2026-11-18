@@ -74,4 +74,4 @@ Read "Breaking changes" first if you use 0.2.0. A page that mounts the chart wit
 
 **The task list**
 
-- A schedule whose tasks name resources shows a Resources column at the right end of the list: each task's names joined by commas, cut with an ellipsis when they do not fit, and the whole list in the tooltip. A schedule with no resource names looks as it did. The list only: print, copy and export do not carry it. `--gantt-res-col` sets its width.
+- A schedule whose tasks name resources shows a Resources column at the right end of the list: each task's names joined by commas, cut with an ellipsis when they do not fit, and the whole list in the tooltip; a summary row and every row mid-drag leave it empty. A schedule with no resource names looks as it did. The list only: print, copy and export do not carry it. `--gantt-res-col` sets its width.
