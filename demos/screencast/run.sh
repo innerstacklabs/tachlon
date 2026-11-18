@@ -52,9 +52,6 @@ fi
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
-# The close card's caption names the repository; the product's name stays in product.ts, so it is read from there at run time.
-SCREENCAST_REPO="innerstacklabs/$(node --input-type=module -e 'import { PRODUCT_NAME } from "./packages/gantt/src/product.ts"; console.log(PRODUCT_NAME.toLowerCase())')"
-export SCREENCAST_REPO
 
 if ! timeout 60 git fetch origin main; then
   echo "warning: could not fetch origin main; using the existing origin/main" >&2
@@ -101,6 +98,9 @@ if ! git diff --quiet "$base" -- "${tracked_paths[@]}"; then
   fi
   commit="$commit-dirty"
 fi
+# The close card's caption names the repository; the product's name stays in product.ts, so it is read from there at run time.
+SCREENCAST_REPO="innerstacklabs/$(node --input-type=module -e 'import { PRODUCT_NAME } from "./packages/gantt/src/product.ts"; console.log(PRODUCT_NAME.toLowerCase())')"
+export SCREENCAST_REPO
 
 # The recording runs on the hosted build, opened on ?sample=demo-50k (gs#541): the wasm, then the samples
 # (build-samples.mjs needs cargo on the PATH) and the hosted bundle. packages/gantt/dist is not built, the package (`pnpm build:lib`) is. The build directory and the
