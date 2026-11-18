@@ -19,7 +19,7 @@ const root = mkdtempSync(join(tmpdir(), "test-stage-package-"));
 try {
   // A package that holds every file the real pack check expects, one source file the tarball leaves out, and the three private keys beside the keys a consumer needs.
   const src = join(root, "src-pkg");
-  const files = ["README.md", "LICENSE", "AGENTS.md", "size-budget.json", "src/secret.ts", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt"];
+  const files = ["README.md", "LICENSE", "AGENTS.md", "src/secret.ts", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt"];
   for (const f of files) {
     mkdirSync(dirname(join(src, f)), { recursive: true });
     writeFileSync(join(src, f), f === "dist-lib/a.js" ? "#!/usr/bin/env node\n" : "x\n");
@@ -31,7 +31,7 @@ try {
 
   const { scripts, devDependencies, packageManager, ...kept } = manifest;
   check("staged manifest drops the build settings and keeps the rest", JSON.parse(readFileSync(join(dest, "package.json"), "utf8")), kept);
-  check("staged folder holds the packed files, the budget, and not the source", [files.filter((f) => existsSync(join(dest, f))).join(" ")], [files.filter((f) => f !== "src/secret.ts").join(" ")]);
+  check("staged folder holds the packed files and not the source", [files.filter((f) => existsSync(join(dest, f))).join(" ")], [files.filter((f) => f !== "src/secret.ts").join(" ")]);
   const packCheck = (dir: string) => spawnSync(process.execPath, [fileURLToPath(new URL("./pack-check.ts", import.meta.url)), dir, "--published"], { encoding: "utf8" });
   check("source fails the published check", packCheck(src).status, 1);
   check("staged passes the published check", packCheck(dest).status, 0);

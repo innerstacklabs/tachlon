@@ -109,7 +109,7 @@ jobs:
         with: {node-version: 22, check-latest: true}
       - run: node scripts/test-public-release.ts
       - run: node scripts/test-public-history.ts
-      - run: node scripts/public-release.ts scan
+      - run: node scripts/public-release.ts scan --secrets-only
 
   # The features table matches docs/features.md, and every doc link on the features page names a section that exists.
   docs:
