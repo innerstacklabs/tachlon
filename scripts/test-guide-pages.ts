@@ -40,6 +40,10 @@ check("an anchor no page includes fails", guide(file, "# Print\n{{#include ../..
 check("a whole-file include fails", guide(file, page + "{{#include ../../g/print.md}}\n"), ["book/src/print.md: includes g/print.md whole: include it by anchor"]);
 check("an include of a missing anchor fails", guide(file, page + "{{#include ../../g/print.md:gone}}\n"), ["a book page includes g/print.md:gone, an anchor that file does not have"]);
 check("an anchor two pages include fails", guide(file, page + "{{#include ../../g/print.md:goal}}\n"), ['g/print.md: the anchor "goal" is included by 2 book pages, not 1']);
+check("an anchor with no end fails", guide(file.replace("<!-- ANCHOR_END: goal -->\n", "")), ['g/print.md: the anchor "goal" has no ANCHOR_END after it']);
+check("an end with no anchor fails", guide(file.replace("<!-- ANCHOR: goal -->\n", "")), ['g/print.md: the anchor "goal" has no ANCHOR before it', "a book page includes g/print.md:goal, an anchor that file does not have"]);
+check("an end before its anchor fails", guide(file.replace("<!-- ANCHOR: goal -->\n**Goal:** paper.\n<!-- ANCHOR_END: goal -->\n", "<!-- ANCHOR_END: goal -->\n**Goal:** paper.\n<!-- ANCHOR: goal -->\n")), ['g/print.md: the anchor "goal" has its ANCHOR_END before its ANCHOR']);
+check("a name used for two anchors fails", guide(file + "<!-- ANCHOR: goal -->\nMore.\n<!-- ANCHOR_END: goal -->\n"), ['g/print.md: the anchor "goal" is used for more than one anchor']);
 // Rule 4.
 check("a comment at the left margin of a list fails", guide(file.replace(control, control.trimStart())), [`g/print.md: the comment "${control.trim()}" at the left margin splits a list: indent it with its item`]);
 check("an anchor line between two lists is not a comment in a list", guide(file + "- A bullet.\n"), []);

@@ -63,7 +63,10 @@ const needs: Rule = (guide) =>
     ];
   });
 
-/** Rule 3: every anchor of a guide file is included by exactly one book page, and no book page includes a guide file whole. */
+/** What is wrong with an anchor name by the order its `ANCHOR` and `ANCHOR_END` comments come in; any other order is a name used twice. */
+const UNPAIRED: Readonly<Record<string, string>> = { ANCHOR: "has no ANCHOR_END after it", ANCHOR_END: "has no ANCHOR before it", "ANCHOR_END ANCHOR": "has its ANCHOR_END before its ANCHOR" };
+
+/** Rule 3: every anchor of a guide file pairs with an end and is included by exactly one book page, and no book page includes a guide file whole. */
 const includes: Rule = (guide) => {
   const problems: string[] = [];
   const count = new Map<string, number>();
@@ -74,12 +77,17 @@ const includes: Rule = (guide) => {
       if (m[2] === undefined) problems.push(`${page}: includes ${file} whole: include it by anchor`);
       else count.set(`${file}:${m[2]}`, (count.get(`${file}:${m[2]}`) ?? 0) + 1);
     }
-  for (const [file, text] of features(guide))
-    for (const m of text.matchAll(/<!--\s*ANCHOR:\s*([\w-]+)\s*-->/g)) {
-      const times = count.get(`${file}:${m[1]}`) ?? 0;
-      count.delete(`${file}:${m[1]}`);
-      if (times !== 1) problems.push(`${file}: the anchor "${m[1]}" is included by ${times} book pages, not 1`);
+  for (const [file, text] of features(guide)) {
+    const marks = [...text.matchAll(/<!--\s*(ANCHOR(?:_END)?):\s*([\w-]+)\s*-->/g)].map((m) => [m[1]!, m[2]!] as const);
+    for (const name of new Set(marks.map(([, n]) => n))) {
+      const order = marks.filter(([, n]) => n === name).map(([kind]) => kind).join(" ");
+      if (order !== "ANCHOR ANCHOR_END") problems.push(`${file}: the anchor "${name}" ${UNPAIRED[order] ?? "is used for more than one anchor"}`);
+      if (!order.split(" ").includes("ANCHOR")) continue;
+      const times = count.get(`${file}:${name}`) ?? 0;
+      count.delete(`${file}:${name}`);
+      if (times !== 1) problems.push(`${file}: the anchor "${name}" is included by ${times} book pages, not 1`);
     }
+  }
   return [...problems, ...[...count.keys()].map((key) => `a book page includes ${key}, an anchor that file does not have`)];
 };
 
