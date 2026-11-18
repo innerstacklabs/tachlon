@@ -43,4 +43,18 @@ impl Session {
             .get(task.0 as usize)
             .map_or(&[], Vec::as_slice)
     }
+
+    /// `task`'s resource names joined with `, ` (the Resources column's text); empty when it has none or is absent.
+    pub fn task_resources_text(&self, task: u32) -> String {
+        let names = self.resources(TaskId(task)).iter().map(|a| a.name.as_str());
+        names
+            .filter(|n| !n.is_empty())
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// Whether any task has a resource name, deleted or not, so the column stays while a file is open.
+    pub fn has_resources(&self) -> bool {
+        self.resources.iter().flatten().any(|a| !a.name.is_empty())
+    }
 }

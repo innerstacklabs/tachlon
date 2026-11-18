@@ -79,6 +79,7 @@
   --gantt-date-col: 100px;
   /* One variance column (Start, Finish, Float against the baseline); a track and one 6px gap each widen the table. */
   --gantt-var-col: 52px;
+  --gantt-res-col: 140px;
   --gantt-cols: minmax(var(--gantt-task-fit, var(--gantt-task-min)), 1fr) 60px var(--gantt-date-col) var(--gantt-date-col) 46px;
   --gantt-font: "Gantt Sans", sans-serif;
 }
