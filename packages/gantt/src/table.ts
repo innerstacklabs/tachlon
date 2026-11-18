@@ -68,7 +68,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   let taskNeed = 0; // measured once per opened file, below
   // With Progress on the CSS puts % complete and the other progress cells after Task, so the head is read in the order it shows (gs#974).
   const shown = (): HTMLElement | null => {
-    if (headCols === null || (tableEl.dataset["progress"] !== "true" && ![...HIDE_FLAGS, ORDER_FLAG].some((flag) => tableEl.hasAttribute(flag)))) return headCols;
+    if (headCols === null || (tableEl.dataset["progress"] !== "true" && !tableEl.hasAttribute("data-resources") && ![...HIDE_FLAGS, ORDER_FLAG].some((flag) => tableEl.hasAttribute(flag)))) return headCols;
     const order = (cell: Element): number => Number(getComputedStyle(cell).order) || 0;
     // A column the Columns menu hid has no track (table.css), so its head is not one of the columns the pane holds.
     const children = [...headCols.children].filter((cell) => !isHidden(tableEl, cell.classList[0] ?? "")).sort((a, b) => order(a) - order(b));
@@ -144,6 +144,14 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     }
   };
   showWbsColumn();
+  let hasResources = false;
+  const showResourcesColumn = (): void => {
+    hasResources = app.has_resources();
+    headCols?.querySelector(".resources")?.remove();
+    tableEl.toggleAttribute("data-resources", hasResources);
+    if (hasResources) headCols?.append(Object.assign(document.createElement("span"), { className: "resources", textContent: nameOf(root, "resources") }));
+  };
+  showResourcesColumn();
   // The four progress columns show when the Progress toggle is on: it starts on for a file that carries progress, asked once per opened file, like the WBS column.
   let hasProgress = false;
   const PROGRESS_HEADS: [string, string][] = [
@@ -175,7 +183,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   root.style.setProperty("--gantt-axis-h", `${s0.axisHeight}px`);
   const position = installRowPosition(root, fmt);
   let canvasScrollY = 0; // the canvas's scroll_y at the last frame
-  let drawn: { first: number; last: number; stamp: number; variance: "off" | "on" | "hold" } = { first: -1, last: -1, stamp: -1, variance: "off" };
+  let drawn: { first: number; last: number; stamp: number; variance: string } = { first: -1, last: -1, stamp: -1, variance: "off" };
   let selectedTask: number | null = null;
   // The host's pending marks, by task slot, and the schedule (`Status.epoch`) they were made for: the first frame of another schedule drops them,
   // so marks made right after a `load` (before that frame) stay.
@@ -299,7 +307,8 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const varianceOn = tableEl.dataset.variance === "true" && tableEl.dataset.varianceHidden === undefined;
     const holdVariance = varianceOn && s.drag?.active === true;
     const withVariance = varianceOn && !holdVariance;
-    const varianceMode = holdVariance ? "hold" : withVariance ? "on" : "off";
+    const holdResources = hasResources && s.drag?.active === true;
+    const varianceMode = (holdVariance ? "hold" : withVariance ? "on" : "off") + (holdResources ? "+res" : "");
     if (inside && fresh && s.stamp === drawn.stamp && varianceMode === drawn.variance) {
       markRows(s, false);
       return;
@@ -311,7 +320,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     // A clicked chevron is replaced with its row; focus must not fall to the page, or the chart's keys stop working.
     const focusWasInRows = tableRows.contains(document.activeElement);
     tableRows.replaceChildren(
-      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasProgress, holdVariance, withVariance, pending })),
+      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending })),
     );
     if (focusWasInRows) root.focus({ preventScroll: true });
     markRows(s, true);
@@ -338,6 +347,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
       sizeCodeTracks();
       taskNeed = measureTaskNeed(tableEl, app.longest_name() as string[]);
       showWbsColumn();
+      showResourcesColumn();
       showProgressColumns(progressOn());
       fitTask();
       scrollSlack = -1; // the new canvas has none

@@ -53,6 +53,16 @@ impl App {
         meta::has_wbs_codes(self.session.meta())
     }
 
+    /// The names of task `i`'s resources joined with `, `, or an empty string when it has none or is absent.
+    pub fn task_resources_text(&self, i: u32) -> String {
+        self.session.task_resources_text(i)
+    }
+
+    /// Whether any task of the open schedule has a resource name. The table shows the Resources column only then.
+    pub fn has_resources(&self) -> bool {
+        self.session.has_resources()
+    }
+
     /// The longest activity ID and the longest WBS code of the live tasks, as `[id, wbs]` (the
     /// first of equal length in task order; an empty string where no task has one). The table sizes
     /// its ID and WBS columns from them. It scans every task, so the page asks once per opened

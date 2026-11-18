@@ -71,3 +71,7 @@ Read "Breaking changes" first if you use 0.2.0. A page that mounts the chart wit
 
 - A P6 or MS Project file with a value out of range opens with one counted note per kind, naming the first five tasks.
 - A P6 file saved from a schedule your host built keeps the project start, and a task with two date limits keeps both.
+
+**The task list**
+
+- A schedule whose tasks name resources shows a Resources column at the right end of the list: each task's names joined by commas, cut with an ellipsis when they do not fit, and the whole list in the tooltip; a summary row and every row mid-drag leave it empty. A schedule with no resource names looks as it did. The list only: print, copy and export do not carry it. `--gantt-res-col` sets its width.

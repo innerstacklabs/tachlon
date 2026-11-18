@@ -72,3 +72,15 @@ fn the_card_lists_a_tasks_resources_through_an_edit_undo_and_redo() {
     assert_eq!(names(&session, 0), kept);
     assert_eq!(names(&session, 1), none_listed());
 }
+
+#[test]
+fn the_list_column_joins_a_tasks_names_and_shows_only_for_a_file_that_names_one() {
+    let session = open();
+    assert!(session.has_resources());
+    assert_eq!(session.task_resources_text(0), "Crew A, Crew \"B\"");
+    assert_eq!(session.task_resources_text(1), "");
+    let unnamed = open().with_resources(vec![vec![String::new()]]);
+    assert!(!unnamed.has_resources(), "an empty name is no name");
+    let skipped = open().with_resources(vec![vec![String::new(), "Ana".to_string()]]);
+    assert_eq!(skipped.task_resources_text(0), "Ana");
+}

@@ -17,6 +17,8 @@ export interface RowContext {
   rowHeight: number;
   hasCodes: () => boolean;
   hasWbs: boolean;
+  hasResources: boolean;
+  holdResources: boolean;
   hasProgress: boolean;
   /** A bar is being dragged: one empty cell stands in for the three variance cells. */
   holdVariance: boolean;
@@ -60,7 +62,7 @@ export function buildHeader([, label, count, , , kind]: HeaderRow, r: number, ct
 export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext): HTMLDivElement {
   if (data[5] === 3 || data[5] === 4) return buildHeader(data as HeaderRow, r, ctx);
   const [task, start, finish, float, critical, kind, ...variance] = data as TableRow;
-  const { app, hasCodes, hasWbs, hasProgress, holdVariance, withVariance } = ctx;
+  const { app, hasCodes, hasWbs, hasResources, holdResources, hasProgress, holdVariance, withVariance } = ctx;
   const row = document.createElement("div");
   row.className = `row cols${r % 2 === 1 ? " odd" : ""}${critical ? " critical" : ""}`;
   row.style.top = `${r * ctx.rowHeight}px`;
@@ -97,13 +99,14 @@ export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext)
       ["percent", app.task_percent(task)],
     );
   }
+  if (hasResources) cells.push(["resources", holdResources || kind !== 0 ? "" : app.task_resources_text(task)]);
   if (hasWbs) cells.unshift(["wbs", app.task_wbs_code(task)]);
   if (hasCodes()) cells.unshift(["code", app.task_code(task)]);
   for (const [cls, text] of cells) {
     const cell = document.createElement("span");
     cell.className = cls;
     cell.textContent = text;
-    if (cls === "wbs") cell.title = text;
+    if (cls === "wbs" || cls === "resources") cell.title = text;
     if (cls === "start" && kind === 0) markConstraint(cell, app.task_constraint_text(task));
     if (cls === "name") {
       // The row shows the leaf name; the outline path is the tooltip and the hover card's.
