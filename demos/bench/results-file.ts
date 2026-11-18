@@ -2,7 +2,7 @@
 //
 // File name: `results/YYYY-MM-DD.json`; a second run on the same day is `results/YYYY-MM-DD-run2.json`, a third `-run3`, and so on.
 // The page shows the file that the one line in `results/current` names, so a new run reaches the speed table by changing that line:
-// `scripts/bench-table.ts` reads it by default, as does `packages/gantt/tests-node/site-page.test.ts`.
+// `scripts/bench-table.ts` reads it by default, as does `packages/gantt/tests-node/bench-page.test.ts`.
 //
 //   node demos/bench/results-file.ts --runs <dir> --head <commit> --date <YYYY-MM-DD> --notes <notes.json> --out <file>
 //   node demos/bench/results-file.ts --help

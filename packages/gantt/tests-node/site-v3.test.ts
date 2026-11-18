@@ -1,5 +1,5 @@
 // The v3 copy on the public page (tl#1048v3, set in the v4 layout): the AI section leads with the prompt for an AI assistant, the package README holds the same prompt,
-// and the four sentences that waited on a check ship only where the check holds. Read as text, no page. The rest of the page is site-page.test.ts.
+// and the four sentences that waited on a check ship only where the check holds. Read as text, no page. The generated regions of the page are bench-page.test.ts.
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { expect } from "@playwright/test";
