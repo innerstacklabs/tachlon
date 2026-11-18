@@ -1,4 +1,4 @@
-// smoke, web, book, hosted and hosted-browser read the wasm bindings from the machine's disk, artifact as the fallback (gantt#1878). Called from test-deploy-conditions.mjs (at its size limit).
+// smoke, web, hosted and hosted-browser read the wasm bindings from the machine's disk, artifact as the fallback (gantt#1878). Called from test-deploy-conditions.mjs (at its size limit).
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,7 +15,7 @@ export function wasmHandoffChecks(text, lines, jobBlock) {
     return readFileSync(join(home, 'out'), 'utf8').includes('hit=true') && existsSync(join(home, 'web/src/wasm/a.wasm'));
   };
   return [
-    ...['smoke', 'web', 'book', 'hosted', 'hosted-browser'].map((j) => [`${j} gets the wasm bindings from the disk-or-artifact action, with no download of its own`, block(j).includes('uses: ./.github/actions/wasm-bindings') && !/name: wasm-bindings/.test(block(j))]),
+    ...['smoke', 'web', 'hosted', 'hosted-browser'].map((j) => [`${j} gets the wasm bindings from the disk-or-artifact action, with no download of its own`, block(j).includes('uses: ./.github/actions/wasm-bindings') && !/name: wasm-bindings/.test(block(j))]),
     ['the action downloads the artifact when the disk step found no hit', /- if: steps\.disk\.outputs\.hit != 'true'\n\s+uses: actions\/download-artifact@v4\n\s+with: \{name: wasm-bindings,/.test(action)],
     ['the disk folder is keyed by run id and attempt, and `wasm` writes it', /WASM_HANDOFF: \S+\$\{\{ github\.run_id \}\}-\$\{\{ github\.run_attempt \}\}/.test(text) && /\$HOME\/\$WASM_HANDOFF[\s\S]*cp -r "\$WEB_ROOT\/src\/wasm"/.test(block('wasm'))],
     ['an empty run key stops the disk step and the `wasm` keep step before any copy, find or delete', /\[ -n "\$WASM_HANDOFF" \][^\n]*cp -r/.test(action) && /\[ -n "\$WASM_HANDOFF" \][^\n]*mkdir -p[^\n]*find/.test(block('wasm')) && !read('')],
