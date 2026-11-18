@@ -10,6 +10,8 @@ export type EditRefusal =
   | "busy"
   /** The host switched the chart to read-only for this person (`App.set_read_only`): nothing in it can be changed. */
   | "readOnly"
+  /** The host's capability profile (`HostCapabilities`) turned this kind of change off: a gesture, or a group of fields. */
+  | "notAllowed"
   /** The schedule has no outline (a generated stress fixture). */
   | "noOutline"
   /** `deleteRow` with no task selected, `deleteLink` with no link selected. */
@@ -69,6 +71,7 @@ export type LinkResult = { ok: true; link: number } | Refusal;
 const PUBLIC_REASON: Readonly<Record<string, EditRefusal>> = {
   busy: "busy",
   readOnly: "readOnly",
+  notAllowed: "notAllowed",
   refused: "refused",
   beforeEditFailed: "beforeEditFailed",
   noOutline: "noOutline",

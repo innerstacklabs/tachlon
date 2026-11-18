@@ -321,6 +321,18 @@ impl Session {
         Ok(true)
     }
 
+    /// Whether the undo, redo or discard `plan` describes replays a data-date step, which holds no
+    /// edit for [`Session::replayed`] and [`Session::discarded`] to list.
+    pub(crate) fn replays_data_date(&self, plan: &Plan) -> bool {
+        let dates = |entry: Option<&Entry>| matches!(entry, Some(Entry::DataDates(_)));
+        match *plan {
+            Plan::Replay(_, Source::Undo) => dates(self.history.undo.back()),
+            Plan::Replay(..) => dates(self.history.redo.last()),
+            Plan::Discard(depth) => self.history.past(depth).any(|entry| dates(Some(entry))),
+            _ => false,
+        }
+    }
+
     /// After an undo or redo, select the task it changed and bring its bar into view, as a row
     /// click does. The task already selected is left as it is, and so is a link that is still
     /// selected after the step (selecting a row would clear it); a task with no row (deleted, or

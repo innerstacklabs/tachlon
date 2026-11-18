@@ -80,7 +80,7 @@ import "./styles/print.css";
 export { fromBryntum, fromDhtmlx, fromTasks, PlainDataError, toPlain, validate } from "./adapters/index.js";
 export type { BryntumResult, DhtmlxOptions, DhtmlxResult, PlainCalendar, PlainIssue, PlainLink, PlainOptions, PlainResult, PlainTask, PlainValidation, ScheduleDocument } from "./adapters/index.js";
 // The chart's own types (`gantt-types.ts`).
-export type { BeforeEdit, BeforeEditChange, Gantt, MountOptions, TaskUpdate, UpdateResult } from "./gantt-types.js";
+export type { BeforeEdit, BeforeEditChange, Gantt, HostCapabilities, MountOptions, TaskUpdate, UpdateResult } from "./gantt-types.js";
 export type { Commands, ScrollTarget } from "./commands.js";
 export type { Change, Commit, CommitSource, GanttEvents } from "./events.js";
 export type { OpenOptions, PickerProject } from "./open-schedule.js";
@@ -126,7 +126,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
     if (from === undefined) return Promise.reject(new MountError("schedule", "The chart could not read its schedule to start again: the page's tasks and links were let go once it had started."));
     return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit));
   };
-  const gantt = await mountSwitching(root, { schedule, forceWebgl, readOnly: options.readOnly, beforeEdit: options.beforeEdit }, start, page?.fallback ?? null, restart);
+  const gantt = await mountSwitching(root, { schedule, forceWebgl, readOnly: options.readOnly, capabilities: options.capabilities, beforeEdit: options.beforeEdit }, start, page?.fallback ?? null, restart);
   plain = undefined;
   return gantt;
 }
@@ -171,6 +171,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   }
   own.app = app;
   app.set_read_only(run.readOnly());
+  app.set_capabilities(JSON.stringify(run.capabilities() ?? {}));
   if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message)));
   const themeTokens = JSON.parse(App.theme_tokens()) as string[];
   const { sync: syncTheme, stop: stopTheme } = installTheme(root, app, themeTokens);

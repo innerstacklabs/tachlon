@@ -164,6 +164,10 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       return app.read_only();
     },
+    setCapabilities: (capabilities) => {
+      alive();
+      app.set_capabilities(JSON.stringify(capabilities ?? {}));
+    },
     setPending: (keys) => {
       alive();
       const slots = JSON.parse(app.task_slots([...keys])) as (number | null)[];

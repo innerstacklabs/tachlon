@@ -2,6 +2,7 @@
 //! top-level `Session` field. Today that is the outbox and the key maps. The capabilities
 //! (decisions 0016, 0018 and 0019) join it as their rows land.
 
+mod capabilities;
 mod gate;
 mod keys;
 mod outbox;
@@ -11,6 +12,7 @@ mod results;
 mod update;
 mod values;
 
+pub(crate) use capabilities::Capabilities;
 pub(crate) use keys::Kind;
 pub use keys::{KeyTarget, Keys};
 pub use outbox::OUTBOX_CAP;
@@ -21,11 +23,12 @@ pub use update::{UpdateError, Updated};
 pub(crate) use values::schedule_update;
 
 /// The host's side of a session. A new session starts with it empty, and `reopen` carries only
-/// `read_only` and `before_edit`, the members that are a choice about the chart and its person.
+/// `read_only`, `before_edit` and `capabilities`, the members that are a choice about the chart and its person.
 #[derive(Default)]
 pub(crate) struct Host {
     pub(crate) outbox: Outbox,
     pub(crate) keys: Keys,
     pub(crate) read_only: bool,
+    pub(crate) capabilities: Capabilities,
     pub(crate) before_edit: Option<BeforeEdit>,
 }

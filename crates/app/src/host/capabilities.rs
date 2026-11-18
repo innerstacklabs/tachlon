@@ -1,0 +1,149 @@
+//! The host capability profile (gantt#2090, decision 0019, rule 5): the gestures and groups of fields
+//! the host's database cannot take, told once at mount. Nothing is off until the host says so.
+
+use super::Plan;
+use crate::document::fields::fields_allowing;
+use crate::document::json_read::{Value, parse_streaming};
+use crate::press::{Before, Press};
+use crate::{Session, edit::Edit, edit::EditError};
+
+/// One thing a host can turn off: a gesture, or a group of fields. Every [`Edit`] is in one group.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Item {
+    BarMove,
+    Resize,
+    Link,
+    Structure,
+    Names,
+    Dates,
+    Links,
+    Progress,
+    Baseline,
+}
+
+/// Each item once: its place in the profile, and the words a refusal names it with.
+const TABLE: [(Item, &str, &str); 9] = [
+    (Item::BarMove, "gestures.barMove", "moving a bar"),
+    (Item::Resize, "gestures.resize", "resizing a bar"),
+    (Item::Link, "gestures.link", "drawing a link"),
+    (
+        Item::Structure,
+        "editable.structure",
+        "adding, deleting and moving rows",
+    ),
+    (Item::Names, "editable.names", "changing names"),
+    (
+        Item::Dates,
+        "editable.dates",
+        "changing dates and durations",
+    ),
+    (Item::Links, "editable.links", "changing links"),
+    (
+        Item::Progress,
+        "editable.progress",
+        "changing progress and the data date",
+    ),
+    (Item::Baseline, "editable.baseline", "changing the baseline"),
+];
+
+/// The items a host turned off, one bit each; none is the whole chart.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct Capabilities(u16);
+
+impl Capabilities {
+    /// The profile in `json`, `{"gestures":{"barMove":false},"editable":{"structure":false}}`: each
+    /// member is on unless it says `false`.
+    fn read(json: &str) -> Result<Self, String> {
+        let root = parse_streaming(json, &mut |_, _, _, _, _| {})?;
+        fields_allowing(&root, &[], &["gestures", "editable"])?;
+        let mut off = 0;
+        for section in ["gestures", "editable"] {
+            let members = match root.get(section) {
+                None => continue,
+                Some(Value::Object(members)) => members,
+                Some(_) => return Err(format!("{section}: expected an object")),
+            };
+            for (key, value) in members {
+                let name = format!("{section}.{key}");
+                let row = TABLE.iter().find(|row| row.1 == name);
+                let (item, ..) = row.ok_or_else(|| format!("{name}: unknown key"))?;
+                let Value::Bool(on) = value else {
+                    return Err(format!("{name}: expected true or false"));
+                };
+                off |= u16::from(!on) << *item as u16;
+            }
+        }
+        Ok(Self(off))
+    }
+
+    /// The words for the first of `items` the profile turned off.
+    fn refused(self, items: impl IntoIterator<Item = Item>) -> Option<&'static str> {
+        let off = |item: &Item| self.0 >> *item as u16 & 1 == 1;
+        let item = items.into_iter().find(off)?;
+        TABLE.iter().find(|row| row.0 == item).map(|row| row.2)
+    }
+}
+
+/// The group `edit` changes.
+fn group(edit: &Edit) -> Item {
+    match edit {
+        Edit::Insert { .. }
+        | Edit::Delete { .. }
+        | Edit::Restore { .. }
+        | Edit::Reparent { .. } => Item::Structure,
+        Edit::Rename { .. } => Item::Names,
+        Edit::Move { .. } | Edit::SetDuration { .. } | Edit::SetLimit { .. } => Item::Dates,
+        Edit::AddLink { .. }
+        | Edit::RemoveLink { .. }
+        | Edit::RestoreLink { .. }
+        | Edit::SetLink { .. } => Item::Links,
+        Edit::SetProgress { .. } | Edit::SetDataDate { .. } => Item::Progress,
+        Edit::SetBaseline { .. } | Edit::ClearBaseline => Item::Baseline,
+    }
+}
+
+impl Session {
+    /// Tell the chart what the host's database can take, replacing any profile it had; `{}` allows
+    /// everything. A change the profile turned off is refused at the gate on every path, undo and
+    /// redo included, with [`EditError::NotAllowed`]. `reopen` keeps the profile.
+    ///
+    /// # Errors
+    /// A message that starts with the member at fault, for text that is not a profile; the
+    /// profile stays as it was.
+    pub fn set_capabilities(&mut self, json: &str) -> Result<(), String> {
+        self.host.capabilities = Capabilities::read(json)?;
+        Ok(())
+    }
+
+    /// The profile's check for the action `plan` describes: its gesture, then the group of each edit
+    /// it would make (the ones an undo, a redo or a discard replays included).
+    pub(super) fn refuse_unallowed(&self, plan: &Plan) -> Result<(), EditError> {
+        let capabilities = self.host.capabilities;
+        if capabilities == Capabilities::default() {
+            return Ok(());
+        }
+        let gesture = match *plan {
+            Plan::Drag(Press {
+                before: Before::Snet(_),
+                ..
+            }) => Some(Item::BarMove),
+            Plan::Drag(_) => Some(Item::Resize),
+            Plan::Action("linkDrag", ..) | Plan::Link(..) => Some(Item::Link),
+            Plan::Paste(_) => Some(Item::Structure),
+            _ => self.replays_data_date(plan).then_some(Item::Progress),
+        };
+        let edits = match *plan {
+            Plan::Edit(edit) => vec![edit.clone()],
+            Plan::Group(edits, _) => edits.to_vec(),
+            Plan::Drag(press) => self.drag_edit(press).into_iter().collect(),
+            Plan::Replay(_, source) => self.replayed(source),
+            Plan::Discard(depth) => self.discarded(depth),
+            Plan::Dialog(task, text) => self.dialog_edits(task, text),
+            _ => Vec::new(),
+        };
+        let items = gesture.into_iter().chain(edits.iter().map(group));
+        capabilities
+            .refused(items)
+            .map_or(Ok(()), |what| Err(EditError::NotAllowed(what)))
+    }
+}
