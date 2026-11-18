@@ -33,10 +33,12 @@ pub(crate) enum Plan<'a> {
 /// for `drag` the start or duration its first frame asks for; for `setTaskFields` each field of the
 /// dialog, read against the chart before the dialog applies any (a finish after a start reads the
 /// old start); for `insertMany` a task create with its name; for `linkRelease` a link create with
-/// `from` and `to`. An action that changes no task field (the structure, link, baseline and data-date
-/// edits, `discardWhatIf`, and an undo or redo of one) carries `kind` and `tasks` with no changes yet;
-/// `tasks` names the tasks the action touches, both ends of a link included; an outline move names the
-/// moved task only, and the siblings it adopts or releases come with the values.
+/// `from` and `to`. A delete, restore, outline move, link edit and data-date edit carry the records
+/// their commit writes (`values.rs`, read before the edit); an insert carries only the place and
+/// name the edit names, a baseline edit the `baseline` field though its commit writes no change. A
+/// plan of two or more of those (a group, a multi-step undo or redo), an undo or redo of a data-date
+/// edit and `discardWhatIf` carry only `kind` and the tasks they touch. `tasks` names them, both ends
+/// of a link included; an outline move names only the moved task, its siblings come with the values.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Planned {
     /// The action: `setDuration`, `rename` and the like for a plain edit, `group`, `undo`, `drag`.
@@ -154,8 +156,8 @@ impl Session {
 
     /// The task-field changes of `edits` run in order against what the session holds now: the first
     /// old value and the last new one, as a commit keeps them, and none for a field that ends where
-    /// it began. [`Session::carried`] reads each variant's values; structure, link, baseline and
-    /// data-date edits carry none yet.
+    /// it began. [`Session::carried`] reads each variant's values; [`Session::shaped_all`] adds the
+    /// records of an edit that changes no task field.
     fn planned_changes(&self, edits: &[Edit]) -> Vec<String> {
         let mut fields: Vec<Field> = Vec::new();
         for edit in edits {
@@ -171,6 +173,8 @@ impl Session {
         }
         let changed = fields.iter().filter(|f| f.2 != f.3);
         let update = |(task, field, old, new): &Field| self.task_update(*task, field, old, new);
-        changed.map(update).collect()
+        let mut out: Vec<String> = changed.map(update).collect();
+        out.extend(self.shaped_all(edits));
+        out
     }
 }

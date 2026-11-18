@@ -27,6 +27,7 @@ mod baseline_summary_rows;
 mod baseline_task;
 mod baseline_variance;
 mod before_edit;
+mod before_edit_values;
 mod blank;
 mod check_filter;
 mod checks;
