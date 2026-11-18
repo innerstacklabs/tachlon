@@ -8,6 +8,7 @@ import { nameOf } from "./field-names.js";
 import { frozenEdge } from "./frozen-edge.js";
 import { installRowPosition } from "./row-position.js";
 import { type Shell, watching } from "./shell.js";
+import { trackChanged } from "./table-changed.js";
 import { buildRow } from "./table-row.js";
 import { fitTaskWidth, measureTaskNeed } from "./task-width.js";
 
@@ -25,6 +26,8 @@ export interface Table {
   reset: () => void;
   /** Mark these task slots as pending in place of the ones marked before, and draw the rows again. */
   setPending: (slots: readonly number[]) => void;
+  /** An `update` wrote these task slots: they stop being pending, and the next redraw highlights the cells whose text changed. */
+  wrote: (slots: readonly number[]) => void;
 }
 
 /**
@@ -198,6 +201,8 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   // so marks made right after a `load` (before that frame) stay.
   let pending: ReadonlySet<number> = new Set();
   let pendingEpoch = s0.epoch;
+  // After `wrote` the next redraw marks each cell whose text differs from the one shown (data-changed, table-changed.ts).
+  const changed = trackChanged(tableRows, (undo) => shell.disposers.push(undo));
   let extentRow: number | null = null; // the range's moving end at the last frame
   tableBody.addEventListener("scroll", () => {
     // Within a pixel of the canvas's own value is the echo of our write below.
@@ -273,6 +278,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     canvasScrollY = s.scrollY;
     if (s.epoch !== pendingEpoch) {
       pending = new Set();
+      changed.drop();
       pendingEpoch = s.epoch;
     }
     if (s.rowCount !== spacerRows) {
@@ -328,9 +334,11 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const data = JSON.parse(app.table_rows(first, last)) as (TableRow | HeaderRow)[];
     // A clicked chevron is replaced with its row; focus must not fall to the page, or the chart's keys stop working.
     const focusWasInRows = tableRows.contains(document.activeElement);
+    changed.before();
     tableRows.replaceChildren(
       ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending })),
     );
+    changed.after();
     if (focusWasInRows) root.focus({ preventScroll: true });
     markRows(s, true);
   };
@@ -348,6 +356,12 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     setPending: (slots) => {
       pending = new Set(slots);
       pendingEpoch = shell.status().epoch;
+      drawn = { first: -1, last: -1, stamp: -1, variance: "off" };
+    },
+    wrote: (slots) => {
+      const written = new Set(slots);
+      pending = new Set([...pending].filter((slot) => !written.has(slot)));
+      changed.arm();
       drawn = { first: -1, last: -1, stamp: -1, variance: "off" };
     },
     reset: () => {

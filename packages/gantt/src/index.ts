@@ -326,7 +326,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
 
   const gantt = createGantt({
     shell, reason, name: () => name, setName: (n) => { name = n; }, save, note, printOn, openFile: (f, options) => opener.openFile(f, options),
-    adopt, busy, guard, hostView, events, setPending: table.setPending, speed: () => speedOf(info.open, metrics.view()), unit,
+    adopt, busy, guard, hostView, events, setPending: table.setPending, wrote: table.wrote, speed: () => speedOf(info.open, metrics.view()), unit,
   });
   // The panel is written beside the chart, not in its root; the switch to WebGL2 takes it down with this start and writes a new one with no history.
   if (assistant !== undefined) disposers.push(mountAssistantPanel(assistant.into, assistant.send, gantt.commands, texts).destroy);
