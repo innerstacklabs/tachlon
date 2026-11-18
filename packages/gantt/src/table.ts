@@ -13,6 +13,8 @@ import { fitTaskWidth, measureTaskNeed } from "./task-width.js";
 
 /** Rows kept in the DOM above and below the visible ones. */
 const TABLE_OVERSCAN = 6;
+/** How long a cell an `update` changed stays highlighted, in milliseconds. */
+const CHANGED_MS = 1500;
 
 export interface Table {
   /** Scroll, select, hover and draw the rows for this status. */
@@ -25,6 +27,8 @@ export interface Table {
   reset: () => void;
   /** Mark these task slots as pending in place of the ones marked before, and draw the rows again. */
   setPending: (slots: readonly number[]) => void;
+  /** An `update` wrote these task slots: they stop being pending, and the next redraw highlights the cells whose text changed. */
+  wrote: (slots: readonly number[]) => void;
 }
 
 /**
@@ -198,6 +202,13 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   // so marks made right after a `load` (before that frame) stay.
   let pending: ReadonlySet<number> = new Set();
   let pendingEpoch = s0.epoch;
+  // After `wrote` the next redraw marks each cell whose text differs from the one shown (data-changed); a timer clears the marks, and a redraw before then keeps them (`changed`).
+  let comparing = false;
+  let changed: ReadonlySet<string> = new Set();
+  let fade: ReturnType<typeof setTimeout> | undefined;
+  shell.disposers.push(() => clearTimeout(fade));
+  const cellsShown = (): NodeListOf<HTMLElement> => tableRows.querySelectorAll<HTMLElement>(".row[data-task] > span");
+  const cellKey = (cell: HTMLElement): string => `${cell.parentElement?.dataset["task"]}/${cell.className.split(" ")[0]}`; // a task slot and a column
   let extentRow: number | null = null; // the range's moving end at the last frame
   tableBody.addEventListener("scroll", () => {
     // Within a pixel of the canvas's own value is the echo of our write below.
@@ -273,6 +284,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     canvasScrollY = s.scrollY;
     if (s.epoch !== pendingEpoch) {
       pending = new Set();
+      changed = new Set();
       pendingEpoch = s.epoch;
     }
     if (s.rowCount !== spacerRows) {
@@ -328,9 +340,21 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const data = JSON.parse(app.table_rows(first, last)) as (TableRow | HeaderRow)[];
     // A clicked chevron is replaced with its row; focus must not fall to the page, or the chart's keys stop working.
     const focusWasInRows = tableRows.contains(document.activeElement);
+    const shownBefore = comparing ? new Map([...cellsShown()].map((cell) => [cellKey(cell), cell.textContent])) : null;
+    comparing = false;
     tableRows.replaceChildren(
       ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending })),
     );
+    const moved = shownBefore === null ? [] : [...cellsShown()].filter((cell) => shownBefore.has(cellKey(cell)) && shownBefore.get(cellKey(cell)) !== cell.textContent);
+    changed = new Set([...changed, ...moved.map(cellKey)]);
+    for (const cell of changed.size === 0 ? [] : cellsShown()) if (changed.has(cellKey(cell))) cell.dataset["changed"] = "true";
+    if (moved.length > 0) {
+      clearTimeout(fade);
+      fade = setTimeout(() => {
+        changed = new Set();
+        for (const cell of tableRows.querySelectorAll<HTMLElement>("[data-changed]")) delete cell.dataset["changed"];
+      }, CHANGED_MS);
+    }
     if (focusWasInRows) root.focus({ preventScroll: true });
     markRows(s, true);
   };
@@ -348,6 +372,12 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     setPending: (slots) => {
       pending = new Set(slots);
       pendingEpoch = shell.status().epoch;
+      drawn = { first: -1, last: -1, stamp: -1, variance: "off" };
+    },
+    wrote: (slots) => {
+      const written = new Set(slots);
+      pending = new Set([...pending].filter((slot) => !written.has(slot)));
+      comparing = true;
       drawn = { first: -1, last: -1, stamp: -1, variance: "off" };
     },
     reset: () => {

@@ -93,3 +93,18 @@
 .gantt .row[data-pending] > span {
   opacity: 0.6;
 }
+/* A cell an `update` changed (data-changed, table.ts) is highlighted for a moment, fading out; with reduced motion it holds as a still highlight until the mark goes. */
+.gantt .row > span[data-changed] {
+  background-color: color-mix(in srgb, var(--gantt-sel-edge) 35%, transparent);
+  animation: gantt-changed 1.5s ease-out forwards;
+}
+@media (prefers-reduced-motion: reduce) {
+  .gantt .row > span[data-changed] {
+    animation: none;
+  }
+}
+@keyframes gantt-changed {
+  to {
+    background-color: transparent;
+  }
+}

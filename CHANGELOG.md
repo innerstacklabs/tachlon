@@ -4,6 +4,10 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+### New
+
+- After `chart.update(records)`, each cell in view whose shown value changed (the values the host sent and the ones the new plan moved) is highlighted for 1.5 seconds, with no fade under `prefers-reduced-motion: reduce`, and a row marked with `setPending` that the call wrote stops being dimmed.
+
 ## 0.3.1
 
 A page that runs on 0.3.0 behaves the same apart from the fix below. TypeScript code that handles every `EditRefusal` reason or every `error` source with no default case (an exhaustive `switch`, or a `Record` keyed by the type) needs the new cases the entries under "New" name.

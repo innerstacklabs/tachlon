@@ -101,3 +101,43 @@ test("a duration is counted in the unit the chart mounted with: hours, minutes, 
   const document = await page.evaluate(() => window.upChart.toDocument());
   expect(await set({ document, durationUnit: "day" }, 3), "a unit that is not one of the three counts days, as the reader does").toEqual([1440]);
 });
+
+const shown = (page: Page) => page.evaluate(() => [...document.querySelectorAll<HTMLElement>("#table-rows .row[data-task] > span")].map((c) => ({ text: c.textContent, marked: c.dataset.changed === "true", motion: getComputedStyle(c).animationName })));
+
+test("an update highlights the cells in view whose shown value changed and no others, and the mark goes after its timer", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(40) });
+  const before = await shown(page);
+  await page.evaluate((ks) => window.upChart.update(ks.map((key) => ({ key, duration: 5 }))), keys(0, 20));
+  await frames(page);
+  const after = await shown(page);
+  expect(after.map((c) => c.marked), "a cell is marked when its text differs from the one shown before").toEqual(after.map((c, i) => c.text !== before[i]!.text));
+  expect(after.filter((c) => c.marked).length, "some changed").toBeGreaterThan(0);
+  expect(after.filter((c) => !c.marked).length, "some did not").toBeGreaterThan(0);
+  expect(after.find((c) => c.marked)!.motion, "with motion the mark fades").toBe("gantt-changed");
+  await expect(page.locator("#table-rows [data-changed]")).toHaveCount(0, { timeout: 4000 });
+});
+
+test("an update that sends the values already shown marks nothing, and with reduced motion the mark has no animation", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mountHost(page, { tasks: tasks(40) });
+  await page.evaluate((ks) => window.upChart.update(ks.map((key) => ({ key, duration: 2 }))), keys(0, 20));
+  await frames(page);
+  expect((await shown(page)).filter((c) => c.marked), "the same values change no cell").toEqual([]);
+  await page.evaluate((ks) => window.upChart.update(ks.map((key) => ({ key, duration: 5 }))), keys(0, 20));
+  await frames(page);
+  const marked = (await shown(page)).filter((c) => c.marked).map((c) => c.motion);
+  expect([marked.length > 0, marked.every((a) => a === "none")], "marked, with no animation").toEqual([true, true]);
+});
+
+test("a pending key the update wrote is no longer pending, and a refused update marks and clears nothing", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(10) });
+  const pending = () => page.locator("#table-rows .row[data-pending]").evaluateAll((rows) => rows.map((r) => (r as HTMLElement).dataset.row));
+  await page.evaluate(() => window.upChart.setPending(["k1", "k2"]));
+  await page.evaluate(() => window.upChart.update([{ key: "k1", duration: 9 }, { key: "nope", duration: 1 }]));
+  await frames(page);
+  expect(await pending(), "a refused update leaves both pending").toEqual(["1", "2"]);
+  expect(await shown(page).then((cells) => cells.filter((c) => c.marked)), "and marks nothing").toEqual([]);
+  await page.evaluate(() => window.upChart.update([{ key: "k1", duration: 9 }]));
+  await frames(page);
+  expect(await pending(), "only the task written leaves").toEqual(["2"]);
+});

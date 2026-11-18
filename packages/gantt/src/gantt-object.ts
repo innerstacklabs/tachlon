@@ -34,6 +34,7 @@ export interface GanttParts {
   busy: () => boolean;
   /** Mark these task slots as pending (`installTable`). */
   setPending: (slots: readonly number[]) => void;
+  wrote: (slots: readonly number[]) => void;
   /** The token and the swap check `load` shares with `openFile`. */
   guard: OpenGuard;
   /** The host's own reader of the view state (not the loop's). */
@@ -176,7 +177,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     },
     update: (records) => {
       alive();
-      return update(app, p.busy, p.unit, records);
+      return update(app, p.busy, p.unit, records, p.wrote);
     },
     speed: () => {
       alive();
