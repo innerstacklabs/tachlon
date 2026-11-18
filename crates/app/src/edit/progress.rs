@@ -176,7 +176,7 @@ impl Session {
 
     /// Refuse an actual start or finish typed later than the data date. An actual the task
     /// already holds passes, so remaining can still be edited on a task an import left after it.
-    fn check_actuals_not_after_data_date(
+    pub(crate) fn check_actuals_not_after_data_date(
         &self,
         task: TaskId,
         actual_start: Option<Instant>,

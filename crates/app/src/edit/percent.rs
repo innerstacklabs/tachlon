@@ -5,7 +5,7 @@
 
 use super::{Edit, EditError};
 use crate::Session;
-use engine::{Instant, ScheduleError, TaskId};
+use engine::{Instant, Minutes, ScheduleError, TaskDates, TaskId};
 
 impl Session {
     /// Set a task's percent complete from the text its cell shows: `75` or `75%`, a whole number
@@ -41,23 +41,36 @@ impl Session {
             return Err(ScheduleError::UnknownTask(task).into());
         }
         let percent = parse_percent(text)?;
-        let current = &self.schedule.tasks()[task.0 as usize];
-        let duration = current.duration;
-        let actual_start = current
+        let duration = self.schedule.tasks()[task.0 as usize].duration;
+        let (actual_start, actual_finish, remaining) =
+            self.percent_progress(&self.solution.dates, task, percent, duration);
+        Ok(Edit::SetProgress {
+            task,
+            actual_start,
+            actual_finish,
+            remaining,
+        })
+    }
+
+    /// The actual start, actual finish and remaining work that `percent` of `duration` sets on a live
+    /// task, from the early dates `dates` holds.
+    pub(crate) fn percent_progress(
+        &self,
+        dates: &[TaskDates],
+        task: TaskId,
+        percent: i64,
+        duration: Minutes,
+    ) -> (Option<Instant>, Option<Instant>, Option<Minutes>) {
+        let actual_start = self.schedule.tasks()[task.0 as usize]
             .actual_start
-            .unwrap_or_else(|| self.solution.dates[task.0 as usize].es);
+            .unwrap_or_else(|| dates[task.0 as usize].es);
         let (actual_finish, remaining) = if percent == 100 {
-            let finish: Instant = self.solution.dates[task.0 as usize].ef.max(actual_start);
+            let finish: Instant = dates[task.0 as usize].ef.max(actual_start);
             (Some(finish), 0)
         } else {
             (None, whole_hours_left(duration, percent))
         };
-        Ok(Edit::SetProgress {
-            task,
-            actual_start: Some(actual_start),
-            actual_finish,
-            remaining: Some(remaining),
-        })
+        (Some(actual_start), actual_finish, Some(remaining))
     }
 }
 
