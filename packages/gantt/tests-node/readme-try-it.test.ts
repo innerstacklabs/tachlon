@@ -21,6 +21,9 @@ test("the website and the live demo are linked before the first code block", () 
 test("the first code block is the assistant prompt the package README carries, and it comes before npm install", () => {
   const block = /^```\w*\n([\s\S]*?)\n```/m.exec(readme.slice(firstFence));
   expect(block, "the first fence closes").not.toBeNull();
-  expect(block![1], "the first code block equals the package README's prompt").toBe(agentPrompt(packageReadme));
+  // The front page wraps the prompt so GitHub shows all of it; the words are the package README's, in order.
+  const words = (text: string): string => text.split(/\s+/).filter(Boolean).join(" ");
+  expect(words(block![1]), "the first code block equals the package README's prompt").toBe(words(agentPrompt(packageReadme)));
+  expect(Math.max(...block![1].split("\n").map((line) => line.length)), "no prompt line is wider than GitHub's code box").toBeLessThanOrEqual(90);
   expect(readme.indexOf("npm install"), "the manual install follows the prompt").toBeGreaterThan(firstFence + block![0].length);
 });

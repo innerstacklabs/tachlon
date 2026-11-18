@@ -1,6 +1,6 @@
-# <img src="docs/media/brand/icon.png" width="40" alt=""> Tachlon
+# <img src="apps/site/favicon.svg" width="36" alt=""> Tachlon: blazingly fast, powerful Gantt and scheduling
 
-Blazingly fast, powerful Gantt and scheduling for the web.
+**Rust. WebAssembly. GPU.** A scheduling engine written in Rust and compiled to WebAssembly, with a timeline drawn by the GPU. Built to be embedded in your product, and to be installed by your AI assistant.
 
 [Website](https://tachlon.com) · [Live demo](https://app.tachlon.com) · [Guide](https://app.tachlon.com/book/) · [npm](https://www.npmjs.com/package/tachlon)
 
@@ -16,46 +16,27 @@ Watch the narrated overview at [tachlon.com](https://tachlon.com).
 <!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-10-29 from branch `docs/screencast-2026-10-29` based on `eca49fe` -->
 <!-- screencast:end -->
 
-Tachlon is a Gantt and scheduling component that you put in your own product, in the category of Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt. What sets it apart is speed and a developer experience built for a developer who works with an AI assistant. Its own code was written that way: one person owns the product and decides what it is, and a team of AI agents wrote, tested and reviewed the code ([docs/HOW-THIS-WAS-BUILT.md](docs/HOW-THIS-WAS-BUILT.md)).
+Tachlon is a Gantt and scheduling component that you put in your own product, in the category of Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt. Three things set it apart: an engine in Rust and WebAssembly with a GPU-drawn timeline, which makes it blazingly fast; a component made to fit inside your product, not beside it; and a developer experience built for a developer who works with an AI assistant. Its own code was written that way: one person owns the product and decides what it is, and a team of AI agents wrote, tested and reviewed the code ([docs/HOW-THIS-WAS-BUILT.md](docs/HOW-THIS-WAS-BUILT.md)).
 
+- **Rust, WebAssembly and the GPU: blazingly fast.** The scheduling engine is Rust compiled to WebAssembly, the GPU draws the timeline, and the two share one block of memory. After a drag at 50,000 tasks, Tachlon reschedules in 17.8 ms (Bryntum Gantt 8 Community: 263.7 ms).
+- **Made to fit inside your product.** The chart fills the box your page gives it and takes its colors, bar shape, row height and type from CSS tokens, in light and dark. Every task and link keeps your own id, every edit reaches your code as a numbered change with old and new values, and one option makes the chart read-only. It comes as plain JavaScript and as React, Vue and Angular components, and the same engine runs in Node.
 - **A developer experience built for a developer with an AI assistant.** Your assistant installs Tachlon from one prompt. The package carries an `AGENTS.md` written for the assistant, `npx tachlon doctor` lets it check its own work, and `validate` names each problem in your data by path with a fix. Your product's own assistant gets typed engine tools in MCP, Anthropic and OpenAI forms, and an in-chart assistant where you supply the model call.
-- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag at 50,000 tasks, Tachlon reschedules in 17.8 ms (Bryntum Gantt 8 Community: 263.7 ms).
-- **Powerful scheduling, open source with no strings.** Auto-scheduling, critical path, eight constraint types, calendars, baselines, progress, and undo and redo. It opens and saves Primavera P6 XER and MS Project XML in the browser: the page reads your file and sends it nowhere. Plain JavaScript, React, Vue and Angular come in one MIT package, with no paid tier, license key, trial or watermark.
+- **Powerful scheduling, open source with no strings.** Auto-scheduling, critical path, eight constraint types, calendars, baselines, progress, and undo and redo. It opens and saves Primavera P6 XER and MS Project XML files inside the browser, with no server or conversion service for you to run. One MIT package, with no paid tier, license key, trial or watermark.
 
 ## Add it to your app
 
 Tachlon ships with instructions written for coding assistants. Paste this prompt into yours:
 
 ```text
-Add a Tachlon Gantt chart to this app. Install the npm package tachlon and follow the AGENTS.md inside it (more at tachlon.com/llms.txt). Put the chart on one existing page and change nothing else. Run the build and npx tachlon doctor until both pass. Commit on a new branch; do not push.
+Add a Tachlon Gantt chart to this app. Install the npm package tachlon and follow the
+AGENTS.md inside it (more at tachlon.com/llms.txt). Put the chart on one existing page
+and change nothing else. Run the build and npx tachlon doctor until both pass. Commit on
+a new branch; do not push.
 ```
 
 Your assistant reads the `AGENTS.md` inside the package, installs on a new branch, puts the chart on one existing page, and runs your build and `npx tachlon doctor` until both pass. It commits its work and does not push.
 
-Or by hand:
-
-```sh
-npm install tachlon
-```
-
-This is [examples/plain](examples/plain), shortened (its `index.html` holds the box: `<div id="chart" class="gantt" style="width: 800px; height: 300px"></div>`). [examples/react](examples/react) does the same with the React component.
-
-```js
-import { mount } from "tachlon";
-import "tachlon/gantt.css";
-
-const tasks = [
-  { id: 1, name: "Design", start: "2026-11-02", duration: 3 },
-  { id: 2, name: "Build", start: "2026-11-05", duration: 5 },
-  { id: 3, name: "Ship", start: "2026-11-12", duration: 1 },
-];
-const links = [{ from: 1, to: 2 }, { from: 2, to: 3 }];
-
-// forceWebgl: this page needs no GPU. Drop it to let the chart use WebGPU when the browser has it.
-const chart = await mount(document.getElementById("chart"), { tasks, links, forceWebgl: true });
-```
-
-With Vite, add `optimizeDeps: { exclude: ["tachlon"] }` to `vite.config.ts` ([examples/plain/vite.config.ts](examples/plain/vite.config.ts)): Vite otherwise bundles the chart's script away from its engine file, `app_bg.wasm`.
+Prefer to do it yourself? See [Install by hand](#install-by-hand).
 
 ## A developer experience for you and your assistant
 
@@ -179,6 +160,31 @@ Tachlon next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt on scheduling, 
 - Native `.mpp` files: save as MS Project XML. P6 baselines are not read yet, and XER files have been tried on P6 version 19.12 only ([docs/IMPORT.md](docs/IMPORT.md)).
 - Speed is measured on Apple machines and one Dell laptop so far; Windows, tablets and phones are not measured yet.
 - The [open issues](https://github.com/innerstacklabs/tachlon/issues) list the work.
+
+## Install by hand
+
+```sh
+npm install tachlon
+```
+
+This is [examples/plain](examples/plain), shortened (its `index.html` holds the box: `<div id="chart" class="gantt" style="width: 800px; height: 300px"></div>`). [examples/react](examples/react) does the same with the React component.
+
+```js
+import { mount } from "tachlon";
+import "tachlon/gantt.css";
+
+const tasks = [
+  { id: 1, name: "Design", start: "2026-11-02", duration: 3 },
+  { id: 2, name: "Build", start: "2026-11-05", duration: 5 },
+  { id: 3, name: "Ship", start: "2026-11-12", duration: 1 },
+];
+const links = [{ from: 1, to: 2 }, { from: 2, to: 3 }];
+
+// forceWebgl: this page needs no GPU. Drop it to let the chart use WebGPU when the browser has it.
+const chart = await mount(document.getElementById("chart"), { tasks, links, forceWebgl: true });
+```
+
+With Vite, add `optimizeDeps: { exclude: ["tachlon"] }` to `vite.config.ts` ([examples/plain/vite.config.ts](examples/plain/vite.config.ts)): Vite otherwise bundles the chart's script away from its engine file, `app_bg.wasm`.
 
 ## Documentation
 
