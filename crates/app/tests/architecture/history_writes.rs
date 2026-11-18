@@ -1,6 +1,6 @@
 //! Check 17: the undo and redo stacks change in one place (decision 0019, rule 1). In
 //! `crates/app/src/history.rs` and `crates/app/src/history/`, any method call on either stack
-//! other than a read (`back`, `last`, `len`, `is_empty`), or a call to `History::push`, is allowed only in
+//! other than a read (`back`, `last`, `len`, `is_empty`), or a `history` push or move, is allowed only in
 //! `impl History` and in `Session::commit`; anywhere else it fails and names the file and line. A write that
 //! goes round the method call (`mem::take`, a macro, an assignment such as `self.history.redo = ...`, a
 //! `&mut` borrow passed on, `with_history_cap`'s whole replacement) is not seen: the threat is a good-faith
@@ -58,7 +58,8 @@ impl<'ast> Visit<'ast> for Writes<'_> {
         let method = call.method.to_string();
         let stack =
             matches!(field.as_str(), "undo" | "redo") && !STACK_READS.contains(&method.as_str());
-        if !self.allowed && (stack || (field == "history" && method == "push")) {
+        let moves = matches!(method.as_str(), "push" | "move_to_redo" | "move_to_undo");
+        if !self.allowed && (stack || (field == "history" && moves)) {
             self.flag(
                 call.method.span().start().line,
                 &format!("`{field}.{method}` writes the history"),
@@ -148,7 +149,7 @@ fn the_allowance_is_for_commit_by_name() {
     let renamed = read(path).replace("fn commit(", "fn record(");
     let failures = check_history_writes(&[file(path, &renamed)]);
     assert!(!failures.is_empty(), "a renamed commit is still allowed");
-    one(&failures, "`undo.pop_back` writes the history");
+    one(&failures, "`history.move_to_redo` writes the history");
 }
 
 #[test]
