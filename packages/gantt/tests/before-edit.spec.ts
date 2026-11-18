@@ -54,8 +54,7 @@ test("a function that refuses a typed duration shows its reason and leaves the s
   expect(await doc(page), "an allowed edit applies").not.toBe(before);
 });
 
-test("a drag asks once, when it starts, and not again while it moves or when it ends", async ({ page }) => {
-  await mountHost(page, `() => undefined`);
+async function dragBar(page: Page): Promise<void> {
   const bar = await page.evaluate(() => {
     const { x, y, width, height } = (window.gantt!.app.test_bar_rects() as Record<string, number>[])[2]!;
     const box = document.getElementById("timeline")!.getBoundingClientRect();
@@ -64,6 +63,11 @@ test("a drag asks once, when it starts, and not again while it moves or when it 
   await page.mouse.move(bar.x, bar.y);
   await page.mouse.down();
   await page.mouse.move(bar.x + 60, bar.y, { steps: 6 });
+}
+
+test("a drag asks once, when it starts, and not again while it moves or when it ends", async ({ page }) => {
+  await mountHost(page, `() => undefined`);
+  await dragBar(page);
   expect((await asked(page, "drag")).length, "one call while the bar moves").toBe(1);
   await page.mouse.up();
   expect(await asked(page, "drag"), "still one call after the drag ends").toMatchObject([{ source: "drag", tasks: [expect.any(Number)] }]);
@@ -88,6 +92,16 @@ test("a command called from inside the function returns busy and does nothing, s
   await expect(page.locator("#table-rows .row").nth(6).locator(".dur")).toHaveText(/17/);
   expect(await page.evaluate(() => window.answers), "the command answers busy").toMatchObject([{ ok: false, reason: "busy" }]);
   expect(await page.evaluate(() => [window.beChart.state().rowCount, window.errors.length]), "no row was added and no error fired").toEqual([rows, 0]);
+});
+
+test("a command called from inside the function on a drag throws like any call, so the drag is refused with one error event", async ({ page }) => {
+  await mountHost(page, `() => { window.beChart.commands.insertRow(); }`);
+  const [before, rows] = [await doc(page), await page.evaluate(() => window.beChart.state().rowCount)];
+  await dragBar(page);
+  await page.mouse.up();
+  expect(await page.evaluate(() => window.errors.map(({ source, fatal }) => `${source} ${fatal}`))).toEqual(["beforeEdit false"]);
+  expect(await doc(page), "the schedule is as it was").toBe(before);
+  expect(await page.evaluate(() => window.beChart.state().rowCount), "no row was added").toBe(rows);
 });
 
 test("the function is still asked after the switch to WebGL2", async ({ page }) => {
