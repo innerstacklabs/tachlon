@@ -1,6 +1,6 @@
-# <img src="apps/site/favicon.svg" width="36" alt=""> Tachlon: blazingly fast, powerful Gantt and scheduling
+# <img src="apps/site/favicon.svg" width="36" alt=""> Tachlon
 
-**Rust. WebAssembly. GPU.** A scheduling engine written in Rust and compiled to WebAssembly, with a timeline drawn by the GPU. Built to be embedded in your product, and to be installed by your AI assistant.
+**Blazingly fast, powerful Gantt and scheduling. AI first.**
 
 [Website](https://tachlon.com) · [Live demo](https://app.tachlon.com) · [Guide](https://app.tachlon.com/book/) · [npm](https://www.npmjs.com/package/tachlon)
 
@@ -12,20 +12,23 @@
 
 Watch the narrated overview at [tachlon.com](https://tachlon.com).
 
-<!-- screencast: the GIF stands in until docs/media/screencast.mp4 (6.2 MB) is uploaded as a GitHub attachment; its URL on a line of its own then replaces the image -->
-<!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-10-29 from branch `docs/screencast-2026-10-29` based on `eca49fe` -->
+<!-- screencast: the GIF stands in until docs/media/screencast.mp4 (4.9 MB) is uploaded as a GitHub attachment; its URL on a line of its own then replaces the image -->
+<!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-11-17 from branch `agent/screencast-rerecord` based on `2908360` -->
 <!-- screencast:end -->
 
-Tachlon is a Gantt and scheduling component that you put in your own product, in the category of Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt. Three things set it apart: an engine in Rust and WebAssembly with a GPU-drawn timeline, which makes it blazingly fast; a component made to fit inside your product, not beside it; and a developer experience built for a developer who works with an AI assistant. Its own code was written that way: one person owns the product and decides what it is, and a team of AI agents wrote, tested and reviewed the code ([docs/HOW-THIS-WAS-BUILT.md](docs/HOW-THIS-WAS-BUILT.md)).
+Tachlon is a Gantt and scheduling component you put inside your own product.
 
-- **Rust, WebAssembly and the GPU: blazingly fast.** The scheduling engine is Rust compiled to WebAssembly, the GPU draws the timeline, and the two share one block of memory. After a drag at 50,000 tasks, Tachlon reschedules in 17.8 ms (Bryntum Gantt 8 Community: 263.7 ms).
-- **Made to fit inside your product.** The chart fills the box your page gives it and takes its colors, bar shape, row height and type from CSS tokens, in light and dark. Every task and link keeps your own id, every edit reaches your code as a numbered change with old and new values, and one option makes the chart read-only. It comes as plain JavaScript and as React, Vue and Angular components, and the same engine runs in Node.
-- **A developer experience built for a developer with an AI assistant.** Your assistant installs Tachlon from one prompt. The package carries an `AGENTS.md` written for the assistant, `npx tachlon doctor` lets it check its own work, and `validate` names each problem in your data by path with a fix. Your product's own assistant gets typed engine tools in MCP, Anthropic and OpenAI forms, and an in-chart assistant where you supply the model call.
-- **Powerful scheduling, open source with no strings.** Auto-scheduling, critical path, eight constraint types, calendars, baselines, progress, and undo and redo. It opens and saves Primavera P6 XER and MS Project XML files inside the browser, with no server or conversion service for you to run. One MIT package, with no paid tier, license key, trial or watermark.
+## Why Tachlon
 
-## Add it to your app
+- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. 50,000 tasks reschedule in under 20 milliseconds. [Measured](#measured)
+- **AI first.** Built for developers who work with an AI assistant. Your assistant installs it from one prompt, reads the guide that ships inside the package, asks the package what it can do, and checks its own work. [For your assistant](#for-your-assistant)
+- **Free and open source.** MIT. Every feature, with no paid tier, license key, trial or watermark.
+- **Powerful.** Auto-scheduling, critical path, constraints, calendars, baselines and progress, with Primavera P6 and MS Project files opened and saved in the browser. [What it does](#what-it-does)
+- **Yours.** It fits inside your page, takes your theme, keeps your ids and hands every edit to your code. [Make it yours](#make-it-yours)
 
-Tachlon ships with instructions written for coding assistants. Paste this prompt into yours:
+## Add it
+
+Paste this prompt into your AI assistant:
 
 ```text
 Add a Tachlon Gantt chart to this app. Install the npm package tachlon and follow the
@@ -38,42 +41,53 @@ Your assistant reads the `AGENTS.md` inside the package, installs on a new branc
 
 Prefer to do it yourself? See [Install by hand](#install-by-hand).
 
-## A developer experience for you and your assistant
+## What it does
 
-Install is one prompt; the npm command is the second route. The package carries its own instructions (`AGENTS.md`), so your assistant reads the guide for the version it installed, not a web page that may describe another version. It checks its own work with `npx tachlon doctor`, and each finding it prints has a `fix`, so your assistant reads what failed without parsing text. `npx tachlon init --skill` writes a skill file that tells the assistant when to use the package and where its guide is ([Add it to a Vite app](packages/gantt/README.md#add-it-to-a-vite-app)).
+- **Scheduling.** Four link types with lag and lead, dates recomputed from the links on every edit, critical path, eight constraint types, working calendars with holidays and a calendar per task, baselines with variance, progress against a data date, summary tasks and milestones.
+- **Answers.** Schedule-quality checks, what-if, "why does this task start here", and a comparison with an earlier file.
+- **Editing.** A task dialog, inline cells, drag to move, resize and link, grouping, and undo and redo.
+- **Files.** Opens and saves Primavera P6 XER and MS Project XML inside the browser, with no server or conversion service for you to run. Exports Excel, PDF and PNG, and prints with a header, page numbers and a legend.
+- **Display.** 50,000 tasks open and scroll. Zoom from years to hours, light and dark themes, a color per bar, keyboard navigation, screen-reader access to the bars, translated text and right-to-left layout.
 
-What is in the box for an assistant, yours or the one in your product:
+Every feature is a row in [Compared](#compared).
+
+## Make it yours
+
+- **Your page.** The chart fills the box your page gives it, follows that box when it resizes, and keeps its styles to itself.
+- **Your look.** Colors, bar shape, row height and type are CSS tokens, in light and dark, that your own CSS sets.
+- **Your data.** `mount` takes plain `tasks` and `links`. `chart.snapshot()` gives them back, and `chart.toDocument()` returns a lossless document that `chart.load({ document })` reads.
+- **Your ids.** A task or a link takes a `key`, your own id. It stays with the record through every edit and save, and every event gives it back.
+- **Your backend.** The `edit` event carries each undo step as a numbered commit, with each change's old and new values, ready to save.
+- **Your rules.** One option makes the chart read-only, and it can be switched while the page runs.
+- **Your stack.** Plain JavaScript, and React, Vue and Angular components in the same package. The same engine runs in Node with no page (`tachlon/headless`).
+
+`npx tachlon describe` lists every option, event, command and CSS token of the version you installed. The guide to the API is [packages/gantt/README.md](packages/gantt/README.md).
+
+## For your assistant
+
+Tachlon is built for a developer who works with an AI assistant, and it was built that way: one person owns the product and decides what it is, and a team of AI agents wrote, tested and reviewed the code ([docs/HOW-THIS-WAS-BUILT.md](docs/HOW-THIS-WAS-BUILT.md)).
+
+The package carries its own instructions, so your assistant works from the version it installed, not from a web page that may describe another one.
 
 | | What it does |
 |---|---|
-| [`AGENTS.md`](packages/gantt/AGENTS.md) | The guide inside the package for an assistant that adds the chart to an app: the steps in order, and what never to do. |
+| The prompt | One prompt installs the chart, puts it on a page and checks the result. |
+| [`AGENTS.md`](packages/gantt/AGENTS.md) | The guide inside the package: the steps in order, and what never to do. |
+| `npx tachlon describe` | The package describes itself: every option, event, command, CSS token and error of the installed version, generated from the types, as text or JSON. `describe fit` is the procedure for fitting the chart to your product, visually and technically. |
+| [`npx tachlon doctor`](packages/gantt/README.md#check-an-install-with-tachlon-doctor) | Checks an install, writes nothing, and prints a fix under each failed check. |
+| [`validate`](packages/gantt/README.md#start-errors) | Checks your task data and names each problem by path, with a fix. |
+| [`init --skill`](packages/gantt/README.md#add-it-to-a-vite-app) | Writes a skill file that tells your assistant when to use the package and what it offers. |
 | [`llms.txt`](https://tachlon.com/llms.txt) | Tells an assistant what to read first. |
-| [`tachlon doctor`](packages/gantt/README.md#check-an-install-with-tachlon-doctor) | Reads the project, writes nothing, and prints a fix under each failed check. |
-| [`validate`](packages/gantt/README.md#start-errors) | Checks plain task data without mounting the chart. |
-| [`init --skill`](packages/gantt/README.md#add-it-to-a-vite-app) | Writes `.claude/skills/tachlon/SKILL.md`: when to use the package, where its `AGENTS.md` is, and what never to do. |
-| [Engine tools](packages/gantt/README.md#tools-for-an-ai-assistant) | `toolDefinitions` gives the assistant in your product six typed tools: five ask the engine about the schedule, and one holds an edit for a person to accept. |
+| [Engine tools](packages/gantt/README.md#tools-for-an-ai-assistant) | Typed tools, in MCP, Anthropic and OpenAI forms, for the assistant inside your own product: five ask the engine about the schedule, and one proposes an edit for a person to accept. |
 | [In-chart assistant](packages/gantt/README.md#tools-for-an-ai-assistant) | Give `mount` an `assistant` option and the chart puts a chat box beside itself. Your own `send` calls your model. |
-| [Headless engine](packages/gantt/README.md#tools-for-an-ai-assistant) | `openHeadless` from `tachlon/headless` runs the engine in Node with no page, so an agent can check a schedule. |
+| Your product's user guide | The user chapters ship in the package, product-neutral, with a prompt your assistant uses to turn them into your own product's documentation. |
 
-Coming, and not in the package yet: a `describe` command will list every option, event, command and CSS token of the version you installed, generated from the types, and a prompt will let your assistant turn the user guide into your own product's documentation ([#20](https://github.com/innerstacklabs/tachlon/issues/20), [#23](https://github.com/innerstacklabs/tachlon/issues/23)).
+## Measured
 
-## What your code can do
+After a drag at 50,000 tasks, the whole schedule is recomputed in 17.8 ms, and 50,000 tasks load in 291.7 ms. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the two share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
 
-What you and your assistant can rely on:
-
-- **Plain data in and out.** `mount` takes plain `tasks` and `links`. `chart.snapshot()` returns the open schedule as plain data, and `chart.toDocument()` returns a lossless document that `chart.load({ document })` reads back.
-- **Errors that name the fix.** A start error carries a `code` and a `fix` sentence ([the table](packages/gantt/README.md#start-errors)).
-- **Your own ids.** A task or a link takes a `key`, your own id as text. It stays with the record through edits and saves, and the `select` and `move` events give it back.
-- **A record of every edit.** The `edit` event carries each undo step as a numbered commit: where it came from, and each change with its old and new values.
-- **P6 and MS Project files.** Pass a `File` to `chart.load({ file })`. [docs/IMPORT.md](docs/IMPORT.md) lists what the two readers map and what they leave out.
-- **React, Vue and Angular components.** `tachlon/react`, `tachlon/vue` and `tachlon/angular` take the options of `mount`.
-- **Your box, in light and dark.** The chart fills the box a page gives it and keeps its styles to itself. Its colors, bar shape, row height and type are CSS tokens.
-
-The options, events and methods are in [packages/gantt/README.md](packages/gantt/README.md) and [docs/WASM_API.md](docs/WASM_API.md).
-
-## Blazingly fast
-
-Blazingly fast, powerful scheduling, measured: after a drag at 50,000 tasks, Tachlon reschedules in 17.8 ms, against 263.7 ms for Bryntum Gantt 8 Community (about 15 times faster), and it loads 50,000 tasks in 291.7 ms, against 648.1 ms. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the two share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
+<details>
+<summary>The measurements, next to three other charts</summary>
 
 Each cell reads "Tachlon / the other chart" in milliseconds (the last row in MB): the median of 4 matched pairs of runs on a Mac mini (Apple M4) in Chrome 156, on 2026-11-13.
 
@@ -87,7 +101,14 @@ Each cell reads "Tachlon / the other chart" in milliseconds (the last row in MB)
 
 <sub>DHTMLX and SVAR load 10,000 tasks sooner, SVAR loads 50,000 tasks sooner, and both use less memory; neither reschedules after a drag, so their commit time is a write to their store. The method, the machine and how to rerun it: [docs/research/2026-11-13-gantt-comparison.md](docs/research/2026-11-13-gantt-comparison.md) and [docs/MEASURING.md](docs/MEASURING.md).</sub>
 
-## How it compares
+</details>
+
+## Compared
+
+Feature by feature, with the source for every cell.
+
+<details>
+<summary>48 features, next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt</summary>
 
 Tachlon next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt on scheduling, editing, files, display, the developer API, AI integration and licensing, from each vendor's own docs and pricing pages, read on 2026-11-12 and 2026-11-15. A Tachlon cell is `Yes` only when the npm package `tachlon`, as built from this repository, reaches the feature. ★ marks a feature no other vendor's docs show in the same form.
 
@@ -154,12 +175,17 @@ Tachlon next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt on scheduling, 
 
 <sub>Bryntum's tiers are Community (free, MIT), Core and Enterprise ("All" means all three); DHTMLX has Community (free, MIT) and PRO ("Both" means both); Syncfusion has one edition. "Not found" means the vendor pages show no such feature, not that the vendor lacks it. The sources and the evidence for each cell are in [docs/features.md](docs/features.md), the file this table is copied from.</sub>
 
-## Not yet
+</details>
+
+<details>
+<summary>What it does not do yet</summary>
 
 - Split tasks, editing resource assignments, a resource workload view and custom bar templates (rows 10, 12, 13 and 36 above).
 - Native `.mpp` files: save as MS Project XML. P6 baselines are not read yet, and XER files have been tried on P6 version 19.12 only ([docs/IMPORT.md](docs/IMPORT.md)).
 - Speed is measured on Apple machines and one Dell laptop so far; Windows, tablets and phones are not measured yet.
 - The [open issues](https://github.com/innerstacklabs/tachlon/issues) list the work.
+
+</details>
 
 ## Install by hand
 
@@ -198,7 +224,7 @@ With Vite, add `optimizeDeps: { exclude: ["tachlon"] }` to `vite.config.ts` ([ex
 
 ## Contributing
 
-Open a pull request: the code is MIT, and there is no contributor agreement to sign. Contributions made with an AI assistant are welcome: [CLAUDE.md](CLAUDE.md) tells an assistant how the project works, and [REVIEW.md](REVIEW.md) holds the review rules. [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the gates ("Gates"), [docs/DEMOS.md](docs/DEMOS.md) has how to build and run the chart from source, and a `No` row in [How it compares](#how-it-compares) is a gap you can work on.
+Open a pull request: the code is MIT, and there is no contributor agreement to sign. Contributions made with an AI assistant are welcome: [CLAUDE.md](CLAUDE.md) tells an assistant how the project works, and [REVIEW.md](REVIEW.md) holds the review rules. [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) has the gates ("Gates"), [docs/DEMOS.md](docs/DEMOS.md) has how to build and run the chart from source, and a `No` row in [Compared](#compared) is a gap you can work on.
 
 ## License
 
