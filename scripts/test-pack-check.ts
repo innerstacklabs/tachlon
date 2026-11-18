@@ -60,7 +60,7 @@ try {
   writeFileSync(join(cli, "dist/cli.js"), "#!/usr/bin/env node\n");
   check("bin ok", binProblems(cli), []);
   // The fonts' licence ships beside them: the real script (its EXPECTED list) fails a pack that holds every other expected file but not dist-lib/OFL.txt, and passes once the licence is packed.
-  const lic = fixture("licence", { ".": "./dist-lib/a.js" }, ["dist-lib", "README.md"], ["README.md", "LICENSE", "AGENTS.md", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/NOTICE.md"]);
+  const lic = fixture("licence", { ".": "./dist-lib/a.js" }, ["dist-lib", "README.md"], ["README.md", "LICENSE", "AGENTS.md", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/NOTICE.md"]);
   const setFiles = (files: string[]) => writeFileSync(join(lic, "package.json"), JSON.stringify({ name: "licence", version: "1.0.0", exports: { ".": "./dist-lib/a.js" }, files, bin: "./dist-lib/a.js" }));
   setFiles(["dist-lib", "README.md", "AGENTS.md"]);
   writeFileSync(join(lic, "dist-lib/a.js"), "#!/usr/bin/env node\n");
@@ -68,6 +68,12 @@ try {
   check("licence lacking", packCheck().stderr.includes("the tarball lacks dist-lib/OFL.txt"), true);
   writeFileSync(join(lic, "dist-lib/OFL.txt"), "SIL OPEN FONT LICENSE\n");
   check("licence packed", packCheck().status, 0);
+  // `describe` reads dist-lib/describe.json and dist-lib/fit.md beside the CLI: a pack without either fails.
+  for (const f of ["describe.json", "fit.md"]) {
+    rmSync(join(lic, "dist-lib", f));
+    check(`${f} lacking`, packCheck().stderr.includes(`the tarball lacks dist-lib/${f}`), true);
+    writeFileSync(join(lic, "dist-lib", f), "x\n");
+  }
   // The assistant guide ships (gantt#1560): a `files` list without AGENTS.md fails the pack check, and with it the check passes (AGENTS.md is an allowed name).
   setFiles(["dist-lib", "README.md"]);
   check("guide left out of files", packCheck().stderr.includes("the tarball lacks AGENTS.md"), true);

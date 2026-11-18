@@ -36,3 +36,5 @@ component, and open a schedule file. The video goes through every step; the step
    installed once, the engine file, a stylesheet import and the page's Content-Security-Policy, and asks a
    Chrome, Edge or Chromium on your machine whether the chart gets WebGPU or WebGL2. It writes nothing in
    your project and says how to fix each problem.
+8. To ask the installed package what it offers, run `npx tachlon describe`. It answers for the version in
+   `node_modules`. Before you theme the chart or wire saves, run `npx tachlon describe fit`.

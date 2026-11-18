@@ -350,3 +350,5 @@ Copyright (c) 2026 Inner Stack Labs LLC. Tachlon is open source under the MIT li
 ## Types and API reference
 
 The TypeScript declarations (`dist-lib/types`, the package's `types` entry) are the reference: they cover the whole API, every exported member carries its documentation comment, and your editor shows it on hover.
+
+To see what the installed version offers, run `npx tachlon describe`: it answers from the package in `node_modules`, so it always matches the version you installed.
