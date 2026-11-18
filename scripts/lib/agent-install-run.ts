@@ -70,8 +70,8 @@ export async function runInstall(assistant: Assistant, prompt: string, tarball: 
 
 /** A session's cell of docs/agent-install-matrix.md: its checks, then turns and minutes from its log's result line. A log with none, or only a line cut short, reads "no turn count". */
 export function cell(label: string, phase: Result[], log: string): string {
-  const lines = readFileSync(log, "utf8").split("\n").flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
-  const last = lines.findLast((x) => x?.type === "result");
+  let last: { num_turns: number; duration_ms: number; subtype: string } | undefined;
+  for (const l of readFileSync(log, "utf8").split("\n")) { try { const x = JSON.parse(l); if (x?.type === "result") last = x; } catch { /* not JSON: no result line here */ } }
   const spent = last ? `${last.num_turns} turns, ${(last.duration_ms / 60_000).toFixed(1)} min${last.subtype === "success" ? "" : `, stopped: ${last.subtype}`}` : "no turn count";
   return `${label}: ${phase.every((r) => r.ok) ? "pass" : `FAIL (${phase.filter((r) => !r.ok).map((r) => r.check).join(", ")})`}, ${spent}`;
 }
