@@ -19,15 +19,20 @@ impl Session {
     }
 
     /// The reference of a place's task, `null` for none.
-    pub(super) fn place_ref(&self, task: Option<TaskId>) -> String {
+    pub(crate) fn place_ref(&self, task: Option<TaskId>) -> String {
         task.map_or_else(|| "null".into(), |t| self.task_ref(t))
     }
 
     /// A live task's fields as a create change writes them, with its place in the outline.
     pub(super) fn fields_of(&self, task: TaskId) -> String {
-        let meta = &self.meta[task.0 as usize];
         let outline = self.outline.as_ref().expect("a structure edit ran");
-        let place = Place::of(outline, task);
+        self.fields_in(task, Place::of(outline, task))
+    }
+
+    /// A task's fields as a create change writes them, at `place`: a deleted task's too, before a
+    /// restore puts it there.
+    pub(crate) fn fields_in(&self, task: TaskId, place: Place) -> String {
+        let meta = &self.meta[task.0 as usize];
         let text = |value: Option<&str>| value.map_or_else(|| "null".into(), quote);
         let color = meta
             .color

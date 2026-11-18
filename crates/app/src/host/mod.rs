@@ -7,6 +7,7 @@ mod keys;
 mod outbox;
 mod planned;
 mod results;
+mod values;
 
 pub(crate) use keys::Kind;
 pub use keys::{KeyTarget, Keys};
@@ -14,6 +15,7 @@ pub use outbox::OUTBOX_CAP;
 pub(crate) use outbox::Outbox;
 pub(crate) use planned::Plan;
 pub use planned::{BeforeEdit, Planned};
+pub(crate) use values::schedule_update;
 
 /// The host's side of a session. A new session starts with it empty, and `reopen` carries only
 /// `read_only` and `before_edit`, the members that are a choice about the chart and its person.

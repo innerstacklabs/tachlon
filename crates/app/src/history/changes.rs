@@ -3,6 +3,7 @@
 //! carry changes; a baseline leaves none.
 
 use super::{Entry, Source, Step};
+use crate::host::schedule_update;
 use crate::{
     Session,
     constraint::constraint_of,
@@ -90,18 +91,14 @@ impl Session {
         changes.extend(self.links_made(&tasks(false), &steps));
         if let Entry::DataDates(old) = inverse {
             let (old, new) = (self.date(old.shown), self.date(self.data_date));
-            if old != new {
-                changes.push(format!(
-                    r#"{{"record":"schedule","op":"update","field":"dataDate","old":{old},"new":{new}}}"#
-                ));
-            }
+            changes.extend(schedule_update("dataDate", &old, &new));
         }
         changes
     }
 
     /// The link deletes that go with the `gone` tasks of one commit (decision 0017), each link
     /// once: the links in force before it, so an end deleted in the same commit still counts.
-    fn links_gone(&self, gone: &[TaskId]) -> Vec<String> {
+    pub(crate) fn links_gone(&self, gone: &[TaskId]) -> Vec<String> {
         let held = |t: &TaskId| !self.schedule.is_deleted(*t) || gone.contains(t);
         let mut deps: Vec<DepId> = gone
             .iter()
@@ -138,7 +135,7 @@ impl Session {
         )
     }
 
-    fn task_key(&self, task: TaskId) -> String {
+    pub(crate) fn task_key(&self, task: TaskId) -> String {
         let key = self
             .meta
             .get(task.0 as usize)
@@ -149,7 +146,7 @@ impl Session {
     /// The task records an inverse `step` puts back, after it ran. An inverse delete is a create
     /// (an insert, a paste, or the undo of a delete) and an inverse restore a delete; a reparent
     /// is an update of `parent` and of `after` for the task and each sibling it adopted or released.
-    fn outline_changes(&self, step: &Step) -> Vec<String> {
+    pub(crate) fn outline_changes(&self, step: &Step) -> Vec<String> {
         let head = |task: TaskId| {
             format!(
                 r#""record":"task","key":{},"task":{}"#,
@@ -231,17 +228,10 @@ impl Session {
 
     /// The link records an inverse `edit` puts back: removing a link was a create, restoring one a
     /// delete, and a set puts back a type and a lag that differ from the link's now.
-    fn link_changes(&self, edit: &Edit) -> Vec<String> {
-        let link = |dep: DepId| {
-            let key = self
-                .host
-                .keys
-                .link_key(dep)
-                .map_or_else(|| "null".into(), quote);
-            format!(r#""record":"link","key":{key},"link":{}"#, dep.0)
-        };
+    pub(crate) fn link_changes(&self, edit: &Edit) -> Vec<String> {
+        let link = |dep: DepId| self.link_head(dep);
         let task = |t: TaskId| self.task_ref(t);
-        let lag = |dep: DepId, minutes: Minutes| self.lag_days(dep, minutes);
+        let lag = |dep: DepId, m: Minutes| Self::lag_days(self.lag_day_minutes(dep), m);
         match *edit {
             Edit::RemoveLink { dep } => {
                 let d = self.schedule.dependencies()[dep.0 as usize];
@@ -272,36 +262,46 @@ impl Session {
                 lag: old,
             } => {
                 let d = self.schedule.dependencies()[dep.0 as usize];
-                let update = |field: &str, old: String, new: String| {
-                    format!(
-                        r#"{{{},"op":"update","field":"{field}","old":{old},"new":{new}}}"#,
-                        link(dep)
-                    )
-                };
-                let mut out = Vec::new();
-                if kind != d.kind {
-                    out.push(update(
-                        "type",
-                        format!("\"{kind:?}\""),
-                        format!("\"{:?}\"", d.kind),
-                    ));
-                }
-                if old != d.lag {
-                    out.push(update("lag", lag(dep, old), lag(dep, d.lag)));
-                }
-                out
+                self.link_update(dep, (kind, old), (d.kind, d.lag))
             }
             _ => Vec::new(),
         }
     }
 
-    /// A lag of link `dep` as days of its lag calendar, a number.
+    /// A lag of `minutes` as days of `day` minutes, a number.
     #[expect(
         clippy::cast_precision_loss,
         reason = "a lag in minutes is far under 2^53, so f64 holds it exactly"
     )]
-    fn lag_days(&self, dep: DepId, minutes: Minutes) -> String {
-        format!("{:?}", minutes as f64 / self.lag_day_minutes(dep) as f64)
+    pub(crate) fn lag_days(day: Minutes, minutes: Minutes) -> String {
+        format!("{:?}", minutes as f64 / day as f64)
+    }
+
+    /// The head of a link's record: its key and slot.
+    pub(crate) fn link_head(&self, dep: DepId) -> String {
+        let key = self.host.keys.link_key(dep);
+        let key = key.map_or_else(|| "null".into(), quote);
+        format!(r#""record":"link","key":{key},"link":{}"#, dep.0)
+    }
+
+    /// The updates that take link `dep` from the (type, lag) pair `old` to `new`, one per value
+    /// that differs.
+    pub(crate) fn link_update(
+        &self,
+        dep: DepId,
+        old: (LinkType, Minutes),
+        new: (LinkType, Minutes),
+    ) -> Vec<String> {
+        let (head, day) = (self.link_head(dep), self.lag_day_minutes(dep));
+        let (kind, lag) = (|k| format!("\"{k:?}\""), |m| Self::lag_days(day, m));
+        let rows = [
+            ("type", old.0 != new.0, kind(old.0), kind(new.0)),
+            ("lag", old.1 != new.1, lag(old.1), lag(new.1)),
+        ];
+        let update = |(field, _, old, new): (&str, bool, String, String)| {
+            format!(r#"{{{head},"op":"update","field":"{field}","old":{old},"new":{new}}}"#)
+        };
+        rows.into_iter().filter(|r| r.1).map(update).collect()
     }
 
     pub(crate) fn carried(&self, edit: &Edit) -> Vec<(TaskId, &'static str, String)> {
@@ -371,7 +371,7 @@ impl Session {
     }
 
     /// An instant as `"YYYY-MM-DDTHH:mm"`, or `null`.
-    fn date(&self, at: Option<Instant>) -> String {
+    pub(crate) fn date(&self, at: Option<Instant>) -> String {
         let text = |at| quote(&self.date_text(at).replacen(' ', "T", 1));
         at.map_or_else(|| "null".into(), text)
     }
