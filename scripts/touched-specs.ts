@@ -2,7 +2,8 @@
 // with origin/main fetched (on deploy, with PUSH_BEFORE set to the push's `before` commit):
 //   node scripts/touched-specs.ts "$TIER" >> "$GITHUB_OUTPUT"
 // The rule is in scripts/lib/touched-specs.ts. Needs Node 22.18 or later (type stripping). It prints:
-//   web=none|some|all       whether the `web` job runs, and on what
+//   web=none|checks|some|all   whether the `web` job runs, and on what
+//   shards=<json array>     the legs of the `web` matrix: `["checks"]` when web is `checks`, else the four shards and `checks`
 //   specs=<paths>           the spec paths it runs, relative to the chart folder (empty: no filter)
 //   nopage_specs=<paths>    on fast, the spec files that hold no-page tests (the plan's class d)...
 //   nopage_grep=<regex>     ...and a --grep that matches those tests, for the `smoke` job
@@ -14,7 +15,7 @@ import { spawnSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
 import { BATCH_ONLY_SPECS, type Tier } from "./lib/ci-tier.ts";
 import { WEB_ROOT } from "./lib/web-root.ts";
-import { benchPlan, grepFor, hostedPlan, noPageTests, webPlan } from "./lib/touched-specs.ts";
+import { benchPlan, grepFor, hostedPlan, noPageTests, webPlan, webShards } from "./lib/touched-specs.ts";
 
 const tier = process.argv[2] as Tier | undefined;
 if (!tier || !["fast", "full", "nightly", "deploy"].includes(tier)) {
@@ -56,6 +57,7 @@ const benchRun = benchPlan(tier);
 console.error(`touched-specs: bench=${benchRun.bench} (${benchRun.why})`);
 const paths = (names: string[]): string => names.map((n) => `tests/${n}`).join(" ");
 console.log(`web=${plan.web}`);
+console.log(`shards=${webShards(plan.web)}`);
 console.log(`specs=${paths(plan.specs)}`);
 console.log(`nopage_specs=${paths(withTests.map((n) => n.s))}`);
 console.log(`nopage_grep=${grepFor(withTests.flatMap((n) => n.titles))}`);

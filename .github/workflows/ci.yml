@@ -53,8 +53,10 @@ jobs:
       # false only on the deploy tier: it runs the deploy path (wasm, hosted, book) and skips rust, which already passed on the PR head
       # and run again nightly (gs#1117). `web` runs there too when the push touches a browser spec (gantt#1578); `deploy` does not wait for it.
       full: ${{ steps.tier.outputs.tier == 'deploy' && 'false' || 'true' }}
-      # none, some or all; `specs` is the spec paths `web` runs (empty: no filter), and the nopage pair picks the no-page tests `smoke` runs on fast.
+      # none, checks, some or all; `specs` is the spec paths `web` runs (empty: no filter), and the nopage pair picks the no-page tests `smoke` runs on fast.
+      # `shards` is the legs of the `web` matrix: `["checks"]` for checks (only the examples, the print demo or the package's own scripts changed), else the four shards and `checks`.
       web: ${{ steps.specs.outputs.web }}
+      shards: ${{ steps.specs.outputs.shards }}
       specs: ${{ steps.specs.outputs.specs }}
       nopage_specs: ${{ steps.specs.outputs.nopage_specs }}
       nopage_grep: ${{ steps.specs.outputs.nopage_grep }}
@@ -312,7 +314,8 @@ jobs:
   # `web (1)` to `web (4)`, each with its own install, build and preview port. `fail-fast` is off so one red shard cannot hide another's result.
   # The `--shard` denominator must equal the matrix length, or some specs never run (scripts/test-deploy-conditions.mjs checks it).
   # On fast `select` names the specs (gs#1163): the touched ones, split over the four shards (a shard left with none passes), or every spec
-  # but the batch-only measure.spec; with none touched the job is skipped. On deploy it is the specs the push touched; every other tier runs every spec.
+  # but the batch-only measure.spec; with none touched the job is skipped, and with only files its `checks` leg reads touched (`web` = checks) the matrix
+  # is that leg alone (`select`'s `shards`). On deploy it is the specs the push touched; every other tier runs every spec.
   # The shards are uneven on purpose (gantt#1163): Playwright cuts the file list (alphabetical, then the files with their own test.use) into runs of tests in the ratio of
   # PWTEST_SHARD_WEIGHTS (one weight per shard, so four). The checks that do not depend on the shard and the packed-package checks (about 80 s)
   # run in a fifth leg, `web (checks)`, beside the four, which runs no spec. Shard 1's files (adapter-* to export) are the slowest per
@@ -325,8 +328,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
-        include: [{shard: checks}]
+        shard: ${{ fromJSON(needs.select.outputs.shards) }}
     defaults:
       run:
         working-directory: ${{ env.WEB_ROOT }}
@@ -764,10 +766,12 @@ jobs:
             echo "ci-summary: FAIL" | tee -a "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+          web_ran="${WEB_SET} of the browser specs"
+          [ "$WEB_SET" != checks ] || web_ran="its checks leg and none of the browser specs"
           if [ "$CODE" = true ] && [ "$FULL" = false ]; then
-            echo "ci-summary: PASS (deploy path). wasm, hosted, hosted-browser and book passed; rust and smoke do not run on it; web ran ${WEB_SET} of the browser specs (the push's own)." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "ci-summary: PASS (deploy path). wasm, hosted, hosted-browser and book passed; rust and smoke do not run on it; web ran ${web_ran} (the push's own)." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$CODE" = true ] && [ "$WEB_SET" != all ]; then
-            echo "ci-summary: PASS. rust, wasm, smoke, hosted, hosted-browser (@smoke) and book passed; web ran ${WEB_SET} of the browser specs (the touched ones)." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "ci-summary: PASS. rust, wasm, smoke, hosted, hosted-browser (@smoke) and book passed; web ran ${web_ran} (the touched ones)." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$CODE" = true ]; then
             echo "ci-summary: PASS. rust, wasm, smoke, web, hosted, hosted-browser and book all passed." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$BROWSER" = true ]; then

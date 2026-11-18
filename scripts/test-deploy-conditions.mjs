@@ -229,10 +229,14 @@ for (const job of ['rust', 'wasm', 'web', 'book']) {
 // one shard, and `ci-summary` must still fail when any shard fails or is skipped.
 const web = jobBlock(lines, 'web') ?? [];
 const webBody = web.join('\n');
-const matrixShards = /^ {8}shard:\s*\[([^\]]*)\]\s*$/m.exec(webBody)?.[1].split(',').map((s) => s.trim()).filter(Boolean) ?? [];
+// The legs come from `select`'s `shards` output (`webShards` in scripts/lib/touched-specs.ts): the numbered shards and `checks`, or `checks` alone.
+const { webShards } = await import('./lib/touched-specs.ts');
+const matrixShards = JSON.parse(webShards('some')).filter((s) => s !== 'checks').map(String);
 const shardArg = /playwright test --shard=\$\{\{ matrix\.shard \}\}\/(\d+)\s*$/m.exec(webBody);
-check('web is a matrix of shards numbered 1 to N',
-  matrixShards.length > 1 && matrixShards.every((s, i) => s === String(i + 1)), matrixShards.join(','));
+check('web reads its matrix from select\'s shards output', /^ {8}shard:\s*\$\{\{ fromJSON\(needs\.select\.outputs\.shards\) \}\}\s*$/m.test(webBody) && /^ {6}shards: \$\{\{ steps\.specs\.outputs\.shards \}\}\s*$/m.test(text));
+check('web is a matrix of shards numbered 1 to N, plus checks',
+  matrixShards.length > 1 && matrixShards.every((s, i) => s === String(i + 1)) && JSON.parse(webShards('all')).at(-1) === 'checks', matrixShards.join(','));
+check('web runs only the checks leg when select says checks', webShards('checks') === '["checks"]', webShards('checks'));
 check('web runs playwright with --shard=<matrix.shard>/<number of shards>',
   shardArg !== null && Number(shardArg[1]) === matrixShards.length, shardArg?.[0] ?? 'no --shard');
 check('web does not stop the other shards when one fails', /^ {6}fail-fast:\s*false\s*$/m.test(webBody));
@@ -244,6 +248,9 @@ const summary = jobBlock(lines, 'ci-summary') ?? [];
 const summaryBody = summary.join('\n');
 check('ci-summary needs web and reads its aggregate result', /^ {4}needs:\s*\[[^\]]*\bweb\b[^\]]*\]/m.test(summaryBody) && /WEB: \$\{\{ needs\.web\.result \}\}/.test(summaryBody));
 check('ci-summary wants web success whenever the code jobs run', /"web:\$WEB"/.test(summaryBody) && /\[ "\$\{pair#\*:\}" = "\$w" \] \|\| fail/.test(summaryBody));
+const webSkips = summaryBody.split('\n').filter((l) => /WEB_SET/.test(l) && /w=skipped/.test(l));
+check('ci-summary skips web for none only, and words the PASS line for checks',
+  webSkips.length === 1 && /"\$WEB_SET" = none \]/.test(webSkips[0]) && !/checks/.test(webSkips[0]) && /\[ "\$WEB_SET" != checks \] \|\| web_ran=/.test(summaryBody), webSkips.join(' | '));
 [...hostedBrowserChecks(lines, jobBlock, summaryBody), ...wasmHandoffChecks(text, lines, jobBlock)].forEach(([name, ok, detail]) => check(name, ok, detail)); // gantt#1163: hosted-browser is waited on wherever hosted is
 check('hosted runs the package size check right after it builds the package', /pnpm build:lib\n\s+working-directory: packages\/gantt\n(?: *#.*\n)*\s+- name: package size\n\s+id: size\n\s+working-directory: packages\/gantt\n\s+env:\n\s+GITHUB_TOKEN: .*\n\s+run: \|\n(?:\s+.*\n)*?\s+node "\$GITHUB_WORKSPACE\/scripts\/package-size\.ts" \. \|\| rc=\$\?\n/.test((jobBlock(lines, 'hosted') ?? []).join('\n') + '\n'));
 
