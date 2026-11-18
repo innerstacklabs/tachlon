@@ -7,6 +7,7 @@ mod capabilities;
 mod gate;
 mod keys;
 mod outbox;
+mod pending;
 mod planned;
 mod read;
 mod results;
@@ -19,6 +20,7 @@ pub(crate) use keys::Kind;
 pub use keys::{KeyTarget, Keys};
 pub use outbox::OUTBOX_CAP;
 pub(crate) use outbox::Outbox;
+pub(crate) use pending::{Pending, PendingKind};
 pub(crate) use planned::Plan;
 pub use planned::{BeforeEdit, Planned};
 pub use update::{UpdateError, Updated};
@@ -29,6 +31,8 @@ pub(crate) use values::schedule_update;
 #[derive(Default)]
 pub(crate) struct Host {
     pub(crate) outbox: Outbox,
+    /// The commits not yet acknowledged: what a rollback walks.
+    pub(crate) pending: Pending,
     pub(crate) keys: Keys,
     pub(crate) read_only: bool,
     pub(crate) capabilities: Capabilities,
