@@ -522,9 +522,13 @@ jobs:
         working-directory: packages/gantt
         env:
           GITHUB_TOKEN: ${{ github.token }}
-        run: node "$GITHUB_WORKSPACE/scripts/package-size.ts" .
+        run: |
+          rc=0
+          node "$GITHUB_WORKSPACE/scripts/package-size.ts" . || rc=$?
+          # Exit 2 is "unknown": no size was compared, so it is a warning and never a pass; the lines above say why.
+          if [ "$rc" = 2 ]; then echo "::warning title=package size unknown::the tarball was not compared with its merge base"; elif [ "$rc" != 0 ]; then exit "$rc"; fi
       - name: record package size
-        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.size.outputs.bytes != '' }}
         uses: actions/upload-artifact@v4
         with: {name: "package-size-${{ steps.size.outputs.bytes }}", path: "${{ runner.temp }}/package-size.txt", retention-days: 90}
       # The product page's hero chart mounts from this build (the deploy job stages it as package/ beside apps/site).
