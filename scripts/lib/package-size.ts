@@ -1,7 +1,8 @@
-// The packed tarball's byte budget (tl#1091). `npm pack --dry-run` reports the tarball's size without writing it.
+// The packed tarball's growth check (tl#1091, tl-issues#2147). `npm pack --dry-run` reports the tarball's size without writing it.
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+
+// What one pull request may add to the tarball without an A line, in bytes.
+export const LIMIT = 8192;
 
 // The bytes of the tarball `npm pack` would write for the package in `dir`. Throws when the pack report has no size.
 export function tarballBytes(dir: string): number {
@@ -10,9 +11,51 @@ export function tarballBytes(dir: string): number {
   return packed.size;
 }
 
-// The budget in `<dir>/size-budget.json`: `{ "bytes": n, ... }`. Throws when the file is missing or has no number.
-export function budgetBytes(dir: string): number {
-  const { bytes } = JSON.parse(readFileSync(join(dir, "size-budget.json"), "utf8"));
-  if (typeof bytes !== "number") throw new Error(`${dir}/size-budget.json has no "bytes" number`);
-  return bytes;
+// True when the pull request body has a line `package-size: A devteam-1-<n>`, the product owner's decision for a row that grows the package past the limit.
+export function hasAllowance(body: string | null | undefined): boolean {
+  return /^package-size: A devteam-1-\d+[ \t]*$/m.test(body ?? "");
+}
+
+// Exit code for a pull request that grows the tarball by `size - baseBytes`: 1 over the limit without an A line, else 0.
+export function verdict(size: number, baseBytes: number, body: string | null | undefined): 0 | 1 {
+  return size - baseBytes > LIMIT && !hasAllowance(body) ? 1 : 0;
+}
+
+export type Recorded = { sha: string; bytes: number };
+
+// The first of `shas` (newest first) that `lookup` has a size for, or null when none has. A lookup that throws is not an answer, so it propagates.
+export async function nearestRecord(shas: string[], lookup: (sha: string) => Promise<number | null>): Promise<Recorded | null> {
+  for (const sha of shas) {
+    const bytes = await lookup(sha);
+    if (bytes !== null) return { sha, bytes };
+  }
+  return null;
+}
+
+// A GET against the repository's REST API; read-only (`actions: read`, `pull-requests: read`), so the workflow's token needs no write scope.
+export function githubApi(repo: string, token: string): (path: string) => Promise<any> {
+  return async (path) => {
+    const res = await fetch(`${process.env.GITHUB_API_URL ?? "https://api.github.com"}/repos/${repo}${path}`, { headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json" } });
+    if (!res.ok) throw new Error(`GitHub ${path} answered ${res.status}`);
+    return res.json();
+  };
+}
+
+// Main's run uploads an artifact `package-size-<bytes>`; this finds it through the push runs of `sha`.
+export function recordedBytes(api: (path: string) => Promise<any>): (sha: string) => Promise<number | null> {
+  return async (sha) => {
+    for (const run of (await api(`/actions/runs?head_sha=${sha}&event=push&per_page=10`)).workflow_runs) {
+      for (const a of (await api(`/actions/runs/${run.id}/artifacts`)).artifacts) {
+        const m = /^package-size-(\d+)$/.exec(a.name);
+        if (m && !a.expired) return Number(m[1]);
+      }
+    }
+    return null;
+  };
+}
+
+// The body of the open pull request from `branch` (a push run's payload does not carry it), or null when the branch has none yet.
+export async function pullBody(api: (path: string) => Promise<any>, repo: string, branch: string): Promise<string | null> {
+  const [pull] = await api(`/pulls?head=${encodeURIComponent(`${repo.split("/")[0]}:${branch}`)}&state=open`);
+  return pull?.body ?? null;
 }
