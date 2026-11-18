@@ -4,7 +4,7 @@ Where the project came from, where it is going, the gates, the book, the screenc
 
 ## Where it came from
 
-It evolved from a hobby spike (Dave, 2026-10-20) that asked: can a Rust scheduling engine and a Rust GPU timeline renderer (wgpu, viewport-rendered into a canvas), in one WebAssembly module behind a thin TypeScript shell, handle a large construction schedule (50,000 tasks) with smooth zoom and drag in the browser?
+It evolved from a hobby spike (Dave, 2026-10-20) that asked: can a Rust scheduling engine and a Rust GPU timeline renderer (wgpu, viewport-rendered into a canvas), in one WebAssembly module behind a thin TypeScript shell, handle a large schedule (50,000 tasks) with smooth zoom and drag in the browser?
 
 The first plan is not kept in this repository; the decision records in [docs/decisions/](decisions/) hold the choices that came from it.
 
@@ -14,7 +14,7 @@ The WASM API is [docs/WASM_API.md](WASM_API.md).
 
 ## Where this is going
 
-A browser-based, very fast Gantt scheduling product for large construction schedules, built incrementally with an architecture pause at each milestone. It serves the people who read and review P6 schedules first (open a P6 XER or an MS Project XML file in the browser; navigate, compare updates, run the DCMA checks, print), and the scheduler after. The measured speed claim is in [docs/MEASURING.md](MEASURING.md), the comparison with other charts in [docs/research/2026-11-13-gantt-comparison.md](research/2026-11-13-gantt-comparison.md), and each user journey has a chapter in the [book](../book/src/index.md).
+It is a Gantt and scheduling component for developers, in the category of Bryntum, DHTMLX and Syncfusion: fully featured, blazingly fast, and open source with no strings ([decision 0021](decisions/0021-gantt-component-for-developers.md)). It is built for developers who put a Gantt chart in their own product. Opening P6 XER and MS Project files is one of its features, not its audience. The measured speed claim is in [docs/MEASURING.md](MEASURING.md), the comparison with other charts in [docs/research/2026-11-13-gantt-comparison.md](research/2026-11-13-gantt-comparison.md), and each user journey has a chapter in the [book](../book/src/index.md).
 
 ## Gates
 
@@ -54,4 +54,4 @@ The project is open source under the MIT license: `LICENSE` holds the text, Copy
 
 **Format readers.** The P6 XER reader (`crates/xer`) is its own crate, with no dependency on the engine, so other tools can use it alone ([decision 0004](decisions/0004-format-crates-licensed-separately.md)).
 
-**Contributing.** Open a pull request. A contribution comes under the same MIT license as the rest of the project; there is no contributor agreement to sign.
+**Contributing.** Open a pull request. A contribution comes under the same MIT license as the rest of the project; there is no contributor agreement to sign. To report a bug or ask for a feature, open an issue in this repository; there is a template for each ([bug](../.github/ISSUE_TEMPLATE/bug.md), [feature request](../.github/ISSUE_TEMPLATE/feature.md)).

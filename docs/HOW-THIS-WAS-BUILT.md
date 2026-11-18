@@ -14,8 +14,12 @@ This project was built by Dave Remy, who owns the product and decides what it is
 ## Ids
 
 - **A ruling id**, such as `A devteam-1-1337`, is a numbered product owner decision: a written answer from karpathy to a question the dev team raised, kept so the same question is not decided twice. The number is its place in the team's sequence.
-- **An issue id**, such as `gs#96`, `gantt#1954` or `tl#1094`, is an issue or task number in the tracker the work was planned in. The prefix says which tracker: `gs` is the project's earlier tracker (it ran under an earlier working name, see decisions 0006 and 0013), `gantt` is the numbering of the private repository this one was published from, so a `gantt#N` may not match an issue of this repository, and the other prefixes are the agent team's own task lists. You cannot open the issue behind an id of the earlier or private trackers. The comment or commit message around the id says what was decided.
+- **An issue id**, such as `gs#96`, `tl#1094` or `to#1`, is an issue or task number in the tracker the work was planned in. The prefix says which tracker: `gs` is the project's earlier tracker (it ran under an earlier working name, see decisions 0006 and 0013), `tl#N` is an issue of the private tracker the work was planned in (it was `gantt#N` until 2026-11-17, so an older `gantt#N` is the same number), `to#N` is an issue or pull request of this repository, and the other prefixes are the agent team's own task lists. You cannot open the issue behind an id of the earlier or private trackers. The comment or commit message around the id says what was decided.
 - **A decision record** is a file in `docs/decisions/`. Each records one choice, who made it, and why. They are numbered in the order they were made. Where a later record replaces part of an earlier one, the earlier one says so in its text.
+
+## In numbers
+
+The first commit is from 2026-10-20, in the earlier code repository. Measured on 2026-11-17 with `gh pr list -R <repository> --state merged --limit 2000 --json number --jq length`: 1299 merged pull requests in the earlier code repository, and 52 in the repository the work moved to on 2026-11-16, 1351 in all. This repository's own count starts at 1 and is not included.
 
 ## What this means for you
 
