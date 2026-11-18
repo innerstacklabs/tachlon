@@ -176,15 +176,9 @@ export const drag = {
   captionEnd: (_ctx, result) => `(${result.moved === null ? "" : `${result.moved}; `}re-solved in ${result.recomputeMs.toFixed(1)} ms)`,
 };
 
-// run.sh sets SCREENCAST_REPO from product.ts, where the name is kept, and passes it to the Mac; the file has no default.
-const repository = () => {
-  if (!process.env.SCREENCAST_REPO) throw new Error("SCREENCAST_REPO is not set: run demos/screencast/run.sh, which sets it, or set it to the owner/name of the repository");
-  return process.env.SCREENCAST_REPO;
-};
-
 export const close = {
   name: "close",
-  caption: () => `Rust, WebAssembly and the GPU, built as a component. github.com/${repository()}`,
+  caption: "Rust, WebAssembly and the GPU, built as a component.",
   run: async (ctx) => {
     await ctx.hold(2);
   },
