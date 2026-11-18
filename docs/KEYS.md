@@ -1,0 +1,43 @@
+# Keys
+
+Keys act only while focus is inside the chart. The page starts with focus on the chart, and a click anywhere in it takes focus back.
+
+<!-- ANCHOR: keys -->
+| Key | Action |
+|---|---|
+| `Ctrl`+wheel or a trackpad pinch; wheel; drag | Zoom at the cursor, from years down to hours; scroll the rows; pan both axes. The **Fit** button fits the project |
+| `Ctrl+F` (`Cmd+F`) | Go to the find box. `Enter` and `Shift+Enter` step through the matches, `Escape` clears the box; a whole `YYYY-MM-DD` date goes to that day on `Enter` |
+| `c` | Jump to the next critical task (not while the cell cursor is in the list, see below) |
+| `Shift+C` | Critical only on or off (same exception) |
+| `Shift+L` | Longest path on or off (same exception) |
+| `Shift+S` | Slipped only on or off (same exception) |
+| `Shift+M` | Show moved on or off, the tasks the last edit or drag moved (same exception) |
+| `t` | Go to the data date (same exception) |
+| `f` | Fit the project, as the **Fit** button does (same exception) |
+| `+` (or `=`), `-` | Zoom in or out about the middle of the chart, as the Zoom buttons do (same exception) |
+| `?` | Open or close this list of keys, as the toolbar's `?` button does (in a list cell it types into the cell) |
+| `Home`, `End` | Move the cell cursor to the first or last column |
+| `PageUp`, `PageDown`, `Ctrl+Home`, `Ctrl+End` | Move the selection one page of rows up or down, or to the first or last visible row (`Cmd+Up` and `Cmd+Down` on a Mac for the last two) |
+| `1` to `9`, `0` | Collapse to level 1 to 9, or expand all with `0` (same exception). The row at the top of the list stays there, or the summary that now holds it does |
+| Click a list cell; `Up`, `Down`, `Left`, `Right` | Click a cell to select its row and put the cell cursor on that column. `Up` and `Down` move the selection one visible row (a collapsed summary's children are skipped, and the cursor stops at the first and last row; with nothing selected `Down` selects the first row); `Left` and `Right` move the cursor one column. They do nothing while a cell or the find box is being edited. A screen reader hears each newly selected task, by key or click: its name, start, finish, float and critical state, then, for a leaf, its percent complete when set, its predecessor and successor counts and its baseline start when set |
+| `Shift+Up`, `Shift+Down`; `Shift+Space`; `Shift`+click a list cell | Select a range of rows: the selected row is the anchor, and `Shift+Up` and `Shift+Down` move the other end one visible row (collapsed children are skipped; the ends stop at the first and last row), `Shift+click` on a row extends the range to it, and `Shift+Space` makes the selected row a range of its own row. The range rows are tinted, in the table and across the timeline (the selected row's fill, for the rows in view). A plain click or arrow, or `Escape`, ends the range; collapsing a summary over it keeps it, counting only the visible rows. They do nothing while a cell or the find box is being edited |
+| Cell cursor in the list: `Enter`, `F2`, a printable key, `Backspace`, `Tab`, `Shift+Tab` | Edit from the cursor (name and duration cells). `Enter` or `F2` opens the editor with the cell's old text; a printable key opens it holding that key; `Backspace` opens it empty, and `Escape` then restores the old value. `Enter` commits and moves the cursor down one row, `Tab` commits and moves to the next cell (name, duration, then the next row's name), `Shift+Tab` the other way; `Escape` discards. A refused value keeps the editor open with the reason. The cursor is in the list from a click on a cell or an arrow until `Escape`, a click on the timeline, focus leaving the chart, the end of the selection, or its row being hidden (under a collapsed summary or by a filter); while it is there the chart's letter keys (`c`, `Shift+C`, `Shift+L`, `Shift+S`, `Shift+M`, `t`, `f`, `+`, `-`, `s`, `0` to `9`, `*`, `[`, `]`) are suspended: on a name or duration cell they open the editor, on any other cell they do nothing. A focused toolbar button keeps its own `Enter` and `Space`; any other key still goes to the cursor |
+| `Shift+Enter` | With a task selected, open one dialog with its name, duration, start, finish, percent complete, actual dates and remaining, start no later than, finish no earlier than and finish no later than. `Save` (or `Enter` in a field) applies the fields you changed as one step that a single `Ctrl+Z` reverts; a field the chart refuses is named in the dialog, which stays open with nothing changed. `Cancel` or `Escape` closes it and changes nothing. `F2` still opens the cell editor |
+| Double-click a bar, or a list cell with no editor of its own (the ID or float cell) | Open the same task dialog as `Shift+Enter`, on that task. A double-click on a name, duration, start, finish or progress cell still opens that cell's editor |
+| `Alt+Left`, `Alt+Right` | Collapse or expand the selected summary; while grouped, close or open the focused header's group, or the selected task's |
+| `*` | Expand the selected summary and every summary below it (`Alt+Right` opens one level only). Not while the cell cursor is in the list, where `*` opens the editor on a name or duration cell |
+| `Alt+Shift+Right`, `Alt+Shift+Left` | Indent the selected row under the row above it, or outdent it to just after its parent, adopting the siblings below it as its children, and refusing by name when that would give a row with links a child; `Option+Shift` on a Mac |
+| `Alt+Shift+Up`, `Alt+Shift+Down` | Move the selected row, with its subtree and links, above the sibling before it or below the sibling after it; one undo step, refused at the first and last sibling; `Option+Shift` on a Mac |
+| `Insert`, `Mod+Enter` | Insert a row below the selected row's subtree and put the cell cursor on its name, so typing names it and `Enter` keeps it; the Mod form is for a keyboard with no `Insert` key |
+| `Ctrl+V` (`Cmd+V`) | With focus in the chart (not in a cell or the find box), paste plain text, one task name per line, as new rows below the selected row's subtree: blank lines are skipped, names are trimmed, and the first new row is selected and scrolled to. One undo step for the whole list. A paste of more than 500 names, or one that a row filter or lookahead window would hide, shows its reason in the red line and adds nothing; text with a tab in it (rows copied from a table) is not taken |
+| `Left`, `Right` with focus on the list divider | Move the divider between the table and the canvas 16 px (drag it or double-click it with the pointer to set the width or put the default back); in a right-to-left chart, `Left` moves the divider left |
+| `Alt` + drag from a leaf bar onto another bar | Add a finish-to-start link (a plain drag from the dot beside the finish end of the hovered or selected bar does the same) |
+| Drag the end of a leaf bar | When the pointer is over the end of a task bar, it turns into a two-way arrow, so people can see they can drag the edge to change how long the task takes. One undo step; a task that has started keeps its duration and a note names the table cell to change |
+| `]`, `[` | With a task selected (not while the cell cursor is in the list), select the next or previous link that starts or ends at it, in the order the links were added, wrapping at the ends; `Delete` then removes it |
+| `Enter` with a link selected | Open a small box with the link's type and lag (`FS`, `SS+2d`, `FF-1d`); type a new one and press `Enter` to apply it as one undo step, or `Escape` to close the box. Text the engine refuses shows its reason and changes nothing |
+| `Delete`, `Mod+Backspace` | Delete the selected link when one is selected, else the selected row; with a range of several rows selected it deletes nothing and the red line says it works on one row; plain `Backspace` deletes no row (with the cell cursor in the list it opens the editor empty) |
+| `Ctrl+Z`, `Ctrl+Shift+Z`, `Ctrl+Y` | Undo and redo an edit |
+| `s` | Show or hide a line of live numbers: the open time and the frame times on the hosted page, the full status line on the developer page (not while the cell cursor is in the list) |
+| `Escape` | Cancel a link drag in progress and clear the selection (task and link) and the cell cursor; in a cell editor it discards the edit |
+| Toolbar: `Lookahead`, a date box and a weeks box | Window on or off, its first day and its length in weeks. It has no key |
+<!-- ANCHOR_END: keys -->

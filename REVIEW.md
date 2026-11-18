@@ -15,7 +15,7 @@ A good-faith agent or person making mistakes. Nothing here assumes hostile input
   run is a smoke test, not a result (docs/MEASURING.md, "Measuring frame times").
 - A file over its size budget (`docs/ARCHITECTURE.md`, "Checks", the `size` check).
 - Behaviour, a key or a flag changed without the page that describes it in the same diff: the
-  keys table in README.md, `docs/DEMOS.md`, `docs/IMPORT.md` or `docs/MEASURING.md`.
+  keys table in `docs/KEYS.md`, `docs/DEMOS.md`, `docs/IMPORT.md` or `docs/MEASURING.md`.
 - A `#[allow]` without a reason, or an `#[expect]` whose reason is not an argument.
 - A citation by line number instead of by heading, in code, docs, a commit or a PR.
 - A line added to the old-name allowlist (`crates/app/tests/architecture/name/allowlist.txt`), or a file added to `BRAND_FILES` in `crates/app/tests/architecture/name.rs`. The lists only shrink (decision 0013), and the product name is allowed under `examples/` only.

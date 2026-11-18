@@ -1,7 +1,7 @@
 # Keys
 
 Keys act only while focus is inside the chart (decision 0005). The page starts with focus on the
-chart, and a click anywhere in it takes focus back. The table below is the one in `README.md`,
+chart, and a click anywhere in it takes focus back. The table below is the one in `docs/KEYS.md`,
 included here so the two cannot drift.
 
 <figure class="shot">
@@ -9,4 +9,4 @@ included here so the two cannot drift.
 <figcaption>The arrow keys move the cell cursor: down a row, right a column.</figcaption>
 </figure>
 
-{{#include ../../README.md:keys}}
+{{#include ../../docs/KEYS.md:keys}}

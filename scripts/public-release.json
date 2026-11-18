@@ -4,7 +4,7 @@
     ".github/workflows/npm-publish.yml", ".github/workflows/pr.yml", ".gitattributes", ".gitignore",
     "Cargo.lock", "Cargo.toml", "CHANGELOG.md", "CLAUDE.md", "CODE_OF_CONDUCT.md", "LICENSE", "README.md", "REVIEW.md", "clippy.toml", "deny.toml", "rust-toolchain.toml",
     "apps/chrome/", "apps/hosted/", "apps/site/", "book/", "crates/", "demos/", "examples/", "media/", "packages/", "scripts/",
-    "docs/ARCHITECTURE.md", "docs/CONTRIBUTING.md", "docs/IMPORT.md", "docs/MEASURING.md", "docs/PROFILING.md", "docs/WASM_API.md",
+    "docs/ARCHITECTURE.md", "docs/CONTRIBUTING.md", "docs/IMPORT.md", "docs/JOURNEYS.md", "docs/KEYS.md", "docs/MEASURING.md", "docs/PROFILING.md", "docs/WASM_API.md",
     "docs/adapters/", "docs/duration-measurement.md", "docs/features.md", "docs/media/",
     "docs/DEMOS.md", "docs/decisions/", "docs/research/2026-11-13-gantt-comparison.md", "docs/research/typed-search-questions.json", "docs/HOW-THIS-WAS-BUILT.md"
   ],

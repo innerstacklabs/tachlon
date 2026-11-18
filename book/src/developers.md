@@ -41,7 +41,7 @@ docs:book` in the `book` job.
 
 `mdbook build book` writes the book to `book/book/`, which is git-ignored. CI builds it on every
 push (the `book` job in `.github/workflows/ci.yml`) and fails if a chapter file or an include is
-missing, or if the [Keys](keys.md) page lost the table it includes from `README.md`. The `book` job also generates the API
+missing, or if the [Keys](keys.md) page lost the table it includes from `docs/KEYS.md`. The `book` job also generates the API
 reference pages from the `wasm` job's bindings; the `hosted` job's book spec and the `deploy` job use its build, not their own.
 
 The look is the book's own mdBook theme in `book/theme/`: `index.hbs` and `css/variables.css`

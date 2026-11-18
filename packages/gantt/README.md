@@ -1,8 +1,6 @@
 # tachlon
 
-A Gantt chart for the browser. The engine is a WebAssembly file and the chart draws on the GPU (WebGPU, or WebGL2 where WebGPU is missing). It needs no Rust toolchain.
-
-Tachlon is free and open source under the MIT license: use it on any page, in any product, with no key and no trial.
+Blazingly fast, powerful Gantt and scheduling for the web. Built for developers who work with an AI assistant.
 
 Using an AI assistant? Paste this:
 
@@ -15,6 +13,8 @@ Add a Tachlon Gantt chart to this app. Install the npm package tachlon and follo
 ```sh
 npm install tachlon
 ```
+
+Tachlon is free and open source under the MIT license: use it on any page, in any product, with no key and no trial. The engine is a WebAssembly file and the chart draws on the GPU (WebGPU, or WebGL2 where WebGPU is missing). It needs no Rust toolchain.
 
 The package holds the chart's script, its stylesheet, TypeScript declarations, the engine file `app_bg.wasm` beside the script, and the task data's schema. It runs in the browser: use it from a bundler such as Vite or Next.js, or serve the files as they are.
 

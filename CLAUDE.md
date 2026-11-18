@@ -49,8 +49,9 @@ export CARGO_TARGET_DIR=~/.cache/cargo-target/<repo>/<branch>
 
 - `docs/decisions/`: the accepted decision records.
 - `docs/WASM_API.md`: the wasm exports and the JSON shapes.
-- `README.md`: the front page for a first-time reader: the pitch, what works today, how to try it
-  and the keys table (the book's keys page includes that table).
+- `README.md`: the front page for a first-time reader: the pitch, the assistant prompt, how it compares and
+  what is not done yet. `docs/KEYS.md` holds the keys table (the book's keys page includes it) and
+  `docs/JOURNEYS.md` holds what works today, by journey.
 - `docs/features.md`: the feature matrix against other Gantt charts, with its evidence and sources. Edit the table
   there, then run `node scripts/features-matrix.ts --write` to copy it into the README's "How it compares" section.
 - `docs/DEMOS.md`, `docs/IMPORT.md`, `docs/MEASURING.md`: the demo page and its URL options, the

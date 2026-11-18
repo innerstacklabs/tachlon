@@ -698,7 +698,7 @@ jobs:
       - name: keys page holds the README table
         run: |
           rows=$(grep -c '<tr>' book/book/keys.html || true)
-          test "$rows" -ge 5 || { echo "::error::book/book/keys.html has $rows table rows; the README keys anchor is missing or empty"; exit 1; }
+          test "$rows" -ge 5 || { echo "::error::book/book/keys.html has $rows table rows; the keys anchor in docs/KEYS.md is missing or empty"; exit 1; }
       # The built book is kept for one day, and only when a job that reads it runs: hosted-browser (the book spec) and deploy (publishes it to
       # Pages). Both need code == 'true' (hosted-browser's own `if:`; deploy needs hosted, which has the same one), so a docs-only run uploads none.
       - uses: actions/upload-artifact@v4

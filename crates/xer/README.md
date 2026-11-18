@@ -24,7 +24,7 @@ The second command parses and reads every `.xer` file under `<dir>` and prints t
 
 ## A file that fails
 
-Open an issue (the link is in "Where to start" of the [top README](../../README.md)) with the error or warning text and the P6 version from the first line of the file (`ERMHDR`). **Do not attach a schedule that belongs to someone else, or one you may not share.** If you cannot share the file, send the first line, the `%T` table names and the `%F` field line of the table that failed; none of that holds project data.
+Open an issue (the link is in "Not yet" of the [top README](../../README.md)) with the error or warning text and the P6 version from the first line of the file (`ERMHDR`). **Do not attach a schedule that belongs to someone else, or one you may not share.** If you cannot share the file, send the first line, the `%T` table names and the `%F` field line of the table that failed; none of that holds project data.
 
 ## Licence
 
