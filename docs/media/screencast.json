@@ -1,31 +1,49 @@
 {
   "machine": "MacBook Pro",
   "cpu": "Apple M3 Pro",
-  "date": "2026-10-29",
-  "commit": "eca49fe",
-  "branch": "docs/screencast-2026-10-29",
+  "date": "2026-11-17",
+  "commit": "2908360",
+  "branch": "agent/screencast-rerecord",
   "backend": "WebGPU",
   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)",
   "browser": "151.0.7922.34",
   "viewport": "1280x720",
-  "fps": 119.95201919232306,
-  "durationSeconds": 48.63,
+  "fps": 120.04801920768314,
+  "durationSeconds": 20.47,
   "steps": [
     "open",
     "drag",
     "fling",
-    "open-p6",
-    "code-filter",
-    "edit-link",
-    "show-moved",
     "close"
   ],
+  "stepWindows": [
+    {
+      "name": "open",
+      "startSeconds": 0.3,
+      "endSeconds": 3.415
+    },
+    {
+      "name": "drag",
+      "startSeconds": 3.415,
+      "endSeconds": 10.033
+    },
+    {
+      "name": "fling",
+      "startSeconds": 10.033,
+      "endSeconds": 17.866
+    },
+    {
+      "name": "close",
+      "startSeconds": 17.866,
+      "endSeconds": 20.032
+    }
+  ],
   "gif": {
-    "bytes": 4427746,
-    "width": 480,
-    "fps": 8
+    "bytes": 4626102,
+    "width": 560,
+    "fps": 10
   },
   "mp4": {
-    "bytes": 6175675
+    "bytes": 4870329
   }
 }

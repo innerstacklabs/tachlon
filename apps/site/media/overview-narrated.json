@@ -1,71 +1,71 @@
 {
-  "machine": "Apple M4",
-  "date": "2026-11-08",
-  "browser": "156.0.8078.80",
-  "url": "https://app.tachlon.com/?sample=demo-50k",
+  "machine": "Apple M3 Pro",
+  "date": "2026-11-18",
+  "browser": "151.0.7922.34",
+  "url": "http://127.0.0.1:61562/?sample=demo-50k",
   "backend": "WebGPU",
-  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
-  "fps": 60,
+  "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)",
+  "fps": 120.04801920768308,
   "windows": [
     {
       "name": "open",
       "start": 0.3,
-      "end": 8.133
+      "end": 9.208
     },
     {
       "name": "zoom",
-      "start": 8.134,
-      "end": 15.867
+      "start": 9.208,
+      "end": 16.991
     },
     {
       "name": "driving-path",
-      "start": 15.867,
-      "end": 22.017
+      "start": 16.991,
+      "end": 23.016
     },
     {
       "name": "drag",
-      "start": 22.017,
-      "end": 29.317
+      "start": 23.016,
+      "end": 29.524
     },
     {
       "name": "fling",
-      "start": 29.317,
-      "end": 37.498
+      "start": 29.525,
+      "end": 37.249
     },
     {
       "name": "critical-only",
-      "start": 37.498,
-      "end": 43.679
+      "start": 37.25,
+      "end": 44.357
     },
     {
       "name": "lookahead",
-      "start": 43.679,
-      "end": 49.296
+      "start": 44.357,
+      "end": 50.294
     },
     {
       "name": "open-p6",
-      "start": 49.296,
-      "end": 61.246
+      "start": 50.295,
+      "end": 61.899
     },
     {
       "name": "code-filter",
-      "start": 61.246,
-      "end": 67.296
+      "start": 61.899,
+      "end": 68.598
     },
     {
       "name": "edit-link",
-      "start": 67.296,
-      "end": 74.046
+      "start": 68.598,
+      "end": 77.148
     },
     {
       "name": "show-moved",
-      "start": 74.046,
-      "end": 79.929
+      "start": 77.148,
+      "end": 82.748
     },
     {
       "name": "close",
-      "start": 79.929,
-      "end": 86.796
+      "start": 82.748,
+      "end": 88.848
     }
   ]
 }
