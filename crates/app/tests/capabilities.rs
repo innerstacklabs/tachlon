@@ -11,8 +11,10 @@ use app::{Session, edit::EditError};
 use engine::TaskId;
 use std::{cell::Cell, rc::Rc};
 
-const NO_STRUCTURE: &str = r#"{"editable":{"structure":false}}"#;
-const ROWS: EditError = EditError::NotAllowed("adding, deleting and moving rows");
+const NO_ROWS: &str = r#"{"editable":{"rows":false}}"#;
+const NO_OUTLINE: &str = r#"{"editable":{"outline":false}}"#;
+const ROWS: EditError = EditError::NotAllowed("adding and deleting rows");
+const OUTLINE: EditError = EditError::NotAllowed("changing the outline");
 
 fn limited(json: &str) -> Session {
     let mut s = session();
@@ -35,20 +37,52 @@ fn dragged(json: &str, edge: bool) -> (bool, Option<String>) {
 }
 
 #[test]
-fn structure_off_refuses_rows_and_paste_and_lets_progress_through() {
-    let mut s = limited(NO_STRUCTURE);
-    let before = state(&s);
+fn rows_off_refuses_insert_delete_and_paste_and_lets_an_outdent_through() {
+    let mut s = limited(NO_ROWS);
     s.select(1);
     assert_eq!(s.insert_below_selection().map(drop), Err(ROWS));
     assert_eq!(s.delete_selected().map(drop), Err(ROWS));
-    s.select(5);
-    assert_eq!(s.outdent_selected().map(drop), Err(ROWS));
     assert_eq!(s.insert_many(&["Footing"]).map(drop), Err(ROWS));
+    s.select(5);
+    s.outdent_selected().unwrap();
+}
+
+#[test]
+fn outline_off_refuses_outdent_move_and_redo_and_lets_rows_and_their_undo_through() {
+    let mut s = session();
+    s.select(5);
+    s.outdent_selected().unwrap();
+    s.undo().unwrap();
+    s.set_capabilities(NO_OUTLINE).unwrap();
+    assert_eq!(s.redo(), Err(OUTLINE));
+    s.select(1);
+    s.insert_below_selection().unwrap();
+    s.delete_selected().unwrap();
+    assert_eq!((s.undo(), s.undo()), (Ok(true), Ok(true)));
+    let before = state(&s);
+    s.select(3);
+    assert_eq!(s.move_selected_up().map(drop), Err(OUTLINE));
+    s.select(5);
+    assert_eq!(s.outdent_selected().map(drop), Err(OUTLINE));
     assert_eq!(state(&s), before, "a refusal changes nothing");
-    s.set_progress_field_text(TaskId(1), "actual_start", "2026-01-05")
-        .unwrap();
-    s.set_task_fields(TaskId(0), &[("percent", "50")]).unwrap();
-    assert_ne!(state(&s), before, "progress still edits");
+}
+
+#[test]
+fn paste_off_refuses_a_paste_and_lets_an_insert_through() {
+    let mut s = limited(r#"{"editable":{"paste":false}}"#);
+    assert_eq!(
+        s.insert_many(&["Footing"]).map(drop),
+        Err(EditError::NotAllowed("pasting rows"))
+    );
+    s.insert_below_selection().unwrap();
+}
+
+#[test]
+fn every_member_at_its_default_allows_everything() {
+    let mut s = limited(r#"{"editable":{"rows":true,"outline":true,"paste":true}}"#);
+    s.insert_many(&["Footing"]).unwrap();
+    s.select(5);
+    s.outdent_selected().unwrap();
 }
 
 #[test]
@@ -104,11 +138,11 @@ fn dates_off_refuses_a_dialog_whole_and_names_the_duration() {
 }
 
 #[test]
-fn undo_of_a_delete_is_refused_with_structure_off() {
+fn undo_of_a_delete_is_refused_with_rows_off() {
     let mut s = session();
     s.select(1);
     s.delete_selected().unwrap();
-    s.set_capabilities(NO_STRUCTURE).unwrap();
+    s.set_capabilities(NO_ROWS).unwrap();
     let before = state(&s);
     assert_eq!(s.undo(), Err(ROWS));
     assert_eq!(state(&s), before);
@@ -132,7 +166,7 @@ fn undo_of_a_data_date_is_refused_with_progress_off() {
 fn read_only_refuses_first_and_the_host_function_is_not_asked_after_a_refusal() {
     let asked = Rc::new(Cell::new(0));
     let count = Rc::clone(&asked);
-    let mut s = limited(NO_STRUCTURE);
+    let mut s = limited(NO_ROWS);
     s.set_before_edit(Some(Rc::new(move |_| {
         count.set(count.get() + 1);
         Ok(())
@@ -150,13 +184,17 @@ fn read_only_refuses_first_and_the_host_function_is_not_asked_after_a_refusal() 
 
 #[test]
 fn a_profile_that_is_not_one_is_refused_by_name_and_changes_nothing() {
-    let mut s = limited(NO_STRUCTURE);
+    let mut s = limited(NO_ROWS);
     for (json, said) in [
         (
             r#"{"gestures":{"drag":false}}"#,
             "gestures.drag: unknown key",
         ),
         (r#"{"edit":{}}"#, "edit: unknown key"),
+        (
+            r#"{"editable":{"structure":false}}"#,
+            "editable.structure: unknown key",
+        ),
         (
             r#"{"editable":{"dates":0}}"#,
             "editable.dates: expected true or false",
@@ -172,7 +210,7 @@ fn a_profile_that_is_not_one_is_refused_by_name_and_changes_nothing() {
 fn no_profile_allows_everything_and_an_empty_one_takes_a_profile_away() {
     let mut s = session();
     s.insert_below_selection().unwrap();
-    s.set_capabilities(NO_STRUCTURE).unwrap();
+    s.set_capabilities(NO_ROWS).unwrap();
     assert_eq!(s.insert_below_selection().map(drop), Err(ROWS));
     s.set_capabilities("{}").unwrap();
     s.insert_below_selection().unwrap();
@@ -180,7 +218,7 @@ fn no_profile_allows_everything_and_an_empty_one_takes_a_profile_away() {
 
 #[test]
 fn reopen_keeps_the_profile() {
-    let s = limited(NO_STRUCTURE);
+    let s = limited(NO_ROWS);
     let meta = s.meta().to_vec();
     let order = (0..meta.len() as u32).collect();
     let (schedule, solution) = (s.schedule().clone(), s.solution().clone());

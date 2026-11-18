@@ -18,6 +18,7 @@ What changed in each npm release, newest first. Each entry says what you must ch
 ### Changed
 
 - `Gantt.save()` is now `Gantt.download()`.
+- `editable.structure` in the host profile (`mount`'s `capabilities`, `setCapabilities`) is now three members, `rows` (insert and delete), `outline` (indent, outdent and move) and `paste`. A host that set `structure: false` must set the ones it needs; `structure` is refused as an unknown key.
 
 ### Fixed
 
