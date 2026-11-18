@@ -2,7 +2,7 @@
 
 *A guide for developers who put a Gantt chart in their own product, and for the people who use that chart.*
 
-Tachlon is a Gantt and scheduling component that you put in your own product, in the same category as Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt. It is fully featured, blazingly fast, and open source with no strings.
+Tachlon is a Gantt and scheduling component that you put in your own product, in the same category as Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt. It is fully featured, blazingly fast, and open source with no strings. It is built for developers who work with an AI assistant: the package carries an `AGENTS.md` written for the assistant, and one prompt installs the chart.
 
 This book has two parts, for two readers.
 
