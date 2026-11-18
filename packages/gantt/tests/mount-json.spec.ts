@@ -60,7 +60,7 @@ test("mount({ tasks, links, mustFinishBy }) shows the late dates and float the h
   const headless = openHeadless(data).results().map(({ lateStart, lateFinish, float }) => ({ lateStart, lateFinish, float }));
   expect(headless.map((t) => t.float), "the date is in force").toEqual([-2, -2, -2]);
   expect(await onCharts(page, `await start("a", ${JSON.stringify(data)}); return [0, 1, 2].map((i) => { const d = gantt.app.task_details(i); return { lateStart: d.lateStart.replace(" ", "T"), lateFinish: d.lateFinish.replace(" ", "T"), float: d.floatDays }; });`)).toEqual(headless);
-  expect(await onCharts(page, `try { await start("a", { ...${JSON.stringify(data)}, mustFinishBy: "9999-12-31" }); } catch (e) { return [e.stage, e.message]; }`)).toEqual(["schedule", expect.stringMatching(/must_finish_by: \d+ is out of range/)]);
+  expect(await onCharts(page, `try { await start("a", { ...${JSON.stringify(data)}, mustFinishBy: "9999-12-31" }); } catch (e) { return [e.stage, e.message]; }`)).toEqual(["schedule", expect.stringMatching(/must_finish_by: .* outside what the engine accepts/)]);
 });
 // tl#2081: `calendars` on mount reach `fromTasks`, so a holiday on a ten-hour calendar sets the same finish as the headless call (the default calendar would end it at 17:00 a day earlier).
 test("mount({ tasks, calendars }) shows the finish the headless call gives for the same calendars", async ({ page }) => {

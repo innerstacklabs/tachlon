@@ -44,6 +44,8 @@ pub enum RangeInput {
     ActualFinish,
     /// The schedule's data date.
     DataDate,
+    /// The schedule's must-finish-by date.
+    FinishBy,
 }
 
 /// The task or dependency a refused value was given to.
@@ -73,6 +75,7 @@ impl fmt::Display for RangeInput {
             RangeInput::ActualStart => "actual start",
             RangeInput::ActualFinish => "actual finish",
             RangeInput::DataDate => "data date",
+            RangeInput::FinishBy => "must-finish-by date",
         })
     }
 }
