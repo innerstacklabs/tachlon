@@ -5,7 +5,8 @@
 //   node scripts/public-release.ts snapshot <dir>       copy the files that go in to a new directory (fresh history)
 //   node scripts/public-release.ts scrub-list           full history: what to drop, which commits name a customer, secrets in history
 // The names that must not reach the public repository come from PUBLIC_RELEASE_NAMES (comma-separated), never from a file in the tree.
-// Output holds paths, commit ids, rule ids and counts: never a matched value, never a name. Exit 2 means it could not decide.
+// Output holds paths, commit ids, rule ids and counts: never a matched value, never a name. `scan` (the CI log) prints a path that holds a name
+// as its place in the file list (`tracked path <n>`); `snapshot` and `scrub-list` print to the terminal of whoever runs them. Exit 2 means it could not decide.
 import { execFileSync, spawn } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -33,24 +34,28 @@ const names = (): RegExp => {
   return new RegExp(list.map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "i");
 };
 
-/** Tree findings as `path:line rule`, for the files named (all tracked files when none are named). */
-export function scanTree(root: string, files: string[]): string[] {
+/** Tree findings as `path:line rule`, for the files named; with `naming`, a path that matches it is written `tracked path <n>` as in scanNames. */
+export function scanTree(root: string, files: string[], naming?: RegExp): string[] {
   const out: string[] = [];
-  for (const f of files) {
+  for (const [n, f] of files.entries()) {
     const text = readFileSync(join(root, f), "latin1");
     if (text.includes("\0")) continue;
-    text.split("\n").forEach((line, i) => shapesIn(line).forEach((id) => out.push(`${f}:${i + 1} ${id}`)));
+    const shown = naming?.test(f) ? `tracked path ${n + 1}` : f;
+    text.split("\n").forEach((line, i) => shapesIn(line).forEach((id) => out.push(`${shown}:${i + 1} ${id}`)));
   }
   return out;
 }
 
-/** Name findings in the paths and lines of the files named, as `path` or `path:line`: never the name. */
+/**
+ * Name findings in the paths and lines of the files named, as `tracked path <n>` or `tracked path <n>:<line>`, n being the file's
+ * 1-based place in `files`. A finding never holds the name or the path, since a path can hold the name.
+ */
 export function scanNames(root: string, files: string[], naming: RegExp): string[] {
   const out: string[] = [];
-  for (const f of files) {
-    if (naming.test(f)) out.push(f);
+  for (const [n, f] of files.entries()) {
+    if (naming.test(f)) out.push(`tracked path ${n + 1}`);
     const text = readFileSync(join(root, f), "latin1");
-    if (!text.includes("\0")) text.split("\n").forEach((line, i) => { if (naming.test(line)) out.push(`${f}:${i + 1}`); });
+    if (!text.includes("\0")) text.split("\n").forEach((line, i) => { if (naming.test(line)) out.push(`tracked path ${n + 1}:${i + 1}`); });
   }
   return out;
 }
@@ -79,7 +84,8 @@ async function main(argv: string[]): Promise<number> {
   if (cmd === "scan") {
     const files = tracked(root);
     const checkNames = Boolean(process.env.PUBLIC_RELEASE_NAMES?.trim());
-    const found = [...scanTree(root, files), ...(checkNames ? scanNames(root, files, names()).map((f) => `${f} names a customer`) : [])];
+    const naming = checkNames ? names() : undefined;
+    const found = [...scanTree(root, files, naming), ...(naming ? scanNames(root, files, naming).map((f) => `${f} names a customer`) : [])];
     console.log(found.length ? found.join("\n") : `public-release scan: no secret shape and ${checkNames ? "no name" : "no name check (PUBLIC_RELEASE_NAMES unset)"} in the tracked tree`);
     return found.length ? 1 : 0;
   }
