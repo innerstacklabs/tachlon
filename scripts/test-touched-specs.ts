@@ -21,6 +21,7 @@ const SPECS = ["find.spec.ts", "find-live.spec.ts", "save-open.spec.ts", "open.s
 const EVERY_PR_SPEC = SPECS.filter((s) => s !== "measure.spec.ts");
 const none: Pick<WebPlan, "web" | "specs"> = { web: "none", specs: [] };
 const all: Pick<WebPlan, "web" | "specs"> = { web: "all", specs: EVERY_PR_SPEC };
+const checks: Pick<WebPlan, "web" | "specs"> = { web: "checks", specs: [] };
 
 const rows: Array<{ name: string; tier: Tier; changed: string[] | null; want: Pick<WebPlan, "web" | "specs"> }> = [
   { name: "a crate's tests, benches and manifest run no shard", tier: "fast", changed: ["crates/app/tests/insert.rs", "crates/engine/benches/cpm.rs", "crates/engine/Cargo.toml"], want: none },
@@ -37,12 +38,14 @@ const rows: Array<{ name: string; tier: Tier; changed: string[] | null; want: Pi
   { name: "a Node test beside a src module adds only that module's specs", tier: "fast", changed: [`${WEB_ROOT}/tests-node/cli.test.ts`, `${WEB_ROOT}/src/find.ts`], want: { web: "some", specs: ["find.spec.ts", "find-live.spec.ts"] } },
   { name: "a Node test beside an unmapped file still runs every shard", tier: "fast", changed: [`${WEB_ROOT}/tests-node/cli.test.ts`, `${WEB_ROOT}/package.json`], want: all },
   { name: "the React wrapper runs its host specs", tier: "fast", changed: [`${WEB_ROOT}/src/react.tsx`], want: { web: "some", specs: ["react-events.spec.ts", "react-strict-mode.spec.ts"] } },
-  { name: "the consumer check runs every shard (its step is in the web job)", tier: "fast", changed: ["scripts/lib/consumer-check.ts"], want: all },
-  { name: "the staging script runs every shard (the checks run on its staged copy)", tier: "fast", changed: ["scripts/lib/stage-package.ts"], want: all },
-  { name: "the pack check runs every shard (its step is in the web job)", tier: "fast", changed: ["scripts/pack-check.ts"], want: all },
-  { name: "the publish workflow runs every shard (the checks guard what it publishes)", tier: "fast", changed: [".github/workflows/npm-publish.yml"], want: all },
-  { name: "an example runs every shard (its step is in the web job)", tier: "fast", changed: ["examples/check.ts"], want: all },
-  { name: "the print demo runs every shard (its step is in the web job)", tier: "fast", changed: ["demos/print/run.sh"], want: all },
+  { name: "the consumer check runs the checks leg and no shard", tier: "fast", changed: ["scripts/lib/consumer-check.ts"], want: checks },
+  { name: "the staging script runs the checks leg and no shard (the checks run on its staged copy)", tier: "fast", changed: ["scripts/lib/stage-package.ts"], want: checks },
+  { name: "the pack check runs the checks leg and no shard", tier: "fast", changed: ["scripts/pack-check.ts"], want: checks },
+  { name: "the publish workflow runs the checks leg and no shard (the checks guard what it publishes)", tier: "fast", changed: [".github/workflows/npm-publish.yml"], want: checks },
+  { name: "an example runs the checks leg and no shard", tier: "fast", changed: ["examples/check.ts"], want: checks },
+  { name: "the print demo runs the checks leg and no shard", tier: "fast", changed: ["demos/print/run.sh"], want: checks },
+  { name: "an example beside a src module keeps that module's specs", tier: "fast", changed: ["examples/check.ts", `${WEB_ROOT}/src/find.ts`], want: { web: "some", specs: ["find.spec.ts", "find-live.spec.ts"] } },
+  { name: "an example on deploy runs the checks leg and no shard", tier: "deploy", changed: ["examples/plain/main.js", "docs/PLAN.md"], want: checks },
   { name: "a diff that could not be read runs every shard", tier: "fast", changed: null, want: all },
   { name: "measure.spec never runs on a PR, even when changed", tier: "fast", changed: [`${WEB_ROOT}/tests/measure.spec.ts`], want: none },
   { name: "the measure module runs its PR specs only", tier: "fast", changed: [`${WEB_ROOT}/src/measure.ts`], want: { web: "some", specs: ["measure-link-edit.spec.ts"] } },
@@ -179,6 +182,7 @@ git("mv", `${WEB_ROOT}/src/find.ts`, "docs/find.md");
 git("commit", "-qam", "rename into docs");
 const renamed = spawnSync("node", [fileURLToPath(new URL("touched-specs.ts", import.meta.url)), "fast"], { cwd: repo, encoding: "utf8" });
 if (!renamed.stdout.includes("web=some")) fail(`a code file renamed into docs/ runs no spec: ${renamed.stdout.trim()} ${renamed.stderr.trim()}`);
+if (!renamed.stdout.includes('shards=[1,2,3,4,"checks"]\n')) fail(`the script prints no shards= line with the four shards for a web=some plan: ${renamed.stdout.trim()}`);
 
 // On deploy the diff against main is empty; the push's own commits (PUSH_BEFORE..HEAD) say what to run.
 const deployOut = (before: string): string => spawnSync("node", [fileURLToPath(new URL("touched-specs.ts", import.meta.url)), "deploy"], { cwd: repo, encoding: "utf8", env: { ...process.env, PUSH_BEFORE: before } }).stdout;

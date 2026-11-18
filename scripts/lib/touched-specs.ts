@@ -7,8 +7,8 @@
 // name or a hyphen-separated part of it (`find.ts` touches `find.spec.ts` and `find-live.spec.ts`,
 // `open.ts` touches `save-open.spec.ts`). A `src` file that touches no spec, and any other file under
 // the chart folder (a test helper, a fixture, the config, the package), runs every spec, except a Node test under `tests-node/` and the folder's
-// README (`SPEC_FREE_WEB`); any file under `examples/` runs every spec too (their step runs
-// in the `web` job), and so does a file that stages, checks or publishes the package (`PUBLISH_PATH`: the `web` job runs its package and consumer checks). A file under `apps/chrome/` or a crate's `src/` adds the specs that drive it (`DRIVEN_BY`, and the name rule for the chrome's
+// README (`SPEC_FREE_WEB`); a file under `examples/` or `demos/print/`, and a file that stages, checks or publishes the package (`PUBLISH_PATH`), is read only by the
+// `web` job's `checks` leg, so it runs that leg and no shard (`checks`); beside a file that asks for specs it adds nothing. A file under `apps/chrome/` or a crate's `src/` adds the specs that drive it (`DRIVEN_BY`, and the name rule for the chrome's
 // and the app crate's modules). A file outside all of these (`scripts/`, `docs/`, the workflow, a crate's tests) adds no spec. The batch-only specs never run on fast.
 // The deploy tier (a push to main) reads the push's own commits the same way (`before..HEAD`); a diff it cannot read runs every spec. Full and nightly run every spec.
 //
@@ -24,13 +24,16 @@ import { BATCH_ONLY_SPECS, type Tier } from "./ci-tier.ts";
 import { WEB_ROOT } from "./web-root.ts";
 
 export interface WebPlan {
-  /** none: the `web` job is skipped. some: it runs `specs`. all: it runs every spec (`specs` lists them on fast, is empty otherwise). */
-  web: "none" | "some" | "all";
+  /** none: the `web` job is skipped. checks: it runs its `checks` leg and no shard. some: it runs `specs`. all: it runs every spec (`specs` lists them on fast, is empty otherwise). */
+  web: "none" | "checks" | "some" | "all";
   /** Spec file names under `tests/`; empty means no filter. */
   specs: string[];
   /** One line for the log. */
   why: string;
 }
+
+/** The legs of the `web` matrix as a JSON array for `select`'s `shards` output: the four Playwright shards (`--shard=i/4`) and `checks`, or `checks` alone. */
+export const webShards = (web: WebPlan["web"]): string => (web === "checks" ? '["checks"]' : '[1,2,3,4,"checks"]');
 
 const SPEC_DIR = `${WEB_ROOT}/tests/`;
 const SRC_DIR = `${WEB_ROOT}/src/`;
@@ -188,6 +191,7 @@ export function webPlan(tier: Tier, changed: string[] | null, specs: string[], e
   const all = (why: string): WebPlan => ({ web: "all", specs: prSpecs, why });
   if (changed === null) return all("the diff against main could not be read");
   const touched = new Set<string>();
+  let checksFile: string | null = null;
   for (const file of changed) {
     if (SPEC_FREE_WEB.some((free) => free(file))) continue;
     if (file === ENTRY && specs.includes(ENTRY_SPEC) && sameRuntime(entry, strip)) {
@@ -201,17 +205,14 @@ export function webPlan(tier: Tier, changed: string[] | null, specs: string[], e
       for (const hit of hits) touched.add(hit);
     } else if (file.startsWith(`${WEB_ROOT}/`)) {
       return all(`${file} is under ${WEB_ROOT}/ and is no spec or src module`);
-    } else if (file.startsWith("examples/")) {
-      return all(`${file} is an example, whose step runs in the web job`);
-    } else if (file.startsWith("demos/print/")) {
-      return all(`${file} is the print demo, whose step runs in the web job`);
-    } else if (PUBLISH_PATH.includes(file)) {
-      return all(`${file} stages, checks or publishes the package, whose checks run in the web job`);
+    } else if (file.startsWith("examples/") || file.startsWith("demos/print/") || PUBLISH_PATH.includes(file)) {
+      checksFile ??= file;
     } else {
       for (const hit of drivenSpecs(file, specs)) touched.add(hit);
     }
   }
   const run = prSpecs.filter((s) => touched.has(s));
+  if (run.length === 0 && checksFile !== null) return { web: "checks", specs: [], why: `${checksFile} is read by the checks leg only (an example, the print demo, or the package's stage, check or publish files)` };
   if (run.length === 0) return { web: "none", specs: [], why: "the diff touches no browser spec that runs on a PR" };
   return { web: "some", specs: run, why: `the diff touches ${run.length} spec(s)` };
 }

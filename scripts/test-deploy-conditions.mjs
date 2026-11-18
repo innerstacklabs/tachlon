@@ -25,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { browserCases, hostedBrowserChecks } from './lib/hosted-browser-checks.mjs';
 import { pnpmStepsWithoutDest } from './lib/pnpm-dest-checks.mjs';
 import { wasmHandoffChecks } from './lib/wasm-handoff-checks.mjs';
+import { webMatrixChecks } from './lib/web-matrix-checks.mjs';
 
 const REPO = 'owner/repo';
 const SECRET_NAMES = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'];
@@ -229,12 +230,6 @@ for (const job of ['rust', 'wasm', 'web', 'book']) {
 // one shard, and `ci-summary` must still fail when any shard fails or is skipped.
 const web = jobBlock(lines, 'web') ?? [];
 const webBody = web.join('\n');
-const matrixShards = /^ {8}shard:\s*\[([^\]]*)\]\s*$/m.exec(webBody)?.[1].split(',').map((s) => s.trim()).filter(Boolean) ?? [];
-const shardArg = /playwright test --shard=\$\{\{ matrix\.shard \}\}\/(\d+)\s*$/m.exec(webBody);
-check('web is a matrix of shards numbered 1 to N',
-  matrixShards.length > 1 && matrixShards.every((s, i) => s === String(i + 1)), matrixShards.join(','));
-check('web runs playwright with --shard=<matrix.shard>/<number of shards>',
-  shardArg !== null && Number(shardArg[1]) === matrixShards.length, shardArg?.[0] ?? 'no --shard');
 check('web does not stop the other shards when one fails', /^ {6}fail-fast:\s*false\s*$/m.test(webBody));
 check('web gives each shard its own report artifact name', /name: playwright-report-\$\{\{ matrix\.shard \}\}\s*$/m.test(webBody));
 check('web caches the Playwright Chromium download', /uses: actions\/cache@v\d+\n\s+with:\n\s+path: ~\/\.cache\/ms-playwright\n\s+key: playwright-chromium-[^\n]*steps\.playwright\.outputs\.version/.test(webBody));
@@ -244,7 +239,7 @@ const summary = jobBlock(lines, 'ci-summary') ?? [];
 const summaryBody = summary.join('\n');
 check('ci-summary needs web and reads its aggregate result', /^ {4}needs:\s*\[[^\]]*\bweb\b[^\]]*\]/m.test(summaryBody) && /WEB: \$\{\{ needs\.web\.result \}\}/.test(summaryBody));
 check('ci-summary wants web success whenever the code jobs run', /"web:\$WEB"/.test(summaryBody) && /\[ "\$\{pair#\*:\}" = "\$w" \] \|\| fail/.test(summaryBody));
-[...hostedBrowserChecks(lines, jobBlock, summaryBody), ...wasmHandoffChecks(text, lines, jobBlock)].forEach(([name, ok, detail]) => check(name, ok, detail)); // gantt#1163: hosted-browser is waited on wherever hosted is
+[...hostedBrowserChecks(lines, jobBlock, summaryBody), ...wasmHandoffChecks(text, lines, jobBlock), ...await webMatrixChecks(text, webBody, summaryBody)].forEach(([name, ok, detail]) => check(name, ok, detail)); // gantt#1163: hosted-browser is waited on wherever hosted is
 check('hosted runs the package size check right after it builds the package', /pnpm build:lib\n\s+working-directory: packages\/gantt\n(?: *#.*\n)*\s+- name: package size\n\s+id: size\n\s+working-directory: packages\/gantt\n\s+env:\n\s+GITHUB_TOKEN: .*\n\s+run: \|\n(?:\s+.*\n)*?\s+node "\$GITHUB_WORKSPACE\/scripts\/package-size\.ts" \. \|\| rc=\$\?\n/.test((jobBlock(lines, 'hosted') ?? []).join('\n') + '\n'));
 
 const deploy = jobBlock(lines, 'deploy');
