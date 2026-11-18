@@ -13,6 +13,7 @@ export type SetData = (next: HostRows, epoch: number, apply: (records: TaskUpdat
 
 const rowsChanged = (message: string): UpdateResult => Object.freeze({ ok: false, reason: "rowsChanged", message: `Nothing changed: ${message}` });
 const same = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((text, i) => text === b[i]);
+const shapeOf = (tasks: readonly PlainTask[]): string[] => tasks.map((task) => JSON.stringify([task.key, task.id, task.parent]));
 const linkTexts = (links: readonly PlainLink[]): string[] => links.map((link) => JSON.stringify(Object.entries(link).sort(([a], [b]) => (a < b ? -1 : 1))));
 
 /** The compared members of each task by its `key`, or `undefined` when a task has no text `key` or two share one. */
@@ -29,7 +30,7 @@ const weak = (list: object | undefined): WeakRef<object> | undefined => list && 
 
 /** Remember the rows a start of the chart was given, at schedule `epoch`; the function answers `setData` against what it last accepted. The page's own arrays are held weakly (the chart lets them go once it has started), only to skip the same array again. */
 export function hostData(first: HostRows, epoch: number): SetData {
-  let kept = { epoch, tasks: weak(first.tasks), byKey: first.tasks && membersByKey(first.tasks), links: weak(first.links), linkTexts: linkTexts(first.links ?? []) };
+  let kept = { epoch, tasks: weak(first.tasks), byKey: first.tasks && membersByKey(first.tasks), shape: shapeOf(first.tasks ?? []), links: weak(first.links), linkTexts: linkTexts(first.links ?? []) };
   return (next, now, apply) => {
     const old = kept.byKey;
     if (old === undefined) return rowsChanged("the chart holds no rows of yours to compare with (every task needs its own text key).");
@@ -40,7 +41,7 @@ export function hostData(first: HostRows, epoch: number): SetData {
     if (next.tasks !== undefined && next.tasks !== kept.tasks?.deref()) {
       const given = membersByKey(next.tasks);
       if (given === undefined) return rowsChanged("every task needs its own text key.");
-      if (given.size !== old.size || [...given.keys()].some((key) => !old.has(key))) return rowsChanged("a task was added or removed.");
+      if (!same(shapeOf(next.tasks), kept.shape)) return rowsChanged("a task was added, removed or moved, or its id or parent changed.");
       for (const [key, values] of given) {
         const was = old.get(key)!;
         const set = MEMBERS.flatMap((member, i) => (values[i] !== undefined && values[i] !== was[i] ? [[member, values[i]] as const] : []));

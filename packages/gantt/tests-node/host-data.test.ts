@@ -43,14 +43,14 @@ test("a member left out keeps its last value, and a value that returns after one
   expect(calls[1], "a value that differs from the last accepted one is new").toEqual([{ key: "k1", duration: 2 }]);
 });
 
-test("a null start or snet is a value, and a member update does not take is ignored", () => {
+test("a null start or snet is a value, and members that are not compared are ignored", () => {
   const { calls, give } = chart();
-  give({ tasks: [task(1, { snet: "2026-03-09" }), task(2, { color: "#ff0000", parent: 1 }), task(3)] });
-  give({ tasks: [task(1, { snet: null }), task(2, { color: "#ff0000", parent: 1 }), task(3)] });
+  give({ tasks: [task(1, { snet: "2026-03-09" }), task(2, { color: "#ff0000", milestone: "start", fnet: "2026-03-10" }), task(3)] });
+  give({ tasks: [task(1, { snet: null }), task(2, { color: "#ff0000", milestone: "start", fnet: "2026-03-10" }), task(3)] });
   expect(calls).toEqual([[{ key: "k1", snet: "2026-03-09" }], [{ key: "k1", snet: null }]]);
 });
 
-test("a task added or removed, a key that is no text, a repeated key and a changed link are refused with nothing set", () => {
+test("a task added, removed, moved or given another id or parent, a key that is no text, a repeated key and a changed link are refused with nothing set", () => {
   const { calls, give } = chart();
   const refusals = [
     give({ tasks: [...rows(), task(4)] }),
@@ -61,8 +61,11 @@ test("a task added or removed, a key that is no text, a repeated key and a chang
     give({ links: [links[0]!] }),
     give({ tasks: [task(1, { duration: 7 }), task(2), task(3)], links: [...links, { from: 1, to: 3 }] }),
     give({ links: [links[0]!, { from: 2, to: 3, lag: 2 }] }),
+    give({ tasks: [task(1), task(2, { parent: 1 }), task(3)] }),
+    give({ tasks: [task(1), task(2, { id: 22 }), task(3)] }),
+    give({ tasks: [task(2), task(1), task(3)] }),
   ];
-  expect(refusals.map((answer) => (answer.ok ? "ok" : answer.reason))).toEqual(Array(8).fill("rowsChanged"));
+  expect(refusals.map((answer) => (answer.ok ? "ok" : answer.reason))).toEqual(Array(11).fill("rowsChanged"));
   expect(refusals.every((answer) => !answer.ok && answer.message.startsWith("Nothing changed"))).toBe(true);
   expect(calls).toEqual([]);
 });
