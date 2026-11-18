@@ -7,6 +7,7 @@ mod capabilities;
 mod gate;
 mod keys;
 mod outbox;
+mod overlay;
 mod pending;
 mod planned;
 mod read;
@@ -14,6 +15,7 @@ mod results;
 mod update;
 mod values;
 
+use crate::baseline::Baseline;
 pub use baseline::BaselineRecordsError;
 pub(crate) use capabilities::Capabilities;
 pub(crate) use keys::Kind;
@@ -37,4 +39,6 @@ pub(crate) struct Host {
     pub(crate) read_only: bool,
     pub(crate) capabilities: Capabilities,
     pub(crate) before_edit: Option<BeforeEdit>,
+    /// The overlay dates a host set (tl#2086), read like a baseline.
+    pub(crate) overlay: Option<Baseline>,
 }

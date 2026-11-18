@@ -238,6 +238,18 @@ test("setBaseline(records) takes dates by key as the baseline, one undo drops it
   expect((await state(page, "a")).baseline).toBeNull();
 });
 
+test("setOverlay(records) answers as setBaseline does, sets no baseline and adds no undo step, and null removes it", async ({ page }) => {
+  const task = taskOf(await host(page, "a", (api) => api.commands.insertRow()));
+  await host(page, "a", (api, t) => api.commands.assignKey({ task: t }, "t1"), task);
+  const dates = { key: "t1", start: "2026-03-02", finish: "2026-03-06" };
+  const set = (records: unknown) => host(page, "a", (api, r) => api.commands.setOverlay(r as never), records);
+  expect([await set([{ ...dates, key: "zz" }]), await set("t1")]).toMatchObject([{ ok: false, reason: "unknownKey", record: 0 }, { ok: false, reason: "badRecords" }]);
+  expect(await set([dates])).toEqual({ ok: true });
+  expect((await state(page, "a")).baseline, "an overlay is not a baseline").toBeNull();
+  expect(await set(null)).toEqual({ ok: true });
+  expect([await host(page, "a", (api) => api.commands.undo()), await host(page, "a", (api) => api.commands.undo())], "the insert was the one step; the overlay added none").toEqual([true, false]);
+});
+
 test("state().baseline tells a host how many tasks the baseline lacks and the day it was set, as the chart writes it", async ({ page }) => {
   await host(page, "a", (api) => api.commands.setDataDate("2024-02-05"));
   await host(page, "a", (api) => api.commands.setBaseline());

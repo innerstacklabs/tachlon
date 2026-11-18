@@ -282,14 +282,14 @@ impl Session {
             return;
         };
         let tl = self.timeline();
-        timeline::scene::add_baseline_bars(
+        timeline::scene::add_comparison_bars(
             scene,
             &tl.viewport,
             tl.dpr,
             tl.summaries(),
             tl.rows(),
             |task| baseline.task(TaskId(task)).map(|t| (t.es, t.ef)),
-            self.theme(),
+            (0, self.theme().baseline),
         );
     }
 

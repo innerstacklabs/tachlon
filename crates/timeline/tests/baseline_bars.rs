@@ -59,7 +59,7 @@ fn add(
     n: usize,
     of: impl Fn(u32) -> Option<(Instant, Instant)>,
 ) {
-    scene::add_baseline_bars(s, v, 1.0, sums, &order(n), of, &THEME);
+    scene::add_comparison_bars(s, v, 1.0, sums, &order(n), of, (0, THEME.baseline));
 }
 
 fn comparison(s: &Scene) -> Vec<Rect> {
@@ -183,4 +183,19 @@ fn no_baseline_adds_nothing() {
     let before = s.clone();
     add(&mut s, &v, &sums, 40, |_| None);
     assert_eq!(s, before);
+}
+
+#[test]
+fn a_later_slot_sits_one_strip_lower_in_its_own_color() {
+    let sums = Summaries::new(40);
+    let v = view(20, 40);
+    let mut s = bars(&v, 40, &sums);
+    let teal = [0.0, 0.5, 0.5, 1.0];
+    let of = |t| (t == 1).then_some((5 * DAY, 7 * DAY));
+    scene::add_comparison_bars(&mut s, &v, 1.0, &sums, &order(40), of, (1, teal));
+    let got: Vec<_> = s.rects.iter().filter(|r| r.color == teal).collect();
+    // Slot 0 is 1 px under the 12 px bar and 3 px tall, so slot 1 starts 4 px lower.
+    let top = AXIS_HEIGHT + ROW_HEIGHT + 6.0 + 12.0 + 1.0 + 4.0;
+    assert_eq!(got.len(), 1);
+    assert_eq!(f64::from(got[0].pos[1]), top);
 }

@@ -78,6 +78,19 @@ impl App {
         }
     }
 
+    /// `set_overlay_records` (null removes it), answered as JSON: `{"ok":true}` or a record's refusal as `update_tasks` answers it.
+    /// Not an edit: no busy check, no undo step.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "wasm_bindgen takes an optional string by value; `Option<&str>` has no ABI"
+    )]
+    pub fn try_set_overlay_records(&mut self, json: Option<String>) -> String {
+        match self.session.set_overlay_records(json.as_deref()) {
+            Ok(()) => r#"{"ok":true}"#.to_string(),
+            Err(error) => record_refusal(error),
+        }
+    }
+
     /// `set_baseline`, answered as JSON: `{"ok":true}` or `{"ok":false,"reason":"busy"}`.
     pub fn try_set_baseline(&mut self) -> String {
         answer(

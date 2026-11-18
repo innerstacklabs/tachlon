@@ -42,6 +42,7 @@ const THEME_TOKENS = [
   "link-refused",
   "link-terminal",
   "baseline",
+  "overlay",
 ];
 
 // The production CSS minifier writes #ffffff as #fff and #ffffff99 as #fff9: compare the colours, not the spelling.
@@ -162,12 +163,12 @@ test.describe.serial("theme journey", () => { // oxlint-disable-line max-lines-p
     await page.close();
   });
 
-  test("the token table has the 32 stable entries and the light anchors at load", async () => {
+  test("the token table has the 33 stable entries and the light anchors at load", async () => {
     const lightTheme = initialTheme.app;
     expect
       .soft(
-        initialTheme.tokens.length === 32 && JSON.stringify(initialTheme.tokens) === JSON.stringify(THEME_TOKENS),
-        "theme: App.theme_tokens() has the 32 stable entries",
+        initialTheme.tokens.length === 33 && JSON.stringify(initialTheme.tokens) === JSON.stringify(THEME_TOKENS),
+        "theme: App.theme_tokens() has the 33 stable entries",
       )
       .toBe(true);
     expect

@@ -31,7 +31,7 @@ mod svg;
 
 pub use bar_color::BarColors;
 pub use bars::{build, build_marked};
-pub use baseline::add_baseline_bars;
+pub use baseline::add_comparison_bars;
 pub use constraint::StartConstraints;
 pub use link_hit::HIT_SLOP;
 pub use link_path::{HEAD, STUB};

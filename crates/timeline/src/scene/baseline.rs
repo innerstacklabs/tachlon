@@ -1,9 +1,9 @@
 //! The comparison bars (gs#703): while a baseline is set, a thin bar under each task bar shows
-//! where the task was planned. One [`Rect`] per baselined visible leaf row, drawn under the bars.
+//! where the task was planned, and a host's overlay (tl#2086) is a second one under it. One [`Rect`]
+//! per visible leaf row and set of dates, drawn under the bars.
 
 use super::outline::CAP;
 use super::{Builder, Rect, Scene, bar_height, bar_top, span_extent, splice_under_bars};
-use crate::Theme;
 use crate::summary::Summaries;
 use crate::viewport::Viewport;
 use engine::Instant;
@@ -21,19 +21,21 @@ pub const GAP_PX: f64 = 1.0;
 /// canvas would need thousands of pixels of height to meet. The bar is `bar_height` tall in its
 /// row, the comparison bar `HEIGHT_PX` under it after `GAP_PX`, from the baseline start to the
 /// baseline finish; a task whose baseline equals its dates gets the same strip under its bar.
-pub fn add_baseline_bars(
+/// `strip` is the slot and the color: slot 0 is the strip under the bar, and each slot after it
+/// sits `HEIGHT_PX + GAP_PX` lower.
+pub fn add_comparison_bars(
     scene: &mut Scene,
     v: &Viewport,
     dpr: f64,
     summaries: &Summaries,
     order: &[u32],
     baseline_of: impl Fn(u32) -> Option<(Instant, Instant)>,
-    theme: &Theme,
+    (slot, color): (u32, [f32; 4]),
 ) {
     let bh = bar_height(v);
     let mut b = Builder {
         dpr,
-        arrow_color: theme.link,
+        arrow_color: color,
         scene: Scene::default(),
     };
     for row in v.visible_rows().take(CAP) {
@@ -51,8 +53,8 @@ pub fn add_baseline_bars(
         if x1 < 0.0 || x0 > v.width {
             continue;
         }
-        let y = top + bh + GAP_PX;
-        b.rect(x0, y, x1, y + HEIGHT_PX, theme.baseline);
+        let y = top + bh + GAP_PX + f64::from(slot) * (HEIGHT_PX + GAP_PX);
+        b.rect(x0, y, x1, y + HEIGHT_PX, color);
     }
     let rects: Vec<Rect> = b.scene.rects;
     if !rects.is_empty() {

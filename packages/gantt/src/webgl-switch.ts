@@ -81,7 +81,7 @@ export async function startTakingDown(go: (own: Own) => Promise<Started>): Promi
 }
 
 /** The commands that answer an `EditResult`, a `RowResult`, a `WhatIfResult`, an `ExplainResult`, a `HealthResult`, a `ProposeResult` or an `AcceptResult`: during a switch they refuse with `"busy"`. */
-const EDITS = new Set<string | symbol>(["insertRow", "deleteRow", "assignKey", "deleteLink", "setDataDate", "setBaseline", "clearBaseline", "addNewToBaseline", "whatIf", "whatIfLonger", "explain", "health", "criticalPath", "propose", "acceptProposal", "acceptProposed"]);
+const EDITS = new Set<string | symbol>(["insertRow", "deleteRow", "assignKey", "deleteLink", "setDataDate", "setBaseline", "setOverlay", "clearBaseline", "addNewToBaseline", "whatIf", "whatIfLonger", "explain", "health", "criticalPath", "propose", "acceptProposal", "acceptProposed"]);
 
 /** Start the chart once in the root, on `source`. Rejects with a `MountError`, as `mount` does. */
 export type Start = (source: StartSource, run: Run) => Promise<Started>;

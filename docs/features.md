@@ -105,7 +105,7 @@ Cites are paths at `origin/main` `3135461a` or merged PR numbers. "pkg README" i
 - 31: `fromDhtmlx`, `fromBryntum` (pkg README).
 - 32: root README speed table (Bryntum 8 Community, DHTMLX 10 Community and SVAR at 10,000 and 50,000 tasks, measured 2026-11-13) #1958.
 - 33: `book/src/j2-navigate.md`; `chart.commands.zoomIn`, `zoomOut`, `fit`.
-- 34: 34 color tokens in light and dark (the package's `describe tokens`).
+- 34: 35 color tokens in light and dark (the package's `describe tokens`).
 - 35: #2001 draws a bar in its own color, #2008 keeps a task's `color` and `label` in the schedule document that `chart.load` reads, #2012 takes a `color` (`#rrggbb`) on a task given to `fromTasks`, and #2016 adds `label` there and `color` to `fromDhtmlx` (pkg README; `docs/WASM_API.md`, `PlainTask` and `App.save`).
 - 37: docs/KEYS.md.
 - 38: the task list is an ARIA tree grid (`packages/gantt/src/table-aria.ts`); the timeline canvas is one `role="img"` (`packages/gantt/src/chart.html`). The bars are spoken through the `card-live` live region when the selection moves: dates, float, critical state, percent complete, link counts and baseline start (`packages/gantt/src/bar-speech.ts`) #2014, #2017. The wording was not tried with a screen reader.

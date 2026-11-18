@@ -26,6 +26,7 @@ export interface HostCommands {
   deleteLink(): LinkResult | undefined;
   setDataDate(day: string | null): EditResult | undefined;
   setBaseline(records?: readonly { key: string; start: string; finish: string }[]): EditResult | undefined;
+  setOverlay(records: readonly { key: string; start: string; finish: string }[] | null): EditResult | undefined;
   clearBaseline(): EditResult | undefined;
   addNewToBaseline(): EditResult | undefined;
   setBaselineFromFile(file: File): Promise<CompareResult>;
@@ -40,6 +41,11 @@ export interface HostCommands {
   acceptProposed(key: ProposedKey): AcceptResult | undefined;
   rejectProposed(key: ProposedKey): boolean | undefined;
 }
+
+/** The records as the JSON text the app reads, or undefined for anything but an array JSON can hold (a BigInt or a cycle). */
+const recordsJson = (records: unknown): string | undefined => {
+  try { return Array.isArray(records) ? JSON.stringify(records) : undefined; } catch { return undefined; }
+};
 
 /** What `accept` (a call of an `accept_*` export) answers as an `AcceptResult`, or `"busy"` without calling it. */
 const accepted = (busy: () => boolean, accept: () => string): AcceptResult => {
@@ -133,10 +139,15 @@ export function createHostCommands(app: PublicApp, busy: () => boolean, reason: 
       return edit(() => app.try_set_data_date(day ?? ""));
     },
     setBaseline(records) {
-      let json: string | undefined;
-      try { json = Array.isArray(records) ? JSON.stringify(records) : undefined; } catch { /* a BigInt or a cycle: no JSON */ }
+      const json = recordsJson(records);
       if (records === undefined) return edit(() => app.try_set_baseline());
       return json === undefined ? Object.freeze({ ok: false, reason: "badRecords", message: "setBaseline takes an array of records." }) : edit(() => app.try_set_baseline_records(json));
+    },
+    // Not an edit, so not refused while busy: the overlay does not move while a bar is dragged.
+    setOverlay(records) {
+      const json = recordsJson(records);
+      if (records === null) return edit(() => app.try_set_overlay_records(undefined), false);
+      return json === undefined ? Object.freeze({ ok: false, reason: "badRecords", message: "setOverlay takes an array of records, or null." }) : edit(() => app.try_set_overlay_records(json), false);
     },
     clearBaseline: () => edit(() => app.try_clear_baseline()),
     addNewToBaseline: () => edit(() => app.try_add_new_to_baseline()),
