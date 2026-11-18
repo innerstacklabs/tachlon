@@ -388,3 +388,21 @@ fn a_milestone_kind_moves_a_link_and_a_floor_to_a_period_edge() {
     }
     common::check_invariants(&s, &sol);
 }
+
+#[test]
+fn a_kind_is_ignored_in_a_week_with_no_break_even_when_a_holiday_gives_it_edges() {
+    let week = common::cont_cal().week().clone();
+    let holiday = Calendar::with_exceptions(week, &[(2, vec![])]).expect("a valid calendar");
+    assert!(holiday.is_working(at(1, 23, 59)) && !holiday.is_working(at(2, 0, 0)));
+    let mut s = Schedule::new();
+    let cal = s.add_calendar(holiday);
+    let a = task(&mut s, cal, 30, Some(at(1, 10, 0)));
+    let m = task(&mut s, cal, 0, None);
+    dep(&mut s, a, m, LinkType::FS, 0);
+    let limit = Limit {
+        milestone: Some(Milestone::Start),
+        ..Limit::default()
+    };
+    s.set_limit(m, limit).unwrap();
+    assert_eq!(s.compute().unwrap().get(m).es, at(1, 10, 30));
+}

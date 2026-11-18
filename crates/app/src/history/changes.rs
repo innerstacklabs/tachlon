@@ -14,10 +14,19 @@ use crate::{
     reparent::Siblings,
     structure::Place,
 };
-use engine::{DepId, Instant, LagCalendar, Limit, LinkType, Minutes, Pin, TaskId};
+use engine::{DepId, Instant, LagCalendar, Limit, LinkType, Milestone, Minutes, Pin, TaskId};
 
 /// The fields of a task's limits, in the names of decision 0017.
-pub(super) const LIMIT_FIELDS: [&str; 7] = ["snlt", "fnet", "fnlt", "mso", "mfo", "alap", "resume"];
+pub(super) const LIMIT_FIELDS: [&str; 8] = [
+    "snlt",
+    "fnet",
+    "fnlt",
+    "mso",
+    "mfo",
+    "alap",
+    "resume",
+    "milestone",
+];
 
 /// A link create change: `head` names the link, `own` is the lag calendar it carries, if any.
 pub(crate) fn link_create(
@@ -320,6 +329,11 @@ impl Session {
             "mso" => self.date(start),
             "mfo" => self.date(finish),
             "alap" => limit.alap.to_string(),
+            "milestone" => match limit.milestone {
+                Some(Milestone::Start) => "\"start\"".into(),
+                Some(Milestone::Finish) => "\"finish\"".into(),
+                None => "null".into(),
+            },
             _ => self.date(limit.resume),
         }
     }

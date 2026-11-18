@@ -72,6 +72,7 @@
         "mso": { "$ref": "#/$defs/date", "description": "Must start on. One pin per task: mso or mfo, not both." },
         "mfo": { "$ref": "#/$defs/date", "description": "Must finish on. A date alone is the end of that day." },
         "alap": { "type": "boolean", "description": "true schedules the task as late as possible." },
+        "milestone": { "enum": ["start", "finish"], "description": "On a task with no duration: start sits at the start of a working period, finish at the end of one." },
         "actualStart": { "$ref": "#/$defs/date", "description": "When the task actually started. A date alone is the first working minute of that day." },
         "actualFinish": { "$ref": "#/$defs/date", "description": "When the task actually finished; needs actualStart. A date alone is the end of the last working minute of that day." },
         "remaining": { "type": "number", "minimum": 0, "description": "Work left, in the data's durationUnit; needs actualStart, and is not given with progress." },

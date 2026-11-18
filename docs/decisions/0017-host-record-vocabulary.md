@@ -64,7 +64,7 @@ A host page talks to the component through plain records: tasks, links, calendar
 | `finish` | out | date, finish kind: the early finish | Not stored |
 | `end` | in | date. With `start` it gives the duration when `duration` is absent. A date-only `end` is 00:00 of that day, so the day itself is not worked (`fromTasks` in `plain.ts`). Never written | `duration` |
 | `duration` | in, out | duration, 0 or more | `duration` (minutes) |
-| `milestone` | in, out | `"start"`, `"finish"` or absent (gantt#2088) | None at head: a zero duration is a milestone (`Task::duration` in `crates/engine/src/model.rs`) |
+| `milestone` | in, out | `"start"`, `"finish"` or absent (gantt#2088) | `limit.milestone`; read only on a task with no duration (`Limit::milestone` in `crates/engine/src/model/limit.rs`) |
 | `snet` | in, out | date, start kind, or `null` for no start floor | `snet` |
 | `snlt` | in, out | date, start kind | `limit.snlt` |
 | `fnet`, `fnlt` | in, out | date, finish kind | `limit.fnet`, `limit.fnlt` |
@@ -79,7 +79,7 @@ A host page talks to the component through plain records: tasks, links, calendar
 | `physicalPercent` | in, out | number 0 to 100 with up to two decimals, stored as given and never derived (gantt#2080) | None at head |
 | `color`, `label` | in, out | `#rrggbb`; text | `color`, `label` |
 | `resources` | in, out | list of a name, or `{ name, units }`: units a whole percent from 1 to 1000 (100 when a name stands alone), at most 64 entries, a name at most 100 characters (gantt#1875) | None: kept for display; an MS Project file gives units 100 |
-| `fields` | out, in a create change only | the task as the change writes it: `parent`, `after`, `code`, `wbsCode`, `calendar`, `color`, `label`, `name`, `snet`, `duration`, `actualStart`, `actualFinish`, `remaining` and the seven limits (decision 0019) | None |
+| `fields` | out, in a create change only | the task as the change writes it: `parent`, `after`, `code`, `wbsCode`, `calendar`, `color`, `label`, `name`, `snet`, `duration`, `actualStart`, `actualFinish`, `remaining` and the eight limits (decision 0019) | None |
 | `lateStart`, `lateFinish` | out | dates, start kind and finish kind. `lateStart` is read through the accessor of decision 0018 | Not stored |
 | `float` | out | duration: total float, may be negative | Not stored |
 | `freeFloat` | out | duration (gantt#2084) | Not stored |
@@ -125,7 +125,7 @@ Renames and changes this table forces on merged code and written rows:
 - **tl2081lm, PR #2109 (open).** No rename. It gains `snet: null` for "no start floor", so that a snapshot read back does not turn a solved start into a limit.
 - **tl2081ac (written).** No rename: `actualStart`, `actualFinish`, `remaining`, `resume` and `dataDate` stand. `remaining` is in `durationUnit`, not always working days.
 - **tl2077sn (running).** The snapshot writes `id`, `key`, `code` and `task` as decision 0016 says, `finish` beside `start`, and `snet` (a date or `null`) on every task.
-- **Plain data (merged).** `end` and the default unit of days stand. `start` stops being required when `projectStart` is given (the `TASK` table in `packages/gantt/src/adapters/validate.ts`). `type: "milestone"` (`fromTasks` in `plain.ts`) is still read; gantt#2088 says which `milestone` value it means. The fixed `WORKING_DAY = 480` (`adapters/dhtmlx.ts`) goes with the calendar-and-unit row (A devteam-1-1496 item 5).
+- **Plain data (merged).** `end` and the default unit of days stand. `start` stops being required when `projectStart` is given (the `TASK` table in `packages/gantt/src/adapters/validate.ts`). `type: "milestone"` (`fromTasks` in `plain.ts`) is still read and keeps its meaning; `milestone` says whether that task sits at a period's start or its end (gantt#2088). The fixed `WORKING_DAY = 480` (`adapters/dhtmlx.ts`) goes with the calendar-and-unit row (A devteam-1-1496 item 5).
 
 Not renamed: the page's own reads (`TaskDetails` in `packages/gantt/src/api.ts`) are chrome API, not host records.
 
