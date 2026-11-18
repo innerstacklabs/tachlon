@@ -78,6 +78,7 @@ impl Session {
         }
         self.add_move_outlines(&mut scene);
         self.add_baseline_bars(&mut scene);
+        self.add_overlay_bars(&mut scene);
         self.add_link_overlay(&mut scene);
         scene
     }

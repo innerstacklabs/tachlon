@@ -31,7 +31,7 @@ impl Session {
             .map_err(BaselineRecordsError::Edit)
     }
 
-    fn read_baseline_records(&self, json: &str) -> Result<Baseline, UpdateError> {
+    pub(super) fn read_baseline_records(&self, json: &str) -> Result<Baseline, UpdateError> {
         let fail = |kind, at, member: Option<&str>| UpdateError::new(kind, at, member);
         let root = parse(json).map_err(|_| fail("badJson", None, None))?;
         let records = root.as_array().filter(|records| !records.is_empty());

@@ -143,6 +143,7 @@ mod open_select;
 mod open_start_order;
 mod outline;
 mod outline_contracts;
+mod overlay_bars;
 mod percent_edit;
 mod percent_edit_rounding;
 mod plan_text;

@@ -91,6 +91,8 @@ macro_rules! theme_tokens {
             link_terminal => ("link-terminal", (0x1b, 0x5b, 0xbd), (0x5a, 0xa9, 0xff));
             /// The comparison bar under a task bar, from the baseline start to the baseline finish.
             baseline => ("baseline", (0x6f, 0x7a, 0x9c), (0x7f, 0x8d, 0xb0));
+            /// The host overlay bar, a second thin bar under the comparison bar, from the overlay start to the overlay finish.
+            overlay => ("overlay", (0x8a, 0x6b, 0xb8), (0xa5, 0x8b, 0xd6));
         }
     };
 }
@@ -108,7 +110,7 @@ macro_rules! define_theme {
         }
 
         /// Theme token keys, in their stable JSON and CSS declaration order.
-        pub const TOKENS: [&str; 32] = [$($key,)*];
+        pub const TOKENS: [&str; 33] = [$($key,)*];
 
         impl Theme {
             /// The built-in light theme.
