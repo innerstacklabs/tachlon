@@ -10,7 +10,7 @@ use app::{
     edit::Edit,
     host::KeyTarget,
 };
-use engine::TaskId;
+use engine::{LinkType, TaskId};
 
 /// A session over the demo outline with its first 30 leaf tasks keyed `k0` to `k29`.
 fn keyed() -> (Session, Vec<TaskId>) {
@@ -30,6 +30,14 @@ fn keyed() -> (Session, Vec<TaskId>) {
     }
     session
         .assign_key(KeyTarget::Task(summary.unwrap()), "sum")
+        .unwrap();
+    session
+        .edit(Edit::AddLink {
+            pred: leaves[20],
+            succ: leaves[21],
+            kind: LinkType::FS,
+            lag: 0,
+        })
         .unwrap();
     session
         .edit(Edit::Rename {
@@ -268,4 +276,65 @@ fn a_progress_that_sets_an_actual_after_the_data_date_is_refused_and_changes_not
         ("actualAfterDataDate", Some(1), Some("progress"))
     );
     assert_eq!(saved(&session), before);
+}
+
+fn actuals(session: &Session, key: usize) -> (Option<i64>, Option<i64>) {
+    let task = session.task_for_key(&format!("k{key}")).unwrap();
+    let t = &session.schedule().tasks()[task.0 as usize];
+    (t.actual_start, t.actual_finish)
+}
+
+/// `first` as its own call, then `percent` typed: the dialog plans each field against the state the last left.
+fn then_typed(first: &str, key: usize, percent: &str) -> Session {
+    let (mut session, leaves) = keyed();
+    session.update_tasks(first).unwrap();
+    session.set_percent_text(leaves[key], percent).unwrap();
+    session
+}
+
+#[test]
+fn a_shortened_task_marked_done_finishes_at_its_new_early_finish() {
+    let (mut session, _) = keyed();
+    session
+        .update_tasks(r#"[{"key":"k4","duration":2400}]"#)
+        .unwrap();
+    let long = actuals(&session, 4);
+    let both = r#"[{"key":"k4","duration":480,"progress":100}]"#;
+    let updated = session.update_tasks(both).unwrap();
+    let typed = then_typed(r#"[{"key":"k4","duration":480}]"#, 4, "100");
+    assert_eq!(updated.solves, 2);
+    assert_eq!(actuals(&session, 4), actuals(&typed, 4));
+    assert_ne!(actuals(&session, 4).1, long.1);
+}
+
+#[test]
+fn a_start_and_a_progress_in_one_record_start_the_task_at_that_start() {
+    let (mut session, _) = keyed();
+    let both = r#"[{"key":"k4","start":"2027-01-04","progress":33}]"#;
+    let before = actuals(&session, 4).0;
+    session.update_tasks(both).unwrap();
+    let typed = then_typed(r#"[{"key":"k4","start":"2027-01-04"}]"#, 4, "33");
+    assert_eq!(actuals(&session, 4), actuals(&typed, 4));
+    assert_ne!(actuals(&session, 4).0, before);
+}
+
+#[test]
+fn a_predecessors_duration_moves_a_successors_progress_in_the_same_call() {
+    let (mut session, leaves) = keyed();
+    let typed = then_typed(r#"[{"key":"k20","duration":4800}]"#, 21, "100");
+    let before = session.solution().dates[leaves[21].0 as usize].es;
+    session
+        .update_tasks(r#"[{"key":"k20","duration":4800},{"key":"k21","progress":100}]"#)
+        .unwrap();
+    assert_eq!(actuals(&session, 21), actuals(&typed, 21));
+    assert_ne!(actuals(&session, 21).0, Some(before));
+}
+
+#[test]
+fn a_call_that_mixes_no_progress_with_timing_solves_once() {
+    let (mut session, _) = keyed();
+    let stamp = session.stamp();
+    let call = r#"[{"key":"k4","name":"Pour"},{"key":"k5","progress":50}]"#;
+    let updated = session.update_tasks(call).unwrap();
+    assert_eq!((updated.solves, session.stamp() - stamp), (1, 1));
 }

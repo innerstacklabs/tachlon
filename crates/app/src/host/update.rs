@@ -11,10 +11,11 @@ use crate::{
 use engine::{Instant, Minutes, TaskId};
 use std::collections::HashSet;
 
-/// How many tasks an update changed.
+/// How many tasks an update changed and how many times it solved: twice if it mixes progress with timing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Updated {
     pub tasks: usize,
+    pub solves: usize,
 }
 
 /// Why an update was refused. Nothing changed. `kind` is `badJson`, `noKey`, `unknownKey` (a
@@ -61,13 +62,14 @@ struct Progress {
 
 impl Session {
     /// Set the durations, starts, names and progress that `json`, an array of records, gives, each record
-    /// naming its task by `key`, and solve once. `duration` is a whole number of working minutes; `start`
+    /// naming its task by `key`. `duration` is a whole number of working minutes; `start`
     /// is held as `snet` unless the record has an `snet`; `snet` takes a date or `null`. `name` is trimmed
     /// and checked as a typed rename is. `progress` is a whole percent from 0 to 100, set as a typed percent
-    /// sets it, against the record's `duration` if it has one and the early dates the plan had before the
-    /// update, and refused as a typed actual is when an actual it sets is after the data date. A member a
-    /// record leaves out keeps its value. Every other member, the other date limits and the pins included,
-    /// is `notUpdatable`.
+    /// sets it, and refused as a typed actual is when an actual it sets is after the data date. The call
+    /// applies every record's `duration`, `start`, `snet` and `name` first and works each `progress` out
+    /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
+    /// with a duration, start or snet in any record solves twice, and any other call once. A member a
+    /// record leaves out keeps its value. Every other member, the other limits and pins included, is `notUpdatable`.
     ///
     /// # Errors
     ///
@@ -93,12 +95,29 @@ impl Session {
             };
             planned.push((task, self.read_values(at, task, record)?));
         }
+        let progress = planned.iter().any(|(_, (new, _))| new.percent.is_some());
+        let mixed = progress
+            && records.iter().any(|record| {
+                ["duration", "start", "snet"]
+                    .iter()
+                    .any(|member| record.get(member).is_some())
+            });
         let mut done = Vec::with_capacity(planned.len());
         for (task, (new, old)) in &planned {
             done.push((*task, old.clone()));
             if let Err(error) = self.put(*task, new) {
                 self.put_back(&done);
                 return Err(refuse(error));
+            }
+        }
+        if progress {
+            let applied = self.work_out_progress(&mut planned, mixed).and_then(|()| {
+                (planned.iter())
+                    .try_for_each(|(task, (new, _))| self.put(*task, new).map_err(refuse))
+            });
+            if let Err(error) = applied {
+                self.put_back(&done);
+                return Err(error);
             }
         }
         let revision = self.revision;
@@ -115,7 +134,37 @@ impl Session {
         }
         Ok(Updated {
             tasks: planned.len(),
+            solves: 1 + usize::from(mixed),
         })
+    }
+
+    /// Set each record's `progress` in `planned`: worked out against the plan the other members leave, which
+    /// is solved apart from the session when `mixed`, else the plan the session holds.
+    fn work_out_progress(
+        &mut self,
+        planned: &mut [(TaskId, (Values, Values))],
+        mixed: bool,
+    ) -> Result<(), UpdateError> {
+        let schedule_error = |e| UpdateError::new(EditError::from(e).kind(), None, None);
+        let first = mixed
+            .then(|| self.schedule.compute().map_err(schedule_error))
+            .transpose()?;
+        let dates = first.as_ref().map_or(&self.solution.dates, |s| &s.dates);
+        for (at, (task, (new, _))) in planned.iter_mut().enumerate() {
+            let Some(percent) = new.percent else {
+                continue;
+            };
+            let (start, finish, remaining) =
+                self.percent_progress(dates, *task, i64::from(percent), new.duration);
+            self.check_actuals_not_after_data_date(*task, start, finish)
+                .map_err(|error| UpdateError::new(error.kind(), Some(at), Some("progress")))?;
+            new.progress = Some(Progress {
+                start,
+                finish,
+                remaining,
+            });
+        }
+        Ok(())
     }
 
     /// The values `record` gives `task` and the ones it has now.
@@ -175,19 +224,10 @@ impl Session {
             }
         }
         if let Some(percent) = percent {
-            let (start, finish, remaining) =
-                self.percent_progress(task, i64::from(percent), new.duration);
-            self.check_actuals_not_after_data_date(task, start, finish)
-                .map_err(|error| UpdateError::new(error.kind(), Some(at), Some("progress")))?;
             old.progress = Some(Progress {
                 start: current.actual_start,
                 finish: current.actual_finish,
                 remaining: current.remaining,
-            });
-            new.progress = Some(Progress {
-                start,
-                finish,
-                remaining,
             });
             new.percent = Some(percent);
         }
