@@ -1,7 +1,7 @@
 {
   "include": [
     ".config/", ".github/ISSUE_TEMPLATE/", ".github/actions/", ".github/pull_request_template.md", ".github/workflows/ci.yml",
-    ".github/workflows/npm-publish.yml", ".github/workflows/pr.yml", ".gitignore",
+    ".github/workflows/npm-publish.yml", ".github/workflows/pr.yml", ".gitattributes", ".gitignore",
     "Cargo.lock", "Cargo.toml", "CHANGELOG.md", "CLAUDE.md", "CODE_OF_CONDUCT.md", "LICENSE", "README.md", "REVIEW.md", "clippy.toml", "deny.toml", "rust-toolchain.toml",
     "apps/chrome/", "apps/hosted/", "apps/site/", "book/", "crates/", "demos/", "examples/", "media/", "packages/", "scripts/",
     "docs/ARCHITECTURE.md", "docs/CONTRIBUTING.md", "docs/IMPORT.md", "docs/MEASURING.md", "docs/PROFILING.md", "docs/WASM_API.md",

@@ -36,7 +36,7 @@ const real = execFileSync("git", ["-C", root, "ls-files"], { encoding: "utf8" })
 const out = ["CLA.md", ".claude/", "docs/PRODUCT.md", "docs/PLAN.md", "docs/design/", "docs/decisions/0003-product-direction.md", "docs/research/2026-10-market.md", "docs/research/dhtmlx-gantt.md", "demos/screencast/upload/", "apps/cloud/"];
 check("the real tree keeps the internal files out", select(real).filter((p) => out.some((o) => (o.endsWith("/") ? p.startsWith(o) : p === o))), []);
 check("the real tree keeps the product in", ["README.md", "crates/engine/Cargo.toml", "packages/gantt/package.json"].filter((p) => !select(real).includes(p)), []);
-check("the real tree keeps the CI and the scripts it runs", [".github/workflows/ci.yml", ".github/actions/wasm-bindings/action.yml", "scripts/touched-specs.ts", "scripts/ci-tier.ts", "CLAUDE.md", "REVIEW.md"].filter((p) => !select(real).includes(p)), []);
+check("the real tree keeps the CI and the scripts it runs", [".gitattributes", ".github/workflows/ci.yml", ".github/actions/wasm-bindings/action.yml", "scripts/touched-specs.ts", "scripts/ci-tier.ts", "CLAUDE.md", "REVIEW.md"].filter((p) => !select(real).includes(p)), []);
 const selected = new Set(select(real));
 const dropped = [...selected].filter((p) => p.endsWith(".md")).flatMap((from) =>
   [...readFileSync(join(root, from), "utf8").matchAll(/\]\(((?!\/)[^)#\s:]+)/g)].map((m) => [from, posix.join(posix.dirname(from), m[1])]))
