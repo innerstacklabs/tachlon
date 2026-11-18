@@ -146,6 +146,45 @@ fn typing_0_keeps_the_start_and_leaves_the_whole_duration_remaining() {
 }
 
 #[test]
+fn typing_0_on_a_task_that_has_not_started_leaves_it_unstarted_in_the_cell_and_the_dialog() {
+    let mut s = session();
+    s.set_percent_text(FIRST, "0").expect("0 applies");
+    assert_eq!(fields(&s), (None, None, None), "the cell");
+    s.set_task_fields(FIRST, &[("percent", "0")])
+        .expect("0 applies");
+    assert_eq!(fields(&s), (None, None, None), "the dialog");
+    s.set_percent_text(FIRST, "50").expect("50 starts it");
+    assert_eq!(fields(&s), (Some(at(0, 8)), None, Some(16 * HOUR)));
+    s.set_percent_text(FIRST, "0").expect("0 applies");
+    assert_eq!(
+        fields(&s),
+        (Some(at(0, 8)), None, Some(32 * HOUR)),
+        "a started task keeps its start"
+    );
+}
+
+#[test]
+fn a_typed_percent_that_puts_an_actual_after_the_data_date_is_refused() {
+    let mut s = session().with_data_date(Some(at(0, 0)));
+    let before = s.solution().clone();
+    for percent in ["50", "100"] {
+        assert_eq!(
+            s.set_percent_text(FIRST, percent),
+            Err(EditError::ActualAfterDataDate),
+            "{percent}"
+        );
+        assert_eq!(
+            s.plan_percent_text(FIRST, percent),
+            Err(EditError::ActualAfterDataDate),
+            "{percent} planned"
+        );
+    }
+    assert_eq!(fields(&s), (None, None, None));
+    assert_eq!(*s.solution(), before);
+    assert_eq!(s.history_len().0, 0, "a refused entry is no undo step");
+}
+
+#[test]
 fn a_refused_entry_changes_nothing_and_says_why() {
     let mut s = session();
     let before = s.solution().clone();

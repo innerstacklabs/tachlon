@@ -4,6 +4,10 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+### Fixed
+
+- A typed percent complete of `0` (in the percent cell, the task dialog and the by-key update's `progress`) leaves a task that has not started with no actual start and no remaining work; it used to give it its early start. A typed percent that would put an actual start or finish after the data date is refused with `actualAfterDataDate`, as the actual date cells and the by-key update already refuse it.
+
 ## 0.3.1
 
 A page that runs on 0.3.0 behaves the same apart from the fix below. TypeScript code that handles every `EditRefusal` reason or every `error` source with no default case (an exhaustive `switch`, or a `Record` keyed by the type) needs the new cases the entries under "New" name.

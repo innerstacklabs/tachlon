@@ -10,13 +10,15 @@ use engine::{Instant, Minutes, ScheduleError, TaskDates, TaskId};
 impl Session {
     /// Set a task's percent complete from the text its cell shows: `75` or `75%`, a whole number
     /// from 0 to 100. The task keeps that share of its duration as done and the rest as
-    /// remaining; a task with no actual start takes its early start as one. `100` finishes the
-    /// task at its early finish (or at its actual start, if that is later); any other value
-    /// clears the actual finish. One undo step. Text that is not a percent from 0 to 100 and a
-    /// summary are refused, changing nothing.
+    /// remaining; a task with no actual start takes its early start as one, except for `0`, which
+    /// leaves it unstarted. `100` finishes the task at its early finish (or at its actual start,
+    /// if that is later); any other value clears the actual finish. One undo step. Text that is
+    /// not a percent from 0 to 100, a summary and an actual date after the data date are refused,
+    /// changing nothing.
     ///
     /// # Errors
-    /// An [`EditError`] for an unknown or deleted task, a summary, or text that is not a percent.
+    /// An [`EditError`] for an unknown or deleted task, a summary, text that is not a percent, or
+    /// an actual date after the data date.
     pub fn set_percent_text(&mut self, task: TaskId, text: &str) -> Result<(), EditError> {
         let edit = self.plan_percent_text(task, text)?;
         self.edit(edit)?;
@@ -44,6 +46,7 @@ impl Session {
         let duration = self.schedule.tasks()[task.0 as usize].duration;
         let (actual_start, actual_finish, remaining) =
             self.percent_progress(&self.solution.dates, task, percent, duration);
+        self.check_actuals_not_after_data_date(task, actual_start, actual_finish)?;
         Ok(Edit::SetProgress {
             task,
             actual_start,
@@ -53,7 +56,7 @@ impl Session {
     }
 
     /// The actual start, actual finish and remaining work that `percent` of `duration` sets on a live
-    /// task, from the early dates `dates` holds.
+    /// task, from the early dates `dates` holds. `0` on a task with no actual start sets none.
     pub(crate) fn percent_progress(
         &self,
         dates: &[TaskDates],
@@ -61,9 +64,11 @@ impl Session {
         percent: i64,
         duration: Minutes,
     ) -> (Option<Instant>, Option<Instant>, Option<Minutes>) {
-        let actual_start = self.schedule.tasks()[task.0 as usize]
-            .actual_start
-            .unwrap_or_else(|| dates[task.0 as usize].es);
+        let held = self.schedule.tasks()[task.0 as usize].actual_start;
+        if percent == 0 && held.is_none() {
+            return (None, None, None);
+        }
+        let actual_start = held.unwrap_or_else(|| dates[task.0 as usize].es);
         let (actual_finish, remaining) = if percent == 100 {
             let finish: Instant = dates[task.0 as usize].ef.max(actual_start);
             (Some(finish), 0)
