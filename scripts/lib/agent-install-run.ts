@@ -2,7 +2,7 @@
 // of the test app that has a git history on `main` and a `pre-push` hook, with the unreleased package served by a local registry; then B4's checks
 // judge the folder. A check that fails is a result; a run that cannot happen (no assistant binary, no browser, no network, no port) throws CouldNotRun.
 import { execFileSync, spawn } from "node:child_process";
-import { cpSync, mkdtempSync, openSync, writeFileSync } from "node:fs";
+import { cpSync, mkdtempSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { branch, build, dependency, doctor, mount, noPush, PUSH_MARKER, replacedPage, type Result } from "./agent-install-check.ts";
@@ -66,6 +66,14 @@ export async function runInstall(assistant: Assistant, prompt: string, tarball: 
     clearTimeout(wall);
     registry.close();
   }
+}
+
+/** A session's cell of docs/agent-install-matrix.md: its checks, then turns and minutes from its log's result line. A log with none, or only a line cut short, reads "no turn count". */
+export function cell(label: string, phase: Result[], log: string): string {
+  const lines = readFileSync(log, "utf8").split("\n").flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
+  const last = lines.findLast((x) => x?.type === "result");
+  const spent = last ? `${last.num_turns} turns, ${(last.duration_ms / 60_000).toFixed(1)} min${last.subtype === "success" ? "" : `, stopped: ${last.subtype}`}` : "no turn count";
+  return `${label}: ${phase.every((r) => r.ok) ? "pass" : `FAIL (${phase.filter((r) => !r.ok).map((r) => r.check).join(", ")})`}, ${spent}`;
 }
 
 /** One line for each check. */

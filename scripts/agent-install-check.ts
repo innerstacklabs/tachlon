@@ -13,11 +13,11 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { chromePath } from "../packages/gantt/tests/support/knobs.ts";
 import { launchRetrying } from "./lib/launch-retrying.ts";
-import { distLibMissing, MOUNT_SECONDS, MOUNT_SELECTOR, PACKAGE, type Result } from "./lib/agent-install-check.ts";
+import { distLibMissing, MOUNT_SECONDS, MOUNT_SELECTOR, PACKAGE } from "./lib/agent-install-check.ts";
 import { agentPrompt } from "./lib/agent-prompt.ts";
 import { APPS, FIT_PROMPT, open } from "./lib/agent-install-apps.ts";
 import { record, streaming, timed } from "./lib/agent-install-record.ts";
-import { ASSISTANTS, CouldNotRun, type Probes, runInstall, table } from "./lib/agent-install-run.ts";
+import { ASSISTANTS, cell, CouldNotRun, type Probes, runInstall, table } from "./lib/agent-install-run.ts";
 import { WEB_ROOT } from "./lib/web-root.ts";
 
 const pkg = resolve(import.meta.dirname, "..", WEB_ROOT);
@@ -53,12 +53,6 @@ async function mountProbe(dir: string, how: string, shot?: string) {
   }
 }
 
-// A row of docs/agent-install-matrix.md: each session's checks, then its turns and minutes from its own result line (only a streamed run, with `--record`, has one).
-const cell = (label: string, phase: Result[], log: string): string => {
-  const last = readFileSync(log, "utf8").split("\n").filter((l) => l.startsWith("{")).map((l) => JSON.parse(l)).findLast((x) => x.type === "result");
-  const spent = last ? `${last.num_turns} turns, ${(last.duration_ms / 60_000).toFixed(1)} min${last.subtype === "success" ? "" : `, stopped: ${last.subtype}`}` : "no turn count";
-  return `${label}: ${phase.every((r) => r.ok) ? "pass" : `FAIL (${phase.filter((r) => !r.ok).map((r) => r.check).join(", ")})`}, ${spent}`;
-};
 const usage = (): never => {
   console.error(`usage: node scripts/agent-install-check.ts <claude|codex> [--app <${Object.keys(APPS).join("|")}>] [--fit] [--version <published version>] [--json <results file>] [--record <dir>]`);
   process.exit(2);
