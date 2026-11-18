@@ -8,7 +8,7 @@ use crate::link_gesture;
 use app::{
     Place, Session, Siblings, edit::Edit, history::Source, meta::TaskMeta, outline::Outline,
 };
-use engine::{Limit, LinkType, Pin, Schedule, Task, TaskId};
+use engine::{DepId, Limit, LinkType, Pin, Schedule, Task, TaskId};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use timeline::Timeline;
@@ -239,6 +239,28 @@ fn a_link_between_two_tasks_deleted_in_one_commit_is_deleted_and_created_once() 
             Edit::Delete { task: TaskId(1) },
         ];
         s.edit_group(both, Source::Typed).unwrap();
+    });
+}
+
+#[test]
+fn a_link_added_and_lost_with_its_end_in_one_commit_is_listed_as_neither_created_nor_deleted() {
+    replayed_from_the_records(|s| {
+        let (pred, succ) = (FIRST, TaskId(2));
+        let link = Edit::AddLink {
+            pred,
+            succ,
+            kind: LinkType::FS,
+            lag: 0,
+        };
+        let steps = vec![link, Edit::Delete { task: succ }];
+        s.edit_group(steps, Source::Typed).unwrap();
+    });
+    replayed_from_the_records(|s| {
+        let steps = vec![
+            Edit::RemoveLink { dep: DepId(0) },
+            Edit::Delete { task: TaskId(1) },
+        ];
+        s.edit_group(steps, Source::Typed).unwrap();
     });
 }
 
