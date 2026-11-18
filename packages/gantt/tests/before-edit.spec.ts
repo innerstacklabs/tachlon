@@ -48,7 +48,7 @@ test("a function that refuses a typed duration shows its reason and leaves the s
   await typeDuration(page);
   await expect(alert(page)).toHaveText("locked by the planner");
   expect(await doc(page), "the schedule is as it was").toBe(before);
-  expect(await asked(page, "setDuration")).toMatchObject([{ source: "typed", changes: [{ record: "task", op: "update", field: "duration", new: 17 }] }]);
+  expect(await asked(page, "setDuration")).toMatchObject([{ source: "typed", changes: [{ record: "task", op: "update", set: { duration: 17 } }] }]);
   await mountHost(page, `() => true`);
   await typeDuration(page);
   expect(await doc(page), "an allowed edit applies").not.toBe(before);

@@ -4,6 +4,10 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+### Breaking changes
+
+- **A change in the `edit` event and in the `beforeEdit` payload is one change per record, with `set` and `was`.** It was one change per field, with `field`, `old` and `new` (and `fields` on a create). A change is now `{ record, op, key, set, was }` (and `task` or `link`, the session slot): an update's `set` holds the members that changed with their new values and `was` the same members as they were, a create's `set` is the whole record, and a delete's `was` is the whole record it removed. A link delete that follows from a task delete in the same commit has `cascade: true`. This reaches `Gantt.on("edit")`, React `onEdit`, Vue `@edit`, Angular `(chartEdit)` and `beforeEdit`. To update, read `set` and `was` where you read `field`, `old` and `new`, and delete the code that gathered fields back into a record. Decision 0022, section 2.
+
 ### New
 
 - A task in plain data with no duration takes `milestone: "start"` or `"finish"`, which puts it at the start of a working period or at the end of one; the saved copy and `snapshot()` write it back, and an undo that brings a deleted task back keeps it. Any other value is refused by `validate`.

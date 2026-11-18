@@ -79,7 +79,7 @@ variants! {
         Edit::Insert { place: after(3), name: "New".into() },
         r#""task":6,"op":"create","fields":{"parent":null,"after":{"task":3},"name":"New"}"#, false;
     a_delete_is_seen_as_the_task_and_its_links_going: none,
-        Edit::Delete { task: TaskId(2) }, r#""link":1,"op":"delete"},{"record":"task""#, true;
+        Edit::Delete { task: TaskId(2) }, r#""link":1,"op":"delete","fields":{"from":{"task":2},"to":{"task":3},"type":"FS","lag":0.0}},{"record":"task","key":null,"task":2,"op":"delete","fields":{"parent":null,"after":{"task":1}"#, true;
     a_restore_is_seen_as_the_task_and_its_links_coming_back: deleted,
         Edit::Restore { task: TaskId(2), place: after(1) },
         r#""task":2,"op":"create","fields":{"parent":null,"after":{"task":1}"#, true;
