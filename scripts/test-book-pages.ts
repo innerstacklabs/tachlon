@@ -2,7 +2,7 @@
 // Needs Node 22.18 or later (type stripping). Exits 1, one line per problem.
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { checkAssets, MEDIA_BUDGET_BYTES } from "./lib/book-pages.ts";
+import { checkAssets, MEDIA_BUDGET_BYTES, userPages } from "./lib/book-pages.ts";
 
 let failed = false;
 const check = (name: string, got: unknown, want: unknown): void => {
@@ -29,6 +29,10 @@ check("an orphan file fails", book(page, { "media/orphan.webp": 1 }), ["media/or
 check("an include counts as use", book(page + "{{#include media/inc.svg}}\n", { "media/inc.svg": 1 }), []);
 check("an over-budget file fails", book(page + '<img src="media/big.mp4">\n', { "media/big.mp4": MEDIA_BUDGET_BYTES + 1 }).length, 1);
 check("a file at the budget passes", book(page + '<img src="media/big.mp4">\n', { "media/big.mp4": MEDIA_BUDGET_BYTES }), []);
+
+// The developers part may come first: the user pages are the ones outside it, on either side.
+const parts = "[Welcome](index.md)\n# For developers\n- [Dev](dev.md)\n# Guide\n- [Open](open.md)\n";
+check("pages after the developers part are user pages", userPages(parts), { pages: ["index.md", "open.md"] });
 
 const run = spawnSync(process.execPath, [join(import.meta.dirname, "check-book-pages.ts"), join(import.meta.dirname, "..")], { encoding: "utf8" });
 check("today's book passes", [run.status, run.stderr], [0, ""]);
