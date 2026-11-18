@@ -55,7 +55,6 @@ async function show(kind) {
     const t0 = performance.now();
     chart = await mount(el, options);
     const seconds = (performance.now() - t0) / 1000; // the open alone: the engine was loaded before the first call (below)
-    chart.commands.fit(); // the whole schedule across the chart's width, as the Fit button leaves it
     const backend = typeof chart.backend === "function" ? chart.backend() : chart.backend;
     status.innerHTML = `${LABELS[kind]} · opened in <strong>${seconds.toFixed(seconds < 0.1 ? 2 : 1)} s</strong> on this machine${typeof backend === "string" ? ` · ${backend}` : ""}`;
     for (const t of tools) if (t.dataset.load) t.setAttribute("aria-pressed", String(t.dataset.load === String(kind)));
