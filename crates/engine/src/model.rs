@@ -16,7 +16,7 @@ pub(crate) mod range;
 
 pub use error::ScheduleError;
 pub use lag::LagCalendar;
-pub use limit::{Limit, Pin};
+pub use limit::{Limit, Milestone, Pin};
 pub use range::{MAX_DATE, MAX_DURATION, MAX_LAG, MIN_DATE, RangeInput, RangeItem};
 
 /// Index of a task in its [`Schedule`].

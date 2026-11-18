@@ -1,7 +1,7 @@
 //! The admissible start instants of one task, and the late-start search over them.
 
 use crate::calendar::{Calendar, DAY, Instant, Minutes, WEEK};
-use crate::model::{DepId, ScheduleError, TaskId};
+use crate::model::{DepId, Milestone, ScheduleError, TaskId};
 
 /// The earliest instant [`Admissible`] reads: `contains`, `next` and `prev` take an earlier one
 /// as this, so each answers for every instant down to `i64::MIN` and `count` stays in range.
@@ -15,18 +15,32 @@ pub(super) const LATE_FLOOR: Instant = FLOOR / 2;
 /// A task with a duration starts on a working instant of its calendar. A
 /// zero-duration milestone may also sit on a working-period end (a milestone
 /// after a task done at 17:00 Friday is at 17:00 Friday), and its finish
-/// equals its start.
+/// equals its start. A milestone with a [`Milestone`] kind sits only at a period's start or end,
+/// where the minute before or after is off; before the origin the weekly pattern runs on.
 #[derive(Clone, Copy)]
 pub struct Admissible<'a> {
     cal: &'a Calendar,
     duration: Minutes,
+    kind: Option<Milestone>,
 }
 
 impl<'a> Admissible<'a> {
     /// The admissible starts of a task with this calendar and duration.
     #[must_use]
     pub fn new(cal: &'a Calendar, duration: Minutes) -> Admissible<'a> {
-        Admissible { cal, duration }
+        Admissible {
+            cal,
+            duration,
+            kind: None,
+        }
+    }
+
+    /// The starts of a task of this milestone kind. A task with a duration, and a calendar with
+    /// no break in its week, keep every start.
+    #[must_use]
+    pub fn kind(mut self, kind: Option<Milestone>) -> Admissible<'a> {
+        self.kind = kind.filter(|_| self.milestone() && self.cal.weekly_minutes() < WEEK);
+        self
     }
 
     fn milestone(&self) -> bool {
@@ -47,17 +61,49 @@ impl<'a> Admissible<'a> {
     #[must_use]
     pub fn contains(&self, t: Instant) -> bool {
         let t = t.max(FLOOR);
-        self.working(t) || (self.milestone() && t != 0 && self.working(t - 1))
+        match self.kind {
+            Some(Milestone::Start) => self.working(t) && !self.working(t - 1),
+            Some(Milestone::Finish) => !self.working(t) && self.working(t - 1),
+            None => self.working(t) || (self.milestone() && t != 0 && self.working(t - 1)),
+        }
+    }
+
+    /// `nth(k) - k`, the minutes off before working minute `k`: it never falls, and rises after
+    /// `k - 1` exactly when `k` starts a period.
+    fn off(&self, k: Minutes) -> Minutes {
+        self.cal.nth(k) - k
+    }
+
+    /// The smallest working minute `>= k` that starts a period.
+    fn start_from(&self, k: Minutes) -> Minutes {
+        let base = self.off(k - 1);
+        let mut far = 1;
+        while self.off(k - 1 + far) <= base {
+            far *= 2;
+        }
+        first(k - 1, k - 1 + far, |j| self.off(j) > base)
+    }
+
+    /// The largest working minute `<= k` that starts a period.
+    fn start_upto(&self, k: Minutes) -> Minutes {
+        let base = self.off(k);
+        let mut far = 1;
+        while self.off(k - far) >= base {
+            far *= 2;
+        }
+        first(k - far, k, |j| self.off(j) >= base)
     }
 
     /// Smallest admissible start `>= t`.
     #[must_use]
     pub fn next(&self, t: Instant) -> Instant {
         let t = t.max(FLOOR);
-        if self.contains(t) {
-            t
-        } else {
-            self.cal.nth(self.cal.count(t))
+        let c = self.cal;
+        match self.kind {
+            _ if self.contains(t) => t,
+            Some(Milestone::Start) => c.nth(self.start_from(c.count(t))),
+            Some(Milestone::Finish) => c.nth(self.start_from(c.count(t - 1) + 1) - 1) + 1,
+            None => c.nth(c.count(t)),
         }
     }
 
@@ -66,6 +112,13 @@ impl<'a> Admissible<'a> {
     #[must_use]
     pub fn prev(&self, t: Instant) -> Instant {
         let t = t.max(FLOOR);
+        let c = self.cal;
+        match self.kind {
+            _ if self.contains(t) => return t,
+            Some(Milestone::Start) => return c.nth(self.start_upto(c.count(t + 1) - 1)),
+            Some(Milestone::Finish) => return c.nth(self.start_upto(c.count(t)) - 1) + 1,
+            None => {}
+        }
         if self.working(t) {
             return t;
         }
@@ -158,6 +211,20 @@ impl<'a> Admissible<'a> {
         }
         Some(self.prev(a))
     }
+}
+
+/// The smallest `j` in `(lo, hi]` where `pred` holds, given that it fails at `lo`, holds at `hi`
+/// and never goes from true to false.
+fn first(mut lo: Minutes, mut hi: Minutes, pred: impl Fn(Minutes) -> bool) -> Minutes {
+    while hi - lo > 1 {
+        let mid = lo + (hi - lo) / 2;
+        if pred(mid) {
+            hi = mid;
+        } else {
+            lo = mid;
+        }
+    }
+    hi
 }
 
 /// The late start and finish of `task`: the latest admissible start in `[e, hi]`
