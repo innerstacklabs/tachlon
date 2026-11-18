@@ -1,7 +1,8 @@
 // Prepares the open-source release, for either way Dave may choose (gantt#1954): a fresh-history snapshot, or a full-history publish.
 // It reads scripts/public-release.json, writes only into a directory you name, creates no repository and pushes to no remote.
 //   node scripts/public-release.ts files                list the tracked files that go in
-//   node scripts/public-release.ts scan                 secret scan of the tracked tree, and a name scan when PUBLIC_RELEASE_NAMES is set (exit 1 on a finding; CI runs it)
+//   node scripts/public-release.ts scan                 secret scan and name scan of the tracked tree (exit 1 on a finding; exit 2 when PUBLIC_RELEASE_NAMES is unset; CI runs it)
+//   node scripts/public-release.ts scan --secrets-only  the secret scan alone, for a run that has no names (a fork run in CI)
 //   node scripts/public-release.ts snapshot <dir>       copy the files that go in to a new directory (fresh history)
 //   node scripts/public-release.ts scrub-list           full history: what to drop, which commits name a customer, secrets in history
 // The names that must not reach the public repository come from PUBLIC_RELEASE_NAMES (comma-separated), never from a file in the tree.
@@ -83,10 +84,10 @@ async function main(argv: string[]): Promise<number> {
   if (cmd === "files") { console.log(goesIn.join("\n")); return 0; }
   if (cmd === "scan") {
     const files = tracked(root);
-    const checkNames = Boolean(process.env.PUBLIC_RELEASE_NAMES?.trim());
-    const naming = checkNames ? names() : undefined;
+    const secretsOnly = argv.includes("--secrets-only");
+    const naming = secretsOnly ? undefined : names();
     const found = [...scanTree(root, files, naming), ...(naming ? scanNames(root, files, naming).map((f) => `${f} names a customer`) : [])];
-    console.log(found.length ? found.join("\n") : `public-release scan: no secret shape and ${checkNames ? "no name" : "no name check (PUBLIC_RELEASE_NAMES unset)"} in the tracked tree`);
+    console.log(found.length ? found.join("\n") : `public-release scan: no secret shape ${secretsOnly ? "in the tracked tree; names not checked (--secrets-only)" : "and no name in the tracked tree"}`);
     return found.length ? 1 : 0;
   }
   if (cmd === "snapshot") {

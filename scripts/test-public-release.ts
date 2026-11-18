@@ -1,7 +1,7 @@
 // Checks the open-source release script (scripts/public-release.ts): the include list on one fixture and on the real tree, and the secret scan.
 //   node scripts/test-public-release.ts
 // No network. The secret-shaped values are built from parts, so this file holds none. Exits 1, one FAIL line per problem.
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, posix } from "node:path";
@@ -72,5 +72,10 @@ try {
 } finally {
   rmSync(repo, { recursive: true, force: true });
 }
+
+// The scan as a process with no names in the environment: it cannot check names, so it exits 2 (unknown); --secrets-only runs without them.
+const scan = (...args: string[]) => spawnSync("node", [join(root, "scripts/public-release.ts"), "scan", ...args], { cwd: root, env: { ...process.env, PUBLIC_RELEASE_NAMES: undefined } }).status;
+check("the scan with no names exits 2", scan(), 2);
+check("the scan with --secrets-only and no names exits 0", scan("--secrets-only"), 0);
 
 process.exit(failed ? 1 : 0);
