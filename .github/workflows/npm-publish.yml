@@ -48,7 +48,7 @@ jobs:
       - run: node scripts/stage-package.ts "$WEB_ROOT" "$STAGED"
       # Fails when the tarball holds anything but dist-lib/, README.md, AGENTS.md and package.json, lacks the engine file, or the manifest holds a build setting.
       - run: node scripts/pack-check.ts "$STAGED" --published
-      - run: node scripts/package-size.ts "$STAGED"
+      - run: node scripts/package-size.ts "$STAGED" --published
       # The page type-check on the installed declarations; no browser here (the ci.yml run loads the chart).
       - run: node scripts/consumer-check.ts "$STAGED" --no-browser
       - run: npm pack --dry-run
