@@ -1,8 +1,7 @@
 import type { Page } from "@playwright/test";
-import { SCENARIOS } from "./scenarios.ts";
+import { SCENARIOS, type Form } from "./scenarios.ts";
 import { startServer } from "./server.ts";
 
-type Form = "handlers" | "url" | "function";
 const FORMS: Form[] = ["handlers", "url", "function"];
 /** The scenarios a form does not run (decision 0022, rule 11.1). The cases inside a scenario that a form skips are left to the row that writes the scenario. */
 const SKIP: Record<Form, number[]> = {
@@ -13,9 +12,12 @@ const SKIP: Record<Form, number[]> = {
 /** The forms the example has so far; the row that adds the URL and the function form adds them here. */
 const BUILT: Form[] = ["handlers"];
 /** The scenarios that fail until what they test is built. Each is expected to fail, and the run fails, naming it, when one passes: the row that makes it pass deletes its name here. */
-const PENDING = new Set(["1 slow saves"]);
+const PENDING = new Set([
+  "1 slow saves", "2 a field refusal", "3 a new row's key", "3 a new row's key, host data first", "4 an edit before the create is saved", "5 a refused create with edits behind it",
+  "6 a server recalculation", "7 an outside change during a save", "8 a late result", "9 an old read", "16 the host's own names",
+]);
 
-const scenarios = SCENARIOS.map((s) => ({ ...s, forms: FORMS.filter((f) => !SKIP[f].includes(s.n)) }));
+const scenarios = SCENARIOS.map((s) => ({ ...s, forms: FORMS.filter((f) => !SKIP[f].includes(s.n) && !s.not?.includes(f)) }));
 
 // The example app is the page, and the fake server is the host's API: the page asks its own origin for /api/..., and each request goes to the server of the run.
 export default async function (page: Page, url: string): Promise<void> {
@@ -31,8 +33,11 @@ export default async function (page: Page, url: string): Promise<void> {
             const u = new URL(route.request().url());
             return route.continue({ url: server.url + u.pathname + u.search });
           });
+          const crashed = new Promise<never>((_, reject) => run.on("pageerror", reject)); // a page that throws (the chart refusing to mount) ends the scenario at once, not after its waits
+          crashed.catch(() => undefined);
+          run.setDefaultTimeout(10_000);
           await run.goto(`${url}?keys=${keys}`);
-          const failure = await s.run(run, server).then(() => undefined, (e: Error) => e);
+          const failure = await Promise.race([s.run(run, server, keys), crashed]).then(() => undefined, (e: Error) => e);
           if (!PENDING.has(s.name)) {
             if (failure) throw new Error(`${label}: ${failure.message}`);
             console.log(`  pass ${label}`);

@@ -19,6 +19,8 @@ export interface Script {
   fail?: (r: Seen) => number | undefined; // when to answer a 401, a 500 or any status that judges nothing: nothing is applied, no answer is stored
   outside?: (r: Seen, db: Db) => void; // when to change rows from outside, as the request arrives
   push?: (r: Seen) => { after: number; tasks: Row[] } | undefined; // when to push a late result to the listeners of GET /api/events
+  stale?: (r: Seen) => boolean; // answer a read with the rows as they were when it arrived, however late the answer is sent (an old read)
+  changed?: (r: Seen, db: Db) => Row[] | undefined; // rows the server changes beyond a change set it applies (host names, by `id`); the answer returns them in `changed`
   drop?: (r: Seen) => "request" | "response" | undefined; // close the connection before applying the request, or after applying and storing it
   honor?: boolean; // answer a repeated idempotency key as the first request was (default true)
 }
@@ -95,7 +97,9 @@ export async function startServer(script: Script = {}): Promise<FakeServer> {
       if (answer.status >= 300) return (Object.assign(db, before), answer);
       if (typeof c.ref === "string") keys.push({ ref: c.ref, key: `s${made}` });
     }
-    return { status: 200, body: { keys } };
+    const more = script.changed?.(r, db);
+    for (const row of more ?? []) Object.assign(db.tasks.get(row.id as string) ?? {}, row);
+    return { status: 200, body: more ? { keys, changed: { tasks: more } } : { keys } };
   };
 
   const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
@@ -111,13 +115,14 @@ export async function startServer(script: Script = {}): Promise<FakeServer> {
     script.outside?.(r, db);
     const late = script.push?.(r);
     if (late) setTimeout(() => listeners.forEach((l) => l.write(`data: ${JSON.stringify({ tasks: late.tasks })}\n\n`)), late.after);
+    const early = script.stale?.(r) ? apply(r) : undefined;
     const wait = typeof script.latency === "function" ? script.latency(r) : script.latency ?? 0;
     await new Promise((resolve) => setTimeout(resolve, wait));
     const drop = script.drop?.(r);
     if (drop === "request") return void req.socket.destroy();
     const kept = script.honor === false || r.once === undefined ? undefined : stored.get(r.once);
     const status = script.fail?.(r);
-    const answer: Answer = kept ?? (status !== undefined ? { status, body: { message: `The server answered ${status}` } } : script.refuse?.(r) ?? apply(r));
+    const answer: Answer = kept ?? (status !== undefined ? { status, body: { message: `The server answered ${status}` } } : script.refuse?.(r) ?? early ?? apply(r));
     if (kept === undefined && status === undefined && answer.status < 300 && r.once !== undefined) stored.set(r.once, answer);
     if (drop === "response") return void req.socket.destroy();
     const { body } = answer;
