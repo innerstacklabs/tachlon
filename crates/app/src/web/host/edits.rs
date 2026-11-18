@@ -60,6 +60,9 @@ impl App {
     /// `set_baseline_records`, answered as JSON: `{"ok":true}`, a record's refusal as `update_tasks` answers it, or
     /// the edit's as `try_set_baseline` does (`busy`, `readOnly`, `notAllowed`, `refused`).
     pub fn try_set_baseline_records(&mut self, json: &str) -> String {
+        if self.session.busy() {
+            return answer(Err(EditError::Busy), &self.session.texts);
+        }
         match self.session.set_baseline_records(json) {
             Ok(()) => r#"{"ok":true}"#.to_string(),
             Err(BaselineRecordsError::Record(error)) => record_refusal(error),
