@@ -15,8 +15,8 @@ import type { PageSize } from "./api.js";
 /** One zoom step, about 2x: the same wheel distance the toolbar's buttons and the `+` and `-` keys send. */
 const ZOOM_STEP_DY = 350;
 
-/** Where `scrollTo` goes: a task's row, or a day (`YYYY-MM-DD`). */
-export type ScrollTarget = { task: number } | { date: string };
+/** Where `scrollTo` goes: a task (its slot number, or its key as text), or a day (`YYYY-MM-DD`). */
+export type ScrollTarget = { task: number | string } | { date: string };
 
 /** What a host page may call to drive the chart. After `Gantt.destroy()` every method does nothing and returns undefined; none throws. */
 export interface Commands {
@@ -27,12 +27,12 @@ export interface Commands {
   /** Show the whole project, as the Fit button does. False, changing nothing, with no task. */
   fit(): boolean | undefined;
   /**
-   * Bring a task's row and bar into view (it selects the task), or show a day. False, changing nothing, for a task
-   * that is deleted, unknown or has no row (hidden by a collapsed summary or the row filter), for a day that is not a date, and while a bar is pressed or dragged.
+   * Bring a task's row and bar into view (it selects the task), or show a day. A text `task` is the host's key, a number the chart's own task number. False, changing nothing, for a task
+   * that is deleted, unknown (a key no live task holds) or has no row (hidden by a collapsed summary or the row filter), for a day that is not a date, and while a bar is pressed or dragged.
    */
   scrollTo(target: ScrollTarget): boolean | undefined;
-  /** The same call as `scrollTo({ task })`: select `task` and bring its row and bar into view, as a click on its row does. False, changing nothing, in the cases `scrollTo({ task })` refuses. */
-  select(task: number): boolean | undefined;
+  /** The same call as `scrollTo({ task })`: select `task` (a text is the host's key, a number the chart's own task number) and bring its row and bar into view, as a click on its row does. False, changing nothing, in the cases `scrollTo({ task })` refuses. */
+  select(task: number | string): boolean | undefined;
   /**
    * Turn a filter on, as the toolbar, the Filters menu and the keys do: a row filter (`"critical"`, `"longestPath"`,
    * `"nearCritical"`, `"slipped"`, `"floatLost"`, `"joinedCritical"`, `"leftCritical"`, `"moved"`, `"startConstraint"`, `{ status }`, `{ code }`, `{ resource }`) replaces the one that is on, `"off"` turns
@@ -142,7 +142,10 @@ export interface Commands {
  * @internal
  */
 export function createCommands({ canvas, app, status, root }: Shell, report: (err: unknown) => string, busy: () => boolean): Commands {
-  const select = (task: number): boolean => app.select_task(task);
+  const select = (task: number | string): boolean => {
+    const slot = typeof task === "string" ? (JSON.parse(app.task_slots([task])) as (number | null)[])[0] : task;
+    return slot !== null && slot !== undefined && app.select_task(slot);
+  };
   const history = (name: "undo" | "redo"): boolean => {
     try {
       return app[name]();

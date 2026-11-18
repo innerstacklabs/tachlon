@@ -1,5 +1,6 @@
 import { expect, test, type Gantt as Page } from "./support/gantt";
 import type { Commands } from "../src/commands";
+import { fromTasks } from "../src/adapters/plain";
 
 // Host commands (gs#1085): a host page drives the chart from its own buttons. `mount` returns them on the `Gantt`; the
 // developer page drops that value, so an init script catches the `gantt:ready` event `mount` sends up from the root.
@@ -111,6 +112,24 @@ test("zoomIn and zoomOut change the scale, fit shows the whole project again", a
   const button = await settled();
   expect(fitted.pxPerMinute).not.toBe(out);
   expect(fitted.t, "fit shows what the Fit button shows").toEqual(button.t);
+});
+
+test("select and scrollTo take a host's key as text, and refuse a key no live task holds", async ({ g }) => {
+  await open(g);
+  const tasks = Array.from({ length: 30 }, (_, i) => ({ id: `t${i}`, key: `k${i}`, name: `Task ${i}`, start: "2026-03-02", duration: 2 }));
+  await g.page.setViewportSize({ width: 1280, height: 320 });
+  await g.page.evaluate((d) => window.gantt!.api!.load({ document: d }), fromTasks({ tasks, links: [] }).document);
+  await g.nextFrame(3);
+  const slot = (key: string) => g.page.evaluate((k) => (JSON.parse(window.gantt!.app.task_slots([k])) as (number | null)[])[0], key);
+  expect(await g.page.evaluate(() => window.hostCommands!.scrollTo({ task: "k25" }))).toBe(true);
+  await g.nextFrame(3);
+  const s = await g.status();
+  expect(s.selected?.task, "scrollTo selects the task the key names").toBe(await slot("k25"));
+  expect(s.rows[1], "its row is in view").toBeGreaterThanOrEqual(s.selected!.row);
+  expect(await g.page.evaluate(() => window.hostCommands!.select("k3"))).toBe(true);
+  expect((await g.status()).selected?.task, "select takes the key's slot").toBe(await slot("k3"));
+  expect(await g.page.evaluate(() => window.hostCommands!.select("nope"))).toBe(false);
+  expect((await g.status()).selected?.task, "the selection is as it was").toBe(await slot("k3"));
 });
 
 test("select picks a task, and refuses one with no row", async ({ g }) => {
