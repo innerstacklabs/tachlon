@@ -17,6 +17,7 @@ export interface RowContext {
   rowHeight: number;
   hasCodes: () => boolean;
   hasWbs: boolean;
+  hasPreds: boolean;
   hasResources: boolean;
   holdResources: boolean;
   hasProgress: boolean;
@@ -62,7 +63,7 @@ export function buildHeader([, label, count, , , kind]: HeaderRow, r: number, ct
 export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext): HTMLDivElement {
   if (data[5] === 3 || data[5] === 4) return buildHeader(data as HeaderRow, r, ctx);
   const [task, start, finish, float, critical, kind, ...variance] = data as TableRow;
-  const { app, hasCodes, hasWbs, hasResources, holdResources, hasProgress, holdVariance, withVariance } = ctx;
+  const { app, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance } = ctx;
   const row = document.createElement("div");
   row.className = `row cols${r % 2 === 1 ? " odd" : ""}${critical ? " critical" : ""}`;
   row.style.top = `${r * ctx.rowHeight}px`;
@@ -74,7 +75,7 @@ export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext)
     ["dur", app.task_duration(task)],
     ["start", start],
     ["finish", finish],
-    ["float", float === null ? "" : app.task_float(task)],
+    ["float", float === null ? "" : app.task_float(task)], ...(hasPreds ? [["pred", kind === 0 ? (app.predecessors_text(task) ?? "") : ""] as [string, string]] : []),
   ];
   // The variance columns come while a baseline is set (data-variance, set by the toolbar) and no bar is being dragged: a drag
   // redraws every row every frame, and three more cells on each cost the frame more than the columns are worth while the
@@ -106,7 +107,7 @@ export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext)
     const cell = document.createElement("span");
     cell.className = cls;
     cell.textContent = text;
-    if (cls === "wbs" || cls === "resources") cell.title = text;
+    if (cls === "wbs" || cls === "resources" || cls === "pred") cell.title = text;
     if (cls === "start" && kind === 0) markConstraint(cell, app.task_constraint_text(task));
     if (cls === "name") {
       // The row shows the leaf name; the outline path is the tooltip and the hover card's.

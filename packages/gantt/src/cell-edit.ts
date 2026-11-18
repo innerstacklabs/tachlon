@@ -12,8 +12,8 @@ interface CellEditor {
   error: HTMLDivElement | null;
 }
 
-/** The columns a cell edit opens on: the name, the duration, the start, the finish and, while the table shows them, four progress cells (gs#703), named by their class. */
-export type EditField = "name" | "dur" | "start" | "finish" | "actual-start" | "actual-finish" | "remaining" | "percent";
+/** The columns a cell edit opens on: the name, the duration, the start, the finish, the predecessors (while the ID column shows) and, while the table shows them, four progress cells (gs#703), named by their class. */
+export type EditField = "name" | "dur" | "start" | "finish" | "pred" | "actual-start" | "actual-finish" | "remaining" | "percent";
 /** The progress cells' field names for `App.set_progress_field`. */
 const PROGRESS_FIELD: Partial<Record<EditField, string>> = { "actual-start": "actual_start", "actual-finish": "actual_finish", remaining: "remaining", percent: "percent" };
 /** The key of the name a screen reader says for each editable column (`field-names.ts`). */
@@ -22,12 +22,13 @@ const FIELD_KEY: Record<EditField, string> = {
   dur: "duration",
   start: "start",
   finish: "finish",
+  pred: "predecessors",
   "actual-start": "actual-start",
   "actual-finish": "actual-finish",
   remaining: "remaining",
   percent: "percent",
 };
-const EDITABLE = ["name", "dur", "start", "finish", "actual-start", "actual-finish", "remaining", "percent"] as const satisfies readonly EditField[];
+const EDITABLE = ["name", "dur", "start", "finish", "pred", "actual-start", "actual-finish", "remaining", "percent"] as const satisfies readonly EditField[];
 const EDITABLE_SELECTOR = EDITABLE.map((field) => `.${field}`).join(", ");
 const fieldOf = (cell: Element): EditField | undefined => EDITABLE.find((field) => cell.classList.contains(field));
 
@@ -98,6 +99,8 @@ export function installCellEdit( // oxlint-disable-line max-lines-per-function -
   const beginEdit = (row: HTMLDivElement, cell: HTMLElement, task: number, initial: string | null = null): void => { // oxlint-disable-line max-lines-per-function -- existing, over cap
     if (refuseReadOnly()) return;
     const field: EditField = fieldOf(cell) ?? "dur";
+    // A summary has no links of its own, and a task that follows a task with no ID has a list the cell cannot show: an edit would drop that link.
+    if (field === "pred" && (row.dataset.kind !== "0" || app.predecessors_text(task) === undefined)) return;
     const original = cell.textContent ?? "";
     const input = document.createElement("input");
     input.className = "cell-edit";
@@ -107,6 +110,7 @@ export function installCellEdit( // oxlint-disable-line max-lines-per-function -
     const oldText = (): string =>
       field === "name" ? app.task_label(task)
       : field === "dur" ? app.task_duration(task)
+      : field === "pred" ? (app.predecessors_text(task) ?? "")
       : field === "remaining" ? app.task_remaining(task)
       : field === "percent" ? app.task_percent(task)
       : field === "start" || field === "finish" ? original.slice(0, 10)
@@ -153,6 +157,7 @@ export function installCellEdit( // oxlint-disable-line max-lines-per-function -
           const note = app.set_start_text(task, input.value);
           if (note !== "") throw new Error(note);
         } else if (field === "finish") app.set_finish_text(task, input.value);
+        else if (field === "pred") app.set_predecessors_text(task, input.value);
         else if (field === "name") app.rename_task(task, input.value);
         else app.set_duration(task, input.value);
         endEdit(current);
@@ -166,6 +171,8 @@ export function installCellEdit( // oxlint-disable-line max-lines-per-function -
         error.className = "cell-error";
         error.setAttribute("role", "alert");
         error.textContent = message;
+        // The list sits far right: the reason starts under its cell, not at the row's edge, which a sideways scroll leaves off screen.
+        if (field === "pred") Object.assign(error.style, { insetInlineStart: "auto", left: `${cell.offsetLeft}px` });
         row.append(error);
         current.error = error;
       }

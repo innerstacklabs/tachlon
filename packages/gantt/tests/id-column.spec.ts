@@ -81,12 +81,12 @@ test("a file with activity IDs gets an ID column, and a file without them takes 
   const xer = await readTable(g.page);
   expect(xer.ids).toBe("true");
   // The fixture also has WBS short names, so the WBS column (wbs-column.spec.ts) sits between the ID and the name, and it has actuals, so
-  // the four progress columns follow the float (table-layout.spec.ts holds how they share the pane).
-  expect(xer.head).toEqual(["ID", "WBS", "Task", "Dur", "Start", "Finish", "Float", ...PROGRESS_HEAD]);
+  // the Predecessors column and the four progress columns follow the float (table-layout.spec.ts holds how they share the pane).
+  expect(xer.head).toEqual(["ID", "WBS", "Task", "Dur", "Start", "Finish", "Float", "Predecessors", ...PROGRESS_HEAD]);
   expect(xer.rows.length).toBeGreaterThan(5);
   let activities = 0;
   for (const row of xer.rows) {
-    expect(row.classes).toEqual(["code", "wbs", "name", "dur", "start", "finish", "float", ...PROGRESS_CLASSES]);
+    expect(row.classes).toEqual(["code", "wbs", "name", "dur", "start", "finish", "float", "pred", ...PROGRESS_CLASSES]);
     const [code, , name] = row.cells as [string, string, string];
     if (row.kind === "0") {
       // A leaf is an activity: its ID is the one the fixture's TASK table gives that activity.
