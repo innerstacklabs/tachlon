@@ -141,9 +141,11 @@ impl Session {
         };
         let drawn =
             matches!(plan, Plan::Action("linkDrag", ..) | Plan::Link(..)).then_some(Item::Links);
+        let pasted = matches!(plan, Plan::Paste(_)).then_some(Item::Rows);
         let items = gesture
             .into_iter()
             .chain(drawn)
+            .chain(pasted)
             .chain(edits.iter().map(group));
         capabilities
             .refused(items)

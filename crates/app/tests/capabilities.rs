@@ -37,11 +37,12 @@ fn dragged(json: &str, edge: bool) -> (bool, Option<String>) {
 }
 
 #[test]
-fn rows_off_refuses_insert_and_delete_and_lets_an_outdent_through() {
+fn rows_off_refuses_insert_delete_and_paste_and_lets_an_outdent_through() {
     let mut s = limited(NO_ROWS);
     s.select(1);
     assert_eq!(s.insert_below_selection().map(drop), Err(ROWS));
     assert_eq!(s.delete_selected().map(drop), Err(ROWS));
+    assert_eq!(s.insert_many(&["Footing"]).map(drop), Err(ROWS));
     s.select(5);
     s.outdent_selected().unwrap();
 }
