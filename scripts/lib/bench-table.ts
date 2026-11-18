@@ -1,6 +1,6 @@
 // The page's speed table, its notes and its three headline numbers (apps/site/index.html, the regions between <!-- bench:NAME --> marks),
 // written from a benchmark results file, never by hand. Times are in seconds.
-// Called by scripts/bench-table.ts; tests/ checks the page against it (packages/gantt/tests-node/site-page.test.ts).
+// Called by scripts/bench-table.ts; packages/gantt/tests-node/bench-page.test.ts checks the page against it.
 import { readFileSync } from "node:fs";
 import { PRODUCT_NAME } from "../../packages/gantt/src/product.ts";
 

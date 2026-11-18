@@ -10,7 +10,7 @@
   ],
   "exclude": [
     "scripts/demo-access.ts", "scripts/lib/demo-access.ts", "scripts/test-demo-access.ts",
-    "packages/gantt/tests-node/site-page.test.ts", "packages/gantt/tests-node/dhtmlx-study.test.ts",
+    "packages/gantt/tests-node/dhtmlx-study.test.ts",
     "demos/screencast/upload/", "demos/screencast/test-attachment.mjs", "docs/decisions/0003-product-direction.md"
   ],
   "prune": ["crates/app/tests/architecture/name/allowlist.txt"],
