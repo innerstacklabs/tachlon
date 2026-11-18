@@ -23,7 +23,8 @@ check("a broken page link fails", book(page + "[x](gone.md)\n"), ['a.md: "gone.m
 check("a missing anchor fails", book(page + "[x](b.md#nope)\n"), ['a.md: "b.md#nope" points at a heading that does not exist']);
 check("a missing image fails", book(page + "![x](media/gone.webp)\n"), ['a.md: "media/gone.webp" points at a file that does not exist']);
 check("a missing video source fails", book(page + '<video poster="media/gone.webp"><source src="media/gone.mp4"></video>\n').length, 2);
-check("a link in a fenced block, a URL and an API page are not checked", book(page + "```\n[x](gone.md)\n```\n[u](https://x.test/a.md)\n[api](api/index.md)\n"), []);
+check("a link in a fenced block and a URL are not checked", book(page + "```\n[x](gone.md)\n```\n[u](https://x.test/a.md)\n"), []);
+check("a link to api/ fails", book(page + "[api](api/index.md)\n"), ['a.md: "api/index.md" points at a file that does not exist']);
 check("an orphan file fails", book(page, { "media/orphan.webp": 1 }), ["media/orphan.webp: no page uses this file"]);
 check("an include counts as use", book(page + "{{#include media/inc.svg}}\n", { "media/inc.svg": 1 }), []);
 check("an over-budget file fails", book(page + '<img src="media/big.mp4">\n', { "media/big.mp4": MEDIA_BUDGET_BYTES + 1 }).length, 1);

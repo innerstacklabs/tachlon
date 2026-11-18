@@ -96,7 +96,6 @@ jobs:
           node scripts/features-links.ts apps/site/features.html
           node scripts/test-features-matrix.ts
           node scripts/features-matrix.ts --check
-          node scripts/test-book-api.ts
           node scripts/test-book-pages.ts
           node scripts/test-narrate.ts
           node scripts/test-voice-inworld.ts
@@ -644,11 +643,10 @@ jobs:
   # The user guide in book/ (mdBook), built and not hosted. mdbook is not on the runners, so the job installs it at a pinned version. mdbook
   # 0.5.4 logs a failed {{#include}} as an ERROR line and still exits 0, so the build log is read back and any ERROR or WARN line fails the
   # job. An include of a missing anchor expands to nothing and logs nothing, so the keys page is also checked for its table.
-  # The API reference is part of this build (scripts/book-api.ts adds the pages `pnpm docs:book` writes, which need the `wasm` job's bindings), so the
-  # `hosted` book spec and `deploy` use this job's `book` artifact and build no mdbook of their own. When `select` says no code changed, `wasm` is
-  # skipped, there are no bindings, and the book builds without the reference (BOOK_API=skip); nothing is deployed on such a run.
+  # The `hosted` book spec and `deploy` use this job's `book` artifact and build no mdbook of their own. Nothing is deployed on a run where
+  # `select` says no code changed.
   book:
-    needs: [select, wasm]
+    needs: [select]
     if: ${{ (always() && needs.select.result == 'success') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci"]') }}
     timeout-minutes: 10
@@ -656,36 +654,20 @@ jobs:
       CODE: ${{ needs.select.outputs.code }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/wasm-bindings
-        if: ${{ env.CODE == 'true' }}
       - uses: taiki-e/install-action@v2
         with:
           tool: mdbook@0.5.4
-      - uses: pnpm/action-setup@v4
-        with:
-          package_json_file: ${{ env.WEB_ROOT }}/package.json
-          dest: ~/setup-pnpm-${{ runner.name }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           # the check runs a .ts file by type stripping, which needs Node 22.18 or later.
           check-latest: true
-          cache: pnpm
-          cache-dependency-path: ${{ env.WEB_ROOT }}/pnpm-lock.yaml
       # setup-node falls back to a cached 22.x, maybe older than 22.18, if its manifest lookup fails (gs#620); this reads the `node` the later steps run.
       - name: node is 22.18 or later
         run: |
           have=$(node -p process.versions.node)
           [ "$(printf '22.18.0\n%s\n' "$have" | sort -V | head -n 1)" = 22.18.0 ] || { echo "::error::the book page check needs Node 22.18 or later (type stripping); this runner has node '$have'"; exit 1; }
-      - name: API reference pages
-        if: ${{ env.CODE == 'true' }}
-        working-directory: ${{ env.WEB_ROOT }}
-        run: |
-          pnpm install --frozen-lockfile
-          pnpm docs:book
       - name: mdbook build
-        env:
-          BOOK_API: ${{ env.CODE == 'true' && 'pages' || 'skip' }}
         run: |
           mdbook build book > "$RUNNER_TEMP/mdbook.log" 2>&1 || status=$?
           cat "$RUNNER_TEMP/mdbook.log"

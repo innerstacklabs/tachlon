@@ -17,7 +17,3 @@ additional-css = ["theme/book.css"]
 no-section-label = true
 # Served under /book/ (the hosted app is at the site root), so the 404 page links resolve there.
 site-url = "/book/"
-
-# The API reference: one chapter per page that `pnpm docs:book` generates (scripts/book-api.ts); the build fails if they are missing.
-[preprocessor.api]
-command = "node ../scripts/book-api.ts"

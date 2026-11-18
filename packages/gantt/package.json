@@ -65,7 +65,6 @@
     "build": "vite build",
     "build:lib": "ngc -p tsconfig.ng.json && vite build --config vite.lib.config.ts && node ../../scripts/emit-types.ts . && node ../../scripts/emit-engine-size.ts . && tsc -p tsconfig.cli.json",
     "docs:api": "api-extractor run && api-documenter markdown -i dist-docs/model -o dist-docs/pages",
-    "docs:book": "node ../../scripts/emit-types.ts . && pnpm docs:api",
     "docs:check": "node ../../scripts/test-api-docs-check.ts && pnpm docs:api && node ../../scripts/api-docs-check.ts dist-docs/model/package.api.json",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit && tsc --noEmit -p ../../scripts && oxlint .",

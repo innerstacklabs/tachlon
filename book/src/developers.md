@@ -18,7 +18,7 @@ measurements.
 
 ## Where the chapters are checked
 
-Each chapter's journey has a Playwright spec in `packages/gantt/tests/`. For [Open a schedule](open-a-schedule.md):
+For the [Open a schedule](open-a-schedule.md) chapter,
 `apps/hosted/tests/j1-open.spec.ts` opens an imported schedule and checks its rows, its task names and
 the closable panel of what was not read; `packages/gantt/tests/open.spec.ts` opens files from the page and
 records every request the page makes. The XER mapping is described in
@@ -26,27 +26,15 @@ records every request the page makes. The XER mapping is described in
 name their specs in their own "Where it is checked" sections until they are rewritten in the new
 form.
 
-## The API reference
-
-The reference for what the `tachlon` package exports (`mount`, the adapters, the types) is generated
-from the doc comments in its declarations, one page per export and member. The book carries it:
-[start at the API reference](api/index.md). The pages are not committed. `mdbook build book` adds them
-as chapters (`scripts/book-api.ts`) and fails if they are missing, so build them first. With the
-generated `packages/gantt/src/wasm/` in place (`bash scripts/build-web.sh --no-bundle`), `pnpm docs:book`
-in `packages/gantt/` writes them to `dist-docs/pages/`. `pnpm docs:check` also fails on a public export
-that has no doc comment; CI runs it in the `web` job's library build and pack check step, and `pnpm
-docs:book` in the `book` job.
-
 ## How this book is built
 
 `mdbook build book` writes the book to `book/book/`, which is git-ignored. CI builds it on every
 push (the `book` job in `.github/workflows/ci.yml`) and fails if a chapter file or an include is
-missing, or if the [Keys](keys.md) page lost the table it includes from `docs/KEYS.md`. The `book` job also generates the API
-reference pages from the `wasm` job's bindings; the `hosted` job's book spec and the `deploy` job use its build, not their own.
+missing, or if the [Keys](keys.md) page lost the table it includes from `docs/KEYS.md`. The `hosted-browser` job's book spec and the `deploy` job use its build, not their own.
 
 The look is the book's own mdBook theme in `book/theme/`: `index.hbs` and `css/variables.css`
 override the stock files (two themes, Light and Dark, in the chart's calm palette and the
-mascot's colours), and `book.css` adds the components a chapter uses (the clip, the
+mascot's colors), and `book.css` adds the components a chapter uses (the clip, the
 screenshots, the tip from Tachlon, the front page). The mascot files are in `book/src/media/`.
 
 ### Writing a chapter
@@ -62,17 +50,15 @@ A chapter is one task the reader wants to do. The shape, in order:
    numbers in the picture point at.
 6. A tip from Tachlon, as `<div class="book-tip">`, and a "Good to know" list for limits.
 
-To record the clip and the screenshots for a step:
+To record the clip and the screenshots for a step, run these in order:
 
-```sh
-bash scripts/build-web.sh --no-bundle
-(cd apps/hosted && pnpm install --frozen-lockfile && node scripts/build-samples.mjs && pnpm build)
-node demos/screencast/clip.mjs --step open-file --name open-a-schedule --out book/src/media --file packages/gantt/tests/fixtures/ledger-timeline.xer
-```
+1. `bash scripts/build-web.sh --no-bundle`
+2. `(cd apps/hosted && pnpm install --frozen-lockfile && node scripts/build-samples.mjs && pnpm build)`
+3. `node demos/screencast/clip.mjs --step open-file --name open-a-schedule --out book/src/media --file packages/gantt/tests/fixtures/ledger-timeline.xer`
 
 `clip.mjs` plays one step from `steps-features.mjs` in a headless browser, writes
 `<name>.mp4` (1280x720, 30 fps) and `<name>.webp` (the poster, the last frame), and the
 screenshots the step takes through `ctx.shot`. The media budget per chapter: the clip is 10
 to 20 seconds and under 3 MB; each poster or screenshot is under 300 KB. `clip.mjs` refuses a
-clip outside the budget. The main screencast on the front page is `docs/media/screencast.mp4`,
-reached through a symbolic link in `book/src/media/`, so the book never carries a second copy.
+clip outside the budget. The main screencast on the front page is `book/src/media/screencast.mp4`, a
+copy of `docs/media/screencast.mp4` (the same file).

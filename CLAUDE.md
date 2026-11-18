@@ -58,4 +58,4 @@ export CARGO_TARGET_DIR=~/.cache/cargo-target/<repo>/<branch>
   file readers, and how to test, bench and measure; they must match behaviour.
 - `docs/CONTRIBUTING.md`: where the project came from, the gates, the book and screencast rules,
   the license.
-- `book/`: the mdBook user guide, one chapter per journey; run `pnpm docs:book` in `packages/gantt/` (after `bash scripts/build-web.sh --no-bundle`), then `mdbook build book` (built in CI, deployed to Cloudflare Pages as the guide).
+- `book/`: the mdBook user guide, one chapter per journey; run `mdbook build book` (built in CI, deployed to Cloudflare Pages as the guide).

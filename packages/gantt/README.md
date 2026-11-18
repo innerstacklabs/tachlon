@@ -191,9 +191,9 @@ Do the `fix:`, then run `doctor` again; a clean run ends with `No problems found
 
 ## The stylesheet
 
-`import "tachlon/gantt.css"` once in your app. The chart's colours, bar shape, row height and type are CSS tokens, in light and dark, that your own CSS can set.
+`import "tachlon/gantt.css"` once in your app. The chart's colors, bar shape, row height and type are CSS tokens, in light and dark, that your own CSS can set.
 
-The 34 colour tokens, each set for light and for dark, are `--gantt-bg`, `--gantt-surface`, `--gantt-band`, `--gantt-rule`, `--gantt-text`, `--gantt-muted`, `--gantt-bar`, `--gantt-bar-edge`, `--gantt-crit-fill`, `--gantt-crit`, `--gantt-crit-edge`, `--gantt-bar-soft`, `--gantt-crit-soft`, `--gantt-bar-ink`, `--gantt-crit-text`, `--gantt-sum`, `--gantt-sel`, `--gantt-sel-edge`, `--gantt-hov`, `--gantt-link`, `--gantt-today`, `--gantt-nonwork`, `--gantt-grid`, `--gantt-grid-major`, `--gantt-axis`, `--gantt-stripe`, `--gantt-bar-text`, `--gantt-bar-sel-progress`, `--gantt-held`, `--gantt-link-refused`, `--gantt-warn`, `--gantt-link-terminal`, `--gantt-baseline` and `--gantt-scrim`. Set one on the chart's root element, for example `.my-host .gantt { --gantt-bar: #0a7; }`; your rule wins over the stylesheet whatever its order.
+The 34 color tokens, each set for light and for dark, are `--gantt-bg`, `--gantt-surface`, `--gantt-band`, `--gantt-rule`, `--gantt-text`, `--gantt-muted`, `--gantt-bar`, `--gantt-bar-edge`, `--gantt-crit-fill`, `--gantt-crit`, `--gantt-crit-edge`, `--gantt-bar-soft`, `--gantt-crit-soft`, `--gantt-bar-ink`, `--gantt-crit-text`, `--gantt-sum`, `--gantt-sel`, `--gantt-sel-edge`, `--gantt-hov`, `--gantt-link`, `--gantt-today`, `--gantt-nonwork`, `--gantt-grid`, `--gantt-grid-major`, `--gantt-axis`, `--gantt-stripe`, `--gantt-bar-text`, `--gantt-bar-sel-progress`, `--gantt-held`, `--gantt-link-refused`, `--gantt-warn`, `--gantt-link-terminal`, `--gantt-baseline` and `--gantt-scrim`. Set one on the chart's root element, for example `.my-host .gantt { --gantt-bar: #0a7; }`; your rule wins over the stylesheet whatever its order.
 
 ## Ask the engine
 
@@ -349,4 +349,4 @@ Copyright (c) 2026 Inner Stack Labs LLC. Tachlon is open source under the MIT li
 
 ## Types and API reference
 
-The declarations (`dist-lib/types`, the package's `types` entry) cover the whole API, and every method carries its documentation comment. The API reference is part of the Tachlon guide: <https://app.tachlon.com/book/>. There is no separate documentation site.
+The TypeScript declarations (`dist-lib/types`, the package's `types` entry) are the reference: they cover the whole API, every exported member carries its documentation comment, and your editor shows it on hover.
