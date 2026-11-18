@@ -24,7 +24,7 @@ const EVENTS = {
  * A handler is called with the latest function the component was given. A handler for `find` or `choose-file` takes that key from the browser,
  * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
  * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `tasks`, `links`, `texts` and `fonts` stable between renders.
- * `readOnly` is not one of them: changing it calls `Gantt.setReadOnly` on the chart that is mounted.
+ * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * `wasmUrl` is where the page serves the engine file, for an app that does not serve it next to the chart (a Next.js app serves it from `public/`).
  * `onReady(chart)` is called once each time the chart mounts, with the chart `mount` resolved to (to call `load` or `open` on it), and never
  * for a chart that was removed first; the chart is gone at the unmount, so drop what you kept. `className` and `style` are the chart's root,
@@ -38,7 +38,7 @@ export type GanttProps = MountOptions & { className?: string; style?: CSSPropert
 type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 
 export function Gantt(props: GanttProps): JSX.Element {
-  const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly, className, style } = props;
+  const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly, capabilities, className, style } = props;
   const root = useRef<HTMLDivElement>(null);
   const latest = useRef(props);
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -77,14 +77,14 @@ export function Gantt(props: GanttProps): JSX.Element {
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, beforeEdit: (change) => latest.current.beforeEdit?.(change) });
+        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;
       }
       if (stopped) return started.destroy();
       live.current = { chart: started, heard: new Map(), loaded: false };
-      started.setReadOnly(latest.current.readOnly === true); // a change while `mount` was pending found no chart to switch
+      (started.setReadOnly(latest.current.readOnly === true), started.setCapabilities(latest.current.capabilities)); // a change while `mount` was pending found no chart to switch
       listen();
       try {
         latest.current.onReady?.(started);
@@ -102,6 +102,7 @@ export function Gantt(props: GanttProps): JSX.Element {
 
   // `readOnly` switches the chart that is mounted and never mounts it again; a chart that mounts later starts on the latest value.
   useEffect(() => live.current?.chart.setReadOnly(readOnly === true), [readOnly]);
+  useEffect(() => live.current?.chart.setCapabilities(capabilities), [capabilities]);
 
   // Only the events that have a handler are listened for, since a handler for some of them changes what a key does.
   const names = (Object.keys(EVENTS) as (keyof GanttEvents)[]).filter((name) => props[EVENTS[name]] !== undefined).join();

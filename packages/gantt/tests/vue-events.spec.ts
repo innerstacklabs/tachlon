@@ -76,3 +76,15 @@ test("a new `readOnly` switches the chart that is mounted, without mounting it a
   expect.soft(await page.evaluate("flip(false)"), "and switched back").toEqual({ mounts: 1, switched: [false, true, false] });
   expect.soft(await page.evaluate("hold()"), "a change while `mount` is pending is applied once it settles").toEqual([false, true, false, true]);
 });
+
+test("a new `capabilities` reaches the chart that is mounted without mounting it again, and a chart that mounts again gets the latest", async ({ page }) => {
+  const base = server.resolvedUrls!.local[0]!;
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction("window.start");
+  await page.evaluate("start()");
+  const profile = { gestures: { barMove: false } };
+  expect.soft(await page.evaluate((p) => (window as any).caps(p), profile), "the chart is given the profile, not mounted again").toEqual({ mounts: [null], profiled: [null, profile] });
+  await page.evaluate("change(2)");
+  expect.soft(await page.evaluate((p) => (window as any).caps(p), profile), "the next mount starts on the latest profile").toMatchObject({ mounts: [null, profile] });
+});
