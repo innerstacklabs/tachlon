@@ -138,7 +138,9 @@ pub fn read(text: impl Into<String>, now: &dyn Fn() -> f64) -> Result<Document, 
         .set_data_date(data_date)
         .map_err(|e| invalid(format!("data_date: {e}")))?;
     schedule.set_options(options);
-    schedule.set_finish_by(finish_by);
+    schedule
+        .set_finish_by(finish_by)
+        .map_err(|e| invalid(format!("must_finish_by: {e}")))?;
     // Everything read from the tree is owned now. Wasm memory never shrinks, so the tree's bytes
     // and the text it borrows from would otherwise stay in the peak that the solve sets.
     drop(root);

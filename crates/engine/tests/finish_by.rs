@@ -27,7 +27,7 @@ fn a_date_missed_by_two_days_gives_every_task_on_the_path_minus_two_days() {
     let cal = s.add_calendar(std_cal(&[]));
     let t = three(&mut s, cal, D);
     // The chain finishes Wednesday 17:00; the date is Monday 17:00.
-    s.set_finish_by(Some(at(0, 17, 0)));
+    s.set_finish_by(Some(at(0, 17, 0))).expect("in range");
     let sol = s.compute().expect("a missed date is not an error");
     assert_eq!(sol.project_finish, at(2, 17, 0));
     for id in t {
@@ -44,7 +44,7 @@ fn a_date_beaten_by_five_days_keeps_the_critical_path_and_reports_the_buffer() {
     let cal = s.add_calendar(mornings_cal());
     let t = three(&mut s, cal, 240);
     // The chain finishes Wednesday 12:00; the date is the next Monday 12:00.
-    s.set_finish_by(Some(at(7, 12, 0)));
+    s.set_finish_by(Some(at(7, 12, 0))).expect("in range");
     let sol = s.compute().expect("solves");
     for id in t {
         assert_eq!(sol.get(id).float, 0, "{id}");
@@ -62,7 +62,7 @@ fn the_buffer_is_measured_on_the_calendar_of_the_task_that_finishes_last() {
     let last = task(&mut s, six, 5 * D, None);
     // The six-day task finishes Friday 17:00; the date is the next Monday 17:00: Saturday and
     // Monday on its calendar, Monday alone on the first.
-    s.set_finish_by(Some(at(7, 17, 0)));
+    s.set_finish_by(Some(at(7, 17, 0))).expect("in range");
     let sol = s.compute().expect("solves");
     assert_eq!(sol.get(last).ef, at(4, 17, 0));
     assert_eq!(s.buffer(&sol), Some(buf(2 * D, 3)));
@@ -71,7 +71,7 @@ fn the_buffer_is_measured_on_the_calendar_of_the_task_that_finishes_last() {
     task(&mut s, six, 5 * D, None);
     let sol = s.compute().expect("solves");
     assert_eq!(s.buffer(&sol), Some(buf(D, 3)));
-    s.set_finish_by(None);
+    s.set_finish_by(None).expect("in range");
     assert_eq!(s.buffer(&sol), None);
 }
 
@@ -87,7 +87,7 @@ fn the_cones_with_a_date_set_equal_a_full_compute() {
     for _ in 0..10 {
         task(&mut s, cal, 0, None);
     }
-    s.set_finish_by(Some(at(3, 17, 0)));
+    s.set_finish_by(Some(at(3, 17, 0))).expect("in range");
     let mut sol = s.compute().expect("solves");
 
     // A longer `b` keeps the project finish and a positive float: the duration cone solves it,

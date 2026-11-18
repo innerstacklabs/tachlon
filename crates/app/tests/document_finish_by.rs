@@ -17,7 +17,7 @@ use xer::synth::{Spec, write as synth_xer};
 fn saved(finish_by: Option<Instant>) -> String {
     let xer = synth_xer(&Spec::with_activities(7, 4));
     let mut loaded = load_bytes(&xer, &ProjectSelection::Unspecified, &|| 0.0).unwrap();
-    loaded.schedule.set_finish_by(finish_by);
+    loaded.schedule.set_finish_by(finish_by).unwrap();
     let extras = Extras {
         name: "document",
         notes: &[],
@@ -41,10 +41,10 @@ fn a_date_out_of_range_or_not_a_number_is_refused_by_name() {
     let with = |value: &str| format!("{},\"must_finish_by\":{value}}}", &text[..text.len() - 1]);
     let error = |value: &str| refusal(&with(value)).to_string();
     assert!(
-        error(&(MAX_DATE + 1).to_string()).contains("must_finish_by: 527040001 is out of range")
+        error(&(MAX_DATE + 1).to_string()).contains("must_finish_by: the schedule has a must-finish-by date of 527040001, outside what the engine accepts")
     );
     assert!(
-        error(&(MIN_DATE - 1).to_string()).contains("must_finish_by: -527040001 is out of range")
+        error(&(MIN_DATE - 1).to_string()).contains("must_finish_by: the schedule has a must-finish-by date of -527040001, outside what the engine accepts")
     );
     assert!(error("\"soon\"").contains("must_finish_by: expected an integer"));
     assert!(error("null").contains("must_finish_by: expected an integer"));

@@ -29,5 +29,5 @@ test("the date goes into the document and comes back out of it, and is left out 
 
 test("a date that is not a date, or is outside the engine's range, is refused by name", () => {
   expect(() => fromTasks({ tasks, mustFinishBy: "2026-02-30" })).toThrow(PlainDataError);
-  expect(() => openHeadless({ tasks, mustFinishBy: "9999-12-31" })).toThrow(/must_finish_by: \d+ is out of range/);
+  expect(() => openHeadless({ tasks, mustFinishBy: "9999-12-31" })).toThrow(/must_finish_by: .* outside what the engine accepts/);
 });

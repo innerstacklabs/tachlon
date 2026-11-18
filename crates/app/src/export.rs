@@ -407,7 +407,7 @@ mod tests {
             ..ScheduleOptions::default()
         };
         schedule.set_options(set);
-        schedule.set_finish_by(Some(5_000));
+        schedule.set_finish_by(Some(5_000)).expect("in range");
         let timeline = fitted_timeline(order, &solution, 1000.0, 400.0, 1.0);
         let session = Session::new(schedule, solution, timeline, meta, || 0.0);
         let extras = Extras {
