@@ -37,7 +37,7 @@ struct Entry {
     range: Range<usize>,
 }
 
-/// The map's hasher: a key's hash is mixed already, so this only spreads it into the bits the table reads.
+/// The map's hasher: a key's hash is mixed in its high bits, so the multiply gives the low bits, which the table reads, their share.
 #[derive(Default)]
 struct Spread(u64);
 
@@ -65,7 +65,7 @@ fn hash(key: &str) -> u32 {
         word[..chunk.len()].copy_from_slice(chunk);
         mixed = (mixed.rotate_left(5) ^ u64::from_le_bytes(word)).wrapping_mul(MIX);
     }
-    let [_, _, _, _, a, b, c, d] = mixed.to_le_bytes();
+    let [_, _, _, _, a, b, c, d] = (mixed ^ mixed >> 32).wrapping_mul(MIX).to_le_bytes();
     u32::from_le_bytes([a, b, c, d])
 }
 
@@ -239,5 +239,34 @@ impl Session {
             .keys
             .add(kind, slot, key)
             .map_err(|_| EditError::KeyTaken)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn positions(keys: impl Iterator<Item = String>, mask: u64) -> usize {
+        let at = |key: String| {
+            let mut spread = Spread::default();
+            spread.write_u32(hash(&key));
+            spread.finish() & mask
+        };
+        keys.map(at).collect::<std::collections::HashSet<_>>().len()
+    }
+
+    #[test]
+    fn keys_that_differ_in_the_last_bytes_spread_over_the_table() {
+        let tail = |n: u32, w: u32| -> String {
+            (0..w)
+                .rev()
+                .map(|i| char::from_u32(48 + (n >> (6 * i) & 63)).unwrap())
+                .collect()
+        };
+        let two = (0..4096).map(|n| format!("abcdef{}", tail(n, 2)));
+        let three = (0..50_000).map(|n| format!("project-task-{}", tail(n, 3)));
+        assert!(positions(two, 4095) >= 2000);
+        assert!(positions(three, 65_535) >= 30_000);
+        assert!(positions((0..50_000).map(|n| format!("T{n}")), 65_535) >= 30_000);
     }
 }
