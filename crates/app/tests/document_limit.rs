@@ -9,7 +9,7 @@ use app::{
     document::{Extras, read, write},
     load_bytes,
 };
-use engine::{Limit, Pin, TaskId};
+use engine::{Limit, Milestone, Pin, TaskId};
 use import::ProjectSelection;
 use xer::synth::{Spec, write as synth_xer};
 
@@ -25,6 +25,7 @@ fn saved(limits: bool) -> String {
             pin: Some(Pin::Finish(9300)),
             alap: true,
             resume: Some(9500),
+            milestone: Some(Milestone::Finish),
         };
         let pin = Limit {
             pin: Some(Pin::Start(9400)),
@@ -49,13 +50,14 @@ fn write_text(session: &Session) -> String {
 #[test]
 fn a_limit_is_read_back_and_written_as_it_was() {
     let text = saved(true);
-    let all = "\"limit\":{\"snlt\":9000,\"fnet\":9100,\"fnlt\":9200,\"pin_finish\":9300,\"resume\":9500,\"alap\":true}";
+    let all = "\"limit\":{\"snlt\":9000,\"fnet\":9100,\"fnlt\":9200,\"pin_finish\":9300,\"resume\":9500,\"alap\":true,\"milestone\":\"finish\"}";
     assert!(text.contains(all) && text.contains("\"limit\":{\"pin_start\":9400}"));
     let loaded = read(text.as_str(), &|| 0.0).unwrap().loaded;
     let limits: Vec<Limit> = loaded.schedule.tasks().iter().map(|t| t.limit).collect();
     assert_eq!(limits[0].snlt, Some(9000));
     assert_eq!(limits[0].pin, Some(Pin::Finish(9300)));
     assert!(limits[0].alap);
+    assert_eq!(limits[0].milestone, Some(Milestone::Finish));
     assert_eq!(limits[1].pin, Some(Pin::Start(9400)));
     assert!(limits[2..].iter().all(|l| *l == Limit::default()));
     assert_eq!(write_text(&session_of(loaded)), text);

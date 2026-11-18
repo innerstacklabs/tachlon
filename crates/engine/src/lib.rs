@@ -33,5 +33,6 @@ pub use model::options::{
 };
 pub use model::{
     CalendarId, DepId, Dependency, LagCalendar, Limit, LinkType, MAX_DATE, MAX_DURATION, MAX_LAG,
-    MIN_DATE, Pin, RangeInput, RangeItem, Schedule, ScheduleError, Task, TaskId, finish_by::Buffer,
+    MIN_DATE, Milestone, Pin, RangeInput, RangeItem, Schedule, ScheduleError, Task, TaskId,
+    finish_by::Buffer,
 };

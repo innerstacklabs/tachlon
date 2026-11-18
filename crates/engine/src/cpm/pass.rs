@@ -88,7 +88,9 @@ impl Pass<'_> {
     /// The admissible starts of the work the passes schedule for task `i`: its remaining work
     /// once started ([`Task::work`]), else its whole duration.
     fn adm(&self, i: usize) -> Admissible<'_> {
-        Admissible::new(self.cal_of(i), self.tasks[i].work(self.unstarted_remaining))
+        let task = &self.tasks[i];
+        Admissible::new(self.cal_of(i), task.work(self.unstarted_remaining))
+            .kind(task.limit.milestone)
     }
 
     pub(super) fn preds(&self, i: usize) -> &[u32] {

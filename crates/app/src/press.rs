@@ -303,7 +303,10 @@ impl Session {
         // than the engine's first admissible start at or after `wanted` is.
         // That rule is `Admissible`, so a milestone at a working-period end
         // counts as admissible there.
-        let snapped = Admissible::new(self.schedule.calendar_of(task), duration).next(wanted);
+        let kind = self.schedule.tasks()[b.task as usize].limit.milestone;
+        let snapped = Admissible::new(self.schedule.calendar_of(task), duration)
+            .kind(kind)
+            .next(wanted);
         let current = self.schedule.tasks()[b.task as usize].snet;
         if current == Some(wanted) {
             // The schedule already has this ask, so nothing is recomputed;

@@ -36,6 +36,7 @@ pub fn add_limits(s: &mut Schedule, seed: u64, share: f64, span: i64) {
             pin,
             alap: rng.chance(0.15),
             resume: None,
+            milestone: None,
         };
         s.set_limit(TaskId(i), limit).expect("the task exists");
     }
