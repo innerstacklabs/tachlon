@@ -8,7 +8,7 @@ what a function does. Where the code is not enough there is a decision record or
 | Read | For |
 |---|---|
 | `docs/WASM_API.md` | The wasm exports (public and test-only), the theme tokens, the JSON shapes. |
-| `docs/decisions/` | 0001 task identity and rows; 0002 outline and summary rows; 0004 format crates licensed separately; 0005 users first, component later; 0007 the hosted app is a separate project; 0011 the cloud API lives in `apps/cloud`; 0012 embeddable component. Number 0006 is taken (the name), 0003 is not published here, and 0008 to 0010 have their own records; each is accepted. |
+| `docs/decisions/` | 0001 task identity and rows; 0002 outline and summary rows; 0004 format crates licensed separately (its license is replaced: every crate is MIT, decision 0014); 0005 users first, component later (superseded by 0021); 0006 the working code name; 0007 the hosted app is a separate project; 0008 the progress model; 0009 export and save; 0010 the product's own document; 0011 the cloud API lives in `apps/cloud` (no code there yet); 0012 the embeddable component; 0013 the product's name; 0014 MIT, no paid tier; 0015 group rows; 0016 host identity; 0017 the host record vocabulary; 0018 schedule options and host capabilities; 0019 the commit pipeline; 0020 engine input ranges; 0021 a Gantt component for developers. Number 0003 is not published here. Each record's status line says whether it is accepted or superseded. |
 | `crates/app/tests/architecture/` | The checks that keep this page, the wasm surface and the file sizes true (see "Checks"). |
 
 ## Crate dependency direction
@@ -40,8 +40,8 @@ so neither sees a rename inherited from the workspace table.
 apps/hosted (host page, samples)   loads only gantt-core = the built packages/gantt (decision 0007)
    |                                and @gantt/chrome = apps/chrome (the toolbar, the file controls and the Filters menu and the find box, decision 0012)
    |        \
-   |         store.ts only: the cloud API /api/docs = apps/cloud (server code, a project of its
-   |                        own; decision 0011; the chart below never names it)
+   |         planned, no code yet: store.ts as the one door to the cloud API /api/docs = apps/cloud
+   |                        (server code, a project of its own; decision 0011; the chart below never names it)
 packages/gantt/src (TypeScript: DOM, events, requestAnimationFrame)
    |  calls only the exports listed in docs/WASM_API.md
 crates/app/src/web/     (wasm32 only: App, LoadedSchedule; owns canvas and Renderer)
@@ -54,6 +54,9 @@ crates/engine           Schedule, Calendar, compute / recompute_cone_moved
 ```
 
 <!-- ANCHOR: book-mid -->
+`apps/cloud` and the hosted app's `store.ts` are planned and hold no code yet: decision 0011 states the
+rule for them before the code it governs.
+
 One frame (`App::frame`): the browser's `requestAnimationFrame` calls `tick` in
 `packages/gantt/src/loop.ts`; `App::frame` applies a pending drag, asks `Session::frame_scene` for the
 `Scene` (the scene, the dependency arrows, the move outlines, the link overlay, then the bar
@@ -72,7 +75,8 @@ at once after a panic, and offers a reload only when the page that holds the cha
 developer page does). On an automatic WebGPU run a failed frame is not retried: the chart switches
 to WebGL2 in its root (see "Embedding"), or, after a panic, the developer page reloads on WebGL2
 and a host page sees the banner and a `fatal` `error` event. A panic stops every chart on the
-page, since they share the module. Nothing is saved to browser storage (J9). The test-only
+page, since they share the module. The chart (`packages/gantt/src`) saves nothing to browser storage; the
+hosted app does, as a page of its own (`apps/hosted/src/autosave.ts` keeps the open schedule in IndexedDB). The test-only
 `App.test_fail_next_frame` forces a failure in one chart.
 
 ## What each part keeps
@@ -100,13 +104,13 @@ summaries, no rows and no calendar dates.
 `Timeline` owns the viewport, the pointer state and the row order (`Timeline::order`, row to task
 index; `row_of`, task index to row, `HIDDEN_ROW` for a task with no row). `scene::build` turns
 the viewport, the order and the task dates into an owned `Scene`; `Renderer` draws a borrowed
-`Scene`. Every colour comes from the `Theme` handed to the builders (decision 0005: its values
+`Scene`. Every color comes from the `Theme` handed to the builders (its values
 are the `--gantt-*` CSS tokens listed in `docs/WASM_API.md`). `Summaries` holds the span of each summary row; `Timeline`
 owns it and `Session` is its only writer. A `Rect` is 40 bytes: `stroke` is the ring width in
 physical pixels, 0 for a filled quad. Above 0 the one rect pipeline draws a dashed ring just inside
 the quad's edge (a fifth vertex attribute and a branch in the fragment shader: no second pass). The
 move outline (`scene::add_move_outlines`) is one such rect per moved visible bar at its old extent,
-at most 400 per frame (the ones nearest the canvas centre), spliced in under the bars and under the
+at most 400 per frame (the ones nearest the canvas center), spliced in under the bars and under the
 arrows. A proposed edit's ghost (`scene::add_ghost_outlines`) is the same ring appended after the
 bars, 2 px wide at 70% alpha, so a ghost inside its own bar shows and reads apart from an outline. A task of
 zero length gets a diamond ring, like its bar: the shader dashes a diamond ring along its edges,
@@ -147,12 +151,13 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
   `drag_info` and `chain_builds`, and moves the view through `Session::resize`, `wheel`,
   `scroll_by`, `set_hover_row`, `pointer_leave`, `fit` and `scroll_to_row` (all in `view.rs`).
 
-- *One edit path.* `Edit` (`Move`, `SetDuration`, `Rename`, `Insert`, `Delete`, `Restore`, `Reparent`, `AddLink`, `RemoveLink`, `RestoreLink`) is the one kind of change, and it
+- *One edit path.* `Edit` (`Move`, `SetDuration`, `Rename`, `Insert`, `Delete`, `Restore`, `Reparent`, `AddLink`, `RemoveLink`, `RestoreLink`, `SetLink`, `SetBaseline`, `ClearBaseline`, `SetDataDate`, `SetProgress`, `SetLimit`) is the one kind of change, and it
   names a task by `TaskId`, never by row (decision 0001); `Insert` carries a `Place` and a name.
   `Session::run` applies an edit and returns its
-  inverse; `Session::edit` records that inverse for undo (`HISTORY_CAP`, 200) and clears redo. A
-  drag is an `Edit::Move`: `Session::constrain` sets the start-no-earlier-than and calls
-  `recompute_cone_moved`. `SetDuration` calls `recompute_duration_cone_moved`, whose backward pass covers the
+  inverse; `Session::edit` records that inverse for undo (`HISTORY_CAP`, 200) and clears redo.
+  - *`Move`.* A drag is an `Edit::Move`: `Session::constrain` sets the start-no-earlier-than and calls
+    `recompute_cone_moved`.
+  - *`SetDuration`* calls `recompute_duration_cone_moved`, whose backward pass covers the
   task's own late dates and its predecessors' float, and rolls up the moved summaries (the roll-up
   rebuilds every summary when more than half the tasks moved). The duration cone falls back to a
   full `compute` when it is wide, when the project finish moves, or when an early start lands past
@@ -160,11 +165,13 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
   `Replaced`) that says which. The call is exact because the solution equals `compute()` before the edit: moves
   and duration edits preserve that equality, insert, delete, restore and link edits full-compute,
   and a rename leaves the schedule unchanged.
-  `Rename` changes the session's `TaskMeta::name` only and recomputes nothing. A person's rename
+  - *`Rename`* changes the session's `TaskMeta::name` only and recomputes nothing. A person's rename
   goes through `Session::edit`, which refuses an empty name, a control character and `" / "`;
   `apply` and undo store a name as given, so an imported name that holds `" / "` comes back byte
-  for byte. `Insert`, `Delete`, `Restore` and `Reparent` also do a full `compute`, then rebuild the outline, the summary
-  spans and the rows (see "Where rows come from today"). `Reparent { task, place, siblings }`
+  for byte.
+  - *`Insert`, `Delete`, `Restore` and `Reparent`* do a full `compute`, then rebuild the outline, the summary
+  spans and the rows (see "Where rows come from today").
+  - *`Reparent { task, place, siblings }`*
   (`crates/app/src/reparent.rs`) moves a task with its subtree to a `Place` and changes no task's
   dates. The subtree's levels shift by one delta; `Siblings::Adopt(n)` first makes the next `n`
   siblings the task's last children, and `Release(n)` hands its last `n` children back as its next
@@ -174,7 +181,8 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
   level the parent does not imply (an import can hold a gap) and the same preorder position.
   `Session::indent_selected` puts the row last under its previous sibling. Both refuse, changing
   nothing, with no previous sibling, at the top level, under a row filter or lookahead window,
-  during a bar press, and when a leaf with a link would become a summary. The link edits (`crates/app/src/edit/links.rs`)
+  during a bar press, and when a leaf with a link would become a summary.
+  - *The link edits* (`AddLink`, `RemoveLink` and `RestoreLink`; `crates/app/src/edit/links.rs`)
   refuse a busy session and a summary end (`LinkToSummary`), let `Schedule::add_link` and
   `restore_dependency` judge a repeat (`AlreadyLinked`) and a loop (`LinkCycle`, whose message names
   the loop and elides its middle past five tasks), then run a full `compute`, the summary roll-up
@@ -182,6 +190,10 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
   returns `RemoveLink`, `RemoveLink` returns `RestoreLink` and back, so undo and redo keep the
   link's `DepId`. Readers of the dependency list (outline, insert, highlight, details) use the
   live links only.
+  - *The other six.* `SetLink` changes a live link's type and lag, `SetBaseline` and `ClearBaseline` set and clear the
+    baseline, `SetDataDate` sets or clears the data date, `SetProgress` records a task's actual start, actual finish and
+    remaining duration, and `SetLimit` replaces a task's date limits. The doc comment on each variant in
+    `crates/app/src/edit.rs` gives its refusals and its inverse.
 - *A name is the task's own.* `TaskMeta::name` is the name the file gave (`Pour slab`), kept byte
   for byte except that a control character becomes a space and a blank name becomes `Task <uid>`;
   an imported `" / "` stays. The path the table, the hover card and find use is derived:
@@ -199,11 +211,13 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
   `Session::run`, which rolls the summary spans up again (`rollup_moved` after a `Move` or a
   `SetDuration`, `rollup_full` after an insert, delete, restore or link edit), so undo and redo reach them the same way the edit did.
 - *The move report.* After an edit, undo or redo that moves other tasks, `Session::move_report`
-  (`crates/app/src/moved.rs`) holds `{ seq, text, others, finish_days, slide, was }`: the tasks
+  (`crates/app/src/moved.rs`) holds `{ seq, text, others, finish_days, joined, left, slide, was, edited, at }`: the tasks
   other than the edited one whose early start or finish changed, with the early dates they had
   before (the engine's `Moved` list includes the edited task, so the report leaves it out), and the
   days the project finish moved (the difference of the calendar-day numbers of the old and new
-  `project_finish`). A drag runs one `Move` per frame, so a journal keeps the first old dates of
+  `project_finish`). `joined` and `left` count the tasks that became critical and that stopped being critical,
+  `edited` is the edited task with its old early dates when they changed, and `at` is the clock when the report was
+  made. A drag runs one `Move` per frame, so a journal keeps the first old dates of
   each task across the frames (a visited vector sized at the press, nothing allocated per frame);
   the release turns it into one report with the press-time dates and `slide: false`, dropping
   tasks that ended where they began, and a cancel or a drag that returns to its start makes none.
@@ -224,7 +238,7 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
   report that starts no slide still counts as seen, so one made with reduced motion on never plays
   after it is switched off. `Session::set_reduced_motion` is the page's setting: `reopen` carries
   it on and drops the slide. `Session::slide_copy_ms` is how long the last copy took.
-  An open starts a slide of its own (gs#309): `App::open` calls `Session::mark_open`, which enters the tasks of the
+  An open starts a slide of its own: `App::open` calls `Session::mark_open`, which enters the tasks of the
   rows in the window, no others, with a was-extent of no width (`was_ef == was_es`), through
   `Session::start_slide_from`; the bars grow from start to finish over the usual 360 ms, and the copy already holds the
   first frame. Reduced motion starts none. A wheel, a scroll that moves, a row jump or Fit drops it, as an edit does
@@ -247,7 +261,7 @@ the baseline through `Gantt.commands`; each edit command answers `{ ok }` or a n
 (`packages/gantt/src/edit-result.ts` maps the app's `EditError::kind`), never a throw. The chart's find and
 status keys fire `on("find")` and `on("toggle-status")`, its open and keys keys `on("choose-file")` and `on("toggle-keys")`. The Filters menu and the find box are the
 app's chrome in `apps/chrome/` (`@gantt/chrome`, private), with the baseline, Insert and Delete, level, zoom, data date and row count controls, and the file controls: Open (the button, Ctrl+O, a drop and the project list), Export, Checks, the keys list, the import notes, the unsaved mark, and the tab's title and unload question, which read `state().fileName`, `unsaved` and `importNotes`. A page calls `installChrome(gantt, root)`
-after `mount`, and the chrome puts its elements into the empty `filters-menu`, `find`, `file-tools`, `file-notice`, `keys-tools`, `file-dialogs`, `baseline-tools`, `row-tools`, `zoom-tools` and `readouts` parts of
+after `mount`, and the chrome puts its elements into the empty `filters-menu`, `find`, `file-tools`, `file-notice`, `keys-tools`, `file-dialogs`, `baseline-tools`, `row-tools`, `zoom-tools`, `readouts`, `path-line` and `blank-note` parts of
 the chart's toolbar and root, drives the chart through `commands`, `open()`, `state()`, `filterInputs()`, `exportMspdi()`, `checks()` and `busy()`,
 and hears `change`, `edit`, `move`, `open`, `error`, `find`, `choose-file` and `toggle-keys` like any host. The chart reads, parses and swaps in a file (`packages/gantt/src/open-schedule.ts`) and keeps the question before an open over unsaved changes; it writes no tab title, adds no `beforeunload` listener and shows no file control (`packages/gantt/tests/bare-chart.spec.ts`). A switch to WebGL2 gives the
 chart a new toolbar, so on `error` with the source `backend` the chrome puts the same elements into
@@ -259,7 +273,7 @@ syncs the chart's own scroll to a filter's rows (`packages/gantt/src/filter-scro
 
 ## Theming
 
-The chart's colours are its theming API (decision 0005): one `Theme` struct in
+The chart's colors are its theming API (decision 0021: the component's public API is the product's surface): one `Theme` struct in
 `crates/timeline/src/theme.rs`, and the same values as `--gantt-*` CSS custom properties on the
 chart root. The token list, and how `set_theme` works, are in the Theming section of
 `docs/WASM_API.md`.
@@ -268,13 +282,13 @@ With no attribute the chart follows the system's light or dark setting. `data-th
 `"light"` on the root forces that set whatever the system says (`packages/gantt/src/styles/tokens.css`). The
 system's set is `:where(.gantt):where(:not([data-theme]))` inside the media query, and the two forced sets
 come after it; all three have zero specificity, so a host's overrides win over each. `watchTheme`
-observes `data-theme`, so a change recolours the canvas once, as a style edit does. The hosted page
+observes `data-theme`, so a change recolors the canvas once, as a style edit does. The hosted page
 reads `?theme=dark|light`, sets the attribute on `#app` and its own `color-scheme` on `<html>`, and
 ignores any other value.
 
 ## Embedding
 
-The chart is a component that a host page places in a box of its own (decision 0005). Three rules
+The chart is a component that a host page places in a box of its own (decisions 0012 and 0021). Three rules
 hold:
 
 1. *The chart is as big as its container.* Nothing in `packages/gantt/src` or the page's CSS reads the
@@ -291,7 +305,7 @@ them in a real browser. The checks read the chart's markup, `packages/gantt/src/
 `packages/gantt/index.html`.
 
 The host gives only the root: a `div` with the class `gantt` and a box with a height. A page may
-hold several roots, one chart each (gs#1083). The markup names each part with `data-part`, and the
+hold several roots, one chart each. The markup names each part with `data-part`, and the
 lookups (`packages/gantt/src/dom.ts`) and the style rules find a part by that name inside the root. Ids are
 given at mount, per root: the first chart on a page writes a part's name as its id, each further
 chart puts `chart-<n>-` before it (a destroyed chart, or a mount that rejects, gives its number back), and the id references in the markup (`aria-labelledby` and the
@@ -335,8 +349,8 @@ Table JSON carries the task id; the page derives the row from the slice it asked
   summary, and takes the new file's `TaskMeta`.
 - *After that, `apply_rows`.* A disclosure toggle (`toggle`), the level commands
   (`collapse_to_level`, `expand_all`, `collapse_selected`, `expand_selected`, `expand_selected_branch`), the row filter
-  (`RowFilter` has seven values, one at a time: `Off`, `Critical`, `NearCritical`, `LongestPath`,
-  `Slipped`, `Moved` and `ActivityCode`) and the lookahead window (independent of
+  (`RowFilter` has 14 values, one at a time: `Off`, `Critical`, `NearCritical`, `LongestPath`,
+  `Slipped`, `FloatLost`, `JoinedCritical`, `LeftCritical`, `Moved`, `ActivityCode`, `Status`, `Check`, `StartConstraint` and `Resource`) and the lookahead window (independent of
   the filter) all change what `visible_rows` returns. The window is the half-open span
   `[start, start + weeks * WEEK)`; a task intersects it when `es < end` and `ef > start`, using
   early dates, because those are the dates the table and the bars show. A summary stays as context
@@ -396,7 +410,8 @@ Table JSON carries the task id; the page derives the row from the slice it asked
 ## Checks
 
 `crates/app/tests/architecture/` is a module of the `it` test binary; `exports`, `web_sources`, `entry`, `theming`,
-`embedding`, `style_scope`, `size`, `hosting`, `chrome` and `lints` each hold a check and its self-tests. The
+`embedding`, `style_scope`, `size`, `hosting`, `chrome`, `palette`, `web_root`, `lints`, `history_writes`, `late_start`,
+`key_lookups` and `gate` each hold a check and its self-tests. The
 directory also holds the `name` check (`name.rs`, `the_old_name_stays_out_of_the_repository`),
 `entry_types.rs` and `support.rs`.
 
@@ -408,7 +423,7 @@ directory also holds the `name` check (`name.rs`, `the_old_name_stays_out_of_the
   `docs/WASM_API.md`, and every row has an export; no exported declaration of the entry names a type
   from `measure.ts` or `page-knobs.ts` (the developer page's knobs), so a host page sees no measure type.
 - *Theme and embedding* (`theming`, `embedding`, `style_scope`): every `--gantt-` token is on the
-  page and used; no stylesheet but `tokens.css` holds a literal colour, except the files in `LITERAL_COLOURS` (`theming.rs`), whose counts only shrink; nothing reads the window's size or listens for a key on the window or document;
+  page and used; no stylesheet but `tokens.css` holds a literal color, except the files in `LITERAL_COLOURS` (`theming.rs`), whose counts only shrink; nothing reads the window's size or listens for a key on the window or document;
   outside `main.ts`, nothing looks parts up on the document (`getElementById`, `querySelector`,
   `querySelectorAll`, `getElementsBy*`) or listens on it; every selector starts with `.gantt`.
 - *Size* (`size`): `apps/chrome/src` is source too; flat limits of 400 lines for source, 300 for an in-file test module and 600 for
@@ -434,16 +449,15 @@ directory also holds the `name` check (`name.rs`, `the_old_name_stays_out_of_the
   path inside `apps/cloud`; neither `package.json` declares a dependency that resolves into
   `apps/cloud`. Inline page scripts, non-script files and `public/` are not read; review holds
   them to the rule. Same threat model as above: a route built at run time is not caught.
+  Neither `store.ts` nor `apps/cloud` holds code yet (decision 0011), so today the rule only refuses.
 - *The chart without its chrome* (`chrome`, decision 0012): no file of `packages/gantt/src` (but the generated
   `packages/gantt/src/wasm/` and the developer page `main.ts`) imports, re-exports or dynamically imports a
   relative path whose file is `toolbar`, `filters-menu`, `find`, `status-line`, `open`, `export`, `keys-help`, `unsupported`, `tab` or `save-mark`, from any
   directory. Those are the app's chrome, which lives in `apps/chrome/` and drives the chart only
   through its public data API, commands and events. The imports `main` had when the check began
-  were its `EXEMPT` list, one `path | import` line each, sorted bytewise; the list is empty now (gs#1087 moved the toolbar, gs#1088 the file controls), and an
+  were its `EXEMPT` list, one `path | import` line each, sorted bytewise; the list is empty now (the toolbar and the file controls moved to `apps/chrome/`), and an
   import of a chrome module fails, a listed import that is gone fails until its line is deleted, and an
-  unsorted, repeated or malformed line fails. The API stories gs#1194 and gs#1195 deleted the lines
-  they ended, the first part of gs#1087 the find box's, the Filters menu's and the status line's, and
-  its second part the toolbar's: the list is empty now. An empty parse fails.
+  unsorted, repeated or malformed line fails. An empty parse fails.
 - *The retired names* (`name`, decision 0013): no tracked file or path names the working code name
   or the product name that followed it, in any case. The decision records (`docs/decisions/`) are
   history and are not searched. Everything else that still does is an entry in
@@ -452,13 +466,22 @@ directory also holds the `name` check (`name.rs`, `the_old_name_stays_out_of_the
   script that reads a decision record). The list only shrinks: an entry that no
   longer matches fails, and so does a listed path that is not tracked. A line of a `docs/**/*.md`
   file that ends with `<!-- verbatim -->` is a quote and is not searched. An empty file list and an
-  unreadable, unsorted or malformed allowlist fail. The product's name is written only at the edges
-  (`README.md`, `book/`, `docs/PRODUCT.md`, `docs/decisions/`, `packages/gantt/src/product.ts`,
-  `packages/gantt/index.html`); every other file reads `PRODUCT_NAME` from `packages/gantt/src/product.ts`, and a tracked
-  file or path elsewhere that names it fails (gs#1120).
-- *The strict lints* (`lints`, gantt#408): each `Cargo.toml` named in the root `members` holds
+  unreadable, unsorted or malformed allowlist fail. The product's name is written only at the edges:
+  the files `BRAND_FILES` lists in `name.rs` (`README.md`, `book/`, `docs/decisions/` and `packages/gantt/src/product.ts`
+  among them) and `examples/`; every other file reads `PRODUCT_NAME` from `packages/gantt/src/product.ts`, and a tracked
+  file or path elsewhere that names it fails.
+- *The strict lints* (`lints`): each `Cargo.toml` named in the root `members` holds
   `workspace = true` under `[lints]`, so the rules in `[workspace.lints.clippy]` reach every crate. A
   member without it fails by name, and a root that names no member fails. It runs inside `cargo test`.
+- *The palette* (`palette`): in every color block of `packages/gantt/src/styles/tokens.css`, no token holds a stock
+  Tailwind palette value, a saturated red is a `crit` token, and the text tokens reach a contrast of 4.5:1.
+- *The chart's folder* (`web_root`): the checks read the folder's name from `WEB_ROOT`, and any other code line of
+  the directory's `.rs` files that spells it out fails.
+- *One place each* (`history_writes`, `late_start`, `key_lookups`, `gate`; decisions 0019, 0018, 0016 and 0019):
+  the undo and redo stacks are written only in `impl History` and `Session::commit`; outside the engine's own
+  computation and its error, a late start (`ls`) is read only inside `Schedule::late_start_shown`; a host key is
+  looked up only in `crates/app/src/host/keys.rs`; and the functions that call the edit `gate` are exactly the
+  check's `GATED` list.
 
 Also: `crates/engine/tests/dependency_direction.rs` and `crates/xer/tests/licence_boundary.rs`
 (above), and the Playwright specs in `packages/gantt/tests` (`embedding.spec.ts` keeps the three embedding
