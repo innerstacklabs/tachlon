@@ -13,7 +13,7 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
  * The mount options, one prop each, and an emit for each event: `@select` gets `{ task, key }`, `@move` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `find` or `choose-file` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
  * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
- * `readOnly` is not one of them: changing it calls `Gantt.setReadOnly` on the chart that is mounted.
+ * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * `@ready` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
  * `class` and `style` land on the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. A start that fails is
  * thrown while rendering, for an `onErrorCaptured` hook or the app's `errorHandler`, until the next start clears it.
@@ -33,6 +33,7 @@ export const Gantt = defineComponent({
     options: { type: Object as PropType<NonNullable<MountOptions["options"]>>, default: undefined },
     forceWebgl: { type: Boolean, default: undefined },
     readOnly: { type: Boolean, default: undefined },
+    capabilities: { type: Object as PropType<NonNullable<MountOptions["capabilities"]>>, default: undefined },
     beforeEdit: { type: Function as PropType<NonNullable<MountOptions["beforeEdit"]>>, default: undefined },
     wasmUrl: { type: null as unknown as PropType<NonNullable<MountOptions["wasmUrl"]>>, default: undefined },
     locale: { type: String, default: undefined },
@@ -74,13 +75,14 @@ export const Gantt = defineComponent({
       queue = queue.then(async () => {
         if (stopped) return;
         try {
-          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly, beforeEdit: (change) => props.beforeEdit?.(change) });
+          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change) });
         } catch (error) {
           return void (stopped || (failure.value = { error }));
         }
         if (stopped) return started.destroy();
         live = { chart: started, heard: new Map(), loaded: false };
         started.setReadOnly(props.readOnly === true); // a change while `mount` was pending found no chart to switch
+        try { started.setCapabilities(props.capabilities); } catch (error) { return void (failure.value = { error }); } // a profile the chart rejects fails like a start
         listen();
         emit("ready", started);
       });
@@ -91,8 +93,9 @@ export const Gantt = defineComponent({
     };
     onMounted(start);
     watch(() => [props.schedule, props.document, props.tasks, props.links, props.dataDate, props.mustFinishBy, props.calendars, props.durationUnit, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts], start);
-    // `readOnly` switches the chart that is mounted and never mounts it again.
+    // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
+    watch(() => props.capabilities, (profile) => live?.chart.setCapabilities(profile));
     onUpdated(listen);
     onBeforeUnmount(() => stopStart());
     return () => {
