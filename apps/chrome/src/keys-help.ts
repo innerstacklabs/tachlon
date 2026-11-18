@@ -1,6 +1,6 @@
 import { type ChromeContext, type Piece, refocus } from "./parts.js";
 
-/** The keys a scheduler uses most, as the README's keys table names them (a test holds the two together). */
+/** The keys a scheduler uses most, as docs/KEYS.md names them (a test holds the two together). */
 const KEYS: readonly (readonly [string, string])[] = [
   ["Ctrl+F", "Go to the find box"],
   ["Shift+Enter", "Edit the selected task in a dialog"],

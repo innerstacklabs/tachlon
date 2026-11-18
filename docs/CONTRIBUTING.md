@@ -18,7 +18,17 @@ It is a Gantt and scheduling component for developers, in the category of Bryntu
 
 ## Gates
 
-The gates to run before a push are the steps of `.github/workflows/pr.yml`; a pull request runs the same steps.
+The gates to run before a push are the steps of `.github/workflows/pr.yml`; a pull request runs the same steps. For what each part of the code must keep, read [ARCHITECTURE.md](ARCHITECTURE.md), "What each part keeps". From the repo root:
+
+```sh
+cargo fmt --check
+cargo clippy --all-targets -- -D warnings
+cargo test
+cargo doc --no-deps
+cargo deny check advisories
+```
+
+For the web package, run `bash scripts/build-web.sh --no-bundle` at the root, then `pnpm build && pnpm typecheck` in `packages/gantt/`. [CLAUDE.md](../CLAUDE.md) lists the same gates, including the wasm build, and [MEASURING.md](MEASURING.md), "Tests and benches", holds the tests.
 
 Check 13 (`the_old_name_stays_out_of_the_repository` in `crates/app/tests/architecture/name.rs`) also keeps the product's name in a few files. A tracked file, or a tracked path, may name the product, in any case, only if it is in `BRAND_FILES` (the README, `apps/site/`, `book/`, `docs/PRODUCT.md`, `docs/decisions/` and five files of `packages/gantt/`) or is under `examples/`; every other line that names it is one failure. That includes scripts, tests, fixtures, the other docs and this guide. A script or test that needs the name reads `PRODUCT_NAME` from `packages/gantt/src/product.ts`, or uses a neutral name. Do not add a file to `BRAND_FILES` to pass the check: the list only shrinks (decision 0013 in `docs/decisions/`).
 
@@ -38,7 +48,7 @@ To see the page with its live chart, build the package (`pnpm build:lib` in `pac
 
 ## The book
 
-One chapter of the [book](../book/src/index.md) per user journey. The book is built in CI by `mdbook build book` and hosted as the guide (the link in the README); the chapters are also readable here.
+One chapter of the [book](../book/src/index.md) per user journey. The book is built in CI by `mdbook build book` and hosted as the guide (the link in the README); the chapters are also readable here. CI deploys it from `main`. A preview link on each ready pull request waits on #455: pull-request CI does not post one yet.
 
 To build the book yourself, install [mdBook](https://rust-lang.github.io/mdBook/) 0.5 and run `mdbook build book`; it writes `book/book/`, which git ignores. A PR that adds a user-visible feature adds its chapter section in the same diff.
 

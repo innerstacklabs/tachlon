@@ -1,12 +1,26 @@
-// README "Try it" (gantt#1868): the first sentence is the no-install route; the build requirements follow it and come before the first code block.
+// The root README's front page: the link row comes before the first code block, the first code block is the assistant prompt
+// the package README carries, and the prompt comes before the manual install.
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { expect } from "@playwright/test";
+import { agentPrompt } from "../../../scripts/lib/agent-prompt.ts";
+import { PRODUCT_NAME } from "../src/product.ts";
+
 const readme = readFileSync(new URL("../../../README.md", import.meta.url), "utf8");
-test("try_it_opens_with_the_hosted_app_and_the_build_requirements_follow", () => {
-  const section = readme.split("\n## Try it\n")[1]!.split("\n## ")[0]!, at = (text: string) => section.indexOf(text);
-  expect(section.trim().split("\n\n")[0]!.split(". ")[0], "the first sentence names the hosted app and Open…").toMatch(/hosted app.*Open…/);
-  expect(at("developers who build from source"), "the developer sentence follows the hosted route").toBeGreaterThan(at("Open…"));
-  expect(at("wasm-bindgen-cli"), "the requirements follow the developer sentence").toBeGreaterThan(at("developers who build from source"));
-  expect(at("```"), "the first code block follows the requirements").toBeGreaterThan(at("wasm-bindgen-cli"));
+const packageReadme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+const site = `https://${PRODUCT_NAME.toLowerCase()}.com`;
+const firstFence = readme.indexOf("```");
+
+test("the website and the live demo are linked before the first code block", () => {
+  const head = readme.slice(0, firstFence);
+  expect(firstFence, "the README has a code block").toBeGreaterThan(0);
+  expect(head, "the website link").toContain(`[Website](${site})`);
+  expect(head, "the live demo link").toContain(`[Live demo](https://app.${PRODUCT_NAME.toLowerCase()}.com)`);
+});
+
+test("the first code block is the assistant prompt the package README carries, and it comes before npm install", () => {
+  const block = /^```\w*\n([\s\S]*?)\n```/m.exec(readme.slice(firstFence));
+  expect(block, "the first fence closes").not.toBeNull();
+  expect(block![1], "the first code block equals the package README's prompt").toBe(agentPrompt(packageReadme));
+  expect(readme.indexOf("npm install"), "the manual install follows the prompt").toBeGreaterThan(firstFence + block![0].length);
 });

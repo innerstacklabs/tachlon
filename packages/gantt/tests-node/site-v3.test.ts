@@ -46,7 +46,7 @@ test("the_shipped_confirm_items_hold_in_code", () => {
   expect(html).toContain("It writes both formats back out, and lists anything a format cannot carry.");
   expect(types, "file export is in the package types").toMatch(/exportXer\(\): ExportResult;[\s\S]*exportMspdi\(\): ExportResult;/);
   expect(html).toContain("click the chart and press <code>s</code> to see the open time and frame times on your own machine.");
-  expect(read("README.md"), "the keys table says s shows the open time and the frame times").toContain("| `s` | Show or hide a line of live numbers: the open time and the frame times on the hosted page");
+  expect(read("docs/KEYS.md"), "the keys table says s shows the open time and the frame times").toContain("| `s` | Show or hide a line of live numbers: the open time and the frame times on the hosted page");
   expect(read("packages/gantt/src/events.ts"), "the chart reports the s key").toContain("\"toggle-status\"");
 });
 

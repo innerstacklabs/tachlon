@@ -43,8 +43,8 @@ test("every_key_the_dialog_names_is_in_the_readme_table", async ({ g }) => {
   await g.page.locator("#keys-button").click();
   const keys = await g.page.locator("#keys-help td:first-child").allTextContents();
   expect(keys.length, "the dialog lists keys").toBeGreaterThan(0);
-  const readme = readFileSync(new URL("../../../README.md", import.meta.url), "utf8");
+  const readme = readFileSync(new URL("../../../docs/KEYS.md", import.meta.url), "utf8");
   const table = readme.slice(readme.indexOf("<!-- ANCHOR: keys -->"), readme.indexOf("<!-- ANCHOR_END: keys -->"));
-  expect(table.length, "the README keys table was found").toBeGreaterThan(100);
+  expect(table.length, "the keys table in docs/KEYS.md was found").toBeGreaterThan(100);
   for (const key of keys) expect(table, `the README table names ${key}`).toContain(key);
 });
