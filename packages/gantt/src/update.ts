@@ -20,7 +20,7 @@ function dayOfKey(app: PublicApp): (key: unknown) => number {
 export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["durationUnit"], records: unknown): UpdateResult {
   if (!Array.isArray(records)) return Object.freeze({ ok: false, reason: "badRecords", message: "update takes an array of records." });
   if (busy()) return refused("busy");
-  const day = (unit ?? "days") === "days" && records.some(hasDuration) ? dayOfKey(app) : () => 0;
+  const day = unit === "hours" || unit === "minutes" || !records.some(hasDuration) ? () => 0 : dayOfKey(app);
   const answer = readAnswer(app.update_tasks(JSON.stringify(records.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
   if (answer.ok) return Object.freeze({ ok: true, updated: answer.updated! });
   const key = (records[answer.record ?? -1] as { key?: unknown } | undefined)?.key;

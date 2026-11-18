@@ -55,6 +55,7 @@ test("update sets 20 tasks in place: selection, scroll and undo hold, no edit fi
   await page.locator('#table-rows .row[data-row="30"]').click({ position: { x: 4, y: 4 } });
   await frames(page);
   const before = { selected: await page.evaluate(() => window.upChart.state().selection?.task), top: await scrollTop(page) };
+  expect(before.selected, "a task is selected").toBeDefined();
   expect(before.top, "the list is scrolled").toBeGreaterThan(0);
   const answer = await page.evaluate((ks) => window.upChart.update(ks.map((key, i) => ({ key, duration: 5, ...(i === 0 ? { snet: "2026-03-09" } : {}) }))), keys(0, 20));
   await frames(page);
@@ -97,4 +98,6 @@ test("a duration is counted in the unit the chart mounted with: hours, minutes, 
   const calendars = [{ key: "std", workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 }, ten];
   expect(await set({ tasks: [{ ...tasks(1)[0]!, calendar: "ten" }], calendars }, 2)).toEqual([1200]);
   expect(await set({ tasks: tasks(1), calendars }, 2), "a task on the first calendar counts its 8-hour day").toEqual([960]);
+  const document = await page.evaluate(() => window.upChart.toDocument());
+  expect(await set({ document, durationUnit: "day" }, 3), "a unit that is not one of the three counts days, as the reader does").toEqual([1440]);
 });
