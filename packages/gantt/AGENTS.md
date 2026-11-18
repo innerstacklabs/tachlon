@@ -38,6 +38,8 @@ It must exit 0 and report no finding with status `fail`. Fix each failure by fol
 
 Doctor asks a browser on this machine whether the chart gets WebGPU or WebGL2. If it reports `GPU_SKIPPED`, no browser answered. Say so in your summary. A skipped GPU check is not a pass.
 
+Before you write code against an option, event, command or token of the chart, ask the installed package instead of guessing: `npx tachlon describe` lists its topics, `npx tachlon describe <topic>` prints each name with its type, default and meaning for the version in `node_modules`, and `--json` prints the same as data. Run `npx tachlon describe fit` before you theme the chart or wire saves: it prints the steps, the look first and then the behavior.
+
 ### 4. Build and check
 
 Run the project's build script. If it has a typecheck or lint script, run that too. Fix what your change broke. Leave unrelated failures alone and name them in your summary.
@@ -46,7 +48,7 @@ Run the project's build script. If it has a typecheck or lint script, run that t
 
 Run `git add` on the files you changed, by name. Never run `git add .` or `git add -A`. Commit on the `add-tachlon` branch.
 
-### 6. Summarise
+### 6. Summarize
 
 Finish with a short summary that lists:
 

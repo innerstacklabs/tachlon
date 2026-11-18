@@ -13,6 +13,8 @@ description: Add or change a Gantt chart with the ${name} package. Use when a ta
 
 Read \`node_modules/${name}/AGENTS.md\` before you touch the chart, and follow it.
 
+Before you write code against an option, event, command or token, run \`npx ${name} describe\` and ask the topic it names: the answer comes from the installed version. Run \`npx ${name} describe fit\` before you theme the chart or wire saves.
+
 Never:
 
 - replace or delete a page or its content

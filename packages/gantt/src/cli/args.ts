@@ -2,6 +2,8 @@
 
 export interface Args {
   command: string | undefined;
+  /** `describe <topic>`: the one topic to print; none lists them. */
+  topic: string | undefined;
   dryRun: boolean;
   json: boolean;
   dir: string | undefined;
@@ -29,7 +31,7 @@ const BOOLEAN = new Set(["--dry-run", "--json", "--no-install", "--plain", "--sk
 
 /** The arguments `argv` holds, or the sentence that says why they are not valid. */
 export function parseArgs(argv: string[]): Args | { error: string } {
-  const args: Args = { command: undefined, dryRun: false, json: false, dir: undefined, spec: undefined, data: undefined, url: undefined, install: true, plain: false, skill: false, help: false, version: false };
+  const args: Args = { command: undefined, topic: undefined, dryRun: false, json: false, dir: undefined, spec: undefined, data: undefined, url: undefined, install: true, plain: false, skill: false, help: false, version: false };
   for (let i = 0; i < argv.length; i++) {
     const [flag, inline] = argv[i].split(/=(.*)/s, 2);
     if (inline !== undefined && BOOLEAN.has(flag)) return { error: `${flag} takes no value` };
@@ -47,6 +49,7 @@ export function parseArgs(argv: string[]): Args | { error: string } {
       args[key] = value;
     } else if (flag.startsWith("-")) return { error: `unknown flag ${flag}` };
     else if (args.command === undefined) args.command = flag;
+    else if (args.command === "describe" && args.topic === undefined) args.topic = flag;
     else return { error: `unexpected argument ${flag}` };
   }
   return args;

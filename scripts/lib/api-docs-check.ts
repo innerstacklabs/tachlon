@@ -17,7 +17,7 @@ export function entryExports(text: string): Member[] {
 }
 
 // The sentence(s) before the first block tag: what a reader sees on the page.
-function summary(comment: string): string {
+export function summary(comment: string): string {
   const lines = comment.replace(/^\s*\/\*\*/, "").replace(/\*\/\s*$/, "").split("\n").map((l) => l.replace(/^\s*\*? ?/, ""));
   const tag = lines.findIndex((l) => l.startsWith("@"));
   return lines.slice(0, tag < 0 ? undefined : tag).join("\n").trim();
