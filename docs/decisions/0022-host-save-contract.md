@@ -1,53 +1,59 @@
 # The host save contract
 
-Status: proposed, 2026-11-18. A draft for the owner to read and correct before anything is built; none of it is built. A line marked `Decided here:` is the drafter's choice where the study and the outside review disagree or leave a point open. Once accepted it amends [decision 0016](0016-host-identity.md) (rules 7 and 8), [decision 0017](0017-host-record-vocabulary.md) (rule 9 and its closing note on mandatory dates) and [decision 0019](0019-commit-pipeline.md) (rules 7, 8, 10 and 12).
+Status: proposed, 2026-11-18. A draft for the owner to read and correct before anything is built; none of it is built. A line marked `Owner decided:` is one of the owner's four decisions of 2026-11-18 (who makes keys by default, what a network failure does, the field map, one `save` call per commit). A line marked `Decided here:` is the drafter's choice where the study and the outside review disagree or leave a point open. Once accepted it amends [decision 0016](0016-host-identity.md) (rules 7 and 8), [decision 0017](0017-host-record-vocabulary.md) (rule 9 and its closing note on mandatory dates) and [decision 0019](0019-commit-pipeline.md) (rules 7, 8, 10 and 12).
 
 A *host* is the product that embeds the chart. This record designs the host's side first: the code a developer, and their coding assistant, writes to connect the chart to a backend. Every rule after the first section exists to make that code true.
 
 ## Connect the chart to your backend
 
-The imagined backend is a plain REST API: `GET /api/schedule` answers `{ tasks, links }`, tasks and links have `POST`, `PATCH /:id` and `DELETE /:id` routes, and a refusal is a 422 with `{ message, key?, field? }`. In React:
+The imagined backend is a plain REST API. `GET /api/schedule` answers `{ tasks, links }` in its own field names (`title`, `plannedStart`, `days`, `parentId`; a link's `source` and `target`). Tasks and links have `POST`, `PATCH /:id` and `DELETE /:id` routes. Every 4xx answer is a refusal with `{ message, key?, field? }`, and a request that repeats an `Idempotency-Key` is answered as the first one was. In React:
 
 ```tsx
 import { Gantt, SaveRefused, type Save } from "tachlon/react";
 import "tachlon/gantt.css";
 
-const api = async (method: string, path: string, body?: unknown) => {
-  const res = await fetch(`/api${path}`, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-  if (res.status === 422) throw new SaveRefused(await res.json()); // the server said no: { message, key?, field? }
-  if (!res.ok) throw new Error(`Not saved: the server answered ${res.status}.`);
+const fields = { // the chart's names on the left, this API's on the right; any other member of a row comes back untouched
+  tasks: { key: "id", name: "title", start: "plannedStart", duration: "days", parent: "parentId" },
+  links: { key: "id", from: "source", to: "target" },
+};
+
+const api = async (method: string, path: string, body?: unknown, once?: string) => {
+  const headers = { "content-type": "application/json", ...(once ? { "idempotency-key": once } : {}) };
+  const res = await fetch(`/api${path}`, { method, headers, body: JSON.stringify(body), signal: AbortSignal.timeout(10_000) });
+  if (res.status >= 400 && res.status < 500) throw new SaveRefused(await res.json()); // the server said no: the edit is put back
+  if (!res.ok) throw new Error(`The server answered ${res.status}.`);                  // no answer: the chart calls again
   return res.status === 204 ? undefined : res.json();
 };
 
-const save: Save = async ({ changes }) => {
-  for (const c of changes) {
-    const path = `/${c.record}s`; // "/tasks" or "/links"
-    if (c.record === "schedule") await api("PATCH", "/schedule", c.set);
-    else if (c.op === "create") await api("POST", path, { key: c.key, ...c.set });
-    else if (c.op === "update") await api("PATCH", `${path}/${c.key}`, c.set);
-    else if (!c.cascade) await api("DELETE", `${path}/${c.key}`); // the database drops a deleted task's links itself
+const save: Save = async ({ id, changes }) => {
+  for (const [i, c] of changes.entries()) {
+    const path = `/${c.record}s`, once = `${id}:${i}`; // the same on a repeated call, so the server applies each request once
+    if (c.record === "schedule") await api("PATCH", "/schedule", c.set, once);
+    else if (c.op === "create") await api("POST", path, c.set, once); // c.set.id is the key the chart made
+    else if (c.op === "update") await api("PATCH", `${path}/${c.key}`, c.set, once);
+    else if (!c.cascade) await api("DELETE", `${path}/${c.key}`, undefined, once); // the database drops a deleted task's links itself
   }
 };
 
 export function Schedule({ tasks, links, reload }: { tasks: Task[]; links: Link[]; reload: () => void }) {
   return (
-    <Gantt tasks={tasks} links={links} durationUnit="days" dateForm="day" keys="chart"
+    <Gantt tasks={tasks} links={links} fields={fields} durationUnit="days" dateForm="day"
       save={save} onError={(e) => e.source === "save" && reload()} style={{ height: 480 }} />
   );
 }
 ```
 
-With no framework, the same `api` and `save`:
+With no framework, the same `fields`, `api` and `save`:
 
 ```ts
 import { mount } from "tachlon";
 
-const chart = await mount(root, { ...(await api("GET", "/schedule")), durationUnit: "days", dateForm: "day", keys: "chart", save });
+const chart = await mount(root, { ...(await api("GET", "/schedule")), fields, durationUnit: "days", dateForm: "day", save });
 chart.on("error", async (e) => { if (e.source === "save") chart.setData(await api("GET", "/schedule")); });
 serverEvents.onmessage = (m) => chart.update(JSON.parse(m.data)); // rows the server changed later (rule 4.9)
 ```
 
-That is all of it. The host writes no save queue, no put-back, no diff, no "previous value" and no key bookkeeping. `tasks` and `links` are the host's rows in the chart's field names (rule 8.4 says why renaming is not in this record). A server that makes its own ids mounts with `keys="server"` and returns the ids from `save` (rule 5).
+That is all of it. The host writes no rename function, no save queue, no retry, no put-back, no diff, no "previous value" and no key bookkeeping. `tasks` and `links` are the rows as the API returns them (rule 8.4). The chart makes the key of a new row; a server that makes its own ids mounts with `keys="server"` and returns the ids from `save` (rule 5). A lost connection puts nothing back: the chart keeps the edits on screen, calls `save` again, and then asks the person (rule 3.6), so an error whose `source` is `"save"` always means edits were put back. An API that cannot take the same request twice mounts with `retry={false}` (rule 3.12).
 
 ## Context
 
@@ -57,7 +63,7 @@ The three components this one is compared with all own the save path. DHTMLX's d
 
 ## Decision
 
-Terms used below. *Host data* is the `tasks` and `links` the host gives the chart. A *commit* is one undo step (decision 0019, rule 1). A commit is *unsaved* from the moment it is made until its `save` settles: it is *in flight* while `save` runs for it and *queued* before that. A field is unsaved while an unsaved commit writes it; a row is unsaved while an unsaved commit creates or deletes it. A save *settles* when its promise resolves (saved) or rejects (failed).
+Terms used below. *Host data* is the `tasks` and `links` the host gives the chart. A *commit* is one undo step (decision 0019, rule 1). A *call* is one run of `save`; one change set may be called more than once (rule 3.6). A commit's save *settles* when a call resolves with a result the chart can use (*saved*) or when the chart puts the commit back (*put back*: rules 3.5, 3.6, 3.8 and 3.12). A call that fails and will be repeated settles nothing. A commit is *unsaved* from the moment it is made until its save settles: *queued* before its first call, and *in flight* from that call to the settle, the waits between calls included. A field is unsaved while an unsaved commit writes it; a row is unsaved while an unsaved commit creates or deletes it. Rules name fields by the chart's names; rule 8.4 says where a host sees its own.
 
 ### 1. The target
 
@@ -79,11 +85,11 @@ interface Change {
   cascade?: true;                      // a delete that follows from another delete in this change set
 }
 
-interface ChangeSet { id: string; seq: number; source: CommitSource; changes: readonly Change[] } // id: a UUID, new for every change set
+interface ChangeSet { id: string; seq: number; source: CommitSource; changes: readonly Change[] } // id: a UUID, new for every change set, the same on every call of it
 ```
 
 1. **One change per record.** A commit that sets three fields of one task carries one change with three members in `set` and the same three in `was`. A record appears at most once in a change set. This replaces the one-change-per-field shape of decision 0019, rule 7 (`field`, `old`, `new`), because a host saves records, and folding fields back into records was most of the 224 vocabulary lines.
-2. **`set` and `was`.** An update carries only the members that changed. A create carries the whole record as `snapshot()` writes it, `custom` included (rule 8.3), and no `was`. A delete carries the whole record in `was` and no `set`, so a host that keeps an audit trail or its own undo has what it removed. `was` is the last value the chart knows the server holds, read when the change set is sent (rule 3.3). In order: a value that `changed` or host data gave the field after the last save that wrote it was called; else the `set` of that last saved commit; else the value before the edit. So a server that compares `was` with its own row (rule 4.10) does not refuse an edit because of a change the server itself made.
+2. **`set` and `was`.** An update carries only the members that changed. A create carries the whole record and no `was`: every input member, the key under `keys: "chart"` (rule 5.3) and the row's custom fields (rule 8.3). A delete carries the whole record in `was`, its key included, and no `set`, so a host that keeps an audit trail or its own undo has what it removed. Member names in `set` and `was` are the host's (rule 8.4). `was` is the last value the chart knows the server holds, read when the change set is written (rule 3.3). In order: a value that `changed` or host data gave the field after the first call of the last saved commit that wrote it; else the `set` of that last saved commit; else the value before the edit. So a server that compares `was` with its own row (rule 4.10) does not refuse an edit because of a change the server itself made.
 3. **One unit, the one the host mounted with.** Durations and lags in `set` and `was` are in `durationUnit`. This fixes a stated inconsistency: `docs/WASM_API.md` (`App.take_commits`) says a commit's duration is "a number of days of the task's calendar", while `update` reads `durationUnit`. Decision 0017, rule 5 wins: one unit, in and out, on every surface. A host that mounts with hours gets hours.
 4. **Dates in the form the host chose.** Under `dateForm: "day"` every date in a change is `YYYY-MM-DD`, converted as decision 0017, rule 7 says (a finish-kind date is the day of its instant less one minute). `was` uses the same form, so a host compares it with what it stored.
 5. **References are keys.** `parent`, `after`, `from`, `to` and `calendar` hold the other record's key. The one exception is a row whose create in the same change set carries a `ref` (`keys: "server"`, the undo of a delete included, rule 5.6): every reference to it in that set is `{ ref }`, an object, so it cannot be read as a key and it follows whatever key the server answers. A change set never holds a session slot. `Decided here:` this replaces `{ task: slot }` at the save boundary, because a slot is valid only inside one session and a host that stored one would be wrong after a reload.
@@ -104,24 +110,39 @@ interface SaveResult {
   changed?: ServerChanges;                      // applied by key, with no undo step and no save call
 }
 
-/** Throw this from `save` when the server judged the change and said no. */
+/** Throw this from `save` when the server judged the change and said no. Any other throw means "no answer" (rule 3.6). */
 class SaveRefused extends Error { constructor(refusal: { message: string; key?: Key; field?: string }) }
 
-/** The `error` event of a failed save. `reload`: the chart could not put itself back, so its next data update replaces everything (rule 3.11). */
-interface SaveError { source: "save"; message: string; fatal: false; refused: boolean; key?: Key; field?: string; seq: number; undone: number; reload: boolean }
+/** The `error` event of a put-back; it fires once per put-back, after it. `calls`: how many times `save` ran for the change set.
+ *  `reload`: the chart could not put itself back, so its next data update replaces everything (rule 3.11). */
+interface SaveError { source: "save"; message: string; fatal: false; reason: "refused" | "failed" | "result"; calls: number;
+  key?: Key; field?: string; seq: number; undone: number; reload: boolean }
+
+type Retry = readonly number[] | false; // the waits before each repeated call, in milliseconds; default [1000, 3000, 9000] (rule 3.6)
 ```
 
 1. **`save` is a mount option and a prop.** `CommitSource` is `typed`, `drag`, `dialog`, `paste`, `proposal`, `assistant`, `host`, `undo` or `redo`; a `rollback` commit is never sent. A commit with no changes for the host is not sent. With no `save`, the chart behaves as 0.3.1 does and the host reads the `edit` event.
-2. **One call per commit, with the whole change set.** `Decided here:` not one call per record. The commit is the unit the chart can put back, so it must be the unit the host saves: a commit saved in three calls that fails on the second has no clean way back. A host coming from a batched library (Bryntum sends every store's `added`, `updated` and `removed` in one request [S2]) posts `changes` to one endpoint and saves it in one transaction. A host coming from a per-record library (DHTMLX sends one request per record [S1]) loops over `changes` in order, as the first section does. Under `keys: "server"` that loop also keeps a map from each `ref` to the id its `POST` returned and replaces a `{ ref }` it meets later in the same set: about four lines, which a change-set endpoint or chart-made keys never need.
-3. **One save in flight, in commit order.** The person keeps editing while a save runs; those commits queue. The chart calls `save` for the next commit only after the one before has settled and its result has been applied. A change set is written when it is sent, not when the commit is made, so it names every key that earlier saves assigned. `seq` rises with every commit and is never reused in a session; the gaps a `rollback` commit leaves are expected. Queued commits are not merged into one call (rule 13).
+2. **One call per commit, with the whole change set.** `Owner decided:` as drafted, not one call per record. The commit is the unit the chart can put back, so it must be the unit the host saves: a commit saved in three calls that fails on the second has no clean way back. A host coming from a batched library (Bryntum sends every store's `added`, `updated` and `removed` in one request [S2]) posts the change set to one endpoint and saves it in one transaction: `const save: Save = (cs) => api("POST", "/changes", cs, cs.id)`. A host coming from a per-record library (DHTMLX sends one request per record [S1]) loops over `changes` in order, as the first section does. Under `keys: "server"` that loop also keeps a map from each `ref` to the id its `POST` returned and replaces a `{ ref }` it meets later in the same set: about four lines, which a change-set endpoint or chart-made keys never need.
+3. **One save in flight, in commit order.** The person keeps editing while a save runs; those commits queue. The chart calls `save` for the next commit only after the one before is saved and its result has been applied, and it never has two calls running: a change set is called again only after its last call rejected. A change set is written at its first call, not when the commit is made, so it names every key that earlier saves assigned; a repeated call passes the same change set, unchanged. `seq` rises with every commit and is never reused in a session; the gaps a `rollback` commit leaves are expected. Queued commits are not merged into one call (rule 13).
 4. **Resolving means saved.** With no value: the server holds the change as sent. `keys` assigns server-made keys (rule 5). `changed` is what the server changed beyond what it was sent: rows it recalculated, a name it trimmed, a row a rule of its own deleted. The chart applies `changed` by key with no undo step, no `save` call and no before-edit call, by the rules of section 4.
-5. **Rejecting means not saved.** The chart puts itself back to the state before that commit, takes back every commit queued behind it as well (they were made on top of it; decision 0019, rules 10 and 11), fires `error` with a `SaveError`, and shows `message` in its alert line with the number of changes undone. For a `SaveRefused` with a `key` the chart selects that row, and with a `field` it shows the message at that cell. Rows whose commit is unsaved are dimmed as `setPending` dims them, by the chart, until the commit settles.
-6. **Any throw is handled the same way.** `Decided here:` a network failure is put back exactly as a refusal is; only `refused` differs. The chart cannot know whether the server holds a change whose response was lost, and it never retries by itself, because only the host knows whether its API is safe to call twice. A `save` that can retry safely does so before it throws; the change set's `id` is the value to send as an idempotency key, and it is the same on a retry. `seq` is not: it starts again at 1 in every session.
-7. **After a failed save, the host reads its data again.** The chart has put the edits back; the host's data then says what the server kept. This covers a lost response (the server did save: the edit comes back with the fresh data) and a per-record loop that failed part of the way (the server holds half: the fresh data shows it). The first section does this in `onError`.
-8. **A result the chart cannot use is a failed save.** A missing, extra or duplicate entry in `keys`, a key another row holds, `keys` under `keys: "chart"`, or a record in `changed` that the validator refuses: the chart treats the save as failed (rule 3.5) with a message that names the mistake. The server may hold the rows; the host's fresh data shows them.
-9. **Unsaved work at teardown.** `chart.state().unsaved` is the number of unsaved commits, and `chart.saved()` resolves when it reaches 0. `destroy()`, and so a React unmount, does not wait: the save in flight finishes and its result is ignored, and queued commits are dropped. A host that must not lose them warns on leave while `unsaved` is above 0, or awaits `saved()`. The chart sets no timeout on `save`; a promise that never settles holds the queue, and `unsaved` shows it.
-10. **A settle never waits for the person and never changes a value under their hands.** If a save fails while a cell is being edited or a bar is held, the chart cancels that gesture and puts back. If a save succeeds during a gesture, keys are assigned at once and the next save is sent; `changed`, held values and waiting rows (section 4) are applied when the gesture ends.
-11. **When the chart cannot put itself back** (the history no longer holds the commit after 200 steps, or the chart restarted on WebGL2 with commits unsaved), `SaveError.reload` is true, the queue and the history are emptied, and the next data update replaces everything the chart shows: every member applies and a row it lacks is removed (rule 4.5). The host does what it does after any failed save, as in the first section; it needs no other call. `Decided here:` the method `Gantt.save()`, which downloads the document, is renamed `download()` in the release that adds the `save` option, so that "save" has one meaning.
+5. **`SaveRefused` means the server said no, and the chart puts back at once.** A *put-back* restores the state before that commit, takes back every commit queued behind it as well (they were made on top of it; decision 0019, rules 10 and 11), fires `error` with a `SaveError`, and shows `message` in the chart's alert line with the number of commits undone. Here `reason` is `"refused"`; for a `key` the chart selects that row, and for a `field` (the host's name for it) it shows the message at that cell. A refused change set is never called again. Rows whose commit is unsaved are dimmed as `setPending` dims them, by the chart, until the commit settles or one of its calls fails (rule 3.6).
+6. **Any other throw is a failure, and a failure puts nothing back.** `Owner decided:` a lost connection, a timeout or a 5xx says nothing about the change, so the chart keeps every unsaved edit on screen and calls `save` again with the same change set (rule 3.12 says what that asks of the server). `Decided here:` the details.
+   - *The calls.* Up to three more: the first 1 second after the failure, the second 3 seconds after its own failure, the third 9 seconds after its own. That is `retry: [1000, 3000, 9000]`, the default. A host passes its own waits; `[]` means no automatic call, and the chart asks the person after the first failure.
+   - *What the person sees.* From the first failure, every row an unsaved commit touches carries a "not saved" mark where it was dimmed, and the alert line reads "Not saved yet. Trying again." Both go when the commit is saved.
+   - *Editing goes on.* New commits queue behind the failed one as always. None of them is called before it is saved, so order holds, and they are put back only if it is.
+   - *When the last call fails,* the chart stops calling. The alert line reads "Not saved: " and the message, with two buttons: "Try again" and "Discard N changes", N being the number of unsaved commits, kept current. It stays until the person chooses, however long, and editing still goes on. "Try again" calls once more and, if that fails, runs the waits again. "Discard" is the put-back of rule 3.5 for the failed commit and all behind it, with `reason: "failed"`.
+   - *For the host.* No `error` fires while the chart is repeating or stopped: `error` with `source: "save"` always means edits were put back. `chart.state().save` is `"idle"`, `"saving"`, `"retrying"` (a call failed and another will follow) or `"stopped"` (the chart is asking the person); a host with its own controls calls `chart.commands.retrySave()` and `chart.commands.discardUnsaved()`, which do what the buttons do and do nothing in any other state.
+   - *No timeout.* The chart never gives up on a call that is running; a promise that never settles holds the queue, and `unsaved` shows it. A `save` that should give up aborts its own request and throws, as the first section does.
+7. **After a put-back, the host reads its data again.** The chart has put the edits back; the host's data then says what the server kept. This covers a discard after a lost response (the server did save: the edit comes back with the fresh data) and a per-record loop refused part of the way (the server holds half: the fresh data shows it). The first section does this in `onError`.
+8. **A result the chart cannot use is put back, not repeated.** A missing, extra or duplicate entry in `keys`, a key another row holds, `keys` under `keys: "chart"`, or a record in `changed` that the validator refuses: the chart puts back as rule 3.5 does, with `reason: "result"` and a message that names the mistake. Calling again would get the same answer. The server may hold the rows; the host's fresh data shows them.
+9. **Unsaved work at teardown.** `chart.state().unsaved` is the number of unsaved commits, and `chart.saved()` resolves when it reaches 0. `destroy()`, and so a React unmount, does not wait: a call that is running finishes and its result is ignored, no further call is made, and every other unsaved commit is dropped. A host that must not lose them warns on leave while `unsaved` is above 0, or awaits `saved()`.
+10. **A settle never waits for the person and never changes a value under their hands.** If a put-back comes while a cell is being edited or a bar is held, the chart cancels that gesture first. A failed call that will be repeated cancels nothing. If a save succeeds during a gesture, keys are assigned at once and the next commit is called; `changed`, held values and waiting rows (section 4) are applied when the gesture ends.
+11. **When a put-back is due and the chart cannot do it** (the history no longer holds the commit after 200 steps, or the chart restarted on WebGL2 since the commit was made), `SaveError.reload` is true, the queue and the history are emptied, and the next data update replaces everything the chart shows: every member applies and a row it lacks is removed (rule 4.5). The host does what it does after any put-back, as in the first section; it needs no other call. `Decided here:` the method `Gantt.save()`, which downloads the document, is renamed `download()` in the release that adds the `save` option, so that "save" has one meaning.
+12. **`save` must be safe to repeat, or the host turns repeats off.** A repeated call must leave the server as one successful call would.
+    - *The change set's `id` is the idempotency key.* A server that has applied an `id` answers a repeat as it did the first time, with the same `keys` and `changed`, before any other check; the `was` comparison of rule 4.10 would otherwise refuse the server's own earlier write. It keeps answers for at least a day, because a person may press "Try again" hours later, and a repeat that arrives while the first is still being applied waits for it. `seq` is not a key: it starts again at 1 in every session.
+    - *Per-record routes* send the `id` with the change's position as each request's key, as the first section does. A repeat then goes through the requests already applied, each answered as before, and carries on with the rest.
+    - *`retry: false`* is for an API that cannot do this. The chart calls `save` once per change set and never again: any failure is put back at once, as rule 3.5 does, with `reason: "failed"`, and there are no buttons.
+    - *What an unsafe repeat costs.* Under `keys: "chart"` a repeated create carries the same key, so a server with a unique key refuses it, and the read after that put-back shows one row. Under `keys: "server"` nothing marks the repeat, and the server stores the row twice. So `keys: "server"` needs the idempotency key honored, or `retry: false`.
 
 ### 4. Who wins between host data and unsaved edits
 
@@ -130,34 +151,34 @@ interface SaveError { source: "save"; message: string; fatal: false; refused: bo
 3. **An unsaved field keeps its local value.** A new host value for it is *held* (the latest one wins) and does not show. Other fields of the same record update at once. So an outside change to a row with a change in flight shows right away in every field the person did not touch.
 4. **When the commit is saved,** the chart applies, in this order and in one synchronous step: the keys in `keys`; then `changed`; then held values; then waiting rows (rule 4.7). For a held value of a field that commit wrote, the first test that matches decides:
    - if `changed` sets that member, `changed` is applied and the held value for that member is dropped: the server has answered. Held values of members `changed` does not set are judged by the next two tests, and a `changed` member whose field a later commit still writes is held under rule 4.6;
-   - if the held value arrived before `save` was called for the commit, it is dropped: the save is newer;
-   - if it arrived while `save` was running, it is applied: the chart cannot know which the server took last, and the next data update corrects it if the save won.
+   - if the held value arrived before the commit's first call, it is dropped: the save is newer;
+   - if it arrived later, at any time from the first call to the settle, it is applied: the chart cannot know which the server took last, and the next data update corrects it if the save won.
 
    Rule 3.10 is the one exception to "one step": during a gesture, everything after the keys waits for the gesture to end, and counts as having arrived when the save settled.
 
    A field that a later unsaved commit also writes stays unsaved. A held value that this save's tests did not drop waits for that commit under the same three tests; one they dropped is gone.
-5. **When the commit fails,** it and the commits behind it are put back, and every held value for a field that is no longer unsaved is applied. The chart also forgets what it remembered (rule 4.2) for every record those commits touched, because the server may hold part of them or all of them. For those records the next data update is the truth and is not compared: every member applies whatever its value, and a touched row that the update lacks is removed, a row the chart created included. With `reload: true` (rule 3.11) this holds for every record. So the read the host makes after a failed save (rule 3.7) always lands.
+5. **When the commit is put back,** the commits behind it go with it, and every held value for a field that is no longer unsaved is applied. The chart also forgets what it remembered (rule 4.2) for every record those commits touched, because the server may hold part of them or all of them. For those records the next data update is the truth and is not compared: every member applies whatever its value, and a touched row that the update lacks is removed, a row the chart created included. With `reload: true` (rule 3.11) this holds for every record. So the read the host makes after a put-back (rule 3.7) always lands.
 6. **`changed` and `chart.update(changes)` are patches.** Each takes `ServerChanges`: records by key holding only the members to set. A member is applied at once unless its field is unsaved, in which case it is held under rule 4.4 (a `changed` value is always older than any commit still queued, so it is dropped when that commit is saved). A patch does not alter the remembered host data. `update` keeps taking the 0.3.1 array of task records.
-7. **Rows.** A key that is new in host data and unknown to the chart is added, with one exception: under `keys: "server"`, while a commit that creates a row is in flight, an unknown key *waits* until that save settles, because it may be the server's copy of the row the chart is still saving (rule 5.4). A key that is new in host data and already in the chart (a row the chart created, coming back) is compared with the chart's values member by member, and the differences apply as in rule 4.3. A key that is gone from host data is removed with its links; if the row has an unsaved change, the removal is held like a value. A row the chart created is not removed because host data lacks it: only a key that host data once held can go missing. Two things do remove it: the data update after a failed save that touched it (rule 4.5), and a `deleted` entry in `changed` or `update`. `Decided here:` a row the chart created, that host data has never listed, and that another person deletes, stays until one of those two happens; telling an old read from a delete needs a version, which rule 13 leaves out. A row in `changed` or `update` with an unknown key is added if the record is whole and refused (`unknownKey`) if it is not.
-8. **What the person deleted stays deleted** while host data still lists it, because an unchanged record is no difference. A member of it that changes in host data is remembered and changes nothing: the row comes back only when its key leaves host data and later returns. If the delete's save fails, the row comes back with the put-back.
+7. **Rows.** A key that is new in host data and unknown to the chart is added, with one exception: under `keys: "server"`, while a commit that creates a row is in flight, an unknown key *waits* until that save settles, however many calls that takes, because it may be the server's copy of the row the chart is still saving (rule 5.4). When the save settles as a put-back, the waiting rows are added after it. A key that is new in host data and already in the chart (a row the chart created, coming back) is compared with the chart's values member by member, and the differences apply as in rule 4.3. A key that is gone from host data is removed with its links; if the row has an unsaved change, the removal is held like a value. A row the chart created is not removed because host data lacks it: only a key that host data once held can go missing. Two things do remove it: the data update after a put-back that touched it (rule 4.5), and a `deleted` entry in `changed` or `update`. `Decided here:` this stays a stated limit. A row the chart created, that host data has never listed, and that another person deletes, stays until one of those two happens. Chart-made keys (rule 5.3) do not close it: the server knows the row by its key from the create on, but a data update that lacks the key may be a read that began before the create was saved, and telling that from a delete needs a version, which rule 13 leaves out. Two things keep it small. It ends the first time host data lists the row. And an edit of the leftover row reaches a server that does not hold its key; that server's refusal is a put-back that touched the row, so the read after it removes the row. A row in `changed` or `update` with an unknown key is added if the record is whole and refused (`unknownKey`) if it is not.
+8. **What the person deleted stays deleted** while host data still lists it, because an unchanged record is no difference. A member of it that changes in host data is remembered and changes nothing: the row comes back only when its key leaves host data and later returns. If the delete is put back, the row comes back.
 9. **A late result is a data update like any other.** A server that recalculates asynchronously and reports minutes later sends its changes through `update` (or the host puts them in its data), and rules 4.2 to 4.7 apply as written: fields with an unsaved change keep the person's value, every other field takes the late one. The chart has no version check, so two duties fall to the server. It sends only the rows and members it changed, never a whole schedule read before the last save settled. And it sends inputs only: a computed date is not an input. `start` in a record is a wanted start and is kept as a start-no-earlier-than limit (decision 0017), so a server sends `start` only where it means that. Comparing a server's computed dates with the chart's own is row `tl2087hd`, not this record. While a late result is expected, the host marks the rows with `pending`, which is a hint and not a lock.
-10. **`was` is the server's conflict check.** The chart resolves nothing between two people. A server that must not let a save overwrite an outside change compares `was` with what it holds and refuses.
+10. **`was` is the server's conflict check.** The chart resolves nothing between two people. A server that must not let a save overwrite an outside change compares `was` with what it holds and refuses, after it has checked for a repeated `id` (rule 3.12).
 
 ### 5. Keys for new rows
 
-1. **With `save`, the host says who makes keys: `keys: "chart"` or `keys: "server"`.** `Decided here:` there is no default; `mount` rejects a `save` without `keys`. The outside review asked for chart-made keys by default and the study for server-made. Either default fails quietly for the host that needed the other one, and rule 4.2 makes that failure a lasting duplicate row, so the choice costs one word and is never a guess. Both modes are first-class and pass the same scenarios (rule 10).
+1. **The chart makes the key of a new row, unless the host says the server does.** `Owner decided:` `keys: "chart"` is the default, because a row that has its key from the start cannot appear twice. `keys: "server"` is the one-word opt-in for a host whose server makes ids. Both modes are first-class and pass the same scenarios (rule 10). The default has one trap, a server that makes its own ids behind a host that left `keys` out; rule 5.3 says how it shows.
 2. **Every row has a key.** With `save`, a task or link in host data with no `key` is refused (`noKey`) at `mount` and in `setData`. A record that has a `key` may leave `id` out, and `parent`, `from` and `to` then name keys; a payload names records by `id` throughout or by `key` throughout, never both. `Decided here:` this loosens decision 0016, rule 8, so a host passes its rows in the shape that changes come back in.
-3. **`keys: "chart"`.** The chart makes the key when the row is made, before the commit is written, with `crypto.randomUUID()` or the host's `newKey: () => string`. The create carries it in `key`, there is no `ref`, and a reference to the row is its key from the first change on. The server stores that key as the row's id, or beside its own id, and gives it back as `key` in host data. The row is never without a key, so it cannot appear twice.
-4. **`keys: "server"`.** The create carries `key: null` and a `ref`. `save` returns one `{ ref, key }` for it. The key is assigned when the save settles, as the first thing in the synchronous step of rule 4.4: before `changed`, before any held value and before any waiting row. Until then an unknown key in host data waits (rule 4.7). So when the server's copy of the row reaches the chart, early or late, the chart's row already holds that key and the two are one row. Edits the person made to the new row meanwhile are queued, and their change sets are written after the key exists (rule 3.3).
-5. **A refused create** takes the row away with the put-back, and every queued commit that touched it (rule 3.5).
+3. **`keys: "chart"`.** The chart makes the key when the row is made, before the commit is written, with `crypto.randomUUID()` or the host's `newKey: () => string`. The create carries it in `key` and, under the host's name for the key, in `set`; there is no `ref`, and a reference to the row is its key from the first change on. The server stores that key as the row's id, or beside its own id, and gives it back as the row's key in host data. The row is never without a key, so the server's copy and the chart's row are one row whenever the copy arrives. A server that ignores the key and gives the row an id of its own breaks this: its row arrives in host data under a key the chart does not know and shows beside the chart's own, and the chart cannot tell that from another person's new row. There are two guards. A result that carries `keys` in this mode is put back with a message that says to mount with `keys: "server"` (rule 3.8). And a data update that lacks the key of a create already saved, and adds an unknown key of the same record type, logs one console warning per session that names both keys and the `keys` setting.
+4. **`keys: "server"`.** The create carries `key: null` and a `ref`. `save` returns one `{ ref, key }` for it. The key is assigned when the save settles, as the first thing in the synchronous step of rule 4.4: before `changed`, before any held value and before any waiting row. Until then an unknown key in host data waits (rule 4.7). So when the server's copy of the row reaches the chart, early or late, the chart's row already holds that key and the two are one row. Edits the person made to the new row meanwhile are queued, and their change sets are written after the key exists (rule 3.3). A repeated call must be answered with the same key, or the server holds the row twice (rule 3.12).
+5. **A create that is put back** takes the row away, and every queued commit with it (rule 3.5).
 6. **The undo of a delete** is a create that carries the key the row had. Under `keys: "server"` it also carries a `ref`, and the result may answer with a new key: the chart then gives the row the new key and the old one is free. History entries follow, because the history holds slots and never keys (decision 0016, rule 1).
 
 ### 6. Undo
 
 1. **The host says who owns the history: `history: "chart"` (default) or `history: "host"`.** Both are first-class.
-2. **`"chart"`: one history, in the chart.** Undo and redo are commits with `source: "undo"` and `"redo"`, and they reach `save` as any commit does: the undo of an edit is an update with `set` and `was` swapped, the undo of an insert is a delete, and the undo of a delete is a create (rule 5.6) followed by creates for its links. `save` may refuse one; the put-back then restores the state before the undo, and the step is on the undo list again. What the host needs: an API that accepts the reverse of everything it accepts, which means it can make a deleted row again from the record in `set`, with `custom`. For its own toolbar it reads `chart.state().canUndo` and `canRedo` and calls `chart.commands.undo()`. A host-only action is an entry on the same history, as decision 0019, rule 12 says.
-3. **`"host"`: the host owns history and the chart's own undo is off.** The undo and redo keys fire `undo` and `redo` events, as the find key fires `find`, and change nothing. The host records what it needs from each change set (`set` and `was`), runs its own reverse against its API, and the result arrives as host data (section 4), never as a commit. The chart still puts a failed save back; that is not undo. What the host needs: its own stack and a reverse for each action.
-4. **Entries a failed save makes stale.** A put-back removes the failed commit and those behind it from the undo list and leaves no redo step for them (`App.rollback_to` in `docs/WASM_API.md`).
+2. **`"chart"`: one history, in the chart.** Undo and redo are commits with `source: "undo"` and `"redo"`, and they reach `save` as any commit does: the undo of an edit is an update with `set` and `was` swapped, the undo of an insert is a delete, and the undo of a delete is a create (rule 5.6) followed by creates for its links. `save` may refuse one; the put-back then restores the state before the undo, and the step is on the undo list again. What the host needs: an API that accepts the reverse of everything it accepts, which means it can make a deleted row again from the record in `set`, with its custom fields and, under `keys: "chart"`, under the key it had. For its own toolbar it reads `chart.state().canUndo` and `canRedo` and calls `chart.commands.undo()`. A host-only action is an entry on the same history, as decision 0019, rule 12 says.
+3. **`"host"`: the host owns history and the chart's own undo is off.** The undo and redo keys fire `undo` and `redo` events, as the find key fires `find`, and change nothing. The host records what it needs from each change set (`set` and `was`), runs its own reverse against its API, and the result arrives as host data (section 4), never as a commit. The chart still puts a commit back when its save is refused or discarded (rules 3.5 and 3.6); that is not undo. What the host needs: its own stack and a reverse for each action.
+4. **Entries a put-back makes stale.** A put-back removes the commit and those behind it from the undo list and leaves no redo step for them (`App.rollback_to` in `docs/WASM_API.md`).
 5. **Entries a server change makes stale.** An undo or redo step is stale when a server change (`changed`, a data update or `update`) gives a field the step wrote a value other than the one the step wrote, or removes a record the step touches. `Decided here:` a stale undo step leaves the history together with every step older than it; newer steps stay. If any redo step is stale, the redo list is emptied. Reason: steps are taken back newest first, and an older step was recorded against a state the stale step can no longer restore. The chart says so once in its alert line ("3 undo steps were removed: the server changed those rows") and `canUndo` follows. A server change that sets a field to the value the step wrote makes nothing stale.
 
 ### 7. `beforeEdit` beside `save`
@@ -170,19 +191,37 @@ interface SaveError { source: "save"; message: string; fatal: false; refused: bo
 
 ### 8. What the host says once, at start
 
-1. **Five settings describe the host; none is stored in the document.**
+1. **These settings describe the host; none is stored in the document.** Each is an option of `mount` and a prop of the components.
 
    | Setting | Values | Says |
    |---|---|---|
+   | `fields` | a map for tasks and one for links | the host's name for each chart field (rule 8.4) |
    | `durationUnit` | `"days"`, `"hours"`, `"minutes"` | the unit of every duration and lag, in and out (decision 0017, rule 5) |
    | `dateForm` | `"minute"`, `"day"` | the form of every date out (decision 0017, rule 7) |
-   | `keys` | `"chart"`, `"server"` | who makes the key of a new row (rule 5) |
-   | `history` | `"chart"`, `"host"` | who owns undo (rule 6) |
+   | `keys` | `"chart"` (default), `"server"` | who makes the key of a new row (rule 5) |
+   | `retry` | waits in milliseconds (default `[1000, 3000, 9000]`), `false` | when a failed call is repeated (rules 3.6 and 3.12) |
+   | `history` | `"chart"` (default), `"host"` | who owns undo (rule 6) |
    | `capabilities` | the profile below | what the host's database can take (decision 0018, rules 9 to 12) |
 
 2. **The profile gains four members.** `constraints: { types: ConstraintType[] }` lists the constraint types a person may set (`[]` for none; rule 9). `durationStep` and `lagStep` are `"minute"`, `"hour"` or `"day"`: a typed value that is not a whole step is refused, and a drag snaps to the step. `editable.structure` splits into `rows` (insert and delete), `outline` (indent, outdent and move) and `paste`. The profile is a prop of the React, Vue and Angular components. Each member is enforced at the gate and changes no computed number.
-3. **Custom fields survive the round trip.** A task or link may carry `custom`, a JSON object the chart never reads. It stays with the record, a data update or patch replaces it whole, a create writes it in `set`, a delete writes it in `was`, and `snapshot()` returns it. It is in this record because the undo of a delete must give the host back its own columns (rule 6.2); without it that create loses data. The chart does not show or edit `custom` (columns are rule 13), and the document does not store it yet. An unknown member outside `custom` is still left out and counted, as decision 0017, rule 9 says, so a misspelled field name is still reported.
-4. **A field map is the next record, not this one.** `Decided here:` a map from the host's field names to the chart's (as Syncfusion's `taskFields` does [S4]) would remove the host's rename function, and it is wanted. It is left out here for three reasons. It changes no rule in this record: every surface already uses one vocabulary (decision 0017, rule 1), so a map is one table applied at one boundary. A map that is only partly right is worse than none, and a complete one must settle nested shapes (the constraint, a link's ends, calendars), name clashes, and how a mapped custom field becomes a column, which belongs with column configuration. And rule 11 counts the rename function's lines on their own, so the cost of waiting is measured.
+3. **Custom fields pass through.** A member of a task or link in host data that is not a chart field, once the map of rule 8.4 is applied, is a *custom field*. `Owner decided:` the chart keeps it with the record, never reads, shows or edits it, and gives it back unchanged under the same name, in a create's `set` and a delete's `was`. So the create that undoes a delete gives the host back its own columns (rule 6.2). A data update or patch sets a custom field as it sets any member, compared by value; no edit writes one, so it is never unsaved and never held. A row the person makes in the chart has none. This amends decision 0017, rule 9, which left an unknown member of a task or link out and counted it in `leftOut`. The cost: a misspelled member (`durration`) is kept and no longer counted. `chart.state().customFields` lists the names seen for tasks and for links, so a developer finds it there. The chart does not show custom fields (columns are rule 13), and the document does not store them yet.
+4. **The field map.** `Owner decided:` the map is in this record, so a host writes no rename function (Syncfusion's `taskFields` is the same idea [S4]).
+
+   ```ts
+   interface Fields {
+     tasks?: { [chartField: string]: string | { type: string; date: string } }; // the object form is for `constraint` only
+     links?: { [chartField: string]: string };
+   }
+   ```
+
+   - *What it says.* Each entry gives one chart field (decision 0017's names, and `key`) the host's name for it: `{ name: "title", start: "plannedStart", duration: "days" }`. A chart field with no entry keeps its own name. The map is read once, at start, so an object written inline in a render is safe and a later change to it does nothing. The map renames members and converts no value: units are `durationUnit`, dates are `dateForm`, and a reference holds a key (rule 2.5).
+   - *Where it applies.* Wherever a task or link crosses between host and chart: host data at `mount`, in props and in `setData`; `update` and `changed`; `set` and `was` in every change (`save`, the `edit` event, the before-edit payload); and `field` in `SaveRefused` and `SaveError`. It does not apply to a change's own members (`record`, `op`, `key`, `ref`, `cascade`), to a `schedule` change, or to the document and `snapshot()`, which keep the chart's names.
+   - *The key.* `key: "id"` says the host's `id` member is the row's key. A create under `keys: "chart"` then carries the new key as `set.id`, and `parent`, `from` and `to` hold such ids under whatever names the map gives those fields.
+   - *The typed constraint* (section 9) maps as one member that holds `{ type, date }` or `null` (`constraint: "limit"`), or as two flat members (`constraint: { type: "constraintType", date: "constraintDate" }`). In the flat form both members are `null` for no constraint, a change that writes the constraint writes both in `set` and both in `was`, and a record with only one of the two set is refused. The `type` values are the six of section 9. An entry for `constraint` under `constraintForm: "separate"` is refused at `mount`.
+   - *One to one, checked at `mount` before any data is read.* Three mistakes make `mount` reject, with a message that names the fields: an entry for a chart field that does not exist; one host name given to two chart fields; and a host name that is the own name of another chart field that has no entry (`{ name: "start" }` alone, where the host's `start` would feed two fields). One exception: `key: "id"` needs no entry for the chart's own `id`, which a record with a key leaves out (rule 5.2).
+   - *Two host members never feed one chart field.* Once a chart field has an entry, a host member that carries the chart's own name for that field is not that field: with `name: "title"`, a row's own `name` member is a custom field and passes through (rule 8.3).
+   - *A host name no row carries.* When the first host data that holds rows has none with a mapped name, the chart logs one console warning that names it; the misspelling would otherwise show only as an empty column.
+   - *Out of scope.* Nested paths (`"dates.start"`), computed fields (a finish made from two columns), value conversion (a status word to a percent, another spelling of a link type or constraint type) and ids that are numbers (a key is text: decision 0016, rule 3). A host with any of those maps them in its own code, before `tasks` and inside `save`, and rule 11 counts those lines.
 
 ### 9. The typed constraint at the boundary
 
@@ -191,8 +230,8 @@ type ConstraintType = "snet" | "snlt" | "fnet" | "fnlt" | "mso" | "mfo";
 type Constraint = { type: ConstraintType; date: string } | null;
 ```
 
-1. **A task has one member, `constraint`,** in host data, changes, patches and the before-edit payload. `null` is no constraint. The type names are decision 0017's limit names. Host stores and exchange files hold one typed constraint per activity, and the reference host's 71 lines of limit mapping exist only because the chart speaks six separate fields.
-2. **`constraint` and the six date-limit members are two spellings of the same engine bounds.** A task in host data that carries both is refused. Which spelling the chart writes is a sixth setting of the kind in rule 8.1: `constraintForm: "typed" | "separate"`. `Decided here:` the default stays `"separate"` through 0.3.x so no host breaks, and becomes `"typed"` at 0.4.0. `alap` and `resume` are not date limits and stay their own members.
+1. **A task has one member, `constraint`,** in host data, changes, patches and the before-edit payload. `null` is no constraint. A host that stores it as two columns says so in the field map (rule 8.4). The type names are decision 0017's limit names. Host stores and exchange files hold one typed constraint per activity, and the reference host's 71 lines of limit mapping exist only because the chart speaks six separate fields.
+2. **`constraint` and the six date-limit members are two spellings of the same engine bounds.** A task in host data that carries both is refused. Which spelling the chart writes is one more setting of the kind in rule 8.1: `constraintForm: "typed" | "separate"`. `Decided here:` the default stays `"separate"` through 0.3.x so no host breaks, and becomes `"typed"` at 0.4.0. `alap` and `resume` are not date limits and stay their own members.
 3. **The mapping.**
 
    | `type` | Engine bound (decision 0017, "A task") |
@@ -209,30 +248,35 @@ type Constraint = { type: ConstraintType; date: string } | null;
 
 ### 10. The fake server and its scenarios
 
-1. **The example app is the first section's code against a fake server that misbehaves on purpose.** The server lives under `examples/`, holds its rows in memory, is deterministic from a seed, and takes a script: latency per request, which request to refuse and with what, when to change a row from outside, when to push a late result, when to drop a response. It serves both route styles (per record, and one change-set endpoint) and both key modes. The suite drives the chart in a browser, and the example passes every scenario unchanged in both key modes.
+1. **The example app is the first section's code against a fake server that misbehaves on purpose.** The server lives under `examples/`, holds its rows in memory, is deterministic from a seed, and takes a script: latency per request, which request to refuse and with what, when to change a row from outside, when to push a late result, when to drop a request or a response, and whether to honor a repeated idempotency key. Its rows use its own field names, as the first section's backend does. It serves both route styles (per record, and one change-set endpoint) and both key modes. The suite drives the chart in a browser. Under `keys: "chart"` it runs the first section's code as written. Under `keys: "server"` it runs a copy that differs in that setting and in a `save` that returns the keys (rule 3.2), and in nothing else. A scenario that names a setting (`retry: false` in scenario 15) changes that setting only.
 2. **The scenarios.**
    1. *Slow saves.* With 800 ms of latency, three typed edits reach the server as three calls in commit order, never two at once.
-   2. *A field refusal.* The server refuses a duration over 100 days with a message, the key and `field: "duration"`; the cell goes back, the row is selected and the message shows at the cell.
-   3. *A server-made key.* An inserted row takes its key from the result and appears once, also when the host's fresh data with that row lands before the result does.
-   4. *An edit before the key.* A row is inserted and renamed before its save returns; the rename is saved second and names the server's key.
+   2. *A field refusal.* The server refuses a duration over 100 days with a message, the key and `field: "days"`, its own name for it; the cell goes back, the row is selected and the message shows at the duration cell.
+   3. *A new row's key.* An inserted row appears once, under the key the chart made or the key the result gives, also when the host's fresh data with that row lands before the result does.
+   4. *An edit before the create is saved.* A row is inserted and renamed before its save returns; the rename is saved second and names the row's key.
    5. *A refused create with edits behind it.* The server refuses the insert of scenario 4; the row and its rename both go, and one message says two changes were undone.
    6. *A server recalculation.* Saving a duration makes the server change the constraint of two rows the person did not touch and return them in `changed`; they update with no undo step, and undo takes back only the person's edit.
    7. *An outside change during a save.* While a save is in flight another user changes the same row; the field the person did not touch shows at once, and the field they did touch waits and ends on the server's value.
    8. *A late result.* Two minutes after a save the server pushes new values for five rows, one of which has an unsaved edit; four update and the fifth keeps the edit until its save settles.
    9. *An old read.* A full read that began before a save, and before a delete, returns after both; the saved value stays and the deleted row does not come back.
-   10. *A lost response.* The server stores a create and the response is dropped; the chart puts the row back, the host reads again, and the row appears once.
-   11. *A failure part of the way.* On per-record routes the second of three requests of one commit is refused; the chart puts the commit back, the host reads again, and the chart shows what the server kept.
-   12. *Undo across the server.* A task with two links and a `custom` value is deleted and the delete undone: the server gets the task create and then the link creates, `custom` is intact, and when the server refuses that undo the task is gone again and the step is back on the undo list.
+   10. *A lost response.* The server stores a create and drops the response; the row stays, marked not saved, the chart calls again with the same `id`, the server answers as it did the first time, and the row appears once with nothing put back.
+   11. *A failure part of the way.* On per-record routes the second of three requests of one commit is refused; the chart puts the commit back, the host reads again, and the chart shows what the server kept. When that request is dropped instead, the repeated call goes through the first request again, the server applies it once, and the commit is saved whole.
+   12. *Undo across the server.* A task with two links and a column the chart does not know is deleted and the delete undone: the server gets the task create and then the link creates, the column's value is intact, and when the server refuses that undo the task is gone again and the step is back on the undo list.
+   13. *The server is away.* It drops every request while the person makes three edits. All three stay on screen, marked not saved; the first is called four times at the default waits and the others not at all; the chart then stops and asks. The server comes back, the person presses "Try again", and the three reach the server once each, in commit order.
+   14. *Discard.* As scenario 13, but the person presses "Discard 3 changes": the three are put back, `error` fires once with `reason: "failed"`, `calls: 4` and `undone: 3`, and the host reads again.
+   15. *Repeats off.* With `retry: false`, a dropped response puts the commit back at once, `save` has run once, and the host's read shows the row the server kept, once.
+   16. *The host's own names.* Every `set` and `was` the server receives uses its own field names, a create carries the new key as `id`, and a row that has both `title` and a `name` member of its own keeps both.
+   17. *A server that does not honor the key.* Told to ignore repeated idempotency keys, the fake server refuses the repeated create of scenario 10 under `keys: "chart"`, and the read after the put-back shows one row; under `keys: "server"` it stores two rows and the chart shows two. The suite expects exactly that, as the record of what rule 3.12 warns of.
 
 ### 11. How we will know it worked
 
 | Measure | Target |
 |---|---|
-| Lines of host code around the chart in the reference host, measured before and after (the headline number) | 100 or fewer, from 659; the study's floor is about 60. The rename function is counted on its own line |
+| Lines of host code around the chart in the reference host, measured before and after (the headline number) | 100 or fewer, from 659; the study's floor is about 60. No rename function is among them; what rule 8.4 leaves out of scope is counted on its own line |
 | State the host holds for the chart: refs, state hooks, queues, diffs | none for saving or syncing |
 | Chart members the example touches | 12 props or fewer, and no method on the chart handle in React |
 | The example, every file except the fake server | 80 lines or fewer |
-| The scenario suite | 12 of 12 in both key modes, with the example unchanged |
+| The scenario suite | every scenario of rule 10.2 in both key modes, with the example as rule 10.1 says |
 | A cold run: a fresh coding assistant given only the README and the fake server writes the integration | it passes the suite in each of three runs; lines, errors and turns are recorded for each |
 
 A line count alone invites a toy, so no single row of this table passes the work; all six do.
@@ -244,9 +288,9 @@ The order is the outside review's, and this record agrees with it: `save` takes 
 | Step | What ships | Covered by | What breaks for a 0.3.1 host |
 |---|---|---|---|
 | 0 | The fake server, the scenario suite and the example, failing | none | nothing |
-| 1 | Record-shaped changes (section 2), one unit, `dateForm: "day"` | no row found; `tl2090dd` covers the displayed form only | `edit` commits and the before-edit payload change from `field`, `old`, `new` to `set`, `was`; a host mounted with hours or minutes gets durations in its unit, not days |
-| 2 | Data in place by key (section 4): props, `setData`, `update` with every input field, links and deletes; `capabilities`, `pending` and `selectedKey` as props; `custom` | `tl2087cp`, `tl2087uc`; links, creates and deletes by key: no row found | a changed `tasks` or `links` prop no longer starts the chart again; a host that relied on that sets a React `key` or calls `load` |
-| 3 | `save`, the queue, put-back, `keys`, `changed`, `SaveError`, `state().unsaved` (sections 3 and 5) | `tl2091sq`; its engine half is merged | nothing without `save`; `Gantt.save()` is renamed `download()` |
+| 1 | Record-shaped changes (section 2), one unit, `dateForm: "day"`, the field map and custom fields (rules 8.3 and 8.4) | no row found; `tl2090dd` covers the displayed form only; the field map: not searched | `edit` commits and the before-edit payload change from `field`, `old`, `new` to `set`, `was`; a host mounted with hours or minutes gets durations in its unit, not days; an unknown member of a task or link is kept as a custom field, not left out and counted |
+| 2 | Data in place by key (section 4): props, `setData`, `update` with every input field, links and deletes; `capabilities`, `pending` and `selectedKey` as props | `tl2087cp`, `tl2087uc`; links, creates and deletes by key: no row found | a changed `tasks` or `links` prop no longer starts the chart again; a host that relied on that sets a React `key` or calls `load` |
+| 3 | `save`, the queue, repeated calls and `retry`, put-back, `keys`, `changed`, `SaveError`, `state().unsaved` and `state().save` (sections 3 and 5) | `tl2091sq`; its engine half is merged | nothing without `save`; `Gantt.save()` is renamed `download()` |
 | 4 | The typed constraint and `mandatoryDates` (section 9), then the profile values and snapping (rule 8.2) | no row found for the constraint; `tl2090cq`, `tl2090sn`; the `structure` split: no row found | `editable.structure` becomes `rows`, `outline` and `paste`; at 0.4.0 changes write `constraint` |
 | 5 | Undo (section 6): `history`, `canUndo`, `canRedo`, stale steps, host-only entries | issue tl#2092; no row found | nothing under the default |
 
@@ -255,32 +299,34 @@ The study's R8 (asking `beforeEdit` again at a drag's release) is dropped (rule 
 ### 13. Not in this record
 
 - **Resources and assignments** in host data. A task keeps its display-only `resources` list (decision 0017).
-- **Column configuration:** which columns, their order and width, cell renderers, and columns for `custom` members.
-- **The field map** (rule 8.4): the next record.
+- **Column configuration:** which columns, their order and width, cell renderers, and columns for custom fields.
+- **Nested, computed and converted fields in the field map,** and ids that are numbers (rule 8.4).
 - **A transport.** The chart never calls `fetch` and takes no URL. The host's routes are the host's; a helper that builds a `save` from a base URL can come later without changing this contract.
-- **Merging queued commits** into one call, **retries** and an **offline queue.** `save` retries inside itself (rule 3.6).
+- **Merging queued commits** into one call, and an **offline queue.** Unsaved commits live in the page's memory and are lost with the page (rule 3.9).
 - **Versions and merging between people.** No revision numbers, no ETags, no operational transforms. The server refuses in `save` (rule 4.10).
 - **Calendar edits through `save`.** A person cannot edit a calendar in the chart today.
-- **`custom` in the document format.**
+- **Custom fields in the document format.**
 - **Comparing a server's computed dates with the chart's** (`tl2087hd`).
 
 ## Consequences
 
 - Decision 0019, rule 7 keeps the commit and its `seq` and `source`; the change inside it takes the shape of section 2. Rule 10's queue is built as section 3 says, and `assignKey` becomes something the queue calls, not the host.
 - Decision 0016, rule 7 stands for a chart with no `save`. With `save`, a row is keyless only between its create and that create's settle under `keys: "server"`, and never under `keys: "chart"`.
+- Decision 0017, rule 9 changes for a task or link in host data: an unknown member is a custom field (rule 8.3). An unknown top-level or `options` member is still refused.
 - `docs/WASM_API.md` (`App.take_commits`) and the README's `update` paragraph state one unit after step 1.
 - `ErrorSource` gains `"save"`. The README gains "Connect to your backend", which is the first section of this record.
 - The React, Vue and Angular components stop listing `tasks` and `links` among the props that start the chart again.
 
 ## What could not be verified
 
-- Bryntum's own documentation pages did not open (the guide and API pages returned a 404 or a site overview). That its sync is one batched request with per-store `added`, `updated` and `removed`, and that a created record is answered with `$PhantomId` and `id`, is verified from a tutorial on the vendor's blog [S2] and the vendor's skill file [S3]. Whether a sync response may carry other rows the server changed, and what the component does after a failed sync: not verified.
+- Bryntum's own documentation pages did not open (the guide and API pages returned a 404 or a site overview). That its sync is one batched request with per-store `added`, `updated` and `removed`, and that a created record is answered with `$PhantomId` and `id`, is verified from a tutorial on the vendor's blog [S2] and the vendor's skill file [S3]. Whether a sync response may carry other rows the server changed, and what the component does after a failed sync: not verified. So rule 3.6's repeated calls and their waits are this record's own choice, checked against no other component; whether DHTMLX or Syncfusion repeat a failed request was not read either.
+- Whether a backlog row already covers the field map or the repeated calls was not searched.
 - What P6 and MS Project do with a mandatory date when logic pushes past it (rule 9.4) is from memory: not verified.
 - Nothing in this record was run. Every statement about today's behavior comes from reading `origin/main` at `45d86f2`.
 
 ## Rows this governs
 
-`tl2091sq` (section 3), `tl2087cp` and `tl2087uc` (section 4), `tl2090cq` and `tl2090sn` (rule 8.2), issue tl#2092 (section 6), and the rows still to be written for steps 0, 1, 2 (links, creates and deletes by key) and 4 (the typed constraint, the `structure` split).
+`tl2091sq` (section 3), `tl2087cp` and `tl2087uc` (section 4), `tl2090cq` and `tl2090sn` (rule 8.2), issue tl#2092 (section 6), and the rows still to be written for steps 0, 1 (the field map and custom fields included), 2 (links, creates and deletes by key), 3 (repeated calls) and 4 (the typed constraint, the `structure` split).
 
 ## Sources
 
