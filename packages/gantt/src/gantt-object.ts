@@ -14,6 +14,7 @@ import { snapshot } from "./snapshot.js";
 import { localDate, measureText, printColumns } from "./print-sheet.js";
 import type { Gantt, MountOptions } from "./index.js";
 import { update } from "./update.js";
+import type { SetData } from "./host-data.js";
 import type { HasOn } from "./events.js";
 import type { Speed } from "./speed.js";
 
@@ -44,6 +45,8 @@ export interface GanttParts {
   speed: () => Speed;
   /** The unit of the host's durations (`MountOptions.durationUnit`). */
   unit: MountOptions["durationUnit"];
+  /** `setData` against the rows this start was given (`host-data.ts`). */
+  setData: SetData;
 }
 
 /** The `Gantt` of one start; `destroy` takes down what `shell.disposers` holds, then frees the app and empties the root. */
@@ -178,6 +181,10 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     update: (records) => {
       alive();
       return update(app, p.busy, p.unit, records, p.wrote);
+    },
+    setData: (data) => {
+      alive();
+      return p.setData(data, shell.status().epoch, (records) => update(app, p.busy, p.unit, records, p.wrote));
     },
     speed: () => {
       alive();

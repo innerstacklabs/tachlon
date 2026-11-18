@@ -172,3 +172,32 @@ test("a host's own finish dates go through App.update_tasks and update: the one 
   expect(await page.evaluate((r) => window.upChart.update(r), records), "update hands the same list to the host").toEqual({ ok: true, updated: 2, differs: named });
   expect(await page.evaluate(() => window.upChart.update([{ key: "k0", hostFinish: "2026-03-03" }])), "a host date that matches leaves no differs member").toStrictEqual({ ok: true, updated: 1 });
 });
+
+test("setData sets only the 20 changed durations: selection, scroll and the undo list hold, old rows do not undo a rename, and the same rows again do nothing", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(40) });
+  await page.locator('#table-rows .row[data-row="2"] .name').dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("Renamed");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => window.edits.length > 0);
+  await page.evaluate(() => { window.edits.length = 0; });
+  await expect.poll(async () => {
+    await page.evaluate(() => { document.querySelector("#table-body")!.scrollTop = 25 * document.querySelector("#table-rows .row")!.getBoundingClientRect().height; });
+    await frames(page);
+    return page.locator('#table-rows .row[data-row="30"]').count();
+  }).toBe(1);
+  await page.locator('#table-rows .row[data-row="30"]').click({ position: { x: 4, y: 4 } });
+  await frames(page);
+  const before = { selected: await page.evaluate(() => window.upChart.state().selection?.task), top: await scrollTop(page) };
+  const next = tasks(40).map((task, i) => (i < 20 ? { ...task, duration: 5 } : task));
+  expect(await page.evaluate((rows) => window.upChart.setData({ tasks: rows }), next)).toEqual({ ok: true, updated: 20 });
+  await frames(page);
+  expect(await minutes(page, keys(0, 40)), "20 new durations, the others as they were").toEqual([...Array(20).fill(2400), ...Array(20).fill(960)]);
+  expect((await saved(page))[2]!.name, "the rows still say Task 2, which is no change: the rename stays").toBe("Renamed");
+  expect({ selected: await page.evaluate(() => window.upChart.state().selection?.task), top: await scrollTop(page) }, "selection and scroll are as read before the call").toEqual(before);
+  expect(await page.evaluate(() => window.edits), "setData is not an edit").toEqual([]);
+  expect(await page.evaluate((rows) => window.upChart.setData({ tasks: rows }), next), "the same rows again").toEqual({ ok: true, updated: 0 });
+  expect(await page.evaluate((rows) => window.upChart.setData({ tasks: rows.slice(1) }), next)).toMatchObject({ ok: false, reason: "rowsChanged" });
+  expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
+  expect((await saved(page))[2]!.name, "the undo list is the person's: the one undo is the rename").toBe("Task 2");
+  expect(await minutes(page, keys(0, 20)), "and it leaves the 20 durations").toEqual(Array(20).fill(2400));
+});
