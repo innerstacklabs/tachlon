@@ -18,11 +18,14 @@ export interface BeforeEditChange { kind: string; source: CommitSource; tasks: r
 /** The answer: `undefined`, `null` or `true` allows the change; a string refuses it with that reason, which the chart shows; `false` refuses it with the chart's own sentence. Answer at once: a promise, a throw or any other value refuses the change and fires `error` with the source `beforeEdit`. Never call the chart from inside it. */
 export type BeforeEdit = (change: BeforeEditChange) => string | boolean | null | undefined;
 
-/** What `update` sets on one task: its `key`, and any of `name`, `start` (a date, or `null` for none; held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet` (a date, or `null` for none) and `progress` (a whole percent). A member left out keeps its value. */
-export interface TaskUpdate { key: string; name?: string; start?: string | null; duration?: number; snet?: string | null; progress?: number }
+/** What `update` sets on one task: its `key`, and any of `name`, `start` (a date, or `null` for none; held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet` (a date, or `null` for none) and `progress` (a whole percent). A member left out keeps its value. `hostStart` and `hostFinish` set nothing: they are the early start and finish your own code computed (`YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm`; a finish that is a date alone is the end of that day), and the answer's `differs` names each the chart computed otherwise. */
+export interface TaskUpdate { key: string; name?: string; start?: string | null; duration?: number; snet?: string | null; progress?: number; hostStart?: string; hostFinish?: string }
 
-/** What `update` answers: how many tasks it set, or why it changed none (`reason`, `message`, and `record` from 0, `member` and the record's `key` when they are known). */
-export type UpdateResult = { ok: true; updated: number } | (Refusal & { key?: string });
+/** One date a host sent in `hostStart` or `hostFinish` that the chart computed otherwise: the `record` (from 0) and its `key`, the `member` (`"start"` or `"finish"`), the `host` date as sent, and the `chart` date written in the same form (a day when the host sent a day). */
+export interface HostDifference { record: number; key: string; member: "start" | "finish"; host: string; chart: string }
+
+/** What `update` answers: how many tasks it set, with `differs` when a host date differs from the chart's, or why it changed none (`reason`, `message`, and `record` from 0, `member` and the record's `key` when they are known). */
+export type UpdateResult = { ok: true; updated: number; differs?: readonly HostDifference[] } | (Refusal & { key?: string });
 
 /** What a host's database can take, as the host tells the chart (`mount`'s `capabilities`, `Gantt.setCapabilities`). Each member is on unless it is `false`. A change a person makes that a member turned off is refused with `"notAllowed"` on every path, undo and redo included, and the chart says the host does not allow it; a bar, edge or link drag says it in the drag note. `gestures` turns off moving a bar, stretching it and drawing a link. `editable` turns off a group of fields: `structure` (adding, deleting and moving rows, paste included), `names`, `dates` (start, duration and the date limits), `links`, `progress` (actual dates, remaining, percent and the data date) and `baseline`. A member the chart does not have is an error. */
 export interface HostCapabilities {

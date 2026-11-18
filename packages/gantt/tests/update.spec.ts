@@ -162,3 +162,13 @@ test("an update followed by a load before the next frame highlights nothing in t
   await frames(page);
   expect(await page.locator("#table-rows [data-changed]").count(), "the new schedule's cells are not marked").toBe(0);
 });
+
+test("a host's own finish dates go through App.update_tasks and update: the one that matches is not named, the one a day late is, and a call with none has no differs", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(3) });
+  const records = [{ key: "k0", hostStart: "2026-03-02", hostFinish: "2026-03-03" }, { key: "k1", hostFinish: "2026-03-04" }];
+  const named = [{ record: 1, key: "k1", member: "finish", host: "2026-03-04", chart: "2026-03-03" }];
+  const app = await page.evaluate((r) => JSON.parse(window.gantt!.app.update_tasks(JSON.stringify(r))) as unknown, records);
+  expect(app, "the app names the late finish only").toEqual({ ok: true, updated: 2, differs: named });
+  expect(await page.evaluate((r) => window.upChart.update(r), records), "update hands the same list to the host").toEqual({ ok: true, updated: 2, differs: named });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", hostFinish: "2026-03-03" }])), "a host date that matches leaves no differs member").toStrictEqual({ ok: true, updated: 1 });
+});

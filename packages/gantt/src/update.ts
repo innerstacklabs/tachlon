@@ -3,7 +3,7 @@
 import { readCalendars, toMinutes } from "./adapters/plain-calendars.js";
 import type { PublicApp } from "./api.js";
 import { readAnswer, refused } from "./edit-result.js";
-import type { MountOptions, UpdateResult } from "./gantt-types.js";
+import type { HostDifference, MountOptions, UpdateResult } from "./gantt-types.js";
 
 /** A duration of a record that holds one. */
 const hasDuration = (record: unknown): record is { duration: number } => typeof (record as { duration?: unknown } | null)?.duration === "number";
@@ -24,7 +24,8 @@ export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["
   const answer = readAnswer(app.update_tasks(JSON.stringify(records.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
   if (answer.ok) {
     wrote(JSON.parse(app.task_slots(records.map((record) => (record as { key: string }).key))) as number[]); // an accepted record names a live task by its key
-    return Object.freeze({ ok: true, updated: answer.updated! });
+    const { differs } = answer as { differs?: readonly HostDifference[] };
+    return Object.freeze({ ok: true, updated: answer.updated!, ...(differs === undefined ? {} : { differs }) });
   }
   const key = (records[answer.record ?? -1] as { key?: unknown } | undefined)?.key;
   return Object.freeze({ ...answer, message: `Nothing changed: ${answer.reason}${answer.record === undefined ? "" : ` in record ${answer.record}`}${answer.member === undefined ? "" : ` (${answer.member})`}.`, ...(typeof key === "string" ? { key } : {}) });
