@@ -10,7 +10,7 @@ export default async function (page: Page, url: string): Promise<void> {
   const row = page.locator('#table-rows .row[data-row="2"]');
   await row.waitFor({ timeout: 60_000 });
   await row.click({ position: { x: 4, y: 4 } });
-  await page.waitForFunction(() => document.getElementById("picked")?.textContent === "Picked: Build");
+  await page.waitForFunction(() => document.getElementById("picked")?.textContent === "Picked: Ship");
   await page.click("#stop");
   await page.waitForFunction(() => document.getElementById("chart")?.childElementCount === 0);
   assert.deepEqual(problems, []);
