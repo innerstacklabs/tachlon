@@ -223,7 +223,7 @@ const why = chart.commands.explain(3);
 
 `health` answers `counts`, each `{ count, tasks }` holding the true count and the first 50 tasks: `openEnds`, `hardConstraints`, `negativeFloat`, `missingLogic`, `openStarts`, `highFloat`, `highDuration`, `invalidDates`, `missingResources` and `missed`.
 
-`propose` holds a change apart from the schedule while the chart draws a dashed ghost where each task it would move goes, and the call answers as `whatIf` does. Up to 10 changes are held; a second change of the same kind to a task replaces the first.
+`propose` holds a change apart from the schedule while the chart draws a dashed ghost where each task it would move goes, and the call answers as `whatIf` does. Up to 10 changes are held; a second change of the same kind to a task replaces the first. `acceptProposed` leaves the other held changes held, and `rejectProposed` returns `true` when that change was held.
 
 `npx tachlon describe commands` prints every call with its arguments and what it does.
 
@@ -247,6 +247,7 @@ await mount(root, { tasks, assistant: { send, into: document.getElementById("ass
 ```
 
 In Node, with no page, `import { openHeadless } from "tachlon/headless"` reads an XER or MS Project file (`openHeadless(bytes)`), the plain `{ tasks, links }` the chart takes (`openHeadless({ tasks, links })`) or a document (`openHeadless({ document })`), and answers `whatIf`, `whatIfLonger`, `explain`, `health` and `criticalPath` as the chart's commands do, with the same results and no canvas, and `results()` lists every task's early and late dates, total and free float (working days) and critical flag, each with its `key` (the name your program gave the task, `null` for a task with none) and `code`; `task` in an entry is the session slot, valid only until the next open, so match by `key`. Plain data that `validate` refuses throws a `PlainDataError`, as `fromTasks` does (catch it by `err.name`; `err.issues` lists the problems), and the returned schedule's `leftOut` lists what was not read. `callTool` and `toolDefinitions` come from the same import and run the assistant's tools over that schedule (`propose` is answered with `"unknownTool"`, as it holds a ghost the chart draws), and `free()` releases it when you are done (a `callTool` after that answers `"destroyed"`).
+
 An assistant that edits your project also has a skill: `npx tachlon init --skill` writes `.claude/skills/tachlon/SKILL.md`. It tells the assistant to read `node_modules/tachlon/AGENTS.md` first, to run `npx tachlon describe` before it writes code against an option or an event, and to run `npx tachlon doctor` when the chart does not draw or does not load.
 
 ## The schema
@@ -278,7 +279,7 @@ const { rowCount } = chart.state(); // `chart.on("change", ...)` fires when it m
 
 ## Events
 
-`chart.on(name, handler)` calls `handler` with the event's payload and returns the function that removes it. An event fires once per change, never once per frame. A handler added to `load` after the first frame is still called, once. With a handler on `find`, the browser's find does not open. The task number in a `select` payload is valid only until the next load or open: store your own `key`, never the number. The `projects` of an `error` payload lists the projects of a multi-project XER file.
+`chart.on(name, handler)` calls `handler` with the event's payload and returns the function that removes it. An event fires once per change, never once per frame. A handler added to `load` after the first frame is still called, once. With a handler on `find`, the browser's find does not open. The task number in a `select` payload is valid only until the next load or open: store your own `key`, never the number. The `source` of an `error` payload is `"open"`, `"frame"`, `"backend"` or `"beforeEdit"`, and its `projects` lists the projects of a multi-project XER file.
 
 `npx tachlon describe events` prints every event with its payload and when it fires.
 

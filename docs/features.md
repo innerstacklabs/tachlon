@@ -90,7 +90,7 @@ Cites are paths at `origin/main` `3135461a` or merged PR numbers. "pkg README" i
 - 6: Baseline button and `chart.commands.setBaseline()`, `setBaselineFromFile()` (`packages/gantt/src/commands.ts`); DHTMLX planned dates open as the baseline #1979. One baseline; P6 baselines are not read (README, "Not yet").
 - 7, 8, 9: docs/JOURNEYS.md, journeys J3, J8; `model.rs` ("Zero makes a milestone"); the site Features page (`apps/site/features.html`).
 - 11: resource filter `{ resource }` (`packages/gantt/src/commands.ts`); names are display-only (`crates/app/src/resources.rs`).
-- 14: 14 counts in `chart.commands.health()` (the package's `describe commands`; docs/JOURNEYS.md J4); Show buttons #1985, #1986.
+- 14: 14 counts in `chart.commands.health()` (the package's `describe commands` and pkg README "Ask the engine", which names the counts; docs/JOURNEYS.md J4); Show buttons #1985, #1986.
 - 15: `chart.commands.whatIf`, `whatIfLonger`, `explain` (pkg README).
 - 16: Compare with a file, `setBaselineFromFile` (docs/JOURNEYS.md J3).
 - 17: `packages/gantt/src/task-dialog.ts` (name, duration, start, finish, percent, actual dates, remaining, SNLT, FNET, FNLT; one undo step) #1909; opened by `Shift+Enter`, a double-click on a bar or an uneditable cell #1918; limits #1991. It has no links, resources or notes fields.
