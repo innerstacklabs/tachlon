@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { buildModel } from "../../../scripts/lib/describe-model.ts";
-import type { Model } from "../src/cli/describe.ts";
+import type { Item, Model } from "../src/cli/describe.ts";
 import { run } from "../src/cli/run.ts";
 import { PRODUCT_NAME } from "../src/product.ts";
 
@@ -40,11 +40,15 @@ for (const topic of Object.keys(declared) as (keyof typeof declared)[]) {
   });
 }
 
-test("an option's default is the declaration's @defaultValue", () => {
-  const tagged = all(read("src/gantt-types.ts"), /@defaultValue\s+`([^`]+)`/g);
+test("an option's meaning starts its doc comment, and its default is the declaration's @defaultValue", () => {
+  const source = body(read("src/gantt-types.ts"), "export interface MountOptions {");
+  const tagged = all(source, /@defaultValue\s+`([^`]+)`/g);
   assert.ok(tagged.length >= 4, "the declarations carry defaults");
-  const json = JSON.parse(describe("options", "--json").out) as { items: { name: string; default: string | null }[] };
-  assert.deepEqual(json.items.map((i) => i.default).filter((d) => d !== null), tagged);
+  const { items } = JSON.parse(describe("options", "--json").out) as { items: Item[] };
+  assert.deepEqual(items.map((i) => i.default).filter((d) => d !== null), tagged);
+  const comments = [...source.matchAll(/^ {2}\/\*\* (.*?)(?: \*\/|\n)[^]*?^ {2}(\w+)\??:/gm)];
+  assert.ok(comments.length >= 8, "the comments are found");
+  for (const [, text, name] of comments) assert.ok(text!.startsWith(items.find((i) => i.name === name)!.description), `${name}'s meaning starts its comment`);
 });
 
 test("describe with no topic lists the topics, and an unknown topic is exit 2 with the topics listed", () => {
