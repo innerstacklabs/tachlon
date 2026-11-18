@@ -23,14 +23,8 @@ impl Session {
     pub(super) fn commit(&mut self, inverse: Entry, source: Source) {
         let changes = self.changes_of(&inverse).join(",");
         match source {
-            Source::Undo => {
-                self.history.undo.pop_back();
-                self.history.redo.push(inverse);
-            }
-            Source::Redo => {
-                self.history.redo.pop();
-                self.history.undo.push_back(inverse);
-            }
+            Source::Undo => self.history.move_to_redo(inverse),
+            Source::Redo => self.history.move_to_undo(inverse),
             _ => self.history.push(inverse),
         }
         let seq = self.record(source, &changes);

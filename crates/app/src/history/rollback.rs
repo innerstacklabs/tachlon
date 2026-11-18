@@ -41,17 +41,9 @@ impl History {
     /// dropped with its redo entry, an undo becomes a redo and the reverse.
     fn settle(&mut self, kind: PendingKind, inverse: Entry) {
         match kind {
-            PendingKind::Pushed => {
-                self.undo.pop_back();
-            }
-            PendingKind::Undid => {
-                self.redo.pop();
-                self.undo.push_back(inverse);
-            }
-            PendingKind::Redid => {
-                self.undo.pop_back();
-                self.redo.push(inverse);
-            }
+            PendingKind::Pushed => drop(self.undo.pop_back()),
+            PendingKind::Undid => self.move_to_undo(inverse),
+            PendingKind::Redid => self.move_to_redo(inverse),
         }
     }
 
@@ -107,9 +99,7 @@ impl Session {
             }
         }
         self.host.pending.truncate(seq);
-        if self.history.whatif.as_ref().and_then(|m| m.depth) > Some(self.history.undo.len()) {
-            self.history.whatif = None;
-        }
+        self.history.end_whatif_past_mark();
         Ok(self.record(Source::Rollback, &changes.join(",")))
     }
 }
