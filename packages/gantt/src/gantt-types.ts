@@ -5,6 +5,7 @@ import type { ScheduleOptions } from "./adapters/dhtmlx.js";
 import type { Send } from "./assistant/loop.js";
 import type { PageSize } from "./api.js";
 import type { Commands } from "./commands.js";
+import type { Refusal } from "./edit-result.js";
 import type { ChecksReport, ExportResult, LoadResult, LoadSource } from "./document.js";
 import type { Change, CommitSource, HasOn } from "./events.js";
 import type { OpenOptions } from "./open-schedule.js";
@@ -16,6 +17,12 @@ export interface BeforeEditChange { kind: string; source: CommitSource; tasks: r
 
 /** The answer: `undefined`, `null` or `true` allows the change; a string refuses it with that reason, which the chart shows; `false` refuses it with the chart's own sentence. Answer at once: a promise, a throw or any other value refuses the change and fires `error` with the source `beforeEdit`. Never call the chart from inside it. */
 export type BeforeEdit = (change: BeforeEditChange) => string | boolean | null | undefined;
+
+/** What `update` sets on one task: its `key`, and any of `name`, `start` (held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet` (a date, or `null` for none) and `progress` (a whole percent). A member left out keeps its value. */
+export interface TaskUpdate { key: string; name?: string; start?: string; duration?: number; snet?: string | null; progress?: number }
+
+/** What `update` answers: how many tasks it set, or why it changed none (`reason`, `message`, and `record` from 0, `member` and the record's `key` when they are known). */
+export type UpdateResult = { ok: true; updated: number } | (Refusal & { key?: string });
 
 /** What `mount` takes: a `schedule`, a saved `document`, or `tasks` and `links` as `fromTasks` reads them; with none of the three the chart starts with no tasks and waits for `load`. */
 export interface MountOptions {
@@ -35,7 +42,7 @@ export interface MountOptions {
   options?: ScheduleOptions;
   /** The working calendars of the plain `tasks` (`PlainCalendar`): a task's `calendar` names one by `key`, and the first is every other task's. Without them the one Monday to Friday calendar, 08:00 to 17:00 with an hour at noon, is used. Read with `tasks`, and ignored when there is a `schedule` or a `document`. */
   calendars?: PlainCalendar[];
-  /** What the plain `tasks` count `duration`, `remaining` and `lag` in: `"days"` (default; a day is the working day of the calendar that measures the value), `"hours"` or `"minutes"`. Read with `tasks`, and kept no longer than they are.
+  /** What the plain `tasks` count `duration`, `remaining` and `lag` in: `"days"` (default; a day is the working day of the calendar that measures the value), `"hours"` or `"minutes"`. Read with `tasks`, and kept no longer than they are. It is also the unit of `update`'s `duration`, for the life of the chart, whatever the schedule was read from.
    * @defaultValue `"days"` */
   durationUnit?: "days" | "hours" | "minutes";
   /** The calendar a lag day is counted on for the plain `tasks`: `"successor"` (default), `"predecessor"`, `"24h"` or `{ calendar: key }`. Read with `tasks`, and kept no longer than they are.
@@ -123,6 +130,8 @@ export interface Gantt extends HasOn {
   readOnly(): boolean;
   /** Mark the rows with these keys as waiting for the host's own recalculation, in place of the ones marked before: the chart dims them and tells a screen reader they are busy until the host calls `setPending` again without them (`[]` clears every mark). A hint, not a lock: the rows stay selectable and editable. Answers the keys that name no live task (a deleted task's counts), which it leaves out. The marks go when `open`, `load` or `newSchedule` replaces the schedule, and when a switch to WebGL2 restarts the chart (its `error` event, source `backend`, says so: mark the rows again). */
   setPending(keys: readonly string[]): string[];
+  /** Give the chart new values for many tasks, each named by its `key`, in place: the selection, the scroll position and the person's undo list stay as they were, and the call is not an edit (no `edit` event, no undo step, no `beforeEdit` call; decision 0019, rule 13). It is one recompute, or two when a record mixes `progress` with `duration`, `start` or `snet`. `duration` is in `durationUnit`. A refusal changes nothing: `"badRecords"` (not an array), `"busy"` (a cell is being edited, a bar or link is being dragged, or the chart is switching to WebGL2), or the reason of a record (`EditRefusal`: `unknownKey`, `duplicateKey`, `notUpdatable` for a limit or pin it does not set and for a summary, `badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`). */
+  update(records: readonly TaskUpdate[]): UpdateResult;
   /** The last open's phases and the last 120 frames' numbers. It calls no app method, so polling it never wakes a sleeping loop. */
   speed(): Speed;
   /**
