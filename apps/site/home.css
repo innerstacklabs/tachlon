@@ -207,7 +207,6 @@ section { padding: 88px 0; }
 .ai-item h3 { font-size: 17px; display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .ai-item p { margin-top: 6px; font-size: 15.5px; line-height: 1.55; color: var(--navy-muted); }
 .ai-item code { background: #1b2750; color: #cfe0ff; }
-.ai-item .soon { font: 700 11px/1 var(--font); letter-spacing: .05em; text-transform: uppercase; color: #ffd98a; background: rgba(255, 217, 138, .12); border: 1px solid rgba(255, 217, 138, .35); padding: 4px 8px; border-radius: 999px; }
 .ai .fineprint { margin-top: 28px; font-size: 15px; color: var(--navy-muted); max-width: 72ch; }
 .ai .fineprint a { color: #9cc0ff; }
 @media (max-width: 900px) { .ai-grid { grid-template-columns: minmax(0, 1fr); } }
