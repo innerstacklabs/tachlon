@@ -56,7 +56,7 @@ Every feature is a row in [Compared](#compared).
 - **Your page.** The chart fills the box your page gives it, follows that box when it resizes, and keeps its styles to itself.
 - **Your look.** Colors, bar shape, row height and type are CSS tokens, in light and dark, that your own CSS sets.
 - **Your data.** `mount` takes plain `tasks` and `links`. `chart.snapshot()` gives them back, and `chart.toDocument()` returns a lossless document that `chart.load({ document })` reads.
-- **Your ids.** A task or a link takes a `key`, your own id. It stays with the record through every edit and save, and every event gives it back.
+- **Your ids.** A task or a link takes a `key`, your own id. It stays with the record through every edit and save, and the `select`, `move` and `edit` events give it back.
 - **Your backend.** The `edit` event carries each undo step as a numbered commit, with each change's old and new values, ready to save.
 - **Your rules.** One option makes the chart read-only, and it can be switched while the page runs.
 - **Your stack.** Plain JavaScript, and React, Vue and Angular components in the same package. The same engine runs in Node with no page (`tachlon/headless`).
@@ -76,7 +76,7 @@ The package carries its own instructions, so your assistant works from the versi
 | `npx tachlon describe` | The package describes itself: every option, event, command, CSS token and error of the installed version, generated from the types, as text or JSON. `describe fit` is the procedure for fitting the chart to your product, visually and technically. |
 | [`npx tachlon doctor`](packages/gantt/README.md#check-an-install-with-tachlon-doctor) | Checks an install, writes nothing, and prints a fix under each failed check. |
 | [`validate`](packages/gantt/README.md#start-errors) | Checks your task data and names each problem by path, with a fix. |
-| [`init --skill`](packages/gantt/README.md#add-it-to-a-vite-app) | Writes a skill file that tells your assistant when to use the package and what it offers. |
+| [`init --skill`](packages/gantt/README.md#add-it-to-a-vite-app) | Writes a skill file that tells your assistant when to use the package, where its `AGENTS.md` is, and what never to do. |
 | [`llms.txt`](https://tachlon.com/llms.txt) | Tells an assistant what to read first. |
 | [Engine tools](packages/gantt/README.md#tools-for-an-ai-assistant) | Typed tools, in MCP, Anthropic and OpenAI forms, for the assistant inside your own product: five ask the engine about the schedule, and one proposes an edit for a person to accept. |
 | [In-chart assistant](packages/gantt/README.md#tools-for-an-ai-assistant) | Give `mount` an `assistant` option and the chart puts a chat box beside itself. Your own `send` calls your model. |
@@ -84,7 +84,7 @@ The package carries its own instructions, so your assistant works from the versi
 
 ## Measured
 
-After a drag at 50,000 tasks, the whole schedule is recomputed in 17.8 ms, and 50,000 tasks load in 291.7 ms. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the two share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
+After a drag at 50,000 tasks, the engine reschedules in 17.8 ms, and 50,000 tasks load in 291.7 ms. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
 
 <details>
 <summary>The measurements, next to three other charts</summary>
