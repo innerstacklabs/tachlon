@@ -7,15 +7,18 @@ use crate::{
     Session,
     document::json_read::{Value, parse},
     edit::{Edit, EditError},
+    json::quote,
 };
 use engine::{Instant, Minutes, TaskId};
 use std::collections::HashSet;
 
 /// How many tasks an update changed and how many times it solved: twice if it mixes progress with timing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Updated {
     pub tasks: usize,
     pub solves: usize,
+    /// One JSON object (`record`, `key`, `member`, `host`, `chart`) per `hostStart` or `hostFinish` the chart computed otherwise.
+    pub differs: Vec<String>,
 }
 
 /// Why an update was refused. Nothing changed. `kind` is `badJson`, `noKey`, `unknownKey` (a
@@ -50,6 +53,7 @@ struct Values {
     name: String,
     progress: Option<Progress>,
     percent: Option<u8>,
+    host: Vec<(usize, String, Instant)>,
 }
 
 /// A task's actual start, actual finish and remaining work: the three a percent sets.
@@ -69,7 +73,7 @@ impl Session {
     /// applies every record's `duration`, `start`, `snet` and `name` first and works each `progress` out
     /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
     /// with a duration, start or snet in any record solves twice, and any other call once. A member a
-    /// record leaves out keeps its value. Every other member, the other limits and pins included, is `notUpdatable`.
+    /// record leaves out keeps its value. `hostStart` and `hostFinish`, the dates the host computed, set nothing and are named in `differs` when the chart's early start or finish is not theirs (a day alone compares the day, a finish's day being its last minute's). Every other member, the other limits and pins included, is `notUpdatable`.
     ///
     /// # Errors
     ///
@@ -135,7 +139,36 @@ impl Session {
         Ok(Updated {
             tasks: planned.len(),
             solves: 1 + usize::from(mixed),
+            differs: self.differences(records, &planned),
         })
+    }
+
+    /// Each `hostStart` and `hostFinish` in `planned` that is not its task's early start or finish, as JSON.
+    fn differences(
+        &self,
+        records: &[Value],
+        planned: &[(TaskId, (Values, Values))],
+    ) -> Vec<String> {
+        let mut found = vec![];
+        for (record, (task, (new, _))) in planned.iter().enumerate() {
+            let d = &self.solution.dates[task.0 as usize];
+            let key = records[record].get("key").and_then(Value::as_str);
+            for (kind, text, host) in &new.host {
+                let (chart, back) = [(d.es, 0), (d.ef, 1)][*kind];
+                let day = |t| self.origin.day_text(t - back);
+                if *host != chart && (text.contains('T') || day(*host) != day(chart)) {
+                    let shown = [day(chart), self.date_text(chart).replacen(' ', "T", 1)];
+                    found.push(format!(
+                        r#"{{"record":{record},"key":{},"member":"{}","host":{},"chart":{}}}"#,
+                        quote(key.unwrap_or_default()),
+                        ["start", "finish"][*kind],
+                        quote(text),
+                        quote(&shown[usize::from(text.contains('T'))])
+                    ));
+                }
+            }
+        }
+        found
     }
 
     /// Set each record's `progress` in `planned`: worked out against the plan the other members leave, which
@@ -181,6 +214,7 @@ impl Session {
             name: self.meta[task.0 as usize].name.clone(),
             progress: None,
             percent: None,
+            host: vec![],
         };
         let members: &[_] = match record {
             Value::Object(members)
@@ -206,6 +240,12 @@ impl Session {
                     date(value)?;
                 }
                 "start" | "snet" => new.snet = date(value)?,
+                "hostStart" | "hostFinish" => {
+                    let kind = usize::from(&**name == "hostFinish");
+                    let at = [Session::read_date, Session::read_finish][kind](self, value);
+                    let text = value.as_str().unwrap_or_default().to_owned();
+                    new.host.push((kind, text, at.ok_or_else(bad)?));
+                }
                 "name" => {
                     let text = value.as_str().ok_or_else(bad)?.trim();
                     let rename = Edit::Rename {
