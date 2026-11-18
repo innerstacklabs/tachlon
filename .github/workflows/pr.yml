@@ -113,7 +113,7 @@ jobs:
 
   # The features table matches docs/features.md, and every doc link on the features page names a section that exists.
   docs:
-    if: ${{ github.event.pull_request.head.repo.fork || github.repository != 'innerstacklabs/gantt' }}
+    if: ${{ github.event.pull_request.head.repo.fork || github.repository != 'innerstacklabs/tachlon' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

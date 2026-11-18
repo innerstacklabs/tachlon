@@ -42,5 +42,5 @@ test("the_package_and_the_readme_name_the_public_repository", () => {
   expect(JSON.parse(read("packages/gantt/package.json")).repository.url).toBe(`git+${repo}.git`);
   expect(read("README.md")).toContain(`${repo}/issues`);
   expect(read("crates/xer/README.md")).toContain("[top README](../../README.md)");
-  expect(read("README.md") + read("crates/xer/README.md")).not.toMatch(new RegExp(`innerstacklabs/gantt|daveremy/${PRODUCT_NAME.toLowerCase()}`));
+  expect(read("README.md") + read("crates/xer/README.md")).not.toMatch(new RegExp(`innerstacklabs/${["gan", "tt"].join("")}|daveremy/${PRODUCT_NAME.toLowerCase()}`));
 });

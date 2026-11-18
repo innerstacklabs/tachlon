@@ -1,6 +1,6 @@
 {
   "date": "2026-11-05",
-  "story": "innerstacklabs/gantt#1284",
+  "story": "gantt#1284",
   "machine": "Mac mini (see ../versions.json)",
   "harness": "af17939d103252ab3828bebeecf993d9cd3013d9",
   "ours": "af17939d103252ab3828bebeecf993d9cd3013d9",

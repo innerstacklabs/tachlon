@@ -2,6 +2,7 @@
 // steps.mjs puts them in order with the P6 steps (p6.mjs); the storyboard is gs#384. The video opens on a schedule a person can
 // read (gs#508): the pre-roll (criticalView) leaves the critical path on the chart, and the first action is a drag that moves it.
 // The fast scroll through all 50,000 tasks comes after it, short, with the slowest frame it measured in its caption.
+import { PRODUCT_NAME } from "../../../packages/gantt/src/product.ts";
 import { criticalPoint, firstCritical, panFirstBarTo, revealCritical, shared, zoomTo } from "./helpers.mjs";
 
 const centre = (box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
@@ -178,7 +179,7 @@ export const drag = {
 
 export const close = {
   name: "close",
-  caption: "Rust, WebAssembly and the GPU, built as a component. github.com/innerstacklabs/gantt",
+  caption: `Rust, WebAssembly and the GPU, built as a component. github.com/innerstacklabs/${PRODUCT_NAME.toLowerCase()}`,
   run: async (ctx) => {
     await ctx.hold(2);
   },
