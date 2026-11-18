@@ -17,7 +17,7 @@ picture of the first page. The pages hold the rows you are looking at, in the or
 2. **What a page holds.** Every page is US Letter, landscape, whatever the size of your window.
    A header runs across the top: the file's name, `Data date: YYYY-MM-DD HH:MM`, `Page 1 of 3` and
    `Printed` with today's date. Under it are the task list and the timeline, with the axis, the bars,
-   the links and the data date line as they are on screen. A legend at the foot names the colours:
+   the links and the data date line as they are on screen. A legend at the foot names the colors:
    Task, Critical, Deadline, Start constraint, Finish constraint, Summary, Dependency, Data date, Non-working day, Proposal ghost and Just-moved outline. A page takes 25 rows, so the
    59-row office fit-out sample prints on 3 pages.
 3. **Which columns.** The columns of the task list as it stands: Task, Dur, Start, Finish and Float,
@@ -62,19 +62,26 @@ picture of the first page. The pages hold the rows you are looking at, in the or
 
 ## Where it is checked
 
-`packages/gantt/tests/print-pages.spec.ts` asserts that `beforeprint` puts one SVG per page on the
-sheet and `afterprint` removes them, that printing leaves the scroll and zoom as they were, and that a column hidden in the Columns menu is not on the page.
-`packages/gantt/tests/print-sheet.spec.ts` asserts the plain text sheet that prints when no page
-was filled, and `journey-j5.spec.ts` prints a filtered schedule and checks that every page has a
-header and a legend and that the pages hold every shown row in order, then that `printOn("a4")`
-prints A4 pages and the next print is Letter.
-`apps/hosted/tests/print.spec.ts` asserts that print media shows only the pages and that the saved
-PDF is Letter landscape (792 by 612 points), and that **Print on A4...** closes the menu and prints A4
-landscape pages (842 by 595 points) once, with Letter again after it; `print-menu.spec.ts` that
-**Print...** closes the menu and calls `window.print` once, and `export-image.spec.ts` the picture's file name, PNG signature and
-size.
-`apps/hosted/tests/layouts.spec.ts` saves a layout from the File menu, reloads on another sample, applies it and checks the same columns in the same order.
-`crates/app/tests/print_columns.rs` checks that the columns a page prints are the ones it is told, in that order, that a hidden Float leaves the name column its width, that a date prints as a day, that the list text stays at 9 px or more and that the timeline names its months.
-`crates/app/tests/print_pages.rs`, `print_lookahead.rs` and `print_legend.rs` check the names on the pages against the
-visible rows, the page count, the header's data date, filter, Lookahead window and print date, the left-out line, a
-range and the legend; `print_pages.rs` also checks the A4 layout.
+- `packages/gantt/tests/print-pages.spec.ts` asserts that `beforeprint` puts one SVG per page on the
+  sheet and `afterprint` removes them, that printing leaves the scroll and zoom as they were, and
+  that a column hidden in the Columns menu is not on the page.
+- `packages/gantt/tests/print-sheet.spec.ts` asserts the plain text sheet that prints when no page
+  was filled.
+- `packages/gantt/tests/journey-j5.spec.ts` prints a filtered schedule and checks that every page has
+  a header and a legend and that the pages hold every shown row in order, then that `printOn("a4")`
+  prints A4 pages and the next print is Letter.
+- `apps/hosted/tests/print.spec.ts` asserts that print media shows only the pages and that the saved
+  PDF is Letter landscape (792 by 612 points), and that **Print on A4...** closes the menu and
+  prints A4 landscape pages (842 by 595 points) once, with Letter again after it.
+- `apps/hosted/tests/print-menu.spec.ts` asserts that **Print...** closes the menu and calls
+  `window.print` once.
+- `apps/hosted/tests/export-image.spec.ts` asserts the picture's file name, PNG signature and size.
+- `apps/hosted/tests/layouts.spec.ts` saves a layout from the File menu, reloads on another sample,
+  applies it and checks the same columns in the same order.
+- `crates/app/tests/print_columns.rs` checks that the columns a page prints are the ones it is told,
+  in that order, that a hidden Float leaves the name column its width, that a date prints as a day,
+  that the list text stays at 9 px or more and that the timeline names its months.
+- `crates/app/tests/print_pages.rs`, `print_lookahead.rs` and `print_legend.rs` check the names on
+  the pages against the visible rows, the page count, the header's data date, filter, Lookahead
+  window and print date, the left-out line, a range and the legend; `print_pages.rs` also checks the
+  A4 layout.
