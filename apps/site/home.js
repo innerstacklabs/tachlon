@@ -54,7 +54,7 @@ async function show(kind) {
     await new Promise((r) => requestAnimationFrame(() => r()));
     const t0 = performance.now();
     chart = await mount(el, options);
-    const seconds = (performance.now() - t0) / 1000;
+    const seconds = (performance.now() - t0) / 1000; // the open alone: the engine was loaded before the first call (below)
     const backend = typeof chart.backend === "function" ? chart.backend() : chart.backend;
     status.innerHTML = `${LABELS[kind]} · opened in <strong>${seconds.toFixed(seconds < 0.1 ? 2 : 1)} s</strong> on this machine${typeof backend === "string" ? ` · ${backend}` : ""}`;
     for (const t of tools) if (t.dataset.load) t.setAttribute("aria-pressed", String(t.dataset.load === String(kind)));
@@ -97,7 +97,11 @@ if (matchMedia("(max-width: 700px)").matches) {
   fallback("This is a screenshot, because the page was opened as a file. Serve the staged site over http (docs/CONTRIBUTING.md says how) and the real chart mounts here.");
 } else {
   try {
-    ({ mount } = await import("./package/tachlon.js"));
+    // The engine file is fetched and compiled before the first open, so the status line times what the figures above it time:
+    // opening a schedule, not downloading the engine on a first visit.
+    const lib = await import("./package/tachlon.js");
+    mount = lib.mount;
+    await lib.preloadEngine();
     await show("fitout");
   } catch (err) {
     fallback(`This is a screenshot: the chart's script did not load (${err && err.message ? err.message : err}).`);
