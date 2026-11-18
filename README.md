@@ -55,7 +55,7 @@ Every feature is a row in [Compared](#compared).
 - **Your look.** Colors, bar shape, row height and type are CSS tokens, in light and dark, that your own CSS sets.
 - **Your data.** `mount` takes plain `tasks` and `links`. `chart.snapshot()` gives them back, and `chart.toDocument()` returns a lossless document that `chart.load({ document })` reads.
 - **Your ids.** A task or a link takes a `key`, your own id. It stays with the record through every edit and save, and the `select`, `move` and `edit` events give it back.
-- **Your backend.** The `edit` event carries each undo step as a numbered commit, with each change's old and new values, ready to save.
+- **Your backend.** The `edit` event carries each undo step as a numbered commit, with each change as one record with `set` and `was`, ready to save.
 - **Your rules.** One option makes the chart read-only, and it can be switched while the page runs.
 - **Your stack.** Plain JavaScript, and React, Vue and Angular components in the same package. The same engine runs in Node with no page (`tachlon/headless`).
 

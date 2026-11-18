@@ -210,22 +210,32 @@ test.describe("the edit event carries commits, select and move name the key", ()
     await editAndWait(g, () => window.gantt!.app.rename_task(0, "Dig deep"), 1);
     await editAndWait(g, () => window.gantt!.app.set_duration(0, "4d"), 2);
     await editAndWait(g, () => window.gantt!.app.set_start_text(0, "2026-03-04"), 3);
-    const edits = (await seen(g, "edit")).map((e) => e.detail as { commits: { source: string; changes: { field: string; key: string; new: unknown }[] }[]; seq: number; snapshot: boolean });
+    const edits = (await seen(g, "edit")).map((e) => e.detail as { commits: { source: string; changes: { key: string; set: Record<string, unknown> }[] }[]; seq: number; snapshot: boolean });
     expect(edits.map((e) => [e.commits.length, e.commits[0]!.source, e.seq, e.snapshot])).toEqual([[1, "typed", 1, false], [1, "typed", 2, false], [1, "typed", 3, false]]);
     const [name, duration, snet] = edits.map((e) => e.commits[0]!.changes[0]!);
     const after = (await g.page.evaluate(() => window.gantt!.api!.snapshot().tasks))[0]!;
-    expect([name!.field, name!.key, name!.new]).toEqual(["name", "k-dig", after.name]);
-    expect([duration!.field, duration!.new]).toEqual(["duration", after.duration]);
-    expect([snet!.field, String(snet!.new).slice(0, 10)]).toEqual(["snet", after.start!.slice(0, 10)]);
+    expect([name!.key, name!.set]).toEqual(["k-dig", { name: after.name }]);
+    expect(duration!.set).toEqual({ duration: after.duration });
+    expect(Object.keys(snet!.set)).toEqual(["snet"]);
+    expect(String(snet!.set.snet).slice(0, 10)).toBe(after.start!.slice(0, 10));
   });
 
   test("an undo's event carries one undo commit with old and new swapped", async ({ g }) => {
     await loadKeyed(g);
     await editAndWait(g, () => window.gantt!.app.rename_task(0, "Dig deep"), 1);
     await editAndWait(g, () => window.gantt!.app.undo(), 2);
-    const [first, second] = (await seen(g, "edit")).flatMap((e) => (e.detail as { commits: { source: string; changes: { old: unknown; new: unknown }[] }[] }).commits);
-    expect([first!.source, first!.changes[0]!.old, first!.changes[0]!.new]).toEqual(["typed", "Dig", "Dig deep"]);
-    expect([second!.source, second!.changes[0]!.old, second!.changes[0]!.new]).toEqual(["undo", "Dig deep", "Dig"]);
+    const [first, second] = (await seen(g, "edit")).flatMap((e) => (e.detail as { commits: { source: string; changes: { set: unknown; was: unknown }[] }[] }).commits);
+    expect([first!.source, first!.changes[0]!.was, first!.changes[0]!.set]).toEqual(["typed", { name: "Dig" }, { name: "Dig deep" }]);
+    expect([second!.source, second!.changes[0]!.was, second!.changes[0]!.set]).toEqual(["undo", { name: "Dig deep" }, { name: "Dig" }]);
+  });
+
+  test("a delete's event carries one change whose was is the whole record it removed", async ({ g }) => {
+    await loadKeyed(g);
+    await editAndWait(g, () => (window.gantt!.app.select_task(0), window.gantt!.app.delete_selected()), 1);
+    const [edit] = await seen(g, "edit");
+    const [change, ...more] = (edit!.detail as { commits: { changes: { op: string; key: string; set?: unknown; was: { name: string } }[] }[] }).commits[0]!.changes;
+    expect(more).toEqual([]);
+    expect([change!.op, change!.key, change!.was.name, "set" in change!]).toEqual(["delete", "k-dig", "Dig", false]);
   });
 
   test("a keyed task fires select with its key", async ({ g }) => {

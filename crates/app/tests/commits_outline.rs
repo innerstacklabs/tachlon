@@ -82,7 +82,7 @@ fn create(key: Value, task: u32, fields: Value) -> Value {
     change
 }
 
-fn delete(key: Value, task: u32, fields: Value) -> Value {
+fn delete(key: Value, task: u32, fields: &Value) -> Value {
     let mut change = json!({"record":"task","task":task,"op":"delete","fields":fields});
     change["key"] = key;
     change
@@ -105,7 +105,7 @@ fn an_insert_below_a_keyed_task_is_a_create_and_its_undo_a_delete() {
     let fields = born("New task", json!("a1"), json!("A1000"));
     let want = [
         commit("typed", json!([create(Value::Null, 3, fields.clone())])),
-        commit("undo", json!([delete(Value::Null, 3, fields)])),
+        commit("undo", json!([delete(Value::Null, 3, &fields)])),
     ];
     assert_eq!(read(&mut s), want);
 }
@@ -133,7 +133,7 @@ fn a_delete_of_a_keyed_task_its_undo_and_its_redo_carry_its_key() {
     s.select_task(0);
     s.delete_selected().unwrap();
     assert!(s.undo().unwrap() && s.redo().unwrap());
-    let gone = json!([delete(json!("a1"), 0, task_a())]);
+    let gone = json!([delete(json!("a1"), 0, &task_a())]);
     let back = json!([create(json!("a1"), 0, task_a())]);
     let want = [
         commit("typed", gone.clone()),
@@ -149,7 +149,7 @@ fn a_delete_carries_the_place_the_task_had_not_the_place_it_left() {
     s.select_task(2);
     s.delete_selected().unwrap();
     let was = born("C", json!({"task":1}), Value::Null);
-    let want = [commit("typed", json!([delete(json!("c3"), 2, was)]))];
+    let want = [commit("typed", json!([delete(json!("c3"), 2, &was)]))];
     assert_eq!(read(&mut s), want);
 }
 

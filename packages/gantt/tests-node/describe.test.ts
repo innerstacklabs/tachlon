@@ -61,7 +61,7 @@ test("describe with no topic lists the topics, and an unknown topic is exit 2 wi
 });
 
 // The lone words in backticks of `fit` that are not options, events, commands or tokens: record and payload members, HTML and CSS words, values, and the two functions it calls.
-const OTHER = ["id", "key", "parent", "from", "to", "task", "link", "kind", "source", "changes", "commits", "snapshot", "seq", "data-theme", "class", "style", "lang", "dir", "div", "gantt", "script-src", "default-src", "inherit", "fail", "null", "undefined", "true", "false", "YYYY-MM-DD", "mount", "validate"];
+const OTHER = ["id", "key", "parent", "from", "to", "task", "link", "set", "was", "kind", "source", "changes", "commits", "snapshot", "seq", "data-theme", "class", "style", "lang", "dir", "div", "gantt", "script-src", "default-src", "inherit", "fail", "null", "undefined", "true", "false", "YYYY-MM-DD", "mount", "validate"];
 
 // The names `fit` writes as a lone word in backticks that the model does not have, and the tokens it names (in a span or a code block) that the model does not have.
 function unknown(fit: string, model: Model): string[] {

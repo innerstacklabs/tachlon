@@ -62,7 +62,7 @@ Check: add a task in the chart, save it, call `assignKey`. Passes when the call 
 
 ### 8. Save from the edit event
 
-Handle `edit` with `({ commits, snapshot })`. `commits` are the undo steps since the last `edit`, oldest first; each is `{ seq, source, changes }`, where `seq` counts from 1 in a session and is never reused, `source` says what made it, and each change names a record, an operation, and the old and new values (decision 0017). Save the changes and keep the highest `seq` you saved. When `snapshot` is true, commits were lost: save `chart.snapshot()` instead.
+Handle `edit` with `({ commits, snapshot })`. `commits` are the undo steps since the last `edit`, oldest first; each is `{ seq, source, changes }`, where `seq` counts from 1 in a session and is never reused, `source` says what made it, and each change is one record, `{ record, op, key, set, was }`: `set` holds the members that changed with their new values and `was` the same members as they were (decision 0022, section 2). Save the changes and keep the highest `seq` you saved. When `snapshot` is true, commits were lost: save `chart.snapshot()` instead.
 
 Check: type a new name into a cell, drag a bar, then undo. Passes when each of the three reaches your handler as an `edit` (the drag as one commit at its release, the undo as a commit with source `"undo"`) and what you saved equals `chart.snapshot()`.
 

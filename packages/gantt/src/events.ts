@@ -1,6 +1,7 @@
 // The events a host reacts to with `Gantt.on` (gs#1086). They are read from the `Status` the loop already takes
 // once per frame: `watch` compares it with the one before and fires only on a change, so an idle chart fires nothing.
 import type { Status } from "./api.js";
+import { foldChanges, type FieldChange } from "./change-set.js";
 import type { PickerProject } from "./open-schedule.js";
 import type { ViewState } from "./view-state.js";
 
@@ -8,20 +9,20 @@ import type { ViewState } from "./view-state.js";
 export type CommitSource = "typed" | "drag" | "dialog" | "paste" | "proposal" | "undo" | "redo";
 
 /**
- * One field, link or task a commit changed, in the names of decision 0017: `record` is `"task"`, `"link"` or `"schedule"`, `op` is
- * `"update"` (with `field`, `old` and `new`), `"create"` (with `fields`) or `"delete"`. `key` is the host's key or `null`; `task` or `link`
- * is the session slot, valid until the next load, open or remount, so never stored. `docs/WASM_API.md` (`App.take_commits`) lists the fields.
+ * One task, link or the schedule a commit changed, as one record (decision 0022, section 2): `record` is `"task"`, `"link"` or `"schedule"`, `op`
+ * is `"update"`, `"create"` or `"delete"`. `key` is the host's key or `null`; `task` or `link` is the session slot, valid until the next load, open
+ * or remount, so never stored. An update's `set` holds the members that changed with their new values and `was` the same members as they were; a
+ * create's `set` is the whole record; a delete's `was` is the whole record. `cascade`: a link delete that follows from a task delete in the same commit.
  */
 export interface Change {
   record: "task" | "link" | "schedule";
   op: "update" | "create" | "delete";
-  key?: string | null;
+  key: string | null;
   task?: number;
   link?: number;
-  field?: string;
-  old?: unknown;
-  new?: unknown;
-  fields?: Record<string, unknown>;
+  set?: Record<string, unknown>;
+  was?: Record<string, unknown>;
+  cascade?: true;
 }
 
 /** One undo step: `seq` counts from 1 in a session and is never reused (decision 0019, rule 1). */
@@ -114,6 +115,12 @@ export interface EventReads {
   ref(task: number): string | undefined;
 }
 
+/** `App.take_commits` read as an `edit` carries it: each commit's changes folded to one per record. */
+function parseCommits(json: string): Omit<GanttEvents["edit"], "revision"> {
+  const read = JSON.parse(json) as { commits: (Omit<Commit, "changes"> & { changes: FieldChange[] })[]; snapshot: boolean; seq: number };
+  return { ...read, commits: read.commits.map((commit) => ({ ...commit, changes: foldChanges(commit.changes) })) };
+}
+
 /** `reads` is the current start's: the events outlive a switch to WebGL2, which gives them a new app. */
 export function createEvents(reads: () => EventReads): Events { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const handlers = new Map<GanttEventName, Set<(detail: never) => void>>();
@@ -181,7 +188,7 @@ export function createEvents(reads: () => EventReads): Events { // oxlint-disabl
         }
         if (s.revision !== before.revision || released) {
           // A held bar makes no commit until its release, which can leave the revision where the last frame had it: it reads too.
-          const read = dragging ? { commits: [], snapshot: false, seq } : (JSON.parse(reads().commits()) as Omit<GanttEvents["edit"], "revision">);
+          const read = dragging ? { commits: [], snapshot: false, seq } : parseCommits(reads().commits());
           seq = read.seq;
           const snapshot = read.snapshot || (!dragging && lost);
           if (!dragging) lost = false;

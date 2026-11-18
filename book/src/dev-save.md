@@ -25,9 +25,9 @@ write.
 To write only what changed, read the event. Its `commits` are the undo steps made since the last `edit`
 event, oldest first. Each commit has a `seq` that counts from 1 and is never reused, a `source` that says
 where the step came from, and its `changes`. A change names the task or link by your `key`
-([Give it your data and keep your own ids](dev-data.md)) and gives the field with its old and new value.
+([Give it your data and keep your own ids](dev-data.md)) and gives its `set` (the members that changed, with their new values) and its `was` (the same members as they were).
 
-- An undo or a redo is a commit too, with the old and new values swapped, so the same code saves it.
+- An undo or a redo is a commit too, with `set` and `was` swapped, so the same code saves it.
 - A bar drag is one commit, and it arrives when the bar is released.
 - When the event's `snapshot` is true, commits were lost. Save `chart.snapshot()`, which returns the
   schedule as plain `tasks` and `links`, then read on from the event's `seq`.
