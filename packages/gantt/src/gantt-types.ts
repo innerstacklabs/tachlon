@@ -19,7 +19,7 @@ export interface BeforeEditChange { kind: string; source: CommitSource; tasks: r
 export type BeforeEdit = (change: BeforeEditChange) => string | boolean | null | undefined;
 
 /** What `update` sets on one task: its `key`, and any of `name`, `start` (held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet` (a date, or `null` for none) and `progress` (a whole percent). A member left out keeps its value. */
-export interface TaskUpdate { key: string; name?: string; start?: string; duration?: number; snet?: string | null; progress?: number }
+export interface TaskUpdate { key: string; name?: string; start?: string | null; duration?: number; snet?: string | null; progress?: number }
 
 /** What `update` answers: how many tasks it set, or why it changed none (`reason`, `message`, and `record` from 0, `member` and the record's `key` when they are known). */
 export type UpdateResult = { ok: true; updated: number } | (Refusal & { key?: string });
