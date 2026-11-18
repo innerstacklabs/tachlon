@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
 import { PACKAGE } from "../../../scripts/lib/agent-install-check.ts";
-import { argsFor, ASSISTANTS, type Assistant, CouldNotRun, type Probes, runInstall, table } from "../../../scripts/lib/agent-install-run.ts";
+import { argsFor, ASSISTANTS, type Assistant, cell, CouldNotRun, type Probes, runInstall, table } from "../../../scripts/lib/agent-install-run.ts";
 
 const root = mkdtempSync(join(tmpdir(), "agent-install-run-test-"));
 after(() => rmSync(root, { recursive: true, force: true }));
@@ -53,7 +53,7 @@ test("a right install: the prompt arrives on stdin, the registry serves the vers
   assert.equal(readFileSync(join(work, "received.txt"), "utf8"), "install it, please");
   assert.equal(readFileSync(join(work, "version.txt"), "utf8"), "9.9.9");
   assert.deepEqual(failed(results), []);
-  assert.equal(results.length, 7);
+  assert.equal(results.length, 8);
   assert.deepEqual(seen, [`http://127.0.0.1:${PORT}`]);
   assert.match(table(results), /^PASS {2}branch/);
   await assert.rejects(fetch(`http://127.0.0.1:${PORT}/${PACKAGE}`));
@@ -79,4 +79,12 @@ test("could not run: a missing assistant binary and a failed network probe stop 
 test("Codex gets the app's git folder before the prompt argument, and Claude does not", () => {
   assert.deepEqual(argsFor(ASSISTANTS.codex, "/app").slice(-3), ["--add-dir", "/app/.git", "-"]);
   assert.equal(argsFor(ASSISTANTS.claude, "/app").includes("--add-dir"), false);
+});
+
+test("a log line that is only a brace, or a result line cut at the wall, gives no turn count and no exception", () => {
+  const log = join(root, "cut.log");
+  writeFileSync(log, '{\n{"type":"result","num_turns":2,"dura');
+  assert.equal(cell("install", [{ check: "x", ok: true, why: "" }], log), "install: pass, no turn count");
+  writeFileSync(log, '{"type":"result","subtype":"success","num_turns":2,"duration_ms":60000}\n');
+  assert.equal(cell("fit", [{ check: "mount", ok: false, why: "" }], log), "fit: FAIL (mount), 2 turns, 1.0 min");
 });

@@ -4,8 +4,8 @@
 **Goal:** add and change tasks and links without leaving the keyboard. To start from nothing, choose **New schedule**,
 the first item of the Open menu: it gives a schedule with no tasks that starts on this week's Monday, and asks first
 when the open schedule has unsaved changes. Until it has a task, the task list says "No tasks yet. Press Insert, or
-Mod+Enter, to add the first one." Typed predecessors are not built yet; this chapter covers the
-edits that are.
+Mod+Enter, to add the first one." The task list takes typed predecessors; this chapter covers them and the
+other edits.
 
 <figure class="shot">
 <img src="media/j6-build.webp" alt="The demo schedule just after Insert: a new row named New task, one day long, sits below the selected row in the task list, with its bar on the chart">
@@ -39,7 +39,10 @@ edits that are.
 3. **Add a link.** Hold `Alt` and drag from a leaf bar onto another bar, or drag from the dot
    beside the finish end of the hovered or selected bar. Releasing over a bar adds a
    finish-to-start link. The app refuses a link to a summary, a repeat of a link, and a loop (the
-   message names the loop).
+   message names the loop). **Or type them.** In a file with an ID column, the task list also has a Predecessors
+   column. Click a cell in it, type a list of activity IDs such as `3, 5SS+1d` (an ID, then an optional type and lag as in step 4) and
+   press Enter: the task follows exactly those tasks, as one undo step. A mistake (an ID no task has, the task itself, a repeat)
+   shows the reason and changes nothing. A summary, and a task that follows a task with no ID, has no editor.
 4. **Change a link's type or lag.** Click an arrow, or press `]` or `[` with a task selected to
    step through its links. With a link selected, press `Enter`: a small box beside the alert line
    shows the link's type and lag, such as `FS` or `SS+2d`, selected. Type a new one and press
@@ -64,5 +67,5 @@ Every one of these is one undo step. The keys do nothing while a cell or the fin
 ## Where it is checked
 
 `packages/gantt/tests/insert-delete.spec.ts`, `indent.spec.ts`, `table-edit.spec.ts`, `cursor.spec.ts`,
-`range.spec.ts`, `cell-grid.spec.ts`, `links.spec.ts`, `link-escape.spec.ts` and `link-edit.spec.ts`. The Rust side checks each edit against a full `compute()` of the whole
+`range.spec.ts`, `cell-grid.spec.ts`, `links.spec.ts`, `link-escape.spec.ts`, `link-edit.spec.ts` and `predecessors-column.spec.ts`. The Rust side checks each edit against a full `compute()` of the whole
 schedule (`crates/app/tests/duration_cone.rs`).

@@ -1,7 +1,9 @@
 // Runs the README's install prompt in one assistant and reports each check (gantt#1560, build row B6). One run, and it spends the assistant's
 // quota: Claude is capped at 1 USD and Codex at a 600 s wall. Not in CI. Needs the package built (`bash scripts/build-web.sh --no-bundle` at the repo root, then `pnpm install --frozen-lockfile` and `pnpm build:lib` in packages/gantt) and a browser.
 // Exit 0: every check passed. 1: a check failed. 2: the run could not happen (no assistant binary, no browser, no network, no build).
-//   node scripts/agent-install-check.ts <claude|codex> [--json <results file>] [--record <dir>]
+//   node scripts/agent-install-check.ts <claude|codex> [--app <app>] [--fit] [--version <v>] [--json <results file>] [--record <dir>]
+// `--app` picks the starter app (scripts/lib/agent-install-apps.ts; default vite-react); `--fit` then gives a fresh session the fit task; `--version <v>` tests the published
+// package of that version, fetched with `npm pack`, and needs no build. The last line printed is a row for docs/agent-install-matrix.md (the matrix's command is in that file).
 // `--record <dir>` keeps the assistant's stream, the page screenshot, the timings and a story file for the install video (scripts/lib/agent-install-record.ts).
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -13,9 +15,9 @@ import { chromePath } from "../packages/gantt/tests/support/knobs.ts";
 import { launchRetrying } from "./lib/launch-retrying.ts";
 import { distLibMissing, MOUNT_SECONDS, MOUNT_SELECTOR, PACKAGE } from "./lib/agent-install-check.ts";
 import { agentPrompt } from "./lib/agent-prompt.ts";
+import { APPS, FIT_PROMPT, open } from "./lib/agent-install-apps.ts";
 import { record, streaming, timed } from "./lib/agent-install-record.ts";
-import { ASSISTANTS, CouldNotRun, type Probes, runInstall, table } from "./lib/agent-install-run.ts";
-import { serve } from "./lib/consumer-check.ts";
+import { ASSISTANTS, cell, CouldNotRun, type Probes, runInstall, table } from "./lib/agent-install-run.ts";
 import { WEB_ROOT } from "./lib/web-root.ts";
 
 const pkg = resolve(import.meta.dirname, "..", WEB_ROOT);
@@ -31,11 +33,11 @@ const shell = (cmd: string, args: string[]) => (dir: string, env: NodeJS.Process
 };
 
 // The built app (`dist/`) loaded in Chrome: the chart canvas's size, the seconds it took, the page errors; the page saved to `shot` when given.
-async function mountProbe(dir: string, shot?: string) {
+async function mountProbe(dir: string, how: string, shot?: string) {
   const { chromium } = createRequire(join(pkg, "package.json"))("@playwright/test") as typeof import("@playwright/test");
   const browser = await launchRetrying(() => chromium.launch({ executablePath: chromePath(), args: ["--ignore-gpu-blocklist", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] }))
     .catch((e: Error) => { throw new CouldNotRun(`no browser: ${e.message.split("\n")[0]}`); });
-  const { server, url } = await serve(join(dir, "dist"));
+  const { url, close } = await open(dir, how);
   try {
     const tab = await browser.newPage();
     let pageErrors = 0;
@@ -46,43 +48,46 @@ async function mountProbe(dir: string, shot?: string) {
     if (shot) await tab.screenshot({ path: shot });
     return { width: box?.width ?? 0, height: box?.height ?? 0, seconds: Math.round((Date.now() - start) / 1000), pageErrors };
   } finally {
-    server.close();
+    close();
     await browser.close();
   }
 }
 
 const usage = (): never => {
-  console.error("usage: node scripts/agent-install-check.ts <claude|codex> [--json <results file>] [--record <dir>]");
+  console.error(`usage: node scripts/agent-install-check.ts <claude|codex> [--app <${Object.keys(APPS).join("|")}>] [--fit] [--version <published version>] [--json <results file>] [--record <dir>]`);
   process.exit(2);
 };
-const { positionals, values: { json: file, record: recordDir } } = (() => {
-  try { return parseArgs({ allowPositionals: true, options: { json: { type: "string" }, record: { type: "string" } } }); } catch { return usage(); }
+const { positionals, values: { json: file, record: recordDir, app: appId = "vite-react", version, fit } } = (() => {
+  try { return parseArgs({ allowPositionals: true, options: { json: { type: "string" }, record: { type: "string" }, app: { type: "string" }, version: { type: "string" }, fit: { type: "boolean" } } }); } catch { return usage(); }
 })();
 const name = positionals[0] ?? "";
+const app = APPS[appId];
+let shots = 0;
 const probes: Probes = {
   network: () => fetch("https://registry.npmjs.org/-/ping", { signal: AbortSignal.timeout(10_000) }).then(() => undefined, () => { throw new CouldNotRun("no network: npmjs did not answer"); }),
   build: shell("npm", ["run", "build"]),
   doctor: shell("npx", [PACKAGE, "doctor", "--json"]),
-  mount: (dir) => mountProbe(dir, recordDir && join(recordDir, `page-${name}.png`)),
+  mount: (dir) => mountProbe(dir, app!.serve, recordDir && join(recordDir, `page-${name}${shots++ ? "-fit" : ""}.png`)),
 };
 
 const assistant = ASSISTANTS[name];
-if (!assistant || positionals.length > 1) usage();
+if (!assistant || !app || positionals.length > 1) usage();
 const into = mkdtempSync(join(tmpdir(), "agent-install-tarball-"));
 try {
-  const missing = distLibMissing(pkg);
+  const missing = version ? undefined : distLibMissing(pkg);
   if (missing) throw new CouldNotRun(missing);
-  const [packed] = JSON.parse(execFileSync("npm", ["pack", "--json", "--ignore-scripts", "--pack-destination", into], { cwd: pkg, encoding: "utf8" }));
+  const [packed] = JSON.parse(execFileSync("npm", ["pack", ...(version ? [`${PACKAGE}@${version}`] : []), "--json", "--ignore-scripts", "--pack-destination", into], { cwd: version ? into : pkg, encoding: "utf8" }));
   const prompt = agentPrompt(readFileSync(join(pkg, "README.md"), "utf8"));
   const timings: Record<string, number> = {};
   if (recordDir) mkdirSync(recordDir, { recursive: true });
   const started = Date.now();
-  const { work, results } = await runInstall(recordDir ? streaming(name, assistant) : assistant, prompt, { file: join(into, packed.filename), version: packed.version }, recordDir ? timed(probes, timings) : probes);
+  const { work, results, later } = await runInstall(recordDir ? streaming(name, assistant) : assistant, prompt, { file: join(into, packed.filename), version: packed.version }, recordDir ? timed(probes, timings) : probes, { ...app, then: fit ? FIT_PROMPT : undefined });
   timings.run = (Date.now() - started) / 1000;
-  console.log(`${table(results)}\nfolder kept: ${work}`);
-  writeFileSync(file ?? join(work, "results.json"), `${JSON.stringify({ assistant: name, work, results }, null, 2)}\n`);
+  console.log(`${[results, ...later].map(table).join("\n--- then the fit task ---\n")}\nfolder kept: ${work}`);
+  console.log(`| ${appId} | ${name} | ${[cell("install", results, join(work, "assistant.log")), ...later.map((l) => cell("fit", l, join(work, "assistant-2.log")))].join("<br>")} |`);
+  writeFileSync(file ?? join(work, "results.json"), `${JSON.stringify({ assistant: name, app: appId, version: packed.version, work, results, later }, null, 2)}\n`);
   if (recordDir) record(recordDir, { assistant: name, work, results, timings });
-  process.exitCode = results.every((r) => r.ok) ? 0 : 1;
+  process.exitCode = [results, ...later].every((phase) => phase.every((r) => r.ok)) ? 0 : 1;
 } catch (e) {
   console.error(`agent-install-check: ${(e as Error).message}`);
   process.exitCode = 2;

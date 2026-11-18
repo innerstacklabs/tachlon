@@ -7,11 +7,11 @@ import { drawn, modeOf, type Mode } from "./mode.js";
 import { installRangeMarks } from "./range.js";
 import { listening, type Shell } from "./shell.js";
 
-/** The table's columns, left to right; `code` is there only while the table shows the ID column, `wbs` only while it shows the WBS column, the four progress cells (gs#703) only while it shows the progress columns. */
-const COLUMNS = ["code", "wbs", "name", "dur", "start", "finish", "float", "actual-start", "actual-finish", "remaining", "percent"] as const;
+/** The table's columns, left to right; `code` is there only while the table shows the ID column, `wbs` only while it shows the WBS column, `pred` only while it shows the Predecessors column, the four progress cells (gs#703) only while it shows the progress columns. */
+const COLUMNS = ["code", "wbs", "name", "dur", "start", "finish", "float", "pred", "actual-start", "actual-finish", "remaining", "percent"] as const;
 const PROGRESS: readonly string[] = ["actual-start", "actual-finish", "remaining", "percent"];
 /** The cells that take an edit, in the order Tab walks a run of them: the name and duration, then the progress cells. */
-const RUNS: readonly (readonly EditField[])[] = [["name", "dur"], ["finish"], ["actual-start", "actual-finish", "remaining", "percent"]];
+const RUNS: readonly (readonly EditField[])[] = [["name", "dur"], ["finish", "pred"], ["actual-start", "actual-finish", "remaining", "percent"]];
 const editable = (name: Column): name is EditField => RUNS.some((run) => (run as readonly string[]).includes(name));
 type Column = (typeof COLUMNS)[number];
 
@@ -113,7 +113,7 @@ export function installCursor(shell: Shell, edit: CellEdit, hasCodes: () => bool
     // A column the Columns menu hid has no cell on screen, so the cursor skips it.
     return arranged(COLUMNS, table).filter(
       (name) =>
-        (name !== "code" || hasCodes()) && (name !== "wbs" || dataset?.wbs === "true") && (dataset?.progress === "true" || !PROGRESS.includes(name)) && !(table && isHidden(table, name)),
+        (name !== "code" || hasCodes()) && (name !== "wbs" || dataset?.wbs === "true") && (name !== "pred" || dataset?.pred !== undefined) && (dataset?.progress === "true" || !PROGRESS.includes(name)) && !(table && isHidden(table, name)),
     );
   };
   // A Shift+click extends the range, so the browser must not also select the text between the two clicks.
@@ -218,7 +218,8 @@ export function installCursor(shell: Shell, edit: CellEdit, hasCodes: () => bool
         app.move_selection(1);
         return;
       }
-      const run = RUNS.find((names) => names.includes(field)) ?? RUNS[0];
+      // A file with no IDs has no Predecessors cell for Tab to reach.
+      const run = (RUNS.find((names) => names.includes(field)) ?? RUNS[0]).filter((name) => name === field || columns().includes(name));
       const at = run.indexOf(field) + (move === "next" ? 1 : -1);
       if (at >= 0 && at < run.length) column = run[at];
       else if (app.move_selection(move === "next" ? 1 : -1) !== undefined) column = move === "next" ? run[0] : run[run.length - 1];

@@ -100,6 +100,7 @@ jobs:
           node scripts/test-narrate.ts
           node scripts/test-voice-inworld.ts
           node scripts/test-pack-check.ts
+          node scripts/test-guide-pages.ts
           node scripts/test-stage-package.ts
           node scripts/test-media-stale.ts
           node scripts/test-public-history.ts
@@ -677,6 +678,8 @@ jobs:
           fi
       - name: user pages link the hosted samples
         run: node scripts/check-book-pages.ts
+      - name: guide files keep their rules
+        run: node scripts/check-guide.ts
       - name: keys page holds the README table
         run: |
           rows=$(grep -c '<tr>' book/book/keys.html || true)
