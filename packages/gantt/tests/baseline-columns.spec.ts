@@ -84,10 +84,10 @@ test("with an ID column a row keeps its cells without a baseline, and has three 
   test.setTimeout(120_000);
   await openLedger(g);
   const { row } = await firstLeaf(page);
-  // The ledger has activity IDs and WBS codes: the five cells every row has, an ID cell, a WBS cell, and four of progress if it has any.
+  // The ledger has activity IDs and WBS codes: the five cells every row has, an ID cell, a Predecessors cell, a WBS cell, and four of progress if it has any.
   const has = await page.evaluate(() => ({ codes: window.gantt!.app.has_codes(), wbs: window.gantt!.app.has_wbs_codes(), progress: window.gantt!.app.has_progress() }));
   expect(has.codes, "the ledger has an ID column").toBe(true);
-  const wanted = 5 + 1 + (has.wbs ? 1 : 0) + (has.progress ? 4 : 0);
+  const wanted = 5 + 2 + (has.wbs ? 1 : 0) + (has.progress ? 4 : 0);
   expect(await cellsOf(page, row), "the cells a row had before").toHaveLength(wanted);
 
   await page.locator("#baseline-set").click();

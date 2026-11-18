@@ -108,9 +108,9 @@
 .gantt [data-part=table][data-wbs="true"] {
   --wbs-w: calc(var(--gantt-wbs-col, 72px) + 6px);
 }
-/* The Resources column (table.ts sets data-resources) is the last track, after the variance cells (order 9). */
+/* The Resources column (table.ts sets data-resources) is the last track, after the variance cells (order 10). */
 .gantt [data-part=table][data-resources] { --res-track: var(--gantt-res-col); --res-w: calc(var(--gantt-res-col) + 6px); }
-.gantt .cols > .resources { order: 10; }
+.gantt .cols > .resources { order: 11; }
 .gantt [data-part=table][data-progress="true"] {
   --progress-w: 416px;
   /* gs#974: % complete follows Task. Task is the width the names need (task-width.ts), at most the pane less the gutter, ID, WBS and

@@ -8,7 +8,7 @@ import { expect, test, type Gantt } from "./support/gantt";
 // A 45-row office fit-out project as MS Project XML, with task names up to 43 characters (gs#821).
 const FITOUT = readFileSync(new URL("./fixtures/office-fitout.xml", import.meta.url));
 const XER = readFileSync(new URL("./fixtures/one-project.xer", import.meta.url));
-const HEAD = ["ID", "WBS", "Task", "Dur", "Start", "Finish", "Float", "Actual start", "Actual finish", "Remaining", "% complete"];
+const HEAD = ["ID", "WBS", "Task", "Dur", "Start", "Finish", "Float", "Predecessors", "Actual start", "Actual finish", "Remaining", "% complete"];
 
 async function openProject(g: Gantt): Promise<void> {
   await g.open({ n: 200 });
