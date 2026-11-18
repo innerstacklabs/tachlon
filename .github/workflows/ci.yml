@@ -408,11 +408,11 @@ jobs:
           node "$GITHUB_WORKSPACE/scripts/stage-package.ts" . "$staged"
           node "$GITHUB_WORKSPACE/scripts/consumer-check.ts" "$staged"
           rm -rf "$staged"
-      # The two examples (gantt#1092, examples/): each is copied into a new folder, installs the packed package there and runs its spec in
+      # The examples (gantt#1092, examples/): each is copied into a new folder, installs the packed package there and runs its spec in
       # Chromium. The `checks` leg only, after the library build; it installs the example's own packages from the registry.
-      - name: examples (a plain page and a React app on the packed tarball)
+      - name: examples (a plain page, a React app and a React app that saves, on the packed tarball)
         if: ${{ matrix.shard == 'checks' }}
-        run: node "$GITHUB_WORKSPACE/examples/check.ts" plain react
+        run: node "$GITHUB_WORKSPACE/examples/check.ts" plain react save
       # Runners that share a host (hub: hubgantt, hubgantt2; Dell: dell-gantt, -2, -3) each get their own preview port, GANTT_PORT.
       - name: preview port
         run: |

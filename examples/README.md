@@ -19,7 +19,9 @@ npm install tachlon@file:<path to the tarball>
 npx vite
 ```
 
-`node examples/check.ts plain react` does the tarball way in a new folder and runs each example's `spec.ts` in
+`save/` is the host save contract's example (decision 0022): a React app on the first section's handlers form, talking to `save/server.ts`, a fake host server that can delay, refuse or drop requests on a script. Its scenarios are in `save/scenarios.ts`; those listed in `PENDING` in `save/spec.ts` fail until the `save` option is built, and the run fails if one passes. It is not a site to copy yet.
+
+`node examples/check.ts plain react save` does the tarball way in a new folder and runs each example's `spec.ts` in
 Chromium (it needs the library build and Playwright's Chromium, as the `web` job has them, and the registry
 for the example's own packages). It is a step of the `web` job in `.github/workflows/ci.yml`.
 
