@@ -59,6 +59,9 @@ try {
   const named = scanNames(repo, ["a/old.txt", "a/zebra.txt", "a/zebra.bin"], /zebra/i);
   check("a path that holds the name is found by position; a NUL-byte file keeps its path finding only", named, ["tracked path 2", "tracked path 2:1", "tracked path 3"]);
   check("no finding holds the name", named.some((f) => /zebra/i.test(f)), false);
+  writeFileSync(join(repo, "a/zebra-key.txt"), `key=${key}\n`);
+  check("a secret shape in a path that holds the name prints the position, not the path", scanTree(repo, ["a/old.txt", "a/zebra-key.txt"], /zebra/i), ["a/old.txt:1 aws-access-key", "tracked path 2:1 aws-access-key"]);
+  rmSync(join(repo, "a/zebra-key.txt"));
   git("add", "-A"); git("commit", "-q", "-m", "one");
   writeFileSync(join(repo, "a/old.txt"), "key removed\n");
   git("commit", "-q", "-am", "two");
