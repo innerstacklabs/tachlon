@@ -141,7 +141,12 @@ impl Session {
             Plan::Dialog(task, text) => self.dialog_edits(task, text),
             _ => Vec::new(),
         };
-        let items = gesture.into_iter().chain(edits.iter().map(group));
+        let drawn =
+            matches!(plan, Plan::Action("linkDrag", ..) | Plan::Link(..)).then_some(Item::Links);
+        let items = gesture
+            .into_iter()
+            .chain(drawn)
+            .chain(edits.iter().map(group));
         capabilities
             .refused(items)
             .map_or(Ok(()), |what| Err(EditError::NotAllowed(what)))

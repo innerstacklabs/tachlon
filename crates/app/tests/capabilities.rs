@@ -79,6 +79,16 @@ fn link_off_adds_no_link_and_the_press_still_selects() {
 }
 
 #[test]
+fn links_off_refuses_a_link_drawn_by_drag_with_the_gesture_on() {
+    let mut s = limited(r#"{"editable":{"links":false}}"#);
+    let (before, to) = (state(&s), on(&s, 2));
+    link(&mut s, 0, to);
+    assert_eq!(state(&s), before);
+    let said = EditError::NotAllowed("changing links").to_string();
+    assert_eq!(s.drag_note(), Some(said.as_str()));
+}
+
+#[test]
 fn dates_off_refuses_a_dialog_whole_and_names_the_duration() {
     let mut s = limited(r#"{"editable":{"dates":false}}"#);
     let before = state(&s);
