@@ -51,6 +51,9 @@ function item({ doc, text }: Member): Item {
   return { name: (hit[1] ?? hit[2])!, type: rest.startsWith(":") ? rest.slice(1).trim() : rest, default: /@defaultValue[ \t]+`?([^`\n]+)`?/.exec(doc)?.[1]?.trim() ?? null, description: firstSentence(summary(doc)) };
 }
 
+/** The member names of `export interface <header>`: how `scripts/check-guide.ts` reads the methods of the chart itself. */
+export const memberNames = (source: string, header: RegExp): string[] => members(source, header).map((member) => item(member).name);
+
 /** The `--gantt-*` tokens the base block of `tokens.css` declares, with their value and the dark value of a colour; the meaning is the "Used for" cell of a Theming table in `docs/WASM_API.md` (the colours, then the layout), else the comment right above it. */
 export function tokens(css: string, api: string): Item[] {
   const block = (open: string): string => css.slice(css.indexOf("{", css.indexOf(open)) + 1, css.indexOf("}", css.indexOf(open)));

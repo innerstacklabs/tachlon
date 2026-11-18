@@ -52,6 +52,8 @@ One chapter of the [book](../book/src/index.md) per user journey. The book is bu
 
 To build the book yourself, install [mdBook](https://rust-lang.github.io/mdBook/) 0.5 and run `mdbook build book`; it writes `book/book/`, which git ignores. A PR that adds a user-visible feature adds its chapter section in the same diff.
 
+For a chapter that has a file under `packages/gantt/guide/` (the task dialog is the first), the feature's text, its goal and its steps, goes in that file, in words that fit any product, and the chapter includes it by anchor. The chapter keeps what is true only of the hosted page: the pictures, the sample links and the "Where it is checked" section. [The folder's README](../packages/gantt/guide/README.md) holds the format, and `node scripts/check-guide.ts` checks it.
+
 ## The screencast
 
 The screencast at the top of the README is recorded by `demos/screencast/run.sh` ([DEMOS.md](DEMOS.md), "Recording the screencast"). A PR that adds a user-visible feature adds its step to `demos/screencast/steps-features.mjs` in the same diff, and the wrap of a sprint that merged one re-runs the script and commits the new media.
