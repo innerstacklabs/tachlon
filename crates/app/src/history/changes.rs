@@ -2,6 +2,8 @@
 //! entry puts back, against what the session holds now. A task's fields, a link and the data date
 //! carry changes; a baseline leaves none.
 
+mod link_lists;
+
 use super::{Entry, Source, Step};
 use crate::host::schedule_update;
 use crate::{
@@ -83,48 +85,20 @@ impl Session {
             };
             steps.iter().filter_map(task).collect()
         };
-        changes.extend(self.links_gone(&tasks(true)));
+        let (deletes, creates) = self.link_lists(&tasks(true), &tasks(false), &steps);
+        changes.extend(deletes);
         for step in &steps {
-            changes.extend(self.link_changes(&step.edit));
+            if matches!(step.edit, Edit::SetLink { .. }) {
+                changes.extend(self.link_changes(&step.edit));
+            }
             changes.extend(self.outline_changes(step));
         }
-        changes.extend(self.links_made(&tasks(false), &steps));
+        changes.extend(creates);
         if let Entry::DataDates(old) = inverse {
             let (old, new) = (self.date(old.shown), self.date(self.data_date));
             changes.extend(schedule_update("dataDate", &old, &new));
         }
         changes
-    }
-
-    /// The link deletes that go with the `gone` tasks of one commit (decision 0017), each link
-    /// once: the links in force before it, so an end deleted in the same commit still counts.
-    pub(crate) fn links_gone(&self, gone: &[TaskId]) -> Vec<String> {
-        let held = |t: &TaskId| !self.schedule.is_deleted(*t) || gone.contains(t);
-        let mut deps: Vec<DepId> = gone
-            .iter()
-            .flat_map(|&t| self.schedule.task_links(t))
-            .filter(|(_, d)| held(&d.pred) && held(&d.succ))
-            .map(|(dep, _)| dep)
-            .collect();
-        deps.sort_by_key(|dep| dep.0);
-        deps.dedup();
-        let delete = |dep| self.link_changes(&Edit::RestoreLink { dep });
-        deps.into_iter().flat_map(delete).collect()
-    }
-
-    /// The link creates that go with the `made` tasks of one commit, each link once: the links in
-    /// force after it, except those a step of the commit adds itself.
-    fn links_made(&self, made: &[TaskId], steps: &[&Step]) -> Vec<String> {
-        let own = |dep| {
-            steps
-                .iter()
-                .any(|s| matches!(s.edit, Edit::RemoveLink { dep: d } if d == dep))
-        };
-        let live = self.schedule.live_dependencies();
-        let mine = live
-            .filter(|(dep, d)| !own(*dep) && (made.contains(&d.pred) || made.contains(&d.succ)));
-        mine.flat_map(|(dep, _)| self.link_changes(&Edit::RemoveLink { dep }))
-            .collect()
     }
 
     /// One task field's change: `old` and `new` are written as `carried` writes them.
