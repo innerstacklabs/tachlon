@@ -1,5 +1,7 @@
 # Put a chart on a page
 
+This part of the book is written for a developer and their coding assistant.
+
 Tachlon draws in one element of your page. This chapter puts three tasks on a page. It assumes the package
 is installed: [Install it in your app](install.md) covers that.
 

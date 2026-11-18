@@ -1,4 +1,3 @@
-<!-- ANCHOR: book-head -->
 # Architecture
 
 A map of the crates, the direction their dependencies run, the layers a frame passes through,
@@ -35,7 +34,6 @@ so neither sees a rename inherited from the workspace table.
 
 ## Layers
 
-<!-- ANCHOR_END: book-head -->
 ```
 apps/hosted (host page, samples)   loads only gantt-core = the built packages/gantt (decision 0007)
    |                                and @gantt/chrome = apps/chrome (the toolbar, the file controls and the Filters menu and the find box, decision 0012)
@@ -53,7 +51,8 @@ crates/timeline          crates/import -> crates/xer
 crates/engine           Schedule, Calendar, compute / recompute_cone_moved
 ```
 
-<!-- ANCHOR: book-mid -->
+A picture of the same layers: [media/architecture-layers.svg](media/architecture-layers.svg).
+
 `apps/cloud` and the hosted app's `store.ts` are planned and hold no code yet: decision 0011 states the
 rule for them before the code it governs.
 
@@ -64,9 +63,8 @@ labels), and passes it to `Renderer::render`. The loop asks for a frame only whi
 it draws until the status has not changed for half a second (`QUIET_MS`) and then sleeps, with no
 frame requested. Any call into the app from outside a tick wakes it, and the loop draws every frame
 while a drag, a slide, the moved note or a measured run is going. `Status.frames` does not advance
-while it sleeps.
-<!-- ANCHOR_END: book-mid -->
-<!-- ANCHOR: book-tail -->
+while it sleeps. A picture of the frame's path: [media/architecture-frame.svg](media/architecture-frame.svg).
+
 The task table reads the same `Timeline::order` and `Solution::dates` through
 `App::table_rows`, which delegates to `Session::table_rows_json`. Nothing in `packages/gantt/src` keeps a row list or a copy of the dates.
 If `App::frame` throws, the frame guard (`packages/gantt/src/frame-guard.ts`) shows the error banner,
@@ -490,4 +488,3 @@ directory also holds the `name` check (`name.rs`, `the_old_name_stays_out_of_the
 Also: `crates/engine/tests/dependency_direction.rs` and `crates/xer/tests/licence_boundary.rs`
 (above), and the Playwright specs in `packages/gantt/tests` (`embedding.spec.ts` keeps the three embedding
 rules in a real browser).
-<!-- ANCHOR_END: book-tail -->

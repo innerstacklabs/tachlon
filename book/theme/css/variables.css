@@ -1,6 +1,6 @@
 /* The book theme: mdBook 0.5's variables, set to the chart's calm look (design option
-   C; the chart tokens in web/src/styles/tokens.css) and the mascot's colours (teal, claw orange, a blue
-   accent). Two themes only, "light" and "navy" (shown as Light and Dark in the menu); the stock Rust, Coal and Ayu
+   C; the chart tokens in web/src/styles/tokens.css) and the accent colors (teal, orange,
+   blue). Two themes only, "light" and "navy" (shown as Light and Dark in the menu); the stock Rust, Coal and Ayu
    names map onto them so a browser that remembers one of those still gets the book's page. */
 
 :root {
@@ -15,7 +15,7 @@
     --code-font-size: 0.875em;
     --searchbar-margin-block-start: 5px;
 
-    /* The mascot's colours, the same in both themes. */
+    /* The accent colors, the same in both themes. */
     --book-teal: #1f7a70;
     --book-teal-deep: #17525a;
     --book-claw: #ef5f3a;

@@ -16,8 +16,6 @@ To try the chart without a file of your own, [open the office fit-out sample](/?
 **For developers**
 
 - [Install it in your app](install.md): install the package, let `npx tachlon init` write the chart component, and open a schedule file.
-- [How it is built and checked](developers.md): for people who work on Tachlon itself.
-- [Architecture](architecture.md): the crates, the layers a frame passes through, and the invariants each one keeps.
 
 **Guide**
 

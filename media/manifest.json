@@ -1,6 +1,7 @@
 [
-  {"file":"book/src/media/architecture-frame.svg","commit":"fdc8ad86","record":"manual: edit the SVG by hand","depends":["docs/ARCHITECTURE.md","book/src/architecture.md","crates/app/src/web/**"]},
-  {"file":"book/src/media/architecture-layers.svg","commit":"fdc8ad86","record":"manual: edit the SVG by hand","depends":["docs/ARCHITECTURE.md","book/src/architecture.md","crates/*/Cargo.toml"]},
+  {"file":"docs/media/architecture-frame.svg","commit":"fdc8ad86","record":"manual: edit the SVG by hand","depends":["docs/ARCHITECTURE.md","crates/app/src/web/**"]},
+  {"file":"docs/media/architecture-layers.svg","commit":"fdc8ad86","record":"manual: edit the SVG by hand","depends":["docs/ARCHITECTURE.md","crates/*/Cargo.toml"]},
+  {"file":"book/theme/favicon.svg","commit":"ae4db486","record":"manual: a copy of apps/site/favicon.svg, the product's mark","depends":["apps/site/favicon.svg"]},
   {"file":"book/src/media/icon.svg","commit":"7322882e","record":"manual: a copy of apps/site/favicon.svg, the product's mark","depends":["apps/site/favicon.svg"]},
   {"file":"book/src/media/mascot.webp","commit":"fdc8ad86","record":"manual: brand art in docs/media/brand","depends":["docs/media/brand/**"]},
   {"file":"book/src/media/j2-navigate.webp","commit":"fdc8ad86","record":"node demos/screencast/stills.mjs --only j2-navigate --out <scratch dir>; on the hub copy the .webp into book/src/media by hand (demos/screencast/README.md)","depends":["packages/gantt/src/**","apps/hosted/src/**","crates/app/src/web/**","crates/timeline/src/scene/**","demos/screencast/steps/edit.mjs"]},

@@ -1,6 +1,6 @@
 # For contributors
 
-Where the project came from, where it is going, the gates, the book, the screencast rule, and the license. The architecture is [ARCHITECTURE.md](ARCHITECTURE.md).
+Where the project came from, where it is going, the gates, the book, the screencast rule, and the license. The architecture is [ARCHITECTURE.md](ARCHITECTURE.md). To run the chart from a checkout, read [DEMOS.md](DEMOS.md), "Running it"; frame times are in [MEASURING.md](MEASURING.md). To put the chart in your own product, read the book's [Install it in your app](../book/src/install.md).
 
 ## Where it came from
 
@@ -52,9 +52,24 @@ To see the page with its live chart, build the package (`pnpm build:lib` in `pac
 
 ## The book
 
-One chapter of the [book](../book/src/index.md) per user journey. The book is built in CI by `mdbook build book` and hosted as the guide (the link in the README); the chapters are also readable here. CI deploys it from `main`. A preview link on each ready pull request waits on #455: pull-request CI does not post one yet.
+The [book](../book/src/index.md) has two parts: "For developers", for a developer who puts the chart in a product and their coding assistant, and "Guide", for a person who uses a chart, with one chapter per user journey. No page about how this project is built, checked or structured is in the book: those pages are this file and [ARCHITECTURE.md](ARCHITECTURE.md). The book is hosted as the guide (the link in the README). CI deploys it from `main`. A preview link on each ready pull request waits on #455: pull-request CI does not post one yet.
 
-To build the book yourself, install [mdBook](https://rust-lang.github.io/mdBook/) 0.5 and run `mdbook build book`; it writes `book/book/`, which git ignores. A PR that adds a user-visible feature adds its chapter section in the same diff.
+To build the book yourself, install [mdBook](https://rust-lang.github.io/mdBook/) 0.5 and run `mdbook build book`; it writes `book/book/`, which git ignores. The `book` job in `.github/workflows/ci.yml` runs that build on every push and fails if a chapter file or an include is missing, or if the keys page lost the table it includes from `docs/KEYS.md`; the `hosted-browser` job's book spec and the `deploy` job use its build, not their own. A PR that adds a user-visible feature adds its chapter section in the same diff.
+
+The look is the book's own mdBook theme in `book/theme/`: `index.hbs` and `css/variables.css` override the stock files (two themes, Light and Dark, in the chart's calm palette), `book.css` adds the components a chapter uses (the clip, the screenshots, the tip, the front page), and `favicon.svg` is the tab icon, a copy of `apps/site/favicon.svg`, the product's mark (`media/manifest.json` has its row).
+
+A guide chapter is one task the reader wants to do. The shape, in order:
+
+1. The H1 is the task in plain words, with the journey id in an HTML comment under it.
+2. One or two sentences on what you can do.
+3. The clip: a `<video class="clip">` with an MP4 and a poster, recorded by `demos/screencast/clip.mjs` from a step in `demos/screencast/steps-features.mjs`.
+4. Numbered steps, each one action.
+5. One or two screenshots, as `<figure class="shot">`, each with a caption that says what the numbers in the picture point at.
+6. A tip, as `<div class="book-tip">`, and a "Good to know" list for limits.
+
+The commands that record a chapter's clip and screenshots are in [DEMOS.md](DEMOS.md), "Recording the screencast" (the row for the book's clip). `clip.mjs` writes `<name>.mp4` (the clip), `<name>.webp` (the poster, the last frame) and the screenshots the step takes through `ctx.shot`, and refuses a clip or an image over the budget it holds as `CLIP_SECONDS`, `CLIP_BYTES` and `IMAGE_BYTES`.
+
+For the open-a-schedule chapter, `apps/hosted/tests/j1-open.spec.ts` opens the office fit-out sample from the menu, opens your own file with the chooser and checks that no request is made for it, and opens a truncated file to see the reader's error. `packages/gantt/tests/open.spec.ts` opens files from the page (the Open button, Ctrl+O, a drop) and checks the rows, the unsupported panel and that no network request is made. The XER mapping is in [IMPORT.md](IMPORT.md). A chapter not yet rewritten in this form names its specs in its own "Where it is checked" section.
 
 For a chapter that has a file under `packages/gantt/guide/` (the task dialog is the first), the feature's text, its goal and its steps, goes in that file, in words that fit any product, and the chapter includes it by anchor. The chapter keeps what is true only of the hosted page: the pictures, the sample links and the "Where it is checked" section. [The folder's README](../packages/gantt/guide/README.md) holds the format, and `node scripts/check-guide.ts` checks it.
 

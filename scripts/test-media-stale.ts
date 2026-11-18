@@ -53,7 +53,7 @@ assert.equal(run("0".repeat(40)).code, 2, "an unknown commit is unknown, not ok"
 
 // 3. the real manifest
 const rows = readRows(readFileSync(join(root, "media/manifest.json"), "utf8"));
-const tracked = git(root, "ls-files", "book/src/media", "docs/media").split("\n").filter((f) => /\.(webp|mp4|gif|png|svg)$/.test(f) && !f.startsWith("docs/media/brand/"));
+const tracked = git(root, "ls-files", "book/src/media", "book/theme", "docs/media").split("\n").filter((f) => /\.(webp|mp4|gif|png|svg)$/.test(f) && !f.startsWith("docs/media/brand/"));
 assert.deepEqual(rows.map((r) => r.file).sort(), tracked.sort(), "one row for each media file, and none for a file that is gone");
 for (const r of rows) git(root, "cat-file", "-e", `${r.commit}^{commit}`);
 
