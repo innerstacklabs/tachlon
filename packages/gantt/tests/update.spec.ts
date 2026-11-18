@@ -170,5 +170,5 @@ test("a host's own finish dates go through App.update_tasks and update: the one 
   const app = await page.evaluate((r) => JSON.parse(window.gantt!.app.update_tasks(JSON.stringify(r))) as unknown, records);
   expect(app, "the app names the late finish only").toEqual({ ok: true, updated: 2, differs: named });
   expect(await page.evaluate((r) => window.upChart.update(r), records), "update hands the same list to the host").toEqual({ ok: true, updated: 2, differs: named });
-  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", hostFinish: "2026-03-03" }])), "a host date that matches leaves no differs member").toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", hostFinish: "2026-03-03" }])), "a host date that matches leaves no differs member").toStrictEqual({ ok: true, updated: 1 });
 });
