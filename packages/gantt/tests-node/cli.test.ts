@@ -192,6 +192,11 @@ test("the skill and AGENTS.md say `describe` exists and when to use it", () => {
   }
 });
 
+test("the skill says when to run `doctor` and names AGENTS.md", () => {
+  const text = skillFile(NAME);
+  for (const phrase of ["does not draw or does not load", `npx ${NAME} doctor`, `node_modules/${NAME}/AGENTS.md`]) assert.ok(text.includes(phrase), `the skill says: ${phrase}`);
+});
+
 test("init --skill never overwrites a skill that is there: it stays as it is and the chart module is still written", () => {
   const dir = project(vitePlain, { "src/main.ts": "", [SKILL]: "my own skill\n" });
   const r = withFakeManager({}, () => write(dir, "--skill"));
