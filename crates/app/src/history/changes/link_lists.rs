@@ -11,6 +11,12 @@ fn adds(steps: &[&Step], dep: DepId) -> bool {
     steps.iter().any(adds)
 }
 
+/// Whether a step of the commit deletes `dep`: the step is a `RestoreLink`, the inverse of a remove.
+fn removes(steps: &[&Step], dep: DepId) -> bool {
+    let removes = |s: &&Step| matches!(s.edit, Edit::RestoreLink { dep: d } if d == dep);
+    steps.iter().any(removes)
+}
+
 impl Session {
     /// The link deletes that go with the `gone` tasks of one commit (decision 0017), each link
     /// once, but not a link a step of the commit adds: the links held when the commit ended, with
@@ -41,15 +47,21 @@ impl Session {
     }
 
     /// The records of one step of the commit. A link the step adds and an end of which is deleted
-    /// by now is listed as neither created nor deleted, and so is the undo of that step: a
+    /// `RestoreLink` of a link with an end among the `made` tasks, which the host never held. So is
+    /// a link the commit both adds and removes: the host never held it, and does not after.
     /// `RestoreLink` of a link with an end among the `made` tasks, which the host never held.
-    pub(super) fn step_links(&self, edit: &Edit, made: &[TaskId]) -> Vec<String> {
+    pub(super) fn step_links(&self, edit: &Edit, made: &[TaskId], steps: &[&Step]) -> Vec<String> {
         let ends = |dep: DepId| self.schedule.dependencies()[dep.0 as usize];
         let lost = |d: engine::Dependency| {
             self.schedule.is_deleted(d.pred) || self.schedule.is_deleted(d.succ)
         };
         let remade = |d: engine::Dependency| made.contains(&d.pred) || made.contains(&d.succ);
         match *edit {
+            Edit::RemoveLink { dep } | Edit::RestoreLink { dep }
+                if adds(steps, dep) && removes(steps, dep) =>
+            {
+                Vec::new()
+            }
             Edit::RemoveLink { dep } if lost(ends(dep)) => Vec::new(),
             Edit::RestoreLink { dep } if remade(ends(dep)) => Vec::new(),
             _ => self.link_changes(edit),

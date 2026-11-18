@@ -262,6 +262,21 @@ fn a_link_added_and_lost_with_its_end_in_one_commit_is_listed_as_neither_created
         ];
         s.edit_group(steps, Source::Typed).unwrap();
     });
+    replayed_from_the_records(|s| {
+        let (pred, succ) = (FIRST, TaskId(2));
+        let (kind, lag) = (LinkType::FS, 0);
+        let steps = vec![
+            Edit::AddLink {
+                pred,
+                succ,
+                kind,
+                lag,
+            },
+            Edit::RemoveLink { dep: DepId(2) },
+            Edit::Delete { task: succ },
+        ];
+        s.edit_group(steps, Source::Typed).unwrap();
+    });
 }
 
 fn up(task: u32, key: &Value, field: &str, old: &Value, new: &Value) -> Value {

@@ -87,7 +87,7 @@ impl Session {
         };
         changes.extend(self.links_gone(&tasks(true), &steps));
         for step in &steps {
-            changes.extend(self.step_links(&step.edit, &tasks(false)));
+            changes.extend(self.step_links(&step.edit, &tasks(false), &steps));
             changes.extend(self.outline_changes(step));
         }
         changes.extend(self.links_made(&tasks(false), &steps));
