@@ -247,11 +247,11 @@ jobs:
         run: sccache --show-stats; echo "CARGO_INCREMENTAL=${CARGO_INCREMENTAL-unset}"
 
   # The smoke set (gs#1123): the specs tagged @smoke, one per journey that works today (scripts/test-smoke-set.ts keeps it at
-  # 10 to 25 tests). It builds and runs as a `web` shard does, without a shard, and runs on every tier but deploy. On fast it also runs the
-  # no-page tests (the plan's class d, gs#1163), which `web` may not, and when `web` is skipped it runs the checks `web (checks)` runs once.
+  # 10 to 25 tests). It builds and runs as a `web` shard does, without a shard, and runs on fast only: `web` runs every spec, these included, on full and
+  # nightly (tl1163sk), and the deploy path skips it. On fast it also runs the no-page tests (the plan's class d, gs#1163), which `web` may not, and when `web` is skipped it runs the checks `web (checks)` runs once.
   smoke:
     needs: [select, wasm]
-    if: ${{ (needs.select.outputs.code == 'true' && needs.select.outputs.tier != 'deploy') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    if: ${{ (needs.select.outputs.code == 'true' && needs.select.outputs.tier == 'fast') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci","tachlon-browser"]') }}
     timeout-minutes: 15
     defaults:
@@ -267,7 +267,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - id: build
         run: pnpm build
-      # The component's Node tier (gs#1163): the page-free tests and the WASM file reading, on every tier this job runs.
+      # The component's Node tier (gs#1163): the page-free tests and the WASM file reading, on fast; `web (checks)` runs them on full and nightly.
       - name: node --test (tests-node)
         run: node --test tests-node/*.test.ts
       - run: pnpm exec playwright install chromium
@@ -382,6 +382,10 @@ jobs:
       - name: typecheck
         if: ${{ matrix.shard == 'checks' }}
         run: pnpm typecheck
+      # The Node tests `smoke` runs on fast; on full and nightly `smoke` does not run, so they run here (scripts/test-deploy-conditions.mjs keeps the two in step).
+      - name: node --test (tests-node)
+        if: ${{ matrix.shard == 'checks' && (needs.select.outputs.tier == 'full' || needs.select.outputs.tier == 'nightly') }}
+        run: node --test tests-node/*.test.ts
       - name: library build and pack check
         if: ${{ matrix.shard == 'checks' }}
         run: |
@@ -682,7 +686,7 @@ jobs:
         run: |
           rows=$(grep -c '<tr>' book/book/keys.html || true)
           test "$rows" -ge 5 || { echo "::error::book/book/keys.html has $rows table rows; the keys anchor in docs/KEYS.md is missing or empty"; exit 1; }
-      # `smoke` runs every tests-node file when the code jobs run; a run that skips them (select, `pick`) gets the four chapter tests here.
+      # `smoke` (fast) or `web (checks)` (full, nightly) runs every tests-node file when the code jobs run; a run that skips them (select, `pick`) gets the four chapter tests here.
       - if: ${{ env.CODE != 'true' }}
         uses: pnpm/action-setup@v4
         with: {package_json_file: "${{ env.WEB_ROOT }}/package.json", dest: "~/setup-pnpm-${{ runner.name }}"}
@@ -713,6 +717,7 @@ jobs:
     env:
       CODE: ${{ needs.select.outputs.code }}
       FULL: ${{ needs.select.outputs.full }}
+      TIER: ${{ needs.select.outputs.tier }}
       WHY: ${{ needs.select.outputs.why }}
       BROWSER: ${{ needs.select.outputs.browser }}
       SELECT: ${{ needs.select.result }}
@@ -755,6 +760,8 @@ jobs:
               w=$want
               # On the deploy path (full=false) rust and smoke are skipped by design; web follows select's web output (gantt#1578).
               if [ "$FULL" = false ] && { [ "${pair%%:*}" = rust ] || [ "${pair%%:*}" = smoke ]; }; then w=skipped; fi
+              # On full and nightly, web runs every spec and its checks leg runs tests-node, so smoke is skipped by decision (tl1163sk).
+              if { [ "$TIER" = full ] || [ "$TIER" = nightly ]; } && [ "${pair%%:*}" = smoke ]; then w=skipped; fi
               # On fast with no browser spec touched, select skips web (gs#1163).
               if [ "$want" = success ] && [ "$WEB_SET" = none ] && [ "${pair%%:*}" = web ]; then w=skipped; fi
               # On a run that skips the code jobs but changes book/src/SUMMARY.md, hosted-browser runs, and wasm builds the bindings it needs.
@@ -773,6 +780,8 @@ jobs:
             echo "ci-summary: PASS (deploy path). wasm, hosted, hosted-browser and book passed; rust and smoke do not run on it; web ran ${web_ran} (the push's own)." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$CODE" = true ] && [ "$WEB_SET" != all ]; then
             echo "ci-summary: PASS. rust, wasm, smoke, hosted, hosted-browser (@smoke) and book passed; web ran ${web_ran}${touched}." | tee -a "$GITHUB_STEP_SUMMARY"
+          elif [ "$CODE" = true ] && { [ "$TIER" = full ] || [ "$TIER" = nightly ]; }; then
+            echo "ci-summary: PASS. rust, wasm, web, hosted, hosted-browser and book all passed; smoke does not run on the $TIER tier by decision (web covers it)." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$CODE" = true ]; then
             echo "ci-summary: PASS. rust, wasm, smoke, web, hosted, hosted-browser and book all passed." | tee -a "$GITHUB_STEP_SUMMARY"
           elif [ "$BROWSER" = true ]; then
