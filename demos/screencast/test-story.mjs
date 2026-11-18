@@ -55,6 +55,12 @@ assert.equal(ending("fling", { slowestMs: 9.14 }), "(slowest frame 9.1 ms)");
 assert.deepEqual(names(story).slice(0, 2), ["open", "drag"]);
 assert.equal(featureNames.indexOf("show-moved"), featureNames.indexOf("edit-link") + 1, "Show moved follows the edit whose report it keeps");
 assert.equal(names(story).at(-1), "close", "the story ends on the close card");
+// The close card takes the repository from SCREENCAST_REPO (run.sh sets it) and refuses by name when it is unset.
+const closing = story.steps.find((step) => step.name === "close");
+delete process.env.SCREENCAST_REPO;
+await assert.rejects(async () => closing.caption({}, undefined), /SCREENCAST_REPO is not set/);
+process.env.SCREENCAST_REPO = "owner/name";
+assert.ok((await closing.caption({}, undefined)).endsWith("github.com/owner/name"));
 
 // The P6 steps name what the file holds: its activities, the link, and the code type and value.
 const fixture = readFileSync(new URL("./fixtures/fit-out.xer", import.meta.url), "utf8");

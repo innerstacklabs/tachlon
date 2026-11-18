@@ -52,6 +52,9 @@ fi
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$root"
+# The close card's caption names the repository; the product's name stays in product.ts, so it is read from there at run time.
+SCREENCAST_REPO="innerstacklabs/$(node --input-type=module -e 'import { PRODUCT_NAME } from "./packages/gantt/src/product.ts"; console.log(PRODUCT_NAME.toLowerCase())')"
+export SCREENCAST_REPO
 
 if ! timeout 60 git fetch origin main; then
   echo "warning: could not fetch origin main; using the existing origin/main" >&2
@@ -139,10 +142,10 @@ timeout 120 rsync -a -e "$rsync_ssh" \
 timeout 120 rsync -a -e "$rsync_ssh" \
   packages/gantt/tests/fixtures/ledger-timeline.xer mbp:gantt-probe/screencast/fixtures/
 timeout 900 ssh "${ssh_options[@]}" mbp \
-  "mkdir -p ~/gantt-probe/tmp && cd ~/gantt-probe/screencast && TMPDIR=\$HOME/gantt-probe/tmp /opt/homebrew/bin/node record.mjs --dist dist --out out --machine 'MacBook Pro' --commit $commit --branch $branch"
+  "mkdir -p ~/gantt-probe/tmp && cd ~/gantt-probe/screencast && TMPDIR=\$HOME/gantt-probe/tmp SCREENCAST_REPO=$SCREENCAST_REPO /opt/homebrew/bin/node record.mjs --dist dist --out out --machine 'MacBook Pro' --commit $commit --branch $branch"
 
 timeout 900 ssh "${ssh_options[@]}" mbp \
-  "mkdir -p ~/gantt-probe/tmp && cd ~/gantt-probe/screencast && TMPDIR=\$HOME/gantt-probe/tmp /opt/homebrew/bin/node record.mjs --list features --dist dist --out out --machine 'MacBook Pro' --commit $commit --branch $branch"
+  "mkdir -p ~/gantt-probe/tmp && cd ~/gantt-probe/screencast && TMPDIR=\$HOME/gantt-probe/tmp SCREENCAST_REPO=$SCREENCAST_REPO /opt/homebrew/bin/node record.mjs --list features --dist dist --out out --machine 'MacBook Pro' --commit $commit --branch $branch"
 
 stage="$(mktemp -d)"
 trap 'rm -rf "$stage"' EXIT

@@ -2,7 +2,6 @@
 // steps.mjs puts them in order with the P6 steps (p6.mjs); the storyboard is gs#384. The video opens on a schedule a person can
 // read (gs#508): the pre-roll (criticalView) leaves the critical path on the chart, and the first action is a drag that moves it.
 // The fast scroll through all 50,000 tasks comes after it, short, with the slowest frame it measured in its caption.
-import { PRODUCT_NAME } from "../../../packages/gantt/src/product.ts";
 import { criticalPoint, firstCritical, panFirstBarTo, revealCritical, shared, zoomTo } from "./helpers.mjs";
 
 const centre = (box) => ({ x: box.x + box.width / 2, y: box.y + box.height / 2 });
@@ -177,9 +176,15 @@ export const drag = {
   captionEnd: (_ctx, result) => `(${result.moved === null ? "" : `${result.moved}; `}re-solved in ${result.recomputeMs.toFixed(1)} ms)`,
 };
 
+// run.sh sets SCREENCAST_REPO from product.ts, where the name is kept, and passes it to the Mac; the file has no default.
+const repository = () => {
+  if (!process.env.SCREENCAST_REPO) throw new Error("SCREENCAST_REPO is not set: run demos/screencast/run.sh, which sets it, or set it to the owner/name of the repository");
+  return process.env.SCREENCAST_REPO;
+};
+
 export const close = {
   name: "close",
-  caption: `Rust, WebAssembly and the GPU, built as a component. github.com/innerstacklabs/${PRODUCT_NAME.toLowerCase()}`,
+  caption: () => `Rust, WebAssembly and the GPU, built as a component. github.com/${repository()}`,
   run: async (ctx) => {
     await ctx.hold(2);
   },

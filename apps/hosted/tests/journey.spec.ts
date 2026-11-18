@@ -14,6 +14,8 @@ import { pageErrors, trackLogs, waitReady, waitSampleSettled } from "./support/p
 // The sample is a knob, so the spec can be pointed at another: JOURNEY_SAMPLE=medium-5k makes the first scene, `open`,
 // fail by name, because its check is that the schedule has 50,000 tasks.
 const SAMPLE = process.env.JOURNEY_SAMPLE ?? "demo-50k";
+// The close card's caption reads the repository from this variable (run.sh sets it for a recording); a test needs only text.
+process.env.SCREENCAST_REPO ??= "owner/name";
 
 // The recorder films 1280x720 (demos/screencast/record.mjs): the scenes aim at that layout.
 test.use({ viewport: { width: 1280, height: 720 } });
