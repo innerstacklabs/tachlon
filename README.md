@@ -1,6 +1,6 @@
-# <img src="apps/site/favicon.svg" width="36" alt=""> Tachlon
+# <img src="apps/site/favicon.svg" width="36" alt=""> Tachlon: Blazingly Fast Gantt Scheduling Component
 
-**Blazingly fast, powerful Gantt and scheduling. AI first.**
+**A fully featured Gantt and scheduling component for your product, built in Rust and WebAssembly and drawn by the GPU: customizable, easy to integrate, free and open source, and AI first.**
 
 [Website](https://tachlon.com) · [Live demo](https://app.tachlon.com) · [Guide](https://app.tachlon.com/book/) · [npm](https://www.npmjs.com/package/tachlon)
 
@@ -15,8 +15,6 @@ Watch the narrated overview at [tachlon.com](https://tachlon.com).
 <!-- screencast: the GIF stands in until docs/media/screencast.mp4 (4.9 MB) is uploaded as a GitHub attachment; its URL on a line of its own then replaces the image -->
 <!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-11-17 from branch `agent/screencast-rerecord` based on `2908360` -->
 <!-- screencast:end -->
-
-Tachlon is a Gantt and scheduling component you put inside your own product.
 
 ## Why Tachlon
 
