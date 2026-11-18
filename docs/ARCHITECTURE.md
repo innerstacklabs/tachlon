@@ -154,7 +154,7 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
 - *One edit path.* `Edit` (`Move`, `SetDuration`, `Rename`, `Insert`, `Delete`, `Restore`, `Reparent`, `AddLink`, `RemoveLink`, `RestoreLink`, `SetLink`, `SetBaseline`, `ClearBaseline`, `SetDataDate`, `SetProgress`, `SetLimit`) is the one kind of change, and it
   names a task by `TaskId`, never by row (decision 0001); `Insert` carries a `Place` and a name.
   `Session::run` applies an edit and returns its
-  inverse; `Session::edit` records that inverse for undo (`HISTORY_CAP`, 200) and clears redo.
+  inverse; `Session::edit` records that inverse for undo (`HISTORY_CAP`, 200) and clears redo; the commits a host has not acknowledged are kept, at most `HISTORY_CAP`, so `Session::rollback_to` can take them back newest first.
   - *`Move`.* A drag is an `Edit::Move`: `Session::constrain` sets the start-no-earlier-than and calls
     `recompute_cone_moved`.
   - *`SetDuration`* calls `recompute_duration_cone_moved`, whose backward pass covers the

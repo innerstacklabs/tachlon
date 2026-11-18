@@ -1,6 +1,6 @@
 {
-  "bytes": 2902705,
-  "measured": 2898609,
+  "bytes": 2910567,
+  "measured": 2906471,
   "date": "2026-11-18",
-  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the update row, as the hosted job measures it: 2898609 B on main 93b7205. The budget is that figure plus a room of 4096 B (A devteam-1-1562: two rows re-based on 137 B of room collided on main, 32 B over at 93b7205), so 2902705 B; every later re-base under A devteam-1-1550 uses measured + 4096. Main's own at 93b7205 measured 2897056 B on its scheduled run, so the row grows it by 1553 B of its own code and text (chart.update and its types), within the 8192 B a row may re-base alone. It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose. Before it: bytes 2897024, measured 2896887 on 2026-11-18."
+  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the rollback row (tl2091rb), as the hosted job measures it: 2906471 B (run 44299664598, push run on ab299a9, which contains main e440f0e). The budget is that figure plus 4096 B of room (A devteam-1-1562), so 2910567 B; every re-base under A devteam-1-1550 uses measured + 4096. Main at 5143783 measured 2902869 B on the hosted job (run 44295978103), and main's commits after it (e440f0e, the guide frame) change no packed file, so the row grows the tarball by 3602 B (rollback_to and acknowledge, the rollbackGone reason and its sentence, and their docs), within the 8192 B a row may re-base alone. This re-base also clears main's own 164 B overrun at 5143783 (fix-forward, A devteam-1-1565). It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose. Before it: bytes 2902705, measured 2898609 on 2026-11-18 (main's file)."
 }
