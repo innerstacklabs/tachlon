@@ -222,6 +222,22 @@ test("the baseline sets, takes new tasks and clears through Gantt, and state() r
   expect((await state(page, "b")).baseline).toBeNull();
 });
 
+test("setBaseline(records) takes dates by key as the baseline, one undo drops it, and a bad value or record refuses and sets nothing", async ({ page }) => {
+  const task = taskOf(await host(page, "a", (api) => api.commands.insertRow()));
+  await host(page, "a", (api, t) => api.commands.assignKey({ task: t }, "t1"), task);
+  const dates = { key: "t1", start: "2026-03-02", finish: "2026-03-06" };
+  const set = (records: unknown) => host(page, "a", (api, r) => api.commands.setBaseline(r as never), records);
+  expect(await set([{ ...dates, key: "zz" }])).toMatchObject({ ok: false, reason: "unknownKey", record: 0 });
+  expect(await set([{ ...dates, finish: "2026-03-01" }])).toMatchObject({ ok: false, reason: "finishBeforeStart", record: 0 });
+  const bad = await host(page, "a", (api) => { const cycle: unknown[] = []; cycle.push(cycle); return [cycle, [{ start: BigInt(1) }], "t1"].map((r) => api.commands.setBaseline(r as never)); });
+  expect(bad, "a cycle, a BigInt, not an array").toMatchObject(Array(3).fill({ ok: false, reason: "badRecords" }));
+  expect((await state(page, "a")).baseline, "every refusal set nothing").toBeNull();
+  expect(await set([dates])).toEqual({ ok: true });
+  expect((await state(page, "a")).baseline?.rows).toBe(1);
+  expect(await host(page, "a", (api) => api.commands.undo())).toBe(true);
+  expect((await state(page, "a")).baseline).toBeNull();
+});
+
 test("state().baseline tells a host how many tasks the baseline lacks and the day it was set, as the chart writes it", async ({ page }) => {
   await host(page, "a", (api) => api.commands.setDataDate("2024-02-05"));
   await host(page, "a", (api) => api.commands.setBaseline());
