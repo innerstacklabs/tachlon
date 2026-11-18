@@ -1,6 +1,6 @@
 {
-  "bytes": 2897024,
-  "measured": 2896887,
+  "bytes": 2898746,
+  "measured": 2898609,
   "date": "2026-11-18",
-  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the beforeEditFailed row, as the hosted job measures it; main's own at 45fef4e was 2896641 B against a budget of 2896778 B (room 137 B), so the row grows it by 246 B of its own code and text (the new refusal reason and its sentence). That is within the 8192 B that A devteam-1-1550 lets a row re-base alone. The budget is the head's size plus that room. It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose. Before it: bytes 2896778, measured 2896641 on 2026-11-17."
+  "note": "The packed tarball of this package (npm pack --dry-run --json, size) on the head of the update row, as the hosted job measures it; main's own at 93b7205 was 2896887 B against a budget of 2897024 B (room 137 B), so the row grows it by 1722 B of its own code and text (chart.update and its types). That is within the 8192 B that A devteam-1-1550 lets a row re-base alone. The budget is the head's size plus that room. It shrinks with every trim; karpathy re-bases it only when a feature row grows the engine on purpose. Before it: bytes 2897024, measured 2896887 on 2026-11-18."
 }
