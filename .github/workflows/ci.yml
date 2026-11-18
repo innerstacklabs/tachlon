@@ -454,6 +454,10 @@ jobs:
     if: ${{ (needs.select.outputs.code == 'true') && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     runs-on: ${{ fromJSON(github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/release') && vars.TACHLON_MAIN_RUNNER == 'true' && '["self-hosted","tachlon-main"]' || '["self-hosted","tachlon-ci","tachlon-browser"]') }}
     timeout-minutes: 20
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
     defaults:
       run:
         working-directory: apps/hosted
@@ -488,9 +492,22 @@ jobs:
       - run: pnpm build:lib
         working-directory: packages/gantt
       # The package size check runs where the package is built: `web` is skipped when only a README changes, `hosted` is not.
+      # A branch fails when its tarball grew over 8192 B since its merge base, whose size main's run recorded (scripts/package-size.ts,
+      # docs/CONTRIBUTING.md "Package size"); main only records its size. It reads runs, artifacts and the branch's pull request body, so the job grants read scopes only.
       - name: package size
+        id: size
         working-directory: packages/gantt
-        run: node "$GITHUB_WORKSPACE/scripts/package-size.ts" .
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          rc=0
+          node "$GITHUB_WORKSPACE/scripts/package-size.ts" . || rc=$?
+          # Exit 2 is "unknown": no size was compared, so it is a warning and never a pass; the lines above say why.
+          if [ "$rc" = 2 ]; then echo "::warning title=package size unknown::the tarball was not compared with its merge base"; elif [ "$rc" != 0 ]; then exit "$rc"; fi
+      - name: record package size
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.size.outputs.bytes != '' }}
+        uses: actions/upload-artifact@v4
+        with: {name: "package-size-${{ steps.size.outputs.bytes }}", path: "${{ runner.temp }}/package-size.txt", retention-days: 90}
       # The product page's hero chart mounts from this build (the deploy job stages it as package/ beside apps/site).
       - uses: actions/upload-artifact@v4
         with:
