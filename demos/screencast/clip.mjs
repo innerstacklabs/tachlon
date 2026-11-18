@@ -1,7 +1,7 @@
 // One chapter clip for the book (gs#454): play one step from steps-features.mjs in a headless browser and write
 // `<step>.mp4` (1280x720, 30 fps), `<step>.webp` (the poster: the last frame) and the screenshots the step takes
 // through `ctx.shot(name, badges)`, each a numbered teal badge on a page element or a point. The media budget per
-// chapter (docs/CONTRIBUTING.md, "The book"): a clip of 10 to 20 s under 3 MB, a poster or screenshot under 300 KB.
+// chapter: CLIP_SECONDS, CLIP_BYTES and IMAGE_BYTES below.
 //
 //   node demos/screencast/clip.mjs --step open-file --out book/src/media [--file <schedule>] [--name <base>] [--dist <dir>]
 //
