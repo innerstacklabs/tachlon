@@ -140,7 +140,7 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
   let destroyed = false;
   // The document the switch carries, which `toDocument` returns while the new start is not up yet.
   let kept: unknown = null;
-  // The `open`, `save` and `load` calls still running on the current start: a switch lets them end before it keeps the schedule.
+  // The `open`, `download` and `load` calls still running on the current start: a switch lets them end before it keeps the schedule.
   const running = new Set<Promise<unknown>>();
   const tracked = <T>(call: Promise<T>): Promise<T> => {
     running.add(call);
@@ -276,7 +276,7 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
       },
     }),
     open: async (file, opts) => tracked((await settled()).open(file, opts)),
-    save: async () => tracked((await settled()).save()),
+    download: async () => tracked((await settled()).download()),
     load: async (source) => tracked((await settled()).load(source)),
     newSchedule: async () => tracked((await settled()).newSchedule()),
     exportCsv: () => now().exportCsv(),

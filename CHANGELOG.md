@@ -11,6 +11,10 @@ What changed in each npm release, newest first. Each entry says what you must ch
 - The task list shows a Predecessors column for a schedule whose tasks have `id`s. A person clicks a cell, types a list such as `3, 5SS+1d` and presses Enter, and the links into that task change as one undo step; a schedule with no `id`s shows no new column.
 - The React, Vue and Angular components take `capabilities` as a prop or input, as `mount` takes it as an option. A new value is set on the chart that is mounted with `setCapabilities` and does not mount it again; a chart that mounts again starts on the latest value.
 
+### Changed
+
+- `Gantt.save()` is now `Gantt.download()`.
+
 ### Fixed
 
 - A typed percent complete of `0` (in the percent cell, the task dialog and the by-key update's `progress`) leaves a task that has not started with no actual start and no remaining work; it used to give it its early start. A typed percent that would put an actual start or finish after the data date is refused with `actualAfterDataDate`, as the actual date cells and the by-key update already refuse it.

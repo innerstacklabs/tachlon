@@ -30,7 +30,7 @@ test("state() carries fileName, unsaved and importNotes, and change fires when u
   });
   await g.nextFrame(3);
   expect((await read()).unsaved).toBe(true);
-  await g.page.evaluate(() => window.gantt!.api!.save());
+  await g.page.evaluate(() => window.gantt!.api!.download());
   await g.nextFrame(3);
   expect((await read()).unsaved).toBe(false);
   expect(await g.page.evaluate(() => (window as unknown as { seen: boolean[] }).seen.filter((u, i, a) => a[i - 1] !== u))).toEqual([true, false]);
