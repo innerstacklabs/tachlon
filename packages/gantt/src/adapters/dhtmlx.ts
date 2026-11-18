@@ -53,6 +53,7 @@ export interface DocumentLimit {
   pin_start?: number;
   pin_finish?: number;
   alap?: true;
+  milestone?: "start" | "finish";
   resume?: number;
 }
 
@@ -294,7 +295,7 @@ export function fromDhtmlx(source: unknown, options: DhtmlxOptions = {}): Dhtmlx
   documentTasks.forEach((task, at) => {
     const start = starts[at];
     if (start !== null && start !== undefined) task.snet = start - origin * DAY;
-    if (task.limit !== undefined) task.limit = Object.fromEntries(Object.entries(task.limit).map(([key, value]) => [key, value === true ? value : value - origin * DAY])) as DocumentLimit;
+    if (task.limit !== undefined) task.limit = Object.fromEntries(Object.entries(task.limit).map(([key, value]) => [key, typeof value === "number" ? value - origin * DAY : value])) as DocumentLimit;
   });
 
   // The planned dates are the baseline: no float, and the project finish is the latest planned finish.

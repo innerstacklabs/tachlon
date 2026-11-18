@@ -151,6 +151,13 @@ test("a_date_alone_on_a_finish_limit_is_the_end_of_that_day_and_on_a_start_limit
   expect(limitOf({ mso: day }).limit).toEqual({ pin_start: FRI });
 });
 
+test("milestone_start_or_finish_lands_in_the_documents_limit_type_milestone_alone_sets_none_and_another_value_is_refused", () => {
+  expect(limitOf({ duration: 0, milestone: "start" }).limit).toEqual({ milestone: "start" });
+  expect(limitOf({ duration: 0, milestone: "finish", snlt: "2026-03-06" }).limit).toEqual({ snlt: FRI, milestone: "finish" });
+  expect(limitOf({ type: "milestone" })).not.toHaveProperty("limit");
+  expect(() => limitOf({ duration: 0, milestone: "middle" })).toThrow('tasks[1].milestone: expected "start" or "finish", got string "middle"');
+});
+
 test("the_plain_path_and_the_dhtmlx_path_give_the_same_limit_for_the_same_input", () => {
   for (const key of ["snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap"]) {
     const plain = fromTasks({ tasks: [{ ...t0, duration: 1, [key]: key === "alap" ? true : "2026-03-06T09:00" }] });

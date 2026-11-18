@@ -36,6 +36,7 @@ function limitKeys(task: Saved["tasks"][number], origin: number, start: string, 
     if (at !== undefined) keys[plain] = limitDate(at, origin);
   }
   if (task.limit?.alap === true) keys.alap = true;
+  if (task.limit?.milestone !== undefined) keys.milestone = task.limit.milestone;
   if (task.actual_start !== null) { // the other progress keys describe a started task, as the readers take them
     keys.actualStart = limitDate(task.actual_start, origin);
     if (task.actual_finish !== null) keys.actualFinish = limitDate(task.actual_finish, origin);

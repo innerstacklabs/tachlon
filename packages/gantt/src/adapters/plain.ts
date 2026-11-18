@@ -19,7 +19,7 @@ export interface PlainCalendar {
   [field: string]: unknown;
 }
 
-/** A task: `start` and `end` are `YYYY-MM-DD[THH:mm]`, `duration` is in the data's `durationUnit` (working days of the task's `calendar`, by default), `progress` 0 to 100, `color` the bar's `#rrggbb`, `label` the text the bar shows in place of the name, `key` your own text id, kept through edits and saves. `snet` (start no earlier than, in place of `start`), `snlt`, `fnet`, `fnlt` (each a date), `mso` and `mfo` (a date each; one pin per task) and `alap: true` are the task's limits; a date alone on a finish limit is the end of that day. `actualStart` and `actualFinish` (dates; a date alone is the first working minute of the day, and the end of its last), `remaining` (as `duration` is) and `resume` (a date) say what happened; the last three need an `actualStart`, and `remaining` is not given with `progress`. `calendar` is the `key` of one of the data's `calendars`, the first when it is left out. A task with children is a summary that takes its dates from them. */
+/** A task: `start` and `end` are `YYYY-MM-DD[THH:mm]`, `duration` is in the data's `durationUnit` (working days of the task's `calendar`, by default), `progress` 0 to 100, `color` the bar's `#rrggbb`, `label` the text the bar shows in place of the name, `key` your own text id, kept through edits and saves. `snet` (start no earlier than, in place of `start`), `snlt`, `fnet`, `fnlt` (each a date), `mso` and `mfo` (a date each; one pin per task) and `alap: true` are the task's limits; a date alone on a finish limit is the end of that day. `milestone` (`"start"` or `"finish"`) on a task with no duration puts it at the start of a working period (08:00 of the next working day) or at the end of one (17:00 of the day before). `actualStart` and `actualFinish` (dates; a date alone is the first working minute of the day, and the end of its last), `remaining` (as `duration` is) and `resume` (a date) say what happened; the last three need an `actualStart`, and `remaining` is not given with `progress`. `calendar` is the `key` of one of the data's `calendars`, the first when it is left out. A task with children is a summary that takes its dates from them. */
 export interface PlainTask {
   id: string | number;
   calendar?: string;
@@ -39,6 +39,7 @@ export interface PlainTask {
   mso?: string;
   mfo?: string;
   alap?: boolean;
+  milestone?: "start" | "finish";
   actualStart?: string;
   actualFinish?: string;
   remaining?: number;
@@ -71,7 +72,7 @@ export interface PlainResult {
 
 const ACTUAL_KEYS = ["actualStart", "actualFinish", "remaining", "resume"];
 const KNOWN_CALENDAR = new Set(["key", "workDays", "hoursPerDay", "week", "exceptions"]);
-const KNOWN_TASK =new Set(["id", "name", "start", "end", "duration", "parent", "progress", "text", "start_date", "end_date", "type", "color", "label", "key", "calendar", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", ...ACTUAL_KEYS]);
+const KNOWN_TASK =new Set(["id", "name", "start", "end", "duration", "parent", "progress", "text", "start_date", "end_date", "type", "color", "label", "key", "calendar", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", "milestone", ...ACTUAL_KEYS]);
 const KNOWN_LINK = new Set(["id", "from", "to", "type", "lag", "source", "target", "key"]);
 
 /** Count the fields of `item` that are not in `known` (and do not start with `$`). */

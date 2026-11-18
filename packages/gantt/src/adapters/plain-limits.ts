@@ -1,4 +1,4 @@
-// The limit keys of a plain task (tl#2081): `snet`, `snlt`, `fnet`, `fnlt`, `mso`, `mfo` (each a date) and `alap: true`. Their names are
+// The limit keys of a plain task (tl#2081): `snet`, `snlt`, `fnet`, `fnlt`, `mso`, `mfo` (each a date), `alap: true` and `milestone`. Their names are
 // the DHTMLX constraint types, so the one `LIMIT_KEYS` table of `dhtmlx.ts` says which document limit each sets, and the two paths cannot drift.
 import { DAY, LIMIT_KEYS, minutesOf, type DocumentLimit } from "./dhtmlx.ts";
 
@@ -16,6 +16,7 @@ export function readLimits(task: Record<string, unknown>): { snet: number | null
     return at;
   };
   const limit: DocumentLimit = task.alap === true ? { alap: true } : {};
+  if (task.milestone === "start" || task.milestone === "finish") limit.milestone = task.milestone;
   for (const [key, field] of Object.entries(LIMIT_KEYS)) {
     const at = read(key);
     if (at !== null) limit[field] = at;
@@ -25,5 +26,5 @@ export function readLimits(task: Record<string, unknown>): { snet: number | null
 
 /** `limit` with its dates counted from `origin` (a day number) instead of 1970. */
 export function shiftLimit(limit: DocumentLimit, origin: number): DocumentLimit {
-  return Object.fromEntries(Object.entries(limit).map(([key, value]) => [key, value === true ? value : value - origin * DAY])) as DocumentLimit;
+  return Object.fromEntries(Object.entries(limit).map(([key, value]) => [key, typeof value === "number" ? value - origin * DAY : value])) as DocumentLimit;
 }

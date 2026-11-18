@@ -8,7 +8,7 @@ use crate::link_gesture;
 use app::{
     Place, Session, Siblings, edit::Edit, history::Source, meta::TaskMeta, outline::Outline,
 };
-use engine::{DepId, Limit, LinkType, Pin, Schedule, Task, TaskId};
+use engine::{DepId, Limit, LinkType, Milestone, Pin, Schedule, Task, TaskId};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 use timeline::Timeline;
@@ -71,7 +71,7 @@ fn commit(source: &str, changes: Value) -> (String, Value) {
 
 /// A task of one day with no limits or actuals, as a create writes it.
 fn born(name: &str, after: Value, code: Value) -> Value {
-    let mut fields = json!({"parent":null,"wbsCode":null,"calendar":{"calendar":0},"color":null,"label":null,"name":name,"snet":null,"duration":1.0,"actualStart":null,"actualFinish":null,"remaining":null,"snlt":null,"fnet":null,"fnlt":null,"mso":null,"mfo":null,"alap":false,"resume":null});
+    let mut fields = json!({"parent":null,"wbsCode":null,"calendar":{"calendar":0},"color":null,"label":null,"name":name,"snet":null,"duration":1.0,"actualStart":null,"actualFinish":null,"remaining":null,"snlt":null,"fnet":null,"fnlt":null,"mso":null,"mfo":null,"alap":false,"resume":null,"milestone":null});
     (fields["after"], fields["code"]) = (after, code);
     fields
 }
@@ -153,7 +153,7 @@ fn a_created_task_writes_its_limits_actuals_color_and_label_in_the_host_names() 
         pin: Some(Pin::Start(0)),
         alap: true,
         resume: Some(0),
-        milestone: None,
+        milestone: Some(Milestone::Finish),
     };
     s.edit(Edit::SetLimit { task: FIRST, limit }).unwrap();
     s.edit(Edit::SetProgress {
@@ -174,6 +174,7 @@ fn a_created_task_writes_its_limits_actuals_color_and_label_in_the_host_names() 
         ("mso", json!("2026-01-05T00:00")),
         ("alap", json!(true)),
         ("resume", json!("2026-01-05T00:00")),
+        ("milestone", json!("finish")),
         ("actualStart", json!("2026-01-05T08:00")),
         ("remaining", json!(0.5)),
     ] {

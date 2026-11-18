@@ -33,7 +33,7 @@ export class PlainDataError extends Error {
   }
 }
 
-type Kind = "id" | "text" | "date" | "number" | "type" | "flag";
+type Kind = "id" | "text" | "date" | "number" | "type" | "flag" | "milestone";
 interface Field {
   kind: Kind;
   required?: boolean;
@@ -57,6 +57,7 @@ const TASK: Record<string, Field> = {
   mso: { kind: "date" },
   mfo: { kind: "date" },
   alap: { kind: "flag" },
+  milestone: { kind: "milestone" },
   calendar: { kind: "text" },
   actualStart: { kind: "date" },
   actualFinish: { kind: "date" },
@@ -71,7 +72,7 @@ const LINK: Record<string, Field> = {
   key: { kind: "text" },
 };
 
-const EXAMPLE: Record<Kind, string> = { id: '"site" or 7', text: '"Site works"', date: '"2026-03-02" or "2026-03-02T08:00"', number: "5", type: '"FS"', flag: "true" };
+const EXAMPLE: Record<Kind, string> = { id: '"site" or 7', text: '"Site works"', date: '"2026-03-02" or "2026-03-02T08:00"', number: "5", type: '"FS"', flag: "true", milestone: '"start"' };
 
 function show(v: unknown): string {
   if (v === undefined) return "nothing";
@@ -97,6 +98,8 @@ function fine(f: Field, v: unknown): boolean {
       return typeof v === "string" && TYPES.includes(v);
     case "flag":
       return typeof v === "boolean";
+    case "milestone":
+      return v === "start" || v === "finish";
     case "number":
       return typeof v === "number" && Number.isFinite(v) && (f.min === undefined || v >= f.min) && (f.max === undefined || v <= f.max);
   }
@@ -110,6 +113,8 @@ function problem(name: string, f: Field, v: unknown): Pick<PlainIssue, "expected
       return as("text or a number");
     case "flag":
       return as("true or false");
+    case "milestone":
+      return as('"start" or "finish"');
     case "text":
       return as("text");
     case "date":

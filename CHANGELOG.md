@@ -6,6 +6,7 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ### New
 
+- A task in plain data with no duration takes `milestone: "start"` or `"finish"`, which puts it at the start of a working period or at the end of one; the saved copy and `snapshot()` write it back, and an undo that brings a deleted task back keeps it. Any other value is refused by `validate`.
 - After `chart.update(records)`, each cell in view whose shown value changed (the values the host sent and the ones the new plan moved) is highlighted for 1.5 seconds, with no fade under `prefers-reduced-motion: reduce`, and a row marked with `setPending` that the call wrote stops being dimmed.
 - The task list shows a Predecessors column for a schedule whose tasks have `id`s. A person clicks a cell, types a list such as `3, 5SS+1d` and presses Enter, and the links into that task change as one undo step; a schedule with no `id`s shows no new column.
 
