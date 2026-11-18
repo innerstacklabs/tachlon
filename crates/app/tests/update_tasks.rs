@@ -353,6 +353,40 @@ fn a_call_that_mixes_no_progress_with_timing_solves_once() {
 }
 
 #[test]
+fn a_host_date_the_chart_computed_otherwise_is_named_and_a_day_alone_compares_the_day() {
+    let (mut session, _) = keyed();
+    let mut differs = |start: &str, finish: &str| {
+        let host = format!(r#""hostStart":"{start}","hostFinish":"{finish}""#);
+        let json = format!(r#"[{{"key":"k0","start":"2026-03-09","duration":480,{host}}}]"#);
+        session.update_tasks(&json).unwrap().differs
+    };
+    assert_eq!(
+        differs("2026-03-09T07:00", "2026-03-09T15:00"),
+        Vec::<String>::new()
+    );
+    assert_eq!(differs("2026-03-09", "2026-03-09"), Vec::<String>::new());
+    let late = differs("2026-03-09T09:00", "2026-03-10");
+    let before = saved(&session);
+    for (member, text) in [("hostStart", "2026-02-30"), ("hostFinish", "soon")] {
+        let json = format!(r#"[{{"key":"k1","duration":9}},{{"key":"k2","{member}":"{text}"}}]"#);
+        let error = session.update_tasks(&json).unwrap_err();
+        assert_eq!(
+            (error.kind, error.member.as_deref()),
+            ("badValue", Some(member))
+        );
+        assert_eq!(saved(&session), before, "{member}");
+    }
+    assert_eq!(
+        late[0],
+        r#"{"record":0,"key":"k0","member":"start","host":"2026-03-09T09:00","chart":"2026-03-09T07:00"}"#
+    );
+    assert_eq!(
+        late[1],
+        r#"{"record":0,"key":"k0","member":"finish","host":"2026-03-10","chart":"2026-03-09"}"#
+    );
+}
+
+#[test]
 fn a_held_proposal_follows_an_update_of_the_tasks_it_rests_on() {
     let keyed_a = || {
         let mut session = what_moves::session();
