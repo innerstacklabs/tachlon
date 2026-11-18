@@ -7,7 +7,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LIMIT, nearestRecord, tarballBytes, verdict } from "./package-size.ts";
+import { LIMIT, PUBLISH_LIMIT, TOLERANCE, changelogGrowth, nearestRecord, publishVerdict, publishedBytes, tarballBytes, verdict } from "./package-size.ts";
 
 const cli = join(import.meta.dirname, "..", "package-size.ts");
 const root = mkdtempSync(join(tmpdir(), "package-size-test-"));
@@ -33,9 +33,9 @@ await new Promise<void>((ok) => server.listen(0, "127.0.0.1", ok));
 const api = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 
 type Run = { code: number | null; out: string };
-const run = (env: Record<string, string>): Promise<Run> =>
+const run = (env: Record<string, string>, ...args: string[]): Promise<Run> =>
   new Promise((done) => {
-    const child = spawn("node", [cli, root], { cwd: root, env: { ...process.env, GITHUB_REPOSITORY: "o/r", GITHUB_TOKEN: "t", GITHUB_API_URL: api, ...env } });
+    const child = spawn("node", [cli, root, ...args], { cwd: root, env: { ...process.env, GITHUB_REPOSITORY: "o/r", GITHUB_TOKEN: "t", GITHUB_API_URL: api, ...env } });
     let out = "";
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (out += d));
@@ -57,6 +57,19 @@ try {
   want("no record at all", await nearestRecord(["c", "b", "a"], async () => null), null);
   want("walks back to the nearest record", await nearestRecord(["c", "b", "a"], async (s) => (s === "a" ? 7 : null)), { sha: "a", bytes: 7 });
   want("the base's own record wins", await nearestRecord(["c", "b"], async (s) => (s === "c" ? 9 : 7)), { sha: "c", bytes: 9 });
+
+  // The publish pieces: the limit is inclusive, the changelog line must be under the version's own heading and near the growth, npm answers are injected.
+  const log = "## Unreleased\n\npackage-size: grew 1 B\n\n## 0.2.0\n\n### New\n\npackage-size: grew 70000 B  \n";
+  want("publish: growth at the limit passes with no line", publishVerdict(PUBLISH_LIMIT, null), 0);
+  want("publish: growth one over with no line fails", publishVerdict(PUBLISH_LIMIT + 1, null), 1);
+  want("publish: a shrink passes", publishVerdict(-PUBLISH_LIMIT * 2, null), 0);
+  want("publish: a line within the tolerance passes", [publishVerdict(70000, 70000 + TOLERANCE), publishVerdict(70000, 70000 - TOLERANCE)], [0, 0]);
+  want("publish: a line past the tolerance fails", [publishVerdict(70000, 70000 + TOLERANCE + 1), publishVerdict(70000, 50000)], [1, 1]);
+  want("changelog: the line under the version's heading", changelogGrowth(log, "0.2.0"), 70000);
+  want("changelog: a line under another heading does not count", changelogGrowth(log, "0.1.0"), null);
+  const npm = (view: string | Error) => (a: string[]): string => { if (a[0] !== "view") return JSON.stringify([{ size: 7 }]); if (view instanceof Error) throw view; return view; };
+  want("npm: the latest version and its tarball size", publishedBytes("p", npm("0.3.1\n")), { version: "0.3.1", bytes: 7 });
+  want("npm: E404 is a first publish", publishedBytes("p", npm(new Error("npm error code E404"))), null);
 
   // The CLI: c1 and c2 are on main (origin/main is c2), c3 is the pull request's head.
   writeFileSync(join(root, "package.json"), JSON.stringify({ name: "fixture", version: "1.0.0", files: ["a.txt"] }));
@@ -89,6 +102,21 @@ try {
   mkdirSync(join(root, "bin"));
   writeFileSync(join(root, "bin", "npm"), "#!/usr/bin/env node\nconsole.log(JSON.stringify([{ name: 'fixture' }]));\n", { mode: 0o755 });
   want("CLI: a pack report without size exits 2", (await run({ GITHUB_EVENT_NAME: "push", PATH: `${join(root, "bin")}:${process.env.PATH}` })).code, 2);
+
+  // --published: a fake npm answers `view` with $LATEST (E404 when unset) and `pack` with $OLD for the published spec, else $NEW.
+  mkdirSync(join(root, "fake"));
+  writeFileSync(join(root, "fake", "npm"), "#!/usr/bin/env node\nconst [a, b] = process.argv.slice(2), e = process.env;\nif (a === 'view') e.LATEST ? console.log(e.LATEST) : (console.error('npm error code ' + (e.DOWN ? 'ENOTFOUND' : 'E404')), process.exit(1));\nelse console.log(JSON.stringify([{ size: Number(b.includes('@') ? e.OLD : e.NEW) }]));\n", { mode: 0o755 });
+  const pub = (env: Record<string, string>): Promise<Run> => run({ PATH: `${join(root, "fake")}:${process.env.PATH}`, NEW: "200000", ...env }, "--published");
+  const grew = (n: number): void => writeFileSync(join(root, "CHANGELOG.md"), `## Unreleased\n\n## 1.0.0\n\npackage-size: grew ${n} B\n`);
+  writeFileSync(join(root, "CHANGELOG.md"), "## 1.0.0\n\nno line\n");
+  want("CLI --published: growth at the limit exits 0 and prints it", [(await pub({ LATEST: "0.9.0", OLD: String(200000 - PUBLISH_LIMIT) })).code], [0]);
+  const over = await pub({ LATEST: "0.9.0", OLD: String(200000 - PUBLISH_LIMIT - 1) });
+  want("CLI --published: one byte over with no changelog line exits 1 and names the line", [over.code, over.out.includes("growth 65537 B"), over.out.includes("`package-size: grew 65537 B`")], [1, true, true]);
+  grew(PUBLISH_LIMIT + 1 + TOLERANCE);
+  want("CLI --published: a changelog line within the tolerance exits 0", (await pub({ LATEST: "0.9.0", OLD: String(200000 - PUBLISH_LIMIT - 1) })).code, 0);
+  want("CLI --published: a first publish (E404) exits 0", (await pub({ OLD: "0" })).code, 0);
+  want("CLI --published: the staged version already on npm exits 1", (await pub({ LATEST: "1.0.0", OLD: "200000" })).code, 1);
+  want("CLI --published: npm unreachable exits 2", (await pub({ DOWN: "1" })).code, 2);
 
   // Main: records the size and exits 0, whatever the size is.
   const out = join(root, "out.txt");

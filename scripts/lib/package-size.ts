@@ -21,6 +21,35 @@ export function verdict(size: number, baseBytes: number, body: string | null | u
   return size - baseBytes > LIMIT && !hasAllowance(body) ? 1 : 0;
 }
 
+// What a publish run may add to the tarball over the version on npm without a changelog line, and how far that line may be from the measured growth, in bytes.
+export const PUBLISH_LIMIT = 65536;
+export const TOLERANCE = 4096;
+
+// The version `latest` names on npm and the size of its tarball, or null when the package is not on npm (E404, a first publish). `run` calls npm and throws on a non-zero exit; any other failure propagates.
+export function publishedBytes(name: string, run: (args: string[]) => string): { version: string; bytes: number } | null {
+  let version: string;
+  try { version = run(["view", name, "dist-tags.latest"]).trim(); } catch (e) { if (/E404/.test(String(e))) return null; throw e; }
+  const [packed] = JSON.parse(run(["pack", `${name}@${version}`, "--dry-run", "--json", "--ignore-scripts"]));
+  if (typeof packed?.size !== "number") throw new Error(`npm pack ${name}@${version} --dry-run --json reported no "size" number`);
+  return { version, bytes: packed.size };
+}
+
+// The N of the line `package-size: grew <N> B` under the heading `## <version>` of the changelog `text`, or null when that section has none. A line under another heading does not count.
+export function changelogGrowth(text: string, version: string): number | null {
+  let inside = false;
+  for (const line of text.split("\n")) {
+    if (line.startsWith("## ")) inside = line.trimEnd() === `## ${version}`;
+    const m = inside && /^package-size: grew (\d+) B[ \t]*$/.exec(line);
+    if (m) return Number(m[1]);
+  }
+  return null;
+}
+
+// Exit code for a publish that grew the tarball by `growth`: 1 over PUBLISH_LIMIT unless the changelog names a growth within TOLERANCE of it, else 0.
+export function publishVerdict(growth: number, named: number | null): 0 | 1 {
+  return growth > PUBLISH_LIMIT && !(named !== null && Math.abs(named - growth) <= TOLERANCE) ? 1 : 0;
+}
+
 export type Recorded = { sha: string; bytes: number };
 
 // The first of `shas` (newest first) that `lookup` has a size for, or null when none has. A lookup that throws is not an answer, so it propagates.
