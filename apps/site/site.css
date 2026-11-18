@@ -25,8 +25,8 @@
 /* Code, set like the chart's own type: the one place for a monospace face. */
 pre { margin: 0; background: var(--navy); color: var(--navy-ink); padding: 16px 18px; overflow-x: auto; font: 14px/1.6 var(--mono); border-radius: 2px; }
 pre code { background: none; color: inherit; padding: 0; font: inherit; }
-pre .k { color: #5aa9ff; }
-pre .s { color: #a9c4ff; }
+pre .k { color: var(--accent-on-navy); }
+pre .s { color: #9fe0c6; }
 pre .c { color: var(--navy-muted); }
 .install { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px 40px; align-items: start; }
 .install-text { grid-column: 1 / -1; display: grid; gap: 12px; }

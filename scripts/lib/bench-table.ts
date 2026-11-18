@@ -1,4 +1,4 @@
-// The page's speed table, its notes and its three headline numbers (apps/site/index.html, the regions between <!-- bench:NAME --> marks),
+// The page's speed table, its notes and its three headline numbers and the hero's speed figure (apps/site/index.html, the regions between <!-- bench:NAME --> marks),
 // written from a benchmark results file, never by hand. Times are in seconds.
 // Called by scripts/bench-table.ts; packages/gantt/tests-node/bench-page.test.ts checks the page against it.
 import { readFileSync } from "node:fs";
@@ -73,6 +73,21 @@ export function statsBlock(r: Results): string {
           </div>`;
 }
 
+/** The hero's speed figure, our side only: the open time at 50,000 tasks (the same figure as the stats), at 10,000 tasks, and the slowest scroll frame. `--t` is the same figure in seconds, which the page draws as a bar on a one-second axis. */
+export function heroBlock(r: Results): string {
+  const ours = (tasks: number, key: string): number[] => SHAPES.map((s) => median(r, `${s}-${tasks}`, "ours", key));
+  const mean = (v: number[]): number => v.reduce((a, b) => a + b, 0) / v.length;
+  const rows: [string, string][] = [
+    [String(Number((mean(ours(50000, "loadMedianMs")) / 1000).toPrecision(1))), "to open 50,000 tasks, with the schedule calculated"],
+    [sec(mean(ours(10000, "loadMedianMs"))), "to open 10,000 tasks"],
+    [sec(Math.max(...ours(50000, "longestFrameMaxMs")), 3), "slowest frame while scrolling 50,000 tasks"],
+  ];
+  return `<figure class="speed">
+${rows.map(([s, label]) => `        <p style="--t:${s}"><b>${s} s</b><span>${label}</span></p>`).join("\n")}
+        <figcaption><span class="axis" aria-hidden="true"><i>0</i><i>1 second</i></span>Medians from our run of ${r.date}. <a href="#benchmark">See the full table</a></figcaption>
+      </figure>`;
+}
+
 /** The fine print beside the table (gantt#1284), every figure from this run. A clause stands only while the run supports it and is left out when it does not; each figure is a span `bench-page.test.ts` checks against the file. */
 export function finePrint(r: Results): string {
   const get = (c: string, side: string, key: string): number => median(r, c, side, key);
@@ -118,7 +133,7 @@ export function finePrint(r: Results): string {
 export function withBenchTable(html: string, r: Results, v: Versions): string {
   const releases = JSON.parse(readFileSync(new URL("../../packages/gantt/releases.json", import.meta.url), "utf8")) as { version: string; date: string }[];
   // run: the run's date in the line under the stats; release: the items under "Latest releases", all from packages/gantt/releases.json.
-  const regions: Record<string, string> = { stats: statsBlock(r), table: tableBlock(r), ahead: finePrint(r), method: methodBlock(r, v), run: r.date, release: releases.map((x, i) => `<li><span class="ver">${x.version}</span>${x.date}${i === 0 ? ` <span class="latest">Latest</span>` : ""}</li>`).join(" ") };
+  const regions: Record<string, string> = { hero: heroBlock(r), stats: statsBlock(r), table: tableBlock(r), ahead: finePrint(r), method: methodBlock(r, v), run: r.date, release: releases.map((x, i) => `<li><span class="ver">${x.version}</span>${x.date}${i === 0 ? ` <span class="latest">Latest</span>` : ""}</li>`).join(" ") };
   return html.replace(/(<!-- bench:(\w+) -->)[\s\S]*?(<!-- \/bench:\2 -->)/g, (_all, open: string, name: string, close: string) => {
     if (!(name in regions)) throw new Error(`no bench region named ${name}`);
     return `${open}${regions[name]}${close}`;

@@ -6,7 +6,7 @@
 <title>Tachlon: blazingly fast Gantt chart</title>
 <meta name="description" content="Tachlon is the Gantt chart for your product: a Rust engine compiled to WebAssembly and a GPU renderer in one npm package, built and measured at 50,000 tasks.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<meta name="theme-color" content="#0e1630">
+<meta name="theme-color" content="#1c1917">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Tachlon">
 <meta property="og:title" content="Tachlon: blazingly fast Gantt chart">
@@ -24,21 +24,21 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <linearGradient id="streak" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="9" y2="0">
-      <stop offset="0" stop-color="#1f5eff" stop-opacity="0"/>
-      <stop offset="1" stop-color="#1f5eff" stop-opacity="0.9"/>
+      <stop offset="0" stop-color="#0b6b5e" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0b6b5e" stop-opacity="0.9"/>
     </linearGradient>
-    <linearGradient id="streak-navy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="9" y2="0"><stop offset="0" stop-color="#5aa9ff" stop-opacity="0"/><stop offset="1" stop-color="#5aa9ff" stop-opacity="0.9"/></linearGradient>
+    <linearGradient id="streak-navy" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="9" y2="0"><stop offset="0" stop-color="#7fd6b8" stop-opacity="0"/><stop offset="1" stop-color="#7fd6b8" stop-opacity="0.9"/></linearGradient>
   </defs>
-  <!-- The mark on white is the page's accent blue (5.1:1); the one on the navy footer keeps the light blue. -->
+  <!-- The mark on white is the page's accent (6.4:1); the one on the dark footer is its light form. -->
   <symbol id="mark" viewBox="0 0 32 32">
     <g transform="translate(16 16) skewX(-14) translate(-16 -16)">
-      <path d="M11 5h20v5.5H11z M31 10.5v5l-5-5z M17 10.5h5V29h-5z" fill="#1f5eff"/>
+      <path d="M11 5h20v5.5H11z M31 10.5v5l-5-5z M17 10.5h5V29h-5z" fill="#0b6b5e"/>
       <path d="M0 5h9v2H0z M2 8.5h7v2H2z" fill="url(#streak)"/>
     </g>
   </symbol>
   <symbol id="mark-navy" viewBox="0 0 32 32">
     <g transform="translate(16 16) skewX(-14) translate(-16 -16)">
-      <path d="M11 5h20v5.5H11z M31 10.5v5l-5-5z M17 10.5h5V29h-5z" fill="#5aa9ff"/>
+      <path d="M11 5h20v5.5H11z M31 10.5v5l-5-5z M17 10.5h5V29h-5z" fill="#7fd6b8"/>
       <path d="M0 5h9v2H0z M2 8.5h7v2H2z" fill="url(#streak-navy)"/>
     </g>
   </symbol>
@@ -68,15 +68,21 @@
   <div class="hero">
     <div class="wrap hero-top">
       <div>
-        <p class="eyebrow">Tachlon Gantt</p>
         <h1>Blazingly fast Gantt chart</h1>
         <p class="lede">Tachlon is the Gantt chart for your product: a <strong>Rust</strong> engine compiled to <strong>WebAssembly</strong> and a <strong>GPU</strong> renderer in one npm package, built and measured at 50,000 tasks.</p>
-        <div class="actions">
-          <a class="btn primary" href="#ai">Try it</a>
-          <a class="btn dark" href="https://app.tachlon.com/?sample=demo-50k">Open the 50,000-task demo</a>
+        <div class="ask">
+          <pre id="hero-prompt">Add a Tachlon Gantt chart to this app. Install the npm package tachlon and follow the AGENTS.md inside it (more at tachlon.com/llms.txt). Put the chart on one existing page and change nothing else. Run the build and npx tachlon doctor until both pass. Commit on a new branch; do not push.</pre>
+          <button class="btn primary small" type="button" data-copy="hero-prompt">Copy the prompt</button>
         </div>
+        <p class="ask-note">Paste this into your AI coding assistant. Or add it by hand: <code>npm install tachlon</code></p>
+        <p class="ask-note"><a class="go" href="https://app.tachlon.com/?sample=demo-50k">Open the 50,000-task demo</a></p>
       </div>
-      <ol class="pipeline" aria-label="From your data to the screen"> <li><span class="ico data" aria-hidden="true">{ }</span><div><strong>Your data</strong><span>JSON from your API, or a P6 XER or Microsoft Project XML file</span></div></li> <li><span class="ico rust" aria-hidden="true">Rs</span><div><strong>Rust, as WebAssembly</strong><span>Computes every date and lays out the chart</span></div></li> <li><span class="ico gpu" aria-hidden="true">GPU</span><div><strong>The GPU</strong><span>WebGPU, or WebGL2 where a browser lacks it, draws each frame</span></div></li> </ol>
+      <!-- bench:hero --><figure class="speed">
+        <p style="--t:0.3"><b>0.3 s</b><span>to open 50,000 tasks, with the schedule calculated</span></p>
+        <p style="--t:0.14"><b>0.14 s</b><span>to open 10,000 tasks</span></p>
+        <p style="--t:0.019"><b>0.019 s</b><span>slowest frame while scrolling 50,000 tasks</span></p>
+        <figcaption><span class="axis" aria-hidden="true"><i>0</i><i>1 second</i></span>Medians from our run of 2026-11-05. <a href="#benchmark">See the full table</a></figcaption>
+      </figure><!-- /bench:hero -->
     </div>
 
     <div class="wrap demo" id="demo">

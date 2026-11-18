@@ -2,6 +2,7 @@
 // status line says it to a screen reader. When the clipboard refuses, the text is selected so the reader can copy it.
 const status = document.getElementById("copy-status");
 for (const button of document.querySelectorAll("button[data-copy]")) {
+  const label = button.textContent;
   let timer = 0;
   button.addEventListener("click", async () => {
     const source = document.getElementById(button.dataset.copy);
@@ -23,7 +24,7 @@ for (const button of document.querySelectorAll("button[data-copy]")) {
     if (status) status.textContent = said;
     clearTimeout(timer);
     timer = setTimeout(() => {
-      button.textContent = "Copy";
+      button.textContent = label;
       if (status) status.textContent = "";
     }, 2000);
   });
