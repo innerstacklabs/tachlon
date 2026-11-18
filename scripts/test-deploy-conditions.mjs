@@ -24,6 +24,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { browserCases, hostedBrowserChecks } from './lib/hosted-browser-checks.mjs';
 import { pnpmStepsWithoutDest } from './lib/pnpm-dest-checks.mjs';
+import { smokeTierChecks } from './lib/smoke-tier-checks.mjs';
 import { wasmHandoffChecks } from './lib/wasm-handoff-checks.mjs';
 import { webMatrixChecks } from './lib/web-matrix-checks.mjs';
 
@@ -238,7 +239,7 @@ const summary = jobBlock(lines, 'ci-summary') ?? [];
 const summaryBody = summary.join('\n');
 check('ci-summary needs web and reads its aggregate result', /^ {4}needs:\s*\[[^\]]*\bweb\b[^\]]*\]/m.test(summaryBody) && /WEB: \$\{\{ needs\.web\.result \}\}/.test(summaryBody));
 check('ci-summary wants web success whenever the code jobs run', /"web:\$WEB"/.test(summaryBody) && /\[ "\$\{pair#\*:\}" = "\$w" \] \|\| fail/.test(summaryBody));
-[...hostedBrowserChecks(lines, jobBlock, summaryBody), ...wasmHandoffChecks(text, lines, jobBlock), ...await webMatrixChecks(text, webBody, summaryBody)].forEach(([name, ok, detail]) => check(name, ok, detail)); // gantt#1163: hosted-browser is waited on wherever hosted is
+[...hostedBrowserChecks(lines, jobBlock, summaryBody), ...wasmHandoffChecks(text, lines, jobBlock), ...smokeTierChecks(lines, jobBlock, ifExpression, evaluate), ...await webMatrixChecks(text, webBody, summaryBody)].forEach(([name, ok, detail]) => check(name, ok, detail)); // gantt#1163: hosted-browser is waited on wherever hosted is
 check('hosted runs the package size check right after it builds the package', /pnpm build:lib\n\s+working-directory: packages\/gantt\n(?: *#.*\n)*\s+- name: package size\n\s+id: size\n\s+working-directory: packages\/gantt\n\s+env:\n\s+GITHUB_TOKEN: .*\n\s+run: \|\n(?:\s+.*\n)*?\s+node "\$GITHUB_WORKSPACE\/scripts\/package-size\.ts" \. \|\| rc=\$\?\n/.test((jobBlock(lines, 'hosted') ?? []).join('\n') + '\n'));
 
 const deploy = jobBlock(lines, 'deploy');
