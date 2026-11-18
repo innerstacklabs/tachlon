@@ -392,15 +392,6 @@ jobs:
           node "$GITHUB_WORKSPACE/scripts/pack-check.ts" "$staged" --published
           rm -rf "$staged"
           pnpm docs:check
-      # Browser builds live in ~/.cache/ms-playwright; the @playwright/test version pins the revision.
-      - name: Playwright version
-        id: playwright
-        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
-      - name: cache Chromium
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-chromium-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       - name: install Chromium
         run: pnpm exec playwright install chromium
       # The package a stranger installs (gantt#1089 L6): the packed tarball in an empty folder, a page type-checked against its declarations,

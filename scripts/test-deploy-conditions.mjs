@@ -232,7 +232,6 @@ const web = jobBlock(lines, 'web') ?? [];
 const webBody = web.join('\n');
 check('web does not stop the other shards when one fails', /^ {6}fail-fast:\s*false\s*$/m.test(webBody));
 check('web gives each shard its own report artifact name', /name: playwright-report-\$\{\{ matrix\.shard \}\}\s*$/m.test(webBody));
-check('web caches the Playwright Chromium download', /uses: actions\/cache@v\d+\n\s+with:\n\s+path: ~\/\.cache\/ms-playwright\n\s+key: playwright-chromium-[^\n]*steps\.playwright\.outputs\.version/.test(webBody));
 check('web sets pnpm up in a directory per runner', /uses: pnpm\/action-setup@v\d+\n\s+with:\n\s+package_json_file: \$\{\{ env\.WEB_ROOT \}\}\/package\.json\n\s+dest: ~\/setup-pnpm-\$\{\{ runner\.name \}\}\s*\n/.test(webBody));
 check('every pnpm/action-setup step in ci.yml sets a directory per runner', pnpmStepsWithoutDest(text).length === 0, `jobs without: ${pnpmStepsWithoutDest(text).join(',')}`);
 const summary = jobBlock(lines, 'ci-summary') ?? [];
