@@ -24,9 +24,6 @@ impl Session {
     /// [`BaselineRecordsError::Record`] for the first record read wrong: `badJson` (or no records), `noKey`, `unknownKey`,
     /// `duplicateKey`, `badValue` (its `member`) or `finishBeforeStart`, with its position from 0; else the edit's refusal.
     pub fn set_baseline_records(&mut self, json: &str) -> Result<(), BaselineRecordsError> {
-        if self.busy() {
-            return Err(BaselineRecordsError::Edit(EditError::Busy));
-        }
         let baseline = self.read_baseline_records(json);
         let baseline = baseline.map_err(BaselineRecordsError::Record)?;
         let baseline = Some(Arc::new(baseline));
