@@ -12,7 +12,8 @@ import { pagePng } from "./image-export.js";
 import { xlsxFile } from "./xlsx.js";
 import { snapshot } from "./snapshot.js";
 import { localDate, measureText, printColumns } from "./print-sheet.js";
-import type { Gantt } from "./index.js";
+import type { Gantt, MountOptions } from "./index.js";
+import { update } from "./update.js";
 import type { HasOn } from "./events.js";
 import type { Speed } from "./speed.js";
 
@@ -40,6 +41,8 @@ export interface GanttParts {
   events: HasOn;
   /** The open's timings and the frames' numbers (`speed.ts`). */
   speed: () => Speed;
+  /** The unit of the host's durations (`MountOptions.durationUnit`). */
+  unit: MountOptions["durationUnit"];
 }
 
 /** The `Gantt` of one start; `destroy` takes down what `shell.disposers` holds, then frees the app and empties the root. */
@@ -166,6 +169,10 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       const slots = JSON.parse(app.task_slots([...keys])) as (number | null)[];
       p.setPending(slots.filter((slot): slot is number => slot !== null));
       return keys.filter((_, i) => slots[i] === null);
+    },
+    update: (records) => {
+      alive();
+      return update(app, p.busy, p.unit, records);
     },
     speed: () => {
       alive();
