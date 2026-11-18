@@ -25,21 +25,21 @@ pub(crate) enum Value<'a> {
 }
 
 impl Value<'_> {
-    pub(super) fn as_int(&self) -> Option<i64> {
+    pub(crate) fn as_int(&self) -> Option<i64> {
         match self {
             Value::Int(n) => Some(*n),
             _ => None,
         }
     }
 
-    pub(super) fn as_str(&self) -> Option<&str> {
+    pub(crate) fn as_str(&self) -> Option<&str> {
         match self {
             Value::Str(s) => Some(s),
             _ => None,
         }
     }
 
-    pub(super) fn as_array(&self) -> Option<&[Value<'_>]> {
+    pub(crate) fn as_array(&self) -> Option<&[Value<'_>]> {
         match self {
             Value::Array(items) => Some(items),
             _ => None,
@@ -84,10 +84,9 @@ const STREAMED: [(&str, &[&str]); 2] = [
 ];
 
 /// The one JSON value `text` holds, or why it is not, with every array in the tree: a message
-/// that starts with `byte <offset>`. The reader of a document streams instead, and the tests use
-/// this to check the two refuse the same texts.
-#[cfg(test)]
-pub(super) fn parse(text: &str) -> Result<Value<'_>, String> {
+/// that starts with `byte <offset>`. The reader of a document streams instead; a host's records
+/// are small, and the tests check the two refuse the same texts.
+pub(crate) fn parse(text: &str) -> Result<Value<'_>, String> {
     parse_with(text, None)
 }
 

@@ -6,7 +6,9 @@ mod gate;
 mod keys;
 mod outbox;
 mod planned;
+mod read;
 mod results;
+mod update;
 mod values;
 
 pub(crate) use keys::Kind;
@@ -15,6 +17,7 @@ pub use outbox::OUTBOX_CAP;
 pub(crate) use outbox::Outbox;
 pub(crate) use planned::Plan;
 pub use planned::{BeforeEdit, Planned};
+pub use update::{UpdateError, Updated};
 pub(crate) use values::schedule_update;
 
 /// The host's side of a session. A new session starts with it empty, and `reopen` carries only
