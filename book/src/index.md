@@ -37,7 +37,7 @@ To try the chart without a file of your own, [open the office fit-out sample](/?
 9. [Print a schedule](j5-print.md): put the schedule on paper or in a PDF, with a header and a legend.
 10. [Save, reopen and export a schedule](j9-save.md): keep your work in a file, and write a P6 or MS Project file for someone else.
 11. [Keys](keys.md): every key and what it does.
-12. [What's coming](coming.md): the chapters whose features are not built yet.
+12. [What's coming](coming.md): what is not built yet, and the chapter of each.
 
 ## See it move
 

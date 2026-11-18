@@ -34,7 +34,7 @@ export function installKeys( // oxlint-disable-line max-lines-per-function -- ex
   listening(shell, root, "keyup", (e: KeyboardEvent) => {
     if (e.key === "Alt") e.preventDefault();
   });
-  // Keys act only while focus is inside the chart (decision 0005): the listener is on the root, which holds focus
+  // Keys act only while focus is inside the chart (`docs/ARCHITECTURE.md`, Embedding, rule 2): the listener is on the root, which holds focus
   // when nothing inside it does, and nothing listens on the window or the document.
   listening(shell, root, "keydown", (e: KeyboardEvent) => { // oxlint-disable-line max-lines-per-function -- existing, over cap
     // The project picker is a dialog inside the root, so its keys bubble here: they are the dialog's, not the chart's.

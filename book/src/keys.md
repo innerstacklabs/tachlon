@@ -1,6 +1,6 @@
 # Keys
 
-Keys act only while focus is inside the chart (decision 0005). The page starts with focus on the
+Keys act only while focus is inside the chart (`docs/ARCHITECTURE.md`, Embedding, rule 2). The page starts with focus on the
 chart, and a click anywhere in it takes focus back. The table below is the one in `docs/KEYS.md`,
 included here so the two cannot drift.
 
