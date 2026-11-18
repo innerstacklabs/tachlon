@@ -15,7 +15,7 @@ fn answer(json: &str) -> Value {
 }
 
 /// The x of each ghost ring the proposal adds to a scene that shows every task.
-fn ghosts(s: &mut Session) -> Vec<f64> {
+pub(crate) fn ghosts(s: &mut Session) -> Vec<f64> {
     s.fit(0.0, 30.0 * 24.0 * 60.0);
     let mut scene = s.scene();
     assert!(

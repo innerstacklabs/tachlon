@@ -4,6 +4,8 @@
 #![expect(clippy::unwrap_used, reason = "a test's unwrap is its assertion")]
 
 use crate::common::{outline_session, setup};
+use crate::proposal::ghosts;
+use crate::what_moves;
 use app::{
     Session,
     document::{Extras, write},
@@ -337,4 +339,25 @@ fn a_call_that_mixes_no_progress_with_timing_solves_once() {
     let call = r#"[{"key":"k4","name":"Pour"},{"key":"k5","progress":50}]"#;
     let updated = session.update_tasks(call).unwrap();
     assert_eq!((updated.solves, session.stamp() - stamp), (1, 1));
+}
+
+#[test]
+fn a_held_proposal_follows_an_update_of_the_tasks_it_rests_on() {
+    let keyed_a = || {
+        let mut session = what_moves::session();
+        session.assign_key(KeyTarget::Task(TaskId(0)), "a").unwrap();
+        session
+    };
+    let longer = r#"[{"key":"a","duration":960}]"#;
+    let mut held = keyed_a();
+    held.propose_duration(1, 3);
+    let before = ghosts(&mut held);
+    held.update_tasks(longer).unwrap();
+    held.refresh_proposal();
+    let mut again = keyed_a();
+    again.update_tasks(longer).unwrap();
+    again.propose_duration(1, 3);
+    let after = ghosts(&mut held);
+    assert_ne!(after, before, "the ghosts moved with A's new length");
+    assert_eq!(after, ghosts(&mut again), "as if proposed after the update");
 }
