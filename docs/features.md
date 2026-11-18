@@ -2,6 +2,8 @@
 
 This chart is the package in this repository, set beside Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt. Read on 2026-11-15 at commit `3135461a` of `main` ("a bar takes its own color (#2001)"), plus the pull requests merged since 2026-11-12.
 
+The section "Embedding in your product" was read on 2026-11-17 at commit `acba1163` of `main` ("on a read-only chart, indent, outdent and the move keys say the chart is read-only on every row"). Its vendor cells say "not read yet": no vendor page has been read for it.
+
 The README's "How it compares" section is this table, and `node scripts/features-matrix.ts --check` fails when the two differ or when the **Counts.** line under the table does not match the table. Edit the table here, then run `node scripts/features-matrix.ts --write` to copy it into the README and rewrite the Counts line, where the first column's heading is the product's name (`packages/gantt/src/product.ts`).
 
 - **This chart:** a cell is `Yes` only when a file at that commit or a merged pull request shows the feature reachable through the npm package as built from this repository (`mount`, the chart's built-in UI, `chart.*`, `chart.commands`, or a file or document that `chart.load` reads). Merged but not reachable is `In progress`. Planned but not merged is `No`.
@@ -70,6 +72,23 @@ The README's "How it compares" section is this table, and `node scripts/features
 
 **Counts.** 48 rows. This chart: 44 Yes, 4 No.
 
+## Embedding in your product
+
+For a developer who puts the chart inside their own product. The counts above do not include these rows. A cell for this chart follows the rules above, and a vendor cell stays "not read yet" until it is read from that vendor's pages.
+
+| # | Feature | This chart | Bryntum Gantt | DHTMLX Gantt | Syncfusion Gantt |
+|---|---|---|---|---|---|
+| E1 | Your own id on every task, link and calendar, kept through load, edit and save | Yes | not read yet | not read yet | not read yet |
+| E2 | A record of every change in your own names, one numbered entry per undo step | Yes | not read yet | not read yet | not read yet |
+| E3 | Read-only mode, switched while the page runs | Yes | not read yet | not read yet | not read yet |
+| E4 | The schedule in and out as plain objects, with no file | Yes | not read yet | not read yet | not read yet |
+| E5 | The scheduling engine with no page, answering each task's dates and floats by your id | Yes | not read yet | not read yet | not read yet |
+| E6 | A choice of scheduling convention for progress, named for the tool it matches (Primavera P6 or Microsoft Project) | Yes | not read yet | not read yet | not read yet |
+| E7 | A must-finish-by date with a buffer, and negative float shown past the project start | In progress | not read yet | not read yet | not read yet |
+| E8 | Rows marked as waiting for your own recalculation | Yes | not read yet | not read yet | not read yet |
+| E9 | Input outside the engine's range refused by name | In progress | not read yet | not read yet | not read yet |
+| E10 | One engine in the browser and on the server | Yes | not read yet | not read yet | not read yet |
+
 ## Where this chart leads (facts only)
 
 1. **P6 and MS Project files in the browser, both ways** (rows 23 to 26). This chart reads XER and MS Project XML and writes both, with a list of what each format cannot carry, and sends no file to a server. DHTMLX converts on its export service or a module you host, and its P6 export writes XML, not XER. Bryntum lists MS Project import and export at Enterprise and shows P6 only in an example. Syncfusion uses a remote service for MS Project and has no P6 page.
@@ -118,6 +137,17 @@ Cites are paths at `origin/main` `3135461a` or merged PR numbers. "pkg README" i
 - 45: the `assistant` mount option (`packages/gantt/src/gantt-types.ts`, `packages/gantt/src/assistant/panel.ts`, pkg README "Tools for an AI assistant"); the chart has the panel and the host supplies the `send` that calls its own model.
 - 46: `packages/gantt/AGENTS.md`; `apps/site/llms.txt`; the package's `init --skill` command.
 - 47, 48: `LICENSE` (MIT); `packages/gantt/package.json` `"license": "MIT"`; decision 0014 (#1964); license key, trial and watermark removed #1959.
+- E1 to E10 cite paths and symbols at `origin/main` `acba1163`.
+- E1: `Keys` (`crates/app/src/host/keys.rs`: one map over the keys of tasks, links and calendars; decision 0016); `key` on `PlainTask`, `PlainLink` and `PlainCalendar` (`packages/gantt/src/adapters/plain.ts`); pkg README "Quick start" (a task's and a link's `key`, unique among each kind); the document writer keeps all three (`crates/app/src/document/write.rs`, `crates/app/tests/document_key.rs`); `Gantt.snapshot` returns a task's key (`packages/gantt/tests-node/to-plain.test.ts`).
+- E2: `Commit`, `Change` and `CommitSource` (`packages/gantt/src/events.ts`); `crates/app/src/history/changes.rs` (decisions 0017 and 0019); pkg README "Events": the `edit` event carries commits `{ seq, source, changes }`, one per undo step, `seq` counted from 1 and never reused.
+- E3: `MountOptions.readOnly`, `Gantt.setReadOnly` and `Gantt.readOnly` (`packages/gantt/src/gantt-types.ts`); pkg README "Read-only". The switch is no edit, and a command while it is on answers `{ ok: false, reason: "readOnly" }`.
+- E4: `fromTasks` (`packages/gantt/src/adapters/plain.ts`) reads `tasks` and `links`, and `Gantt.snapshot` returns them (`gantt-types.ts`); `docs/WASM_API.md`, `fromTasks`. Plain data holds fewer fields than a document: `leftOut` lists each thing it cannot carry.
+- E5: the `headless` export (`packages/gantt/package.json`, `packages/gantt/src/headless.ts`); `results()` answers `start`, `finish`, `lateStart`, `lateFinish`, `float`, `freeFloat`, `critical` and `finished` by `key` (`crates/app/src/host/results.rs`); free float is `Schedule::free_floats` (`crates/engine/src/cpm/free.rs`).
+- E6: `startedLateStart` (`"p6"` or `"project"`) and `unstartedRemaining` (`"off"` or `"on"`) in `crates/engine/src/model/options.rs` (decision 0018), read by `fromTasks`, `Headless` and `mount` (`options`, with `tasks`) and kept in a saved document; pkg README "Quick start".
+- E7: `MountOptions.mustFinishBy` and `fromTasks` read the date; float is measured against the earlier of it and the computed finish, so a date the plan cannot meet gives negative float and a late start before the project start (`crates/engine/src/model/finish_by.rs`, `crates/engine/src/cpm.rs`); a document keeps the date (`crates/app/src/document/read/finish_by.rs`); `results()` returns the float. The buffer is `Schedule::buffer` in the engine only (see "Not checked").
+- E8: `Gantt.setPending` (`gantt-types.ts`); pkg README "Save, export and read the state": the rows dim and a screen reader hears them as busy; a hint, not a lock.
+- E9: `MAX_DATE`, `MAX_DURATION` and `MAX_LAG` (`crates/engine/src/model/range.rs`) and `ScheduleError::OutOfRange` (`crates/engine/src/model/error.rs`: "has a duration of N, outside what the engine accepts"), checked by `crates/engine/tests/ranges.rs`; a `must_finish_by` outside the range is refused by name (`crates/app/src/document/read/finish_by.rs`); the file readers check the same bounds, leave the value out and count it in a note (`crates/import/src/range.rs`; decision 0020).
+- E10: `packages/gantt/src/headless.ts` loads `./wasm/app_bg.wasm` (`ENGINE`), the file the page fetches (pkg README "The engine file"), so both run the same compiled engine; `results()` gives a server what it needs to check a stored schedule.
 
 ## Vendor sources
 
@@ -161,4 +191,7 @@ Cites are paths at `origin/main` `3135461a` or merged PR numbers. "pkg README" i
 - Bryntum right-to-left guide (searched: localization guide, Widget API page (first 100,000 characters), web search).
 - DHTMLX edition of task colors and templates (searched: colouring-tasks guide, edition table).
 - Open issue or merged PR for split tasks, grouping, resource assignment editing, a workload view or bar templates (searched: pull requests merged 2026-11-12 to 2026-11-15, 37 open issues). The workload view has a plan in #1875, not code.
+- E7, as of 2026-11-17 (searched: pkg README, `gantt-types.ts`, `headless.ts`, `crates/app/src/web`): no call of the package returns the buffer, so the cell says In progress; the must-finish-by date and negative float are reachable.
+- E9, as of 2026-11-17 (searched: `crates/engine/src/model.rs`, `crates/engine/src/model/range.rs`): the engine refuses a duration or a lag outside its range, and does not yet refuse a task date, a limit date or an actual date outside `MAX_DATE`, so the cell says In progress.
+- E1, as of 2026-11-17 (searched: `crates/app/src/export.rs`): an exported XER or MS Project file cannot hold a key, and the export lists it in `left_out`. The key stays through load, edit and save.
 - Vendor accessibility and benchmark figures are each vendor's own claims, not audited.
