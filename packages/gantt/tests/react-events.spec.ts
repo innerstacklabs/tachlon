@@ -13,6 +13,7 @@ window.wasmAt = async (wasmUrl) => (root.render(h(Gantt, { schedule, wasmUrl }))
 window.localeAt = async (locale) => (root.render(h(Gantt, { schedule, locale })), await new Promise((done) => setTimeout(done, 300)), mounts.map((options) => options.locale));
 window.textsAt = async (texts) => (root.render(h(Gantt, { schedule, texts })), await new Promise((done) => setTimeout(done, 300)), mounts.map((options) => options.texts));
 window.readOnlyAt = async (readOnly) => (root.render(h(Gantt, { schedule, readOnly })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.map((options) => options.readOnly), switched: [...(globalThis.switched ?? [])] });
+window.beforeEditAt = async (answer) => (root.render(h(Gantt, { schedule, beforeEdit: () => answer })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.length, answered: mounts[0].beforeEdit({ kind: "setDuration" }) });
 window.heldReadOnly = async () => { const held = { demo: 2 }, wait = (ms) => new Promise((done) => setTimeout(done, ms)); let release; globalThis.gate = new Promise((done) => (release = done)); root.render(h(Gantt, { schedule: held, readOnly: false })); await wait(100); root.render(h(Gantt, { schedule: held, readOnly: true })); await wait(100); release(); await wait(300); return [...globalThis.switched]; };`;
 const wasmHost = { name: "wasm-host", resolveId: (id: string) => (id === "/tests/wasm-host.ts" ? id : null), load: (id: string) => (id === "/tests/wasm-host.ts" ? WASM_HOST : null) };
 
@@ -101,4 +102,13 @@ test("the wrapper passes `readOnly` to mount, and a new value switches the chart
   expect.soft(await page.evaluate("readOnlyAt(true)"), "the first mount gets the value the page gave").toEqual({ mounts: [true], switched: [true] });
   expect.soft(await page.evaluate("readOnlyAt(false)"), "the chart is switched on its own, not mounted again").toEqual({ mounts: [true], switched: [true, false] });
   expect.soft(await page.evaluate("heldReadOnly()"), "a change while `mount` is pending is applied once it settles").toEqual([true, false, true]);
+});
+
+test("a new `beforeEdit` reaches the chart that is mounted and mounts nothing", async ({ page }) => {
+  const base = server.resolvedUrls!.local[0]!;
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST.replace("react-events-host", "wasm-host") }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction("window.beforeEditAt");
+  expect.soft(await page.evaluate("beforeEditAt('first')"), "the chart asks the function the page gave").toEqual({ mounts: 1, answered: "first" });
+  expect.soft(await page.evaluate("beforeEditAt('second')"), "the same chart asks the new one").toEqual({ mounts: 1, answered: "second" });
 });

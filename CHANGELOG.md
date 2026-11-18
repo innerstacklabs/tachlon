@@ -2,6 +2,12 @@
 
 What changed in each npm release, newest first. Each entry says what you must change in your own code, then what is new. The decision records in `docs/decisions/` hold the reasons.
 
+## Unreleased
+
+### New
+
+- `mount({ beforeEdit })` (a prop or input of the same name in React, Vue and Angular, which ask the latest function without mounting the chart again) gives the chart a function it asks before each change a person makes. The function sees the action and the changes it would make with their old and new values (the README's "Control editing" says which actions carry values), and answers a string to refuse the change with that reason, which the chart shows. A refusal changes nothing and carries the new `EditRefusal` reason `"refused"`, so a `switch` over the reasons with no `default` needs the new case. A throw or a promise refuses the change and fires `error` with the source `beforeEdit`.
+
 ## 0.3.0
 
 Read "Breaking changes" first if you use 0.2.0. A page that mounts the chart with `schedule` and listens only to `select`, `edit` and `open` needs none of them.

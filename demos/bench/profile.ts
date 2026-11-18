@@ -1,6 +1,6 @@
 // One command that shows where the time and memory go: builds (or reuses) the profile build, copies it to the Mac mini, serves it there, and opens one benchmark cell in Chromium n times. Usage and output: docs/PROFILING.md.
 //
-//   node demos/bench/profile.ts --cell chain-10000 --holder <lock name> [--runs 3] [--compare <ref>] [--out dir] [--host mini] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>]
+//   node demos/bench/profile.ts --cell chain-10000 --holder <lock name> [--runs 3] [--compare <ref>] [--out dir] [--host mini] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit]
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -146,9 +146,9 @@ export const DRAG_WAIT_MS = 120_000;
 export const READ_MS = 5_000;
 
 /** One drag scenario (`head` or `critical`, the page's `dragTarget`) in the session's browser: its p50 and p95 frame interval and drag response. A wait that times out throws what the page was doing: its address, message line, errors and failed requests. */
-export async function dragOnce(session: Session, target: string, ghosts = 0, groups = 0): Promise<Drag> {
+export async function dragOnce(session: Session, target: string, ghosts = 0, groups = 0, beforeEdit = false): Promise<Drag> {
   const page = session.browser.contexts()[0].pages()[0];
-  const url = `${session.baseUrl}measure/index.html?${DRAG_RUN}${groups > 0 ? `&groups=${groups}` : ""}&dragTarget=${target}`;
+  const url = `${session.baseUrl}measure/index.html?${DRAG_RUN}${groups > 0 ? `&groups=${groups}` : ""}${beforeEdit ? "&beforeEdit=1" : ""}&dragTarget=${target}`;
   const seen: string[] = [];
   const on: [string, (x: any) => void][] = [
     ["pageerror", (e) => seen.push(`page error: ${e.message ?? e}`)],
@@ -179,15 +179,15 @@ export async function dragOnce(session: Session, target: string, ghosts = 0, gro
 /** `--drag`: the head-task and critical-path drags of each bundle, `a.runs` times, interleaved. */
 export const dragProfile = (a: Args, bundles: [string, string][], open: OpenSession = openSession) =>
   interleaved(a, bundles, open, async (session, label, k): Promise<DragRun> => {
-    const head = await dragOnce(session, "head", a.ghosts, a.groups);
+    const head = await dragOnce(session, "head", a.ghosts, a.groups, a.beforeEdit);
     say(`${label} session ${k}/${a.runs} head drag done`);
-    const critical = await dragOnce(session, "critical", a.ghosts, a.groups);
+    const critical = await dragOnce(session, "critical", a.ghosts, a.groups, a.beforeEdit);
     say(`${label} session ${k}/${a.runs} critical drag done`);
     return { head, critical };
   }, true);
 
 async function main(argv: string[]): Promise<number> {
-  if (argv.includes("--help")) return console.log("usage: node demos/bench/profile.ts --cell <shape>-<size> --holder <lock name> [--runs <n>] [--compare <ref>] [--out <dir>] [--host <ssh host>] [--chrome <path on the host>] [--seed <u64>] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--build-only]"), 0;
+  if (argv.includes("--help")) return console.log("usage: node demos/bench/profile.ts --cell <shape>-<size> --holder <lock name> [--runs <n>] [--compare <ref>] [--out <dir>] [--host <ssh host>] [--chrome <path on the host>] [--seed <u64>] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit] [--build-only]"), 0;
   // The mini's Chrome and page server have no terminal and get no SIGHUP, so a signal here runs the session's close (the same
   // one `profile` awaits), for at most 20 s, then exits 130.
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
@@ -197,7 +197,7 @@ async function main(argv: string[]): Promise<number> {
     });
   }
   const a = parseArgs(argv);
-  if (!a) return console.error("usage: node demos/bench/profile.ts --cell <shape>-<size> --holder <lock name> [--runs <n>] [--compare <ref>] [--out <dir>] [--host mini] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--build-only]"), 64;
+  if (!a) return console.error("usage: node demos/bench/profile.ts --cell <shape>-<size> --holder <lock name> [--runs <n>] [--compare <ref>] [--out <dir>] [--host mini] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit] [--build-only]"), 64;
   // The ref is resolved to a sha once, here, before anything is built or run, and printed: pass that sha as `--compare` to compare another cell against the same code.
   const base = a.compare === null ? null : baseline(a.compare);
   if (base !== null) say(`baseline: ${a.compare} = ${base}`);

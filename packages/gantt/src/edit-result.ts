@@ -36,6 +36,8 @@ export type EditRefusal =
   | "unknownTask"
   /** `assignKey` on a link slot the chart never made. */
   | "unknownLink"
+  /** The page's before-edit function refused it, or failed (`message` is its reason, or the chart's own sentence). */
+  | "refused"
   /** Anything else the schedule refused (rare: a solve that fails). */
   | "other";
 
@@ -61,6 +63,7 @@ export type LinkResult = { ok: true; link: number } | Refusal;
 const PUBLIC_REASON: Readonly<Record<string, EditRefusal>> = {
   busy: "busy",
   readOnly: "readOnly",
+  refused: "refused",
   noOutline: "noOutline",
   noSelection: "noSelection",
   noLinkSelected: "noSelection",

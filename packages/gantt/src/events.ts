@@ -51,7 +51,7 @@ export interface GanttEvents {
   change: ViewState;
   /**
    * A file could not be opened, a frame failed, or WebGPU failed and the chart started again on WebGL2 in its root (`backend`, once, with
-   * the reason); `message` is the line a person sees. `fatal`: the chart has stopped (a panic, frames that keep failing, or a switch to
+   * the reason), or the page's `beforeEdit` function threw or answered with a promise (`beforeEdit`, not fatal, the change refused); `message` is the line a person sees. `fatal`: the chart has stopped (a panic, frames that keep failing, or a switch to
    * WebGL2 that could not start), and only a reload of the page brings it back; the host decides whether to do that.
    */
   error: { source: ErrorSource; message: string; fatal: boolean; projects?: readonly PickerProject[] };
@@ -66,7 +66,7 @@ export interface GanttEvents {
 }
 
 /** What an `error` event is about. */
-export type ErrorSource = "open" | "frame" | "backend";
+export type ErrorSource = "open" | "frame" | "backend" | "beforeEdit";
 
 /** The events a key of the chart asks for: the host acts on them. */
 export type KeyRequest = "find" | "toggle-status" | "choose-file" | "toggle-keys";

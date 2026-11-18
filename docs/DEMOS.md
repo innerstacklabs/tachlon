@@ -83,6 +83,7 @@ URL options:
 - `?schedule=1`: load `schedule.dat` (an MS Project XML or P6 XER file, served by `run.sh --schedule`) instead of the generated demo; not with `?stress`. With `?measure=1` the measurement runs on the file.
 - `?stress=1`: the stress fixture (dense cross-phase links, a head task every stream depends on, and two in five bars colored from six colors) instead of the demo schedule.
 - `?groups=<k>` (with `?stress=1` or `?measure=1`): the stress fixture under one root summary, each task coded `Phase` with one of `k` values, and the rows are grouped by `Phase` from the first frame.
+- `?beforeEdit=1`: hand the chart a before-edit function that allows every change, so a measured drag pays for the call the chart makes when it starts.
 - `?measure=1`: the scripted measurement ([MEASURING.md](MEASURING.md), "Measuring frame times"); without `?schedule` it turns on `stress=1`; with `?schedule` it runs on the file. When the run ends without an error, the page shows a "Download the measurement (JSON)" link that saves `gantt-measurement.json`.
 - `?panic=init`: panic on purpose during init (a test hook). On auto the page reloads on WebGL2; with `?backend=webgl` it shows `render error: <reason>`.
 

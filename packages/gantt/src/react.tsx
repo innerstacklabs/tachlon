@@ -77,7 +77,7 @@ export function Gantt(props: GanttProps): JSX.Element {
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly });
+        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, beforeEdit: (change) => latest.current.beforeEdit?.(change) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;
