@@ -46,7 +46,8 @@ impl Session {
                 self.plan_limit_text(task, key, typed)
                     .map_err(self.said())?,
             ),
-            "percent" => Some(self.plan_percent_text(task, typed).map_err(self.said())?),
+            "percent" => Some(self.plan_percent_text(task, typed).map_err(self.said())?)
+                .filter(|edit| !self.is_unstarted_zero(edit)),
             _ => Some(
                 self.plan_progress_field_text(task, key, typed)
                     .map_err(self.said())?,

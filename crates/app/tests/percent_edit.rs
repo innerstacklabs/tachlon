@@ -1,5 +1,5 @@
 //! Typing a percent complete (gs#703): the typed percent becomes the remaining duration, a task
-//! with no actual start takes one, 100 finishes the task, 0 keeps the start and leaves the whole
+//! with no actual start takes one (except for 0, which leaves it unstarted), 100 finishes the task, 0 keeps the start and leaves the whole
 //! duration remaining, and undo puts the three progress fields back. The dates are worked out by
 //! hand: a task of four working days (32 hours) with a successor of one day, on a Monday-to-Friday
 //! calendar with 08:00-12:00 and 13:00-17:00 shifts; day 0 is the origin Monday, so Monday 08:00
@@ -146,6 +146,57 @@ fn typing_0_keeps_the_start_and_leaves_the_whole_duration_remaining() {
 }
 
 #[test]
+fn typing_0_on_a_task_that_has_not_started_leaves_it_unstarted_in_the_cell_and_the_dialog() {
+    let mut s = session();
+    s.set_percent_text(FIRST, "0").expect("0 applies");
+    assert_eq!(fields(&s), (None, None, None), "the cell");
+    s.set_task_fields(FIRST, &[("percent", "0")])
+        .expect("0 applies");
+    assert_eq!(fields(&s), (None, None, None), "the dialog");
+    assert_eq!(
+        s.history_len().0,
+        0,
+        "a 0 that changes nothing is no undo step"
+    );
+    s.set_percent_text(FIRST, "50").expect("50 starts it");
+    assert_eq!(fields(&s), (Some(at(0, 8)), None, Some(16 * HOUR)));
+    s.set_percent_text(FIRST, "0").expect("0 applies");
+    assert_eq!(
+        fields(&s),
+        (Some(at(0, 8)), None, Some(32 * HOUR)),
+        "a started task keeps its start"
+    );
+}
+
+#[test]
+fn a_typed_0_that_changes_nothing_is_still_refused_in_read_only_mode() {
+    let mut s = session();
+    s.set_read_only(true);
+    assert_eq!(s.set_percent_text(FIRST, "0"), Err(EditError::ReadOnly));
+}
+
+#[test]
+fn a_typed_percent_that_puts_an_actual_after_the_data_date_is_refused() {
+    let mut s = session().with_data_date(Some(at(0, 0)));
+    let before = s.solution().clone();
+    for percent in ["50", "100"] {
+        assert_eq!(
+            s.set_percent_text(FIRST, percent),
+            Err(EditError::ActualAfterDataDate),
+            "{percent}"
+        );
+        assert_eq!(
+            s.plan_percent_text(FIRST, percent),
+            Err(EditError::ActualAfterDataDate),
+            "{percent} planned"
+        );
+    }
+    assert_eq!(fields(&s), (None, None, None));
+    assert_eq!(*s.solution(), before);
+    assert_eq!(s.history_len().0, 0, "a refused entry is no undo step");
+}
+
+#[test]
 fn a_refused_entry_changes_nothing_and_says_why() {
     let mut s = session();
     let before = s.solution().clone();
@@ -176,6 +227,34 @@ fn a_summary_is_refused() {
         "{error}"
     );
     assert_eq!(*s.solution(), before);
+}
+
+#[test]
+fn an_empty_progress_edit_of_a_task_that_does_not_exist_is_unknown() {
+    let mut s = common::collapse::session(60);
+    let (task, empty) = (TaskId(9999), (None, None, None));
+    let edit = app::edit::Edit::SetProgress {
+        task,
+        actual_start: empty.0,
+        actual_finish: empty.1,
+        remaining: empty.2,
+    };
+    assert_eq!(
+        s.edit(edit),
+        Err(engine::ScheduleError::UnknownTask(task).into())
+    );
+}
+
+#[test]
+fn a_typed_0_on_a_summary_is_refused() {
+    let mut s = common::collapse::session(60);
+    let summary = common::collapse::summaries(&s)[0];
+    let error = s.set_percent_text(summary, "0").unwrap_err();
+    assert!(
+        matches!(error, EditError::ProgressOnSummary { .. }),
+        "{error}"
+    );
+    assert_eq!(s.history_len().0, 0);
 }
 
 /// A task of three working days (24 hours) with a one-day successor.

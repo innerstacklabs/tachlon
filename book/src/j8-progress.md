@@ -26,7 +26,7 @@
    day.
 3. **How the cells depend on each other.** Setting Remaining on a started task sets its %
    complete from the task's duration: a task of eight working hours with `4h` remaining reads
-   `50%`. Setting % complete sets Remaining, so `75%` on that task reads `2h`. A % complete below 100 on a task with no actual start also gives it one, its early start; from then it is started and fixed there (step 7). A % complete of
+   `50%`. Setting % complete sets Remaining, so `75%` on that task reads `2h`. A % complete from 1 to 99 on a task with no actual start also gives it one, its early start (with a data date set, a % complete that would put that start after the data date is refused); from then it is started and fixed there (step 7). A `0` on a task with no actual start leaves it unstarted, with no actual start and no remaining. A % complete of
    `100` finishes the task: it gets an actual finish and `0` remaining, and one `Ctrl+Z` puts the
    three cells back as they were. Setting an Actual finish also sets Remaining to `0`.
 4. **A refused entry.** A bad entry leaves the editor open with the reason under it, and changes
@@ -37,7 +37,7 @@
    | An actual finish before the actual start | "The actual finish is before the actual start." |
    | Text that is not a day | "Write the date as YYYY-MM-DD." |
    | A % complete outside 0 to 100 | "Write the percent complete as a whole number from 0 to 100, such as 75 or 75%." |
-   | An actual start or finish after the data date | "An actual date cannot be after the data date. Move the data date first, or write a date on or before it." |
+   | An actual start or finish after the data date, or a % complete that would set one | "An actual date cannot be after the data date. Move the data date first, or write a date on or before it." |
 
    An actual the task already holds passes, so its remaining can still be edited.
    Typing clears the reason, and `Escape` leaves the task as it was. A summary row takes no

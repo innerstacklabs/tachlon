@@ -145,15 +145,15 @@ impl History {
 impl Session {
     /// Apply a person's change and record it so it can be undone.
     ///
-    /// [`Session::apply`] is the raw edit operation: it returns its inverse
-    /// and records nothing. A person's change goes through `edit` instead, which also refuses a
-    /// typed name the document should not hold (an empty one, a control character, `" / "`).
+    /// [`Session::apply`] is the raw edit operation: it returns its inverse and records nothing. A person's change goes through `edit` instead, which also refuses a typed name the document should not hold (an empty one, a control character, `" / "`). An edit that sets no progress on a task that holds none passes the gate and records nothing.
     ///
     /// # Errors
-    /// An [`EditError`] for a refusal of [`Session::apply`] and for a typed name the document
-    /// should not hold.
+    /// An [`EditError`] for a refusal of [`Session::apply`] and for a typed name the document should not hold.
     pub fn edit(&mut self, edit: Edit) -> Result<(), EditError> {
         self.gate(&Plan::Edit(&edit))?;
+        if self.is_unstarted_zero(&edit) {
+            return Ok(());
+        }
         self.edit_from(edit, Source::Typed)
     }
 
