@@ -29,7 +29,7 @@ Text that needs a `call:` holds at least one.
 picture: each product takes its own. An id is used once in the folder.
 
 `<!-- ANCHOR: <name> -->` and `<!-- ANCHOR_END: <name> -->` mark a passage that another document can
-include by name.
+include by name. `node scripts/check-guide.ts` fails an anchor with no end after it, an end with no anchor, and a name used twice in one file.
 
 Inside a list, a comment is indented with its item: at the left margin it would split the list in
 two.
