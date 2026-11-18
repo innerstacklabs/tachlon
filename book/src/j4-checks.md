@@ -3,7 +3,7 @@
 
 **Goal:** before you trust a schedule's dates or send it on, count the things that make a schedule
 unreliable: tasks tied to nothing, odd links, and tasks that are very long or very loose. The
-Checks panel gives fourteen counts. It does not say pass or fail; you decide what a count means for
+Checks panel gives fourteen lines. It does not say pass or fail; you decide what a count means for
 your schedule.
 
 <figure class="shot">
@@ -18,7 +18,8 @@ your schedule.
    lines, each with the check's name, its number and one sentence on what it counts. A line with a problem to show adds a second sentence, in the text color, on why that kind of problem matters; a line that counts `0` adds none. Try it on the
    [office fit-out sample](/?sample=office-fitout).
 2. **Read the lines.** On the fit-out sample, the lines from Missing logic to Missing resources read Missing logic `1`, Open starts `0`, Open ends `1`, Leads `0`, Lags `7`, Finish to
-   start `63 of 69 links`, High float `0`, High duration `0`, Invalid dates `0` and Missing resources `0`.
+   start `63 of 69 links`, High float `0`, High duration `0`, Hard constraints `0`, Negative float `0`,
+   Invalid dates `0` and Missing resources `0`.
 3. **Close it.** **Close** or `Escape` shuts the window, and the chart gets its keys back.
 4. **It counts again each time it opens.** The window shows the schedule as it was when you opened
    it. On the fit-out, click the bar of **Detailed design and specification**, press `]` to select
@@ -66,7 +67,7 @@ your schedule.
     [50,000-task demo](/?sample=demo-50k) has none, and its panel reads that line. Type a day in
     the **Data date** box and press `Enter`, and the line is a number.
 13. **Missing resources.** Unfinished tasks with a duration and no resource, summary tasks and
-    milestones not counted. A task nobody is assigned to carries no labour or cost. When the file
+    milestones not counted. A task nobody is assigned to carries no labor or cost. When the file
     lists no resource at all, the line reads `needs resources` and never `0`, for the same reason
     as the data date. A P6 XER file reads that way for now, because the XER reader does not read
     its assignments yet; the [50,000-task demo](/?sample=demo-50k) has none either. On the fit-out
@@ -77,12 +78,13 @@ your schedule.
     tasks finished over the tasks the baseline had finishing by the data date, such as `0.80`. When
     none were due, with no baseline or no data date, it reads `none due`, never `0`.
 15. **How high is high.** The panel shows no limit. The limits in DCMA's 14-point assessment
-    guidance are 5% of tasks for missing logic, high float and high duration, 5% of links for lags,
-    at least 90% of links finish to start, and zero allowed for leads and invalid dates. They are
+    guidance are 5% of tasks for missing logic, high float, high duration, hard constraints and
+    missed tasks, 5% of links for lags, at least 90% of links finish to start, zero allowed for
+    leads, negative float and invalid dates, and an execution index of at least 0.95. They are
     guidance, not rules. Work out the share yourself from the count and the number of tasks or
     links, and treat a count a little over a limit as a prompt to look.
-16. **What is not built.** Twelve of the 14 checks are here. The others are on [What's
-    coming](coming.md).
+16. **What is not built.** The fourteen lines cover twelve of DCMA's fourteen checks. The other two
+    are on [What's coming](coming.md).
 
 ## Where it is checked
 

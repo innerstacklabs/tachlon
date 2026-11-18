@@ -8,12 +8,13 @@ this page is the schedule set against it.
 ## By hand
 
 1. **Set the baseline.** Press **Baseline** in the toolbar. It keeps the dates as they are now
-   for every task. The button's tooltip (and, on the developer page, the status line, the `s` key) confirms it, for example `Baseline set at data
-   date 14 Oct: 59 rows`, or `Baseline set: 59 rows` when the schedule has no data date. The
+   for every task. The button's tooltip confirms it, for example `Baseline set at data
+   date 14 Oct: 59 rows`, or `Baseline set: 59 rows` when it was set with no data date, or came with a Project file. The
    button stays pressed, and a **Clear baseline** button appears beside it. Press **Baseline**
    again to keep the dates as they are then in its place: the text names the data date it was
-   set at, so after a data date move you can see that the second press took. Ctrl+Z takes either
-   press back, and Ctrl+Z again clears the baseline. A Project file that carries its own Baseline
+   set at, so after a data date move you can see that the second press took. Ctrl+Z takes the second
+   press back, and one more Ctrl+Z the first: on a schedule that had no baseline that clears it, and
+   on a file that came with its own it returns to that one. A Project file that carries its own Baseline
    0 opens with the baseline already set. A P6 XER file opens with no baseline: press **Baseline**, or compare with an earlier file.
    **Compare with last month's file instead.** Open the **Open…** menu and choose
    **Compare with a file...**, then choose the earlier XER or MS Project XML file of the same project, and it
@@ -38,7 +39,7 @@ this page is the schedule set against it.
    the others, **ΔStart**, **ΔFinish** and **ΔFloat**, in working days of the task's own
    calendar: `+5d` is five working days later (or, in ΔFloat, five more of float), `-2d` is two
    earlier, and a middot is no change. A later finish and less float read in the critical
-   colour, and no change reads in the muted colour, so the eye goes to the rows that moved. A
+   color, and no change reads in the muted color, so the eye goes to the rows that moved. A
    summary row reads the variance of its rolled-up span, and its ΔFloat stays blank. While you
    drag a bar the three columns are held empty, and they come back at the release. The
    **Variance** button hides them and shows them again; they stay hidden after an edit, and
@@ -48,7 +49,7 @@ this page is the schedule set against it.
    dates. Edit a duration or drag a bar and the task bar moves while the gray bar stays, so the
    gap between them is the slip.
 5. **Read the summary.** With a baseline set, a chip at the bottom right of
-   the chart say how the schedule differs, for example `vs baseline: 3 slipped`, then `finish
+   the chart says how the schedule differs, for example `vs baseline: 3 slipped`, then `finish
    +2 days` when the project finish moved later and a critical clause when tasks joined or left
    the critical path, and `added` and `removed` counts when tasks came or went. A task counts as
    slipped only if it finishes later than its baseline and is live in both. The line follows each
@@ -81,7 +82,7 @@ what you added.
 `packages/gantt/tests/baseline.spec.ts` asserts the Baseline button, the status line, the undo, the Slipped
 button, the Add new button and the tooltip when the button is pressed again.
 `packages/gantt/tests/baseline-columns.spec.ts` checks the variance columns: the `+5d` after an edit, no
-columns without a baseline, the critical colour, the hold during a drag, the summary rows and
+columns without a baseline, the critical color, the hold during a drag, the summary rows and
 the Variance button.
 `packages/gantt/tests/baseline-bars.spec.ts` reads the pixels of the gray bars and the gap an edit opens.
 `packages/gantt/tests/baseline-summary.spec.ts` asserts the chip and the Slipped row count, and

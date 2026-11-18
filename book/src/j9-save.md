@@ -37,11 +37,15 @@ it leaves some things out.
    always version 19.12; there is no choice of version. **Close** shuts the window.
 7. **What an export leaves out.** Under the file's name the window counts the items left out and
    lists them, one line each, up to 200 lines and then `and N more`. `Nothing was left out.` says
-   the file holds the whole schedule. Both files keep each started task's actual start and
-   remaining work and each finished task's actual finish, so on the office fit-out sample, which
+   the file holds the whole schedule. On the office fit-out sample the P6 window lists `the baseline
+   on 50 tasks was not written`, and the MS Project window lists the reader's own note, `not in the
+   project, left out by the reader: 47 tasks have resource assignments; only the resource names were
+   read, and no dates are affected.` Both files keep each started task's actual start and
+   remaining work and each finished task's actual finish, so on the sample, which
    has ten tasks under way, neither lists any of it (whether MS Project or P6 itself accepts the
    file is not checked: each needs a copy of its program). Opening the exported `.xml` shows it:
-   the task that read `2027-01-22` as its start comes back started, at `2027-01-22`. Opening the
+   **Detailed design and specification**, which read `2027-01-22` as its start, comes back started,
+   at `2027-01-22`. Opening the
    exported `.xer` shows 60 rows against the schedule's 59: the extra one is a summary row at the
    top, named `Project 1`, that holds all the phases.
 8. **Which file to keep.** Keep the `.gantt` file as the working copy: it holds the baseline, which a P6
