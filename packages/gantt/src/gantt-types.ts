@@ -27,10 +27,10 @@ export interface HostDifference { record: number; key: string; member: "start" |
 /** What `update` answers: how many tasks it set, with `differs` when a host date differs from the chart's, or why it changed none (`reason`, `message`, and `record` from 0, `member` and the record's `key` when they are known). */
 export type UpdateResult = { ok: true; updated: number; differs?: readonly HostDifference[] } | (Refusal & { key?: string });
 
-/** What a host's database can take, as the host tells the chart (`mount`'s `capabilities`, `Gantt.setCapabilities`). Each member is on unless it is `false`. A change a person makes that a member turned off is refused with `"notAllowed"` on every path, undo and redo included, and the chart says the host does not allow it; a bar, edge or link drag says it in the drag note. `gestures` turns off moving a bar, stretching it and drawing a link. `editable` turns off a group of fields: `structure` (adding, deleting and moving rows, paste included), `names`, `dates` (start, duration and the date limits), `links`, `progress` (actual dates, remaining, percent and the data date) and `baseline`. A member the chart does not have is an error. */
+/** What a host's database can take, as the host tells the chart (`mount`'s `capabilities`, `Gantt.setCapabilities`). Each member is on unless it is `false`. A change a person makes that a member turned off is refused with `"notAllowed"` on every path, undo and redo included, and the chart says the host does not allow it; a bar, edge or link drag says it in the drag note. `gestures` turns off moving a bar, stretching it and drawing a link. `editable` turns off a group of fields: `rows` (adding and deleting rows), `outline` (indent, outdent and move), `paste`, `names`, `dates` (start, duration and the date limits), `links`, `progress` (actual dates, remaining, percent and the data date) and `baseline`. A member the chart does not have is an error. */
 export interface HostCapabilities {
   gestures?: { barMove?: boolean; resize?: boolean; link?: boolean };
-  editable?: { structure?: boolean; names?: boolean; dates?: boolean; links?: boolean; progress?: boolean; baseline?: boolean };
+  editable?: { rows?: boolean; outline?: boolean; paste?: boolean; names?: boolean; dates?: boolean; links?: boolean; progress?: boolean; baseline?: boolean };
 }
 
 /** What `mount` takes: a `schedule`, a saved `document`, or `tasks` and `links` as `fromTasks` reads them; with none of the three the chart starts with no tasks and waits for `load`. */

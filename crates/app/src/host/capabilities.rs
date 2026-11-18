@@ -13,7 +13,9 @@ enum Item {
     BarMove,
     Resize,
     Link,
-    Structure,
+    Rows,
+    Outline,
+    Paste,
     Names,
     Dates,
     Links,
@@ -22,15 +24,13 @@ enum Item {
 }
 
 /// Each item once: its place in the profile, and the words a refusal names it with.
-const TABLE: [(Item, &str, &str); 9] = [
+const TABLE: [(Item, &str, &str); 11] = [
     (Item::BarMove, "gestures.barMove", "moving a bar"),
     (Item::Resize, "gestures.resize", "resizing a bar"),
     (Item::Link, "gestures.link", "drawing a link"),
-    (
-        Item::Structure,
-        "editable.structure",
-        "adding, deleting and moving rows",
-    ),
+    (Item::Rows, "editable.rows", "adding and deleting rows"),
+    (Item::Outline, "editable.outline", "changing the outline"),
+    (Item::Paste, "editable.paste", "pasting rows"),
     (Item::Names, "editable.names", "changing names"),
     (
         Item::Dates,
@@ -51,7 +51,7 @@ const TABLE: [(Item, &str, &str); 9] = [
 pub(crate) struct Capabilities(u16);
 
 impl Capabilities {
-    /// The profile in `json`, `{"gestures":{"barMove":false},"editable":{"structure":false}}`: each
+    /// The profile in `json`, `{"gestures":{"barMove":false},"editable":{"rows":false}}`: each
     /// member is on unless it says `false`.
     fn read(json: &str) -> Result<Self, String> {
         let root = parse_streaming(json, &mut |_, _, _, _, _| {})?;
@@ -87,10 +87,8 @@ impl Capabilities {
 /// The group `edit` changes.
 fn group(edit: &Edit) -> Item {
     match edit {
-        Edit::Insert { .. }
-        | Edit::Delete { .. }
-        | Edit::Restore { .. }
-        | Edit::Reparent { .. } => Item::Structure,
+        Edit::Insert { .. } | Edit::Delete { .. } | Edit::Restore { .. } => Item::Rows,
+        Edit::Reparent { .. } => Item::Outline,
         Edit::Rename { .. } => Item::Names,
         Edit::Move { .. } | Edit::SetDuration { .. } | Edit::SetLimit { .. } => Item::Dates,
         Edit::AddLink { .. }
@@ -129,7 +127,7 @@ impl Session {
             }) => Some(Item::BarMove),
             Plan::Drag(_) => Some(Item::Resize),
             Plan::Action("linkDrag", ..) | Plan::Link(..) => Some(Item::Link),
-            Plan::Paste(_) => Some(Item::Structure),
+            Plan::Paste(_) => Some(Item::Paste),
             _ => self.replays_data_date(plan).then_some(Item::Progress),
         };
         let edits = match *plan {
