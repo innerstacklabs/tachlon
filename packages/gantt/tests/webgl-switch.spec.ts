@@ -25,6 +25,7 @@ interface Chart {
   on(name: "find" | "toggle-status", handler: () => void): () => void;
   state(): { backend: string; rowCount: number };
   busy(): boolean;
+  update(records: unknown[]): unknown;
   commands: { setFilter(filter: "critical"): boolean | undefined; setBaseline(): unknown; insertRow(): unknown; whatIf(tasks: number[]): unknown; whatIfLonger(task: number, days: number): unknown; zoomIn(): unknown };
   destroy(): void;
 }
@@ -471,7 +472,7 @@ test("while the chart switches, the edit commands refuse with busy and the other
         if (!chart.busy()) return;
         observer.disconnect();
         const { commands } = chart;
-        done({ busy: true, answers: JSON.stringify([commands.setBaseline(), commands.insertRow(), commands.whatIf([0]), commands.whatIfLonger(0, 1), commands.setFilter("critical"), commands.zoomIn()]) });
+        done({ busy: true, answers: JSON.stringify([commands.setBaseline(), commands.insertRow(), commands.whatIf([0]), commands.whatIfLonger(0, 1), commands.setFilter("critical"), commands.zoomIn(), chart.update([])]) });
       });
       observer.observe(document.getElementById("app")!, { childList: true });
     });
@@ -480,7 +481,7 @@ test("while the chart switches, the edit commands refuse with busy and the other
   });
   expect(during.backend, "the chart mounted on WebGPU").toBe("WebGPU");
   expect(during.busy, "the switch was running").toBe(true);
-  expect(during.answers, "busy for the edit commands, whatIf and whatIfLonger, false for the rest").toBe(JSON.stringify([{ ok: false, reason: "busy", message: "Finish the drag first." }, { ok: false, reason: "busy", message: "Finish the drag first." }, { ok: false, reason: "busy", message: "Finish the drag first." }, { ok: false, reason: "busy", message: "Finish the drag first." }, false, false]));
+  expect(during.answers, "busy for the edit commands, whatIf, whatIfLonger and update, false for the rest").toBe(JSON.stringify([{ ok: false, reason: "busy", message: "Finish the drag first." }, { ok: false, reason: "busy", message: "Finish the drag first." }, { ok: false, reason: "busy", message: "Finish the drag first." }, { ok: false, reason: "busy", message: "Finish the drag first." }, false, false, { ok: false, reason: "busy", message: "Finish the drag first." }]));
   await switched(page);
   expect(pageErrors, "no page error").toEqual([]);
 });
