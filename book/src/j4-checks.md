@@ -40,7 +40,7 @@ your schedule.
    it follows has finished; Lags are links with a positive lag, a wait between the two. A lead
    makes the dates depend on an overlap nobody can see on the bar, and a lag hides a task inside a
    link. To remove one, select the link, press `Enter` and type the type alone, such as `FS`, or
-   add a task for the wait. The box takes `FS-1d` and `FS+2d`; see step 4 of [Build a schedule
+   add a task for the wait. The box takes `FS-1d` and `FS+2d`; see step 5 of [Build a schedule
    from the keyboard](j6-build.md).
 7. **Finish to start.** The share of links that finish one task and start the next, such as `63 of
    69 links`; a file with no links reads `no links`. A low share means many start-to-start and
