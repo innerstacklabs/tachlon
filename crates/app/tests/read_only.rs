@@ -106,6 +106,17 @@ fn each_edit_path_is_refused_and_leaves_the_chart_as_it_was() {
 }
 
 #[test]
+fn indent_outdent_and_move_say_read_only_on_a_row_they_would_refuse_for_another_reason() {
+    let mut s = read_only(session());
+    s.select(0);
+    let before = state(&s);
+    assert_eq!(s.indent_selected(), Err(EditError::ReadOnly));
+    assert_eq!(s.outdent_selected(), Err(EditError::ReadOnly));
+    assert_eq!(s.move_selected_up(), Err(EditError::ReadOnly));
+    assert_eq!(state(&s), before);
+}
+
+#[test]
 fn a_bar_drag_and_an_edge_drag_past_the_threshold_move_nothing_and_say_why() {
     let sentence = EditError::ReadOnly.to_string();
     for edge in [false, true] {

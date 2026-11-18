@@ -162,6 +162,7 @@ impl Session {
 
     /// The selected task, once the session can reparent at all.
     fn reparent_target(&self) -> Result<TaskId, EditError> {
+        self.refuse_read_only()?;
         self.check_structural()?;
         if self.filtering() {
             return Err(EditError::ReparentFiltered);
