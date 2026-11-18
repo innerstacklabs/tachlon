@@ -66,6 +66,7 @@ texts! {
     READ_ONLY "readOnly" "This chart is read-only, so nothing in it can be changed.";
     NOT_ALLOWED "notAllowed" "The host does not allow {what}.";
     REFUSED "refused" "This change is not allowed.";
+    ROLLBACK_GONE "rollbackGone" "The chart can no longer go back to before that change. Load the saved schedule again.";
     BEFORE_EDIT_FAILED "beforeEditFailed" "This change was not made: the page's before-edit function failed.";
     LINK_CYCLE "linkCycle" "\"{pred}\" to \"{succ}\" would make a loop: {chain}.";
     LINK_CYCLE_ELIDED "linkCycleElided" "{first} → {second} → {third} → … ({count} tasks) → {last} → {first}";

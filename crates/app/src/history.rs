@@ -3,6 +3,7 @@
 mod changes;
 mod commit;
 mod record;
+mod rollback;
 
 use crate::whatif::Mark;
 use crate::{
@@ -108,6 +109,25 @@ impl History {
     /// The undo entries past the first `depth`, newest first.
     fn past(&self, depth: usize) -> impl Iterator<Item = &Entry> {
         self.undo.iter().skip(depth).rev()
+    }
+
+    /// The latest undo entry becomes `inverse` on the redo stack.
+    fn move_to_redo(&mut self, inverse: Entry) {
+        self.undo.pop_back();
+        self.redo.push(inverse);
+    }
+
+    /// The latest redo entry becomes `inverse` on the undo stack.
+    fn move_to_undo(&mut self, inverse: Entry) {
+        self.redo.pop();
+        self.undo.push_back(inverse);
+    }
+
+    /// An undo past the what-if mark ends the what-if.
+    fn end_whatif_past_mark(&mut self) {
+        if self.whatif.as_ref().and_then(|m| m.depth) > Some(self.undo.len()) {
+            self.whatif = None;
+        }
     }
 
     fn push(&mut self, inverse: Entry) {
@@ -293,10 +313,7 @@ impl Session {
         let row = task_of(&entry);
         let (inverse, _) = self.run_entry(entry, true)?;
         self.commit(inverse, Source::Undo);
-        // An undo past the mark ends the what-if.
-        if self.history.whatif.as_ref().and_then(|m| m.depth) > Some(self.history.undo.len()) {
-            self.history.whatif = None;
-        }
+        self.history.end_whatif_past_mark();
         self.reveal_changed(row);
         Ok(true)
     }
