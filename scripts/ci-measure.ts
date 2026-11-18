@@ -1,6 +1,6 @@
 // Measures one UTC day of CI use from the GitHub Actions API (see scripts/lib/ci-measure.ts). It only
 // reads. Run from the repo root, with Node 22.18 or later (type stripping):
-//   node scripts/ci-measure.ts --day 2026-10-30 [--repo innerstacklabs/gantt] [--rows-out rows.jsonl]
+//   node scripts/ci-measure.ts --day 2026-10-30 [--repo owner/name] [--rows-out rows.jsonl]
 //   node scripts/ci-measure.ts --fixture scripts/fixtures/ci-jobs-sample.json
 // The live read needs `gh` signed in with read access to the repo. It makes one call for the day's runs
 // and one per run for its jobs (`filter=all` keeps rerun attempts). Exit 0 for a complete day, 1 for bad
@@ -64,7 +64,8 @@ if (fixture !== undefined) {
   source = f.source;
 } else {
   if (day === undefined || !/^\d{4}-\d{2}-\d{2}$/.test(day)) fail(USAGE);
-  const repo = arg("--repo") ?? "innerstacklabs/gantt";
+  const repo = arg("--repo") || process.env.GITHUB_REPOSITORY;
+  if (!repo) fail("no repository: pass --repo owner/name or set GITHUB_REPOSITORY");
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) fail(`bad --repo ${repo}`);
   source = liveSource(repo);
 }

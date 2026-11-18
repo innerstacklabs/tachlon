@@ -178,7 +178,7 @@ export const drag = {
 
 export const close = {
   name: "close",
-  caption: "Rust, WebAssembly and the GPU, built as a component. github.com/innerstacklabs/gantt",
+  caption: "Rust, WebAssembly and the GPU, built as a component.",
   run: async (ctx) => {
     await ctx.hold(2);
   },

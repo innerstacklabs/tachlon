@@ -26,7 +26,7 @@ import { browserCases, hostedBrowserChecks } from './lib/hosted-browser-checks.m
 import { pnpmStepsWithoutDest } from './lib/pnpm-dest-checks.mjs';
 import { wasmHandoffChecks } from './lib/wasm-handoff-checks.mjs';
 
-const REPO = 'innerstacklabs/gantt';
+const REPO = 'owner/repo';
 const SECRET_NAMES = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'];
 
 // ---- the expression evaluator (the subset the deploy job's `if:` may use) ------

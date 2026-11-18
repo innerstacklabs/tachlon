@@ -35,7 +35,7 @@ function sourceOf(f: Fixture): Source {
 }
 
 function cli(args: string[]): { status: number | null; out: string; err: string } {
-  const r = spawnSync("node", [CLI, ...args], { encoding: "utf8" });
+  const r = spawnSync("node", [CLI, ...args], { encoding: "utf8", env: { ...process.env, GITHUB_REPOSITORY: "" } });
   return { status: r.status, out: r.stdout, err: r.stderr };
 }
 
@@ -164,6 +164,7 @@ test("the CLI exits 2 and still prints the report for a truncated day, 1 for bad
   assert.match(cut.err, /truncated/);
   assert.equal(cli([]).status, 1);
   assert.equal(cli(["--day", "yesterday"]).status, 1);
+  assert.match(cli(["--day", "2026-10-30"]).err, /no repository/);
 });
 
 test("of rows that share run, name, runner, start and end only the lowest job id stays; a real re-execution and a job that never ran stay", () => {
