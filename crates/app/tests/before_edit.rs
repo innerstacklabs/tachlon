@@ -21,7 +21,7 @@ fn spy(s: &mut Session, refused: &'static str) -> Asked {
         seen.borrow_mut().push(plan.clone());
         (plan.kind != refused)
             .then_some(())
-            .ok_or(format!("no {refused}"))
+            .ok_or(EditError::Refused(format!("no {refused}")))
     })));
     asked
 }
@@ -51,7 +51,9 @@ fn a_refused_edit_changes_nothing_and_an_empty_reason_reads_as_the_default() {
         let mut s = session();
         let (before, _) = (state(&s), s.take_commits());
         let given = reason.to_string();
-        s.set_before_edit(Some(Rc::new(move |_| Err(given.clone()))));
+        s.set_before_edit(Some(Rc::new(move |_| {
+            Err(EditError::Refused(given.clone()))
+        })));
         let error = s.edit(longer(300)).unwrap_err();
         assert_eq!(error, EditError::Refused(reason.into()));
         assert_eq!((error.kind(), error.to_string()), ("refused", shown.into()));
@@ -275,7 +277,7 @@ fn a_function_that_refuses_a_value_refuses_each_of_the_six_and_changes_nothing()
             plan.changes
                 .is_empty()
                 .then_some(())
-                .ok_or("a value".into())
+                .ok_or(EditError::Refused("a value".into()))
         })));
         let (before, _) = (state(&s), s.take_commits());
         act(&mut s);

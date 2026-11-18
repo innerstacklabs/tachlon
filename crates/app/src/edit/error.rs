@@ -4,8 +4,8 @@ use super::{DurationError, LinkTextError, PredecessorFault, links::loop_text};
 use crate::outline::OutlineError;
 use crate::texts::{
     ACTUAL_AFTER_DATA_DATE, ALREADY_LINKED, ALREADY_TOP_LEVEL, BAD_DATA_DATE, BAD_DATE,
-    BAD_PERCENT, BAD_PLACE, BASELINE_ON_SUMMARY, BUSY, DATA_DATE_THROUGH_EDIT, EMPTY_KEY,
-    EMPTY_NAME, FILTER_ACTIVE, FINISH_BEFORE_START, HAS_ACTUALS, HAS_CHILDREN_MANY,
+    BAD_PERCENT, BAD_PLACE, BASELINE_ON_SUMMARY, BEFORE_EDIT_FAILED, BUSY, DATA_DATE_THROUGH_EDIT,
+    EMPTY_KEY, EMPTY_NAME, FILTER_ACTIVE, FINISH_BEFORE_START, HAS_ACTUALS, HAS_CHILDREN_MANY,
     HAS_CHILDREN_ONE, HAS_KEY, HAS_LINKS, INSERT_GROUPED, INVALID_NAME, KEY_TAKEN, LINK_TO_SUMMARY,
     NO_BASELINE, NO_LINK_SELECTED, NO_NEXT_SIBLING, NO_OUTLINE, NO_PREVIOUS_SIBLING, NO_SELECTION,
     NOT_IN_BASELINE, PROGRESS_ON_SUMMARY, READ_ONLY, REFUSED, REPARENT_FILTERED, REPARENT_GROUPED,
@@ -123,6 +123,8 @@ pub enum EditError {
     ReadOnly,
     /// The host's before-edit function refused it: its reason, or the default sentence when empty.
     Refused(String),
+    /// The host's before-edit function threw or answered with something it must not (a promise): nothing changed.
+    BeforeEditFailed,
 }
 
 impl EditError {
@@ -174,6 +176,7 @@ impl EditError {
             Self::SeveralRows => "severalRows",
             Self::ReadOnly => "readOnly",
             Self::Refused(_) => "refused",
+            Self::BeforeEditFailed => "beforeEditFailed",
         }
     }
 }
@@ -244,6 +247,7 @@ impl Worded for EditError {
             Self::ReadOnly => plain(&READ_ONLY),
             Self::Refused(reason) if !reason.is_empty() => reason.clone(),
             Self::Refused(_) => plain(&REFUSED),
+            Self::BeforeEditFailed => plain(&BEFORE_EDIT_FAILED),
         }
     }
 }

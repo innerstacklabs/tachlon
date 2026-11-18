@@ -73,15 +73,22 @@ test("a drag asks once, when it starts, and not again while it moves or when it 
   expect(await asked(page, "drag"), "still one call after the drag ends").toMatchObject([{ source: "drag", tasks: [expect.any(Number)] }]);
 });
 
-test("a function that throws, answers with a promise or calls the chart refuses the edit with the default sentence and fires one error event", async ({ page }) => {
+test("a function that throws, answers with a promise or calls the chart refuses the edit with the failed sentence and fires one error event", async ({ page }) => {
   for (const code of [`() => { throw new Error("boom"); }`, `async () => undefined`, `() => { window.beChart.toDocument(); }`]) {
     await mountHost(page, code);
     const [before, rows] = [await doc(page), await page.evaluate(() => window.beChart.state().rowCount)];
     await typeDuration(page);
-    await expect(alert(page), code).toHaveText(/not allowed/);
+    await expect(alert(page), code).toHaveText(/function failed/);
     expect(await doc(page), `${code}: the schedule is as it was`).toBe(before);
     expect(await page.evaluate(() => window.beChart.state().rowCount), `${code}: no row was added`).toBe(rows);
     expect(await page.evaluate(() => window.errors.map(({ source, fatal }) => `${source} ${fatal}`)), code).toEqual(["beforeEdit false"]);
+  }
+});
+
+test("a command refused by a function that throws or answers with a promise answers beforeEditFailed", async ({ page }) => {
+  for (const code of [`() => { throw new Error("boom"); }`, `async () => undefined`]) {
+    await mountHost(page, code);
+    expect(await page.evaluate(() => window.beChart.commands.insertRow()), code).toMatchObject({ ok: false, reason: "beforeEditFailed", message: expect.stringMatching(/function failed/) });
   }
 });
 
