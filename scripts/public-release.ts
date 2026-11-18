@@ -44,13 +44,16 @@ export function scanTree(root: string, files: string[]): string[] {
   return out;
 }
 
-/** Name findings in the paths and lines of the files named, as `path` or `path:line`: never the name. */
+/**
+ * Name findings in the paths and lines of the files named, as `tracked path <n>` or `tracked path <n>:<line>`, n being the file's
+ * 1-based place in `files`. A finding never holds the name or the path, since a path can hold the name.
+ */
 export function scanNames(root: string, files: string[], naming: RegExp): string[] {
   const out: string[] = [];
-  for (const f of files) {
-    if (naming.test(f)) out.push(f);
+  for (const [n, f] of files.entries()) {
+    if (naming.test(f)) out.push(`tracked path ${n + 1}`);
     const text = readFileSync(join(root, f), "latin1");
-    if (!text.includes("\0")) text.split("\n").forEach((line, i) => { if (naming.test(line)) out.push(`${f}:${i + 1}`); });
+    if (!text.includes("\0")) text.split("\n").forEach((line, i) => { if (naming.test(line)) out.push(`tracked path ${n + 1}:${i + 1}`); });
   }
   return out;
 }

@@ -54,7 +54,11 @@ try {
   mkdirSync(join(repo, "a"));
   writeFileSync(join(repo, "a/old.txt"), `key=${key}\n`);
   writeFileSync(join(repo, "a/note.txt"), "a zebra\nplain\n");
-  check("a name is found by path and line, and the name is not printed", scanNames(repo, ["a/note.txt", "a/old.txt"], /zebra/i), ["a/note.txt:1"]);
+  check("a name is found by path and line, and the name is not printed", scanNames(repo, ["a/note.txt", "a/old.txt"], /zebra/i), ["tracked path 1:1"]);
+  writeFileSync(join(repo, "a/zebra.txt"), "a zebra\n"); writeFileSync(join(repo, "a/zebra.bin"), "zebra\0");
+  const named = scanNames(repo, ["a/old.txt", "a/zebra.txt", "a/zebra.bin"], /zebra/i);
+  check("a path that holds the name is found by position; a NUL-byte file keeps its path finding only", named, ["tracked path 2", "tracked path 2:1", "tracked path 3"]);
+  check("no finding holds the name", named.some((f) => /zebra/i.test(f)), false);
   git("add", "-A"); git("commit", "-q", "-m", "one");
   writeFileSync(join(repo, "a/old.txt"), "key removed\n");
   git("commit", "-q", "-am", "two");
