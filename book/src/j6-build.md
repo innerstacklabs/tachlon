@@ -15,7 +15,7 @@ other edits.
 ## By hand
 
 1. **Insert a row.** Press `Insert` or `Mod+Enter` (`Mod` is Ctrl or Cmd), or the toolbar's **Insert** button. A task named `New task` of
-   1 working day appears as a sibling after the selected row's whole subtree, and is selected. After the keys or the button the cell cursor is on its name: type a name and press Enter. In a file that
+   1 working day appears as a sibling after the selected row's whole subtree, and is selected. After the keys the cell cursor is on its name: type a name and press Enter (the button does not move the cursor). In a file that
    shows an ID column, the new row gets the next activity ID: the
    prefix of the nearest row above that has an ID, at least that ID's digit width, and one above the largest number any row has with
    that prefix (`A1031` when the largest ID with prefix `A` is `A1030`; `A1-10` after `A1-2` when
