@@ -6,7 +6,6 @@ import { expect } from "@playwright/test";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const releases: { version: string; changelog?: string }[] = JSON.parse(read("../releases.json"));
-const notOnNpm = new Set(["0.3.1"]); // in releases.json and open to changelog lines until published: its release pull request records the digest and deletes this line
 const parts = read("../../../CHANGELOG.md").split(/^(?=## )/m).filter((s) => s.startsWith("## "));
 const versions = parts.map((s) => /^## (\S+)/.exec(s)?.[1] ?? "");
 const sections = new Map(parts.map((s, i) => [versions[i], s.trimEnd()]));
@@ -22,7 +21,6 @@ test("each released version's section of CHANGELOG.md matches the digest in rele
       expect(changelog, `${version} has a digest but CHANGELOG.md has no "## ${version}" section: it was renamed or deleted`).toBeUndefined();
       continue;
     }
-    if (notOnNpm.has(version)) continue;
     const digest = createHash("sha256").update(section).digest("hex");
     const record = `record "changelog": "${digest}" on the ${version} entry of packages/gantt/releases.json`;
     expect(changelog, `${version} is released and has no digest: ${record}`).toBeDefined();
