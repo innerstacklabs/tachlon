@@ -94,9 +94,6 @@ export function checkBook(summary: string, samplesSource: string, read: (page: s
 /** The largest a file under `media/` may be, in bytes. Today's largest is `screencast.mp4`, 6,175,675 bytes (a link to `docs/media/`). */
 export const MEDIA_BUDGET_BYTES = 7_000_000;
 
-/** Media files kept without a page: the mascot. */
-export const KEPT_UNUSED: ReadonlySet<string> = new Set(["media/mascot.webp"]);
-
 /** Link targets that are not files in `book/src/`: URLs and root-relative paths. */
 const NOT_SOURCE = /^(?:[a-z][a-z0-9+.-]*:|\/)/i;
 
@@ -134,7 +131,7 @@ export function checkAssets(texts: ReadonlyMap<string, string>, files: ReadonlyM
   }
   for (const [file, size] of files) {
     if (!file.startsWith("media/")) continue;
-    if (!used.has(file) && !KEPT_UNUSED.has(file)) problems.push(`${file}: no page uses this file`);
+    if (!used.has(file)) problems.push(`${file}: no page uses this file`);
     if (size > MEDIA_BUDGET_BYTES) problems.push(`${file}: ${size} bytes is over the ${MEDIA_BUDGET_BYTES}-byte media budget (MEDIA_BUDGET_BYTES)`);
   }
   return problems;

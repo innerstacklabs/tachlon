@@ -6,7 +6,7 @@ Tachlon is a Gantt and scheduling component that you put in your own product, in
 
 This book has two parts, for two readers.
 
-- **You are a developer and you want the chart in your product.** Start at [Install it in your app](install.md), the first chapter of the part for developers.
+- **You are a developer and you want the chart in your product.** Start at [Install it in your app](install.md), a chapter of the part for developers.
 - **You use a chart built with Tachlon.** Read the guide chapters. Each chapter is one task: what you can do, a short clip of it, the steps, and a tip. They assume nothing about how the chart is built.
 
 To try the chart without a file of your own, [open the office fit-out sample](/?sample=office-fitout), the small schedule the hosted app starts with; **Open…** loads a P6 or MS Project file of your own.
@@ -15,6 +15,13 @@ To try the chart without a file of your own, [open the office fit-out sample](/?
 
 **For developers**
 
+- [Put a chart on a page](dev-page.md): mount the chart in a plain page or in a React, Vue or Angular app.
+- [Give it your data and keep your own ids](dev-data.md): pass tasks and links, give each task your own `key`, and read it back from the events.
+- [Listen for edits and save them](dev-save.md): save the whole schedule, or each change as it happens.
+- [Make it read-only and theme it](dev-look.md): turn editing off, and set the colors, the shape and light or dark.
+- [Load and save P6 and MS Project files](dev-files.md): load a file into the chart, and write the schedule out as a P6 or MS Project file.
+- [Run the engine in Node](dev-node.md): open a schedule with no page and ask what moves and what sets the finish.
+- [Give an AI assistant the engine tools](dev-assistant.md): hand your model the tool definitions, run its tool calls, and add a chat box beside the chart.
 - [Install it in your app](install.md): install the package, let `npx tachlon init` write the chart component, and open a schedule file.
 
 **Guide**

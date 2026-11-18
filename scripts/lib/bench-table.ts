@@ -73,7 +73,7 @@ export function statsBlock(r: Results): string {
           </div>`;
 }
 
-/** The fine print beside the table (gantt#1284), every figure from this run. A clause stands only while the run supports it and is left out when it does not; each figure is a span the site-page test checks against the file. */
+/** The fine print beside the table (gantt#1284), every figure from this run. A clause stands only while the run supports it and is left out when it does not; each figure is a span `bench-page.test.ts` checks against the file. */
 export function finePrint(r: Results): string {
   const get = (c: string, side: string, key: string): number => median(r, c, side, key);
   const cells = SHAPES.flatMap((s) => SIZES.map((n) => `${s}-${n}`));
