@@ -6,7 +6,7 @@ A *host* is the product that embeds the chart. This record designs the host's si
 
 ## Connect the chart to your backend
 
-The imagined backend is a plain REST API. `GET /api/schedule` answers `{ tasks, links }` in its own field names (`title`, `plannedStart`, `days`, `parentId`; a link's `source` and `target`). Tasks and links have `POST`, `PATCH /:id` and `DELETE /:id` routes. A 4xx answer is a refusal with `{ message, key?, field? }`, except a 408 or a 429, which did not judge the change (rule 3.5), and a request that repeats an `Idempotency-Key` is answered as the first one was. In React:
+The imagined backend is a plain REST API. `GET /api/schedule` answers `{ tasks, links }` in its own field names (`title`, `plannedStart`, `days`, `parentId`; a link's `source` and `target`). Tasks and links have `POST`, `PATCH /:id` and `DELETE /:id` routes. A 4xx answer is a refusal with `{ message, key?, field? }`, except a 408 or a 429, which did not judge the change (rule 3.5), and a request that repeats the `Idempotency-Key` of one the server applied is answered as that one was; an answer that applied nothing (a 408, a 429, a 5xx) is not stored, so its repeat runs again. In React:
 
 ```tsx
 import { Gantt, SaveRefused, type Save } from "tachlon/react";
@@ -156,7 +156,7 @@ type Retry = readonly number[] | false; // the waits before each repeated call, 
    - if the held value arrived before the commit's first call, it is dropped: the save is newer;
    - if it arrived later, at any time from the first call to the settle, it is applied: the chart cannot know which the server took last, and the next data update corrects it if the save won.
 
-   Rule 3.10 is the one exception to "one step": during a gesture, everything after the keys waits for the gesture to end, and counts as having arrived when the save settled.
+   Rule 3.10 is the one exception to "one step": during a gesture, everything after the keys waits for the gesture to end. A `changed` that waited counts as having arrived when its save settled; a held value keeps the time it arrived (rule 3.10).
 
    A field that a later unsaved commit also writes stays unsaved. A held value that this save's tests did not drop waits for that commit under the same three tests; one they dropped is gone.
 5. **When the commit is put back,** the commits behind it go with it, and every held value for a field that is no longer unsaved is applied. The chart also forgets what it remembered (rule 4.2) for every record those commits touched, because the server may hold part of them or all of them. For those records the next data update is the truth and is not compared: every member applies whatever its value, and a touched row that the update lacks is removed, a row the chart created included. A commit made after the put-back keeps its say: a field it leaves unsaved keeps its local value and the update's value is held (rule 4.3), and a row it leaves unsaved is not removed before that commit settles (rule 4.7). With `reload: true` (rule 3.11) this holds for every record. So the read the host makes after a put-back (rule 3.7) always lands.
