@@ -220,11 +220,11 @@ test("hostEdit then a typed rename: two Undo keystrokes take the rename back, th
 });
 
 test("hostEdit refuses a record that sets progress or changes a task with actual dates, names the task and says to call update, which sets it", async ({ page }) => {
-  await mountHost(page, { tasks: tasks(3) });
-  const progress = { key: "k0", progress: 50 };
+  await mountHost(page, { tasks: tasks(3), durationUnit: "minutes", capabilities: { durationStep: "days" } });
+  const progress = { key: "k0", progress: 50 }, start = { key: "k0", snet: "2026-03-09" };
   expect((await page.evaluate((r) => window.upChart.hostEdit([r]), progress) as { reason: string }).reason).toBe("hasActuals");
   expect(await page.evaluate((r) => window.upChart.update([r]), progress)).toEqual({ ok: true, updated: 1 });
-  const start = { key: "k0", snet: "2026-03-09" };
   expect((await page.evaluate((r) => window.upChart.hostEdit([r]), start) as { message: string }).message).toBe("Nothing changed: task k0 has actual dates, or the record sets them, so hostEdit cannot take it; call update, which sets it without an undo step.");
   expect(await page.evaluate((r) => window.upChart.update([r]), start)).toEqual({ ok: true, updated: 1 });
+  expect((await page.evaluate(() => { window.upChart.update([{ key: "k2", duration: 90 }]); return window.upChart.hostEdit([{ key: "k2", duration: 960 }]); }) as { message: string }).message).toBe("Nothing changed: task k2 cannot be put back by an Undo under the host's capability profile (durations in whole days), so hostEdit cannot take it; call update, which sets it without an undo step.");
 });
