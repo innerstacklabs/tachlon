@@ -2,11 +2,12 @@
 // once per frame: `watch` compares it with the one before and fires only on a change, so an idle chart fires nothing.
 import type { Status } from "./api.js";
 import { foldChanges, type FieldChange } from "./change-set.js";
+import type { SaveError } from "./gantt-types.js";
 import type { PickerProject } from "./open-schedule.js";
 import type { ViewState } from "./view-state.js";
 
 /** Where a commit came from (decision 0019, rule 1). */
-export type CommitSource = "typed" | "drag" | "dialog" | "paste" | "proposal" | "undo" | "redo";
+export type CommitSource = "typed" | "drag" | "dialog" | "paste" | "proposal" | "undo" | "redo" | "rollback";
 
 /**
  * One task, link or the schedule a commit changed, as one record (decision 0022, section 2): `record` is `"task"`, `"link"` or `"schedule"`, `op`
@@ -54,8 +55,9 @@ export interface GanttEvents {
    * A file could not be opened, a frame failed, or WebGPU failed and the chart started again on WebGL2 in its root (`backend`, once, with
    * the reason), or the page's `beforeEdit` function threw or answered with a promise (`beforeEdit`, not fatal, the change refused); `message` is the line a person sees. `fatal`: the chart has stopped (a panic, frames that keep failing, or a switch to
    * WebGL2 that could not start), and only a reload of the page brings it back; the host decides whether to do that.
+   * A save the host refused puts the edits back and fires `error` once with the source `save` and a `SaveError`.
    */
-  error: { source: ErrorSource; message: string; fatal: boolean; projects?: readonly PickerProject[] };
+  error: { source: ErrorSource; message: string; fatal: boolean; projects?: readonly PickerProject[] } | (SaveError & { projects?: undefined });
   /** The chart's find key (Ctrl+F, Cmd+F) was pressed while focus was in it: a host puts focus in its find box. With a handler the browser's own find does not open. */
   find: Record<string, never>;
   /** The chart's status key (`s`) was pressed while focus was in it: a host shows or hides its status line. */
@@ -67,7 +69,7 @@ export interface GanttEvents {
 }
 
 /** What an `error` event is about. */
-export type ErrorSource = "open" | "frame" | "backend" | "beforeEdit";
+export type ErrorSource = "open" | "frame" | "backend" | "beforeEdit" | "save";
 
 /** The events a key of the chart asks for: the host acts on them. */
 export type KeyRequest = "find" | "toggle-status" | "choose-file" | "toggle-keys";
@@ -95,6 +97,8 @@ export interface Events {
   watch(s: Status): void;
   /** Fire `error`; `fatal` when the chart has stopped. */
   fail(source: ErrorSource, message: string, fatal?: boolean, projects?: readonly PickerProject[]): void;
+  /** Fire `error` for a save the host refused, after the chart put the edits back. */
+  putBack(error: SaveError): void;
   /**
    * A new app drives the chart (the switch to WebGL2): the next status is compared with nothing, so its counters fire no event, and its
    * view state fires one `change`, since the new start's view is not the one the last `change` carried. The commits the old app held unread are
@@ -211,6 +215,9 @@ export function createEvents(reads: () => EventReads): Events { // oxlint-disabl
     },
     fail(source, message, fatal = false, projects) {
       emit("error", projects === undefined ? { source, message, fatal } : { source, message, fatal, projects });
+    },
+    putBack(error) {
+      emit("error", error);
     },
     restart() {
       previous = null;

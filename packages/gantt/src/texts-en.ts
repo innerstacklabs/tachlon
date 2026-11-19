@@ -51,6 +51,7 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   "projects": "{name} holds {count} projects; open it with the project to read, or \"all\".", "not-loaded": "Not loaded. {why}",
   "open-busy": "Finish the cell edit or drag first.", "edited": "The schedule was edited while the file was read.", "newer-file": "A newer file was opened first.",
   // Saving, the selection, the row position and the baseline.
+  "put-back.one": "{why} ({count} edit put back)", "put-back.other": "{why} ({count} edits put back)",
   "saved": "Saved {file}", "rows-selected": "{count} rows selected", "row-position": "Row {row} of {total}",
   "baseline-set.one": "Baseline set: {count} row", "baseline-set.other": "Baseline set: {count} rows",
   "baseline-set-at.one": "Baseline set at data date {day}: {count} row", "baseline-set-at.other": "Baseline set at data date {day}: {count} rows",

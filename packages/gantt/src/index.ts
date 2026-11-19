@@ -27,6 +27,7 @@ import { installTheme } from "./theme.js";
 import { createApp, reason } from "./boot.js";
 import { guardBeforeEdit } from "./before-edit.js";
 import { refused } from "./edit-result.js";
+import { SaveQueue } from "./save-queue.js";
 import { mountAssistantPanel } from "./assistant/panel.js";
 import { installCard } from "./card.js";
 import { installCellEdit } from "./cell-edit.js";
@@ -81,7 +82,8 @@ import "./styles/print.css";
 export { fromBryntum, fromDhtmlx, fromTasks, PlainDataError, toPlain, validate } from "./adapters/index.js";
 export type { BryntumResult, DhtmlxOptions, DhtmlxResult, PlainCalendar, PlainIssue, PlainLink, PlainOptions, PlainResult, PlainTask, PlainValidation, ScheduleDocument } from "./adapters/index.js";
 // The chart's own types (`gantt-types.ts`).
-export type { BeforeEdit, BeforeEditChange, Gantt, HostCapabilities, HostDifference, MountOptions, TaskUpdate, UpdateResult } from "./gantt-types.js";
+export type { BeforeEdit, BeforeEditChange, ChangeSet, Gantt, HostCapabilities, HostDifference, MountOptions, Save, SaveError, SaveResult, TaskUpdate, UpdateResult } from "./gantt-types.js";
+export { SaveRefused } from "./save-queue.js";
 export type { Commands, ScrollTarget } from "./commands.js";
 export type { Change, Commit, CommitSource, GanttEvents } from "./events.js";
 export type { OpenOptions, PickerProject } from "./open-schedule.js";
@@ -120,12 +122,12 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
   // The page's own `document`, or its `tasks` and `links`, are held only until the chart has started: a restart on WebGL2 reads the running chart's schedule
   // (`webgl-switch.ts`), so a large list is not kept alive for it. No closure below holds `options`, only the fields it needs.
   let plain: StartSource = options.document === undefined ? { tasks: options.tasks, links: options.links, dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
-  const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit } = options;
+  const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, save } = options;
   const start = (source: StartSource, run: Run): Promise<Started> => {
     const again = measured && schedule !== undefined && source !== undefined && "document" in source;
     const from = again ? schedule : (source ?? plain);
     if (from === undefined) return Promise.reject(new MountError("schedule", "The chart could not read its schedule to start again: the page's tasks and links were let go once it had started."));
-    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit));
+    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit, save));
   };
   const gantt = await mountSwitching(root, { schedule, forceWebgl, readOnly: options.readOnly, capabilities: options.capabilities, beforeEdit: options.beforeEdit }, start, page?.fallback ?? null, restart);
   plain = undefined;
@@ -133,7 +135,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
 }
 
 /** One start of the chart in `root`, on `source`, as `run` says; `own` holds what `destroy` takes down, and its app once made. */
-async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"]): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
+async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], hostSave: MountOptions["save"]): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const { disposers } = own;
   root.innerHTML = chartHtml;
   applyTexts(root, texts);
@@ -231,6 +233,13 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   // The events outlive this start (the switch to WebGL2 starts another): they read this start's view state, commits and task keys from now on.
   run.reads({ view: (s) => view.read(s), commits: () => app.take_commits(), ref: (task) => app.task_ref(task) });
   const events = run.events;
+  if (hostSave !== undefined) {
+    const queue = new SaveQueue(app, hostSave, (error) => {
+      rows.refuse(error.reload ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
+      events.putBack(error);
+    });
+    disposers.push(events.on("edit", ({ commits }) => queue.add(commits)), () => queue.stop());
+  }
   installKeys(shell, events.request, rows, cursor, () => card, split, links, save, taskDialog);
   const pointer = installPointer(shell, edit.active, (at) => metrics.moved(at));
   // Turning a filter on scrolls the chart to the rows it shows; the chart reads its own drawn bars for that. The rest of the strip is the app's chrome (`apps/chrome`).

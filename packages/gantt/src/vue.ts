@@ -14,6 +14,7 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
  * Give a listener for `find` or `choose-file` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
  * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
+ * `save` is called as each change set is sent, with the latest function the component was given, so a new function never mounts the chart again.
  * `@ready` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
  * `class` and `style` land on the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. A start that fails is
  * thrown while rendering, for an `onErrorCaptured` hook or the app's `errorHandler`, until the next start clears it.
@@ -35,6 +36,7 @@ export const Gantt = defineComponent({
     readOnly: { type: Boolean, default: undefined },
     capabilities: { type: Object as PropType<NonNullable<MountOptions["capabilities"]>>, default: undefined },
     beforeEdit: { type: Function as PropType<NonNullable<MountOptions["beforeEdit"]>>, default: undefined },
+    save: { type: Function as PropType<NonNullable<MountOptions["save"]>>, default: undefined },
     wasmUrl: { type: null as unknown as PropType<NonNullable<MountOptions["wasmUrl"]>>, default: undefined },
     locale: { type: String, default: undefined },
     texts: { type: Object as PropType<NonNullable<MountOptions["texts"]>>, default: undefined },
@@ -75,7 +77,7 @@ export const Gantt = defineComponent({
       queue = queue.then(async () => {
         if (stopped) return;
         try {
-          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change) });
+          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: props.save === undefined ? undefined : (changeSet) => props.save!(changeSet) });
         } catch (error) {
           return void (stopped || (failure.value = { error }));
         }

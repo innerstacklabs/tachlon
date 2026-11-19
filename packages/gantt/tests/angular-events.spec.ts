@@ -30,7 +30,7 @@ test("the component mounts the chart outside the zone, emits its events inside i
     selector: "gantt-chart",
     standalone: true,
     inputs: { schedule: "schedule", document: "document", tasks: "tasks", links: "links", dataDate: "dataDate", mustFinishBy: "mustFinishBy", calendars: "calendars", durationUnit: "durationUnit", lagCalendar: "lagCalendar", options: "options", forceWebgl: "forceWebgl", wasmUrl: "wasmUrl", locale: "locale", texts: "texts", fonts: "fonts" },
-    options: ["beforeEdit", "calendars", "capabilities", "dataDate", "document", "durationUnit", "fonts", "forceWebgl", "lagCalendar", "links", "locale", "mustFinishBy", "options", "readOnly", "schedule", "tasks", "texts", "wasmUrl"],
+    options: ["beforeEdit", "calendars", "capabilities", "dataDate", "document", "durationUnit", "fonts", "forceWebgl", "lagCalendar", "links", "locale", "mustFinishBy", "options", "readOnly", "save", "schedule", "tasks", "texts", "wasmUrl"],
     emitters: ["chartChange", "chartChooseFile", "chartEdit", "chartError", "chartFind", "chartLoad", "chartMove", "chartOpen", "chartSelect", "chartToggleKeys", "chartToggleStatus", "ready"],
     outputs: Object.fromEntries(["chartChange", "chartChooseFile", "chartEdit", "chartError", "chartFind", "chartLoad", "chartMove", "chartOpen", "chartSelect", "chartToggleKeys", "chartToggleStatus", "ready"].map((n) => [n, n])),
   });
