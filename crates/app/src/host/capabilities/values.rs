@@ -5,7 +5,7 @@ use crate::Session;
 use crate::constraint::constraint_of;
 use crate::document::json_read::Value;
 use crate::edit::{Edit, day_minutes};
-use engine::{DAY, Instant, Limit, Pin, Task, TaskId};
+use engine::{Calendar, DAY, Instant, Limit, Pin, TaskId};
 
 /// The date limits a host can name, one bit each in this order; `snet` is a bar move's.
 const KINDS: [&str; 7] = ["snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap"];
@@ -73,6 +73,23 @@ fn held(snet: Option<Instant>, limit: &Limit) -> [Option<Instant>; 7] {
     ]
 }
 
+/// What `limit` holds after `new` changed it from `now`: each date `new` changed is `new`'s.
+fn merged(kept: Limit, now: Limit, new: Limit) -> Limit {
+    let pick = |kept, now, new| if new == now { kept } else { new };
+    Limit {
+        snlt: pick(kept.snlt, now.snlt, new.snlt),
+        fnet: pick(kept.fnet, now.fnet, new.fnet),
+        fnlt: pick(kept.fnlt, now.fnlt, new.fnlt),
+        ..new
+    }
+}
+
+/// Is `at` midnight, or its calendar's opening (a start) or closing (a finish) of a working day?
+fn whole_day(calendar: &Calendar, finish: bool, at: Instant) -> bool {
+    let closing = calendar.is_period_end(at) && calendar.next_working(at) / DAY > (at - 1) / DAY;
+    at % DAY == 0 || (finish && closing) || (!finish && calendar.day_start_at(at) == at)
+}
+
 /// The kinds among `held`, one bit each.
 fn kinds(held: &[Option<Instant>]) -> u8 {
     held.iter()
@@ -84,19 +101,29 @@ impl Session {
     /// What the host cannot store in the first of `edits` that has such a value, as the end of
     /// "The host stores ...".
     pub(super) fn unstorable(&self, s: Stores, edits: &[Edit]) -> Option<String> {
-        edits.iter().find_map(|edit| self.not_stored(s, edit))
+        let mut folded = std::collections::BTreeMap::new();
+        for edit in edits {
+            let (task, snet, new) = match edit {
+                Edit::Move { task, snet } => (task, Some(*snet), None),
+                Edit::SetLimit { task, limit } => (task, None, Some(*limit)),
+                _ => continue,
+            };
+            let now = self.live_task(task.0)?;
+            let (kept_snet, kept) = folded.entry(task.0).or_insert((now.snet, now.limit));
+            *kept_snet = snet.unwrap_or(*kept_snet);
+            *kept = new.map_or(*kept, |new| merged(*kept, now.limit, new));
+        }
+        let limits = folded
+            .iter()
+            .find_map(|(&task, &(snet, limit))| self.limits_refusal(s, TaskId(task), snet, limit));
+        let others = edits.iter().find_map(|edit| self.not_stored(s, edit));
+        others.or(limits)
     }
 
     fn not_stored(&self, s: Stores, edit: &Edit) -> Option<String> {
         let [duration_step, lag_step] = s.steps;
         let live = |task: &TaskId| self.is_live(*task);
         let (step, minutes, day, what) = match edit {
-            Edit::Move { task, snet } => {
-                return self.limits_refusal(s, *task, |t| (*snet, t.limit));
-            }
-            Edit::SetLimit { task, limit } => {
-                return self.limits_refusal(s, *task, |t| (t.snet, *limit));
-            }
             Edit::SetDuration { task, minutes } if live(task) => {
                 let day = day_minutes(self.schedule.calendar_of(*task));
                 (duration_step, *minutes, day, "durations")
@@ -123,16 +150,15 @@ impl Session {
         (minutes % unit != 0).then(|| format!("{what} in whole {}", STEPS[step]))
     }
 
-    /// The refusal for `task` taking the start and limits `new` makes of what it holds: a kind the
-    /// host does not store, more kinds than it stores for a task, or a date with a time of day.
+    /// The refusal for `task` holding `snet` and `limit`: a kind, a count or a time of day not stored.
     fn limits_refusal(
         &self,
         s: Stores,
         task: TaskId,
-        new: impl FnOnce(&Task) -> (Option<Instant>, Limit),
+        snet: Option<Instant>,
+        limit: Limit,
     ) -> Option<String> {
         let floor = self.meta.get(task.0 as usize).and_then(|m| m.floor);
-        let (snet, limit) = new(self.live_task(task.0)?);
         let now = held(constraint_of(snet, floor), &limit);
         let bits = kinds(&now);
         if bits & s.not_kinds != 0 {
@@ -142,7 +168,10 @@ impl Session {
         if let Some(most) = s.per_task.filter(|&most| bits.count_ones() > most) {
             return Some(format!("date limits: at most {most} for a task"));
         }
-        let timed = now.iter().flatten().any(|at| at % DAY != 0);
+        let calendar = self.schedule.calendar_of(task);
+        let timed = now.iter().enumerate().any(|(kind, at)| {
+            at.is_some_and(|at| !whole_day(calendar, matches!(kind, 2 | 3 | 5), at))
+        });
         (s.whole_days && timed).then(|| "dates without a time of day".into())
     }
 }

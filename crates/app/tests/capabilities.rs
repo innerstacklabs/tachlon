@@ -129,21 +129,39 @@ fn a_paste_is_a_day_of_its_calendar_and_hours_refuse_a_day_that_is_not_whole() {
 }
 
 #[test]
-fn dates_by_the_day_refuse_a_time_of_day_and_a_bar_move() {
-    let mut s = host(450, r#"{"dates":"day"}"#);
-    let before = state(&s);
+fn dates_by_the_day_allow_a_calendars_opening_and_closing_and_refuse_any_other_time() {
+    let day = r#"{"dates":"day"}"#;
+    let fnlt = |at| Edit::SetLimit {
+        task: TaskId(2),
+        limit: Limit {
+            fnlt: Some(at),
+            ..Limit::default()
+        },
+    };
+    let no = || Err(stores("dates without a time of day"));
+    let mut s = host(450, day);
     let typed = s.set_start_text(TaskId(0), "2026-01-06 08:30").map(drop);
     assert_eq!(
         typed,
         Err(StartError::Edit(stores("dates without a time of day")))
     );
-    let said = "The host stores dates without a time of day.";
-    assert_eq!(
-        dragged_by(&mut s, false, 1500.0),
-        (false, Some(said.into()))
-    );
-    assert_eq!(state(&s), before);
     s.set_start_text(TaskId(0), "2026-01-06").unwrap();
+    s.edit(fnlt(2 * 1440 + 930)).unwrap();
+    assert_eq!(s.edit(fnlt(2 * 1440 + 900)), no());
+    assert_eq!(dragged_by(&mut s, false, 1500.0), (true, None));
+    let mut s = limited(day);
+    s.edit(fnlt(3 * 1440)).unwrap();
+    assert_eq!(s.edit(fnlt(2 * 1440 + 930)), no());
+}
+
+#[test]
+fn a_dialog_is_checked_for_the_limits_it_leaves_not_one_field_at_a_time() {
+    let mut s = host(450, r#"{"perTask":1}"#);
+    let two = [("snlt", "2026-01-08"), ("fnlt", "2026-01-09")];
+    assert!(s.set_task_fields(TaskId(2), &two).is_err());
+    s.set_task_fields(TaskId(2), &two[1..]).unwrap();
+    s.set_task_fields(TaskId(2), &[("fnlt", ""), ("snlt", "2026-01-08")])
+        .unwrap();
 }
 
 #[test]
