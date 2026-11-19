@@ -290,6 +290,7 @@ fn a_bad_limit_date_is_refused_by_member_and_leaves_the_document_byte_equal() {
         ("snlt", "2026-02-30"),
         ("fnet", "2026-03-09 09:30"),
         ("fnlt", "7"),
+        ("fnlt", "2026-02-30"),
     ] {
         let before = saved(&session);
         let json = format!(r#"[{{"key":"k1","duration":9}},{{"key":"k2","{member}":"{bad}"}}]"#);
@@ -317,6 +318,10 @@ fn a_null_clears_a_limit_and_leaves_the_others_and_the_pin() {
     let (limit, _) = limit_and_dates(&session, leaves[0]);
     assert_eq!((limit.snlt, limit.fnet, limit.pin), (None, None, pin.pin));
     assert!(limit.fnlt.is_some());
+    session
+        .update_tasks(r#"[{"key":"k0","fnlt":null}]"#)
+        .unwrap();
+    assert_eq!(limit_and_dates(&session, leaves[0]).0.fnlt, None);
 }
 
 #[test]
