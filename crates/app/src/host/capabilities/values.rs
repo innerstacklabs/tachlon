@@ -108,7 +108,9 @@ impl Session {
                 Edit::SetLimit { task, limit } => (task, None, Some(*limit)),
                 _ => continue,
             };
-            let now = self.live_task(task.0)?;
+            let Some(now) = self.live_task(task.0) else {
+                continue;
+            };
             let (kept_snet, kept) = folded.entry(task.0).or_insert((now.snet, now.limit));
             *kept_snet = snet.unwrap_or(*kept_snet);
             *kept = new.map_or(*kept, |new| merged(*kept, now.limit, new));
