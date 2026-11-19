@@ -218,3 +218,11 @@ test("a host commit is not saved, but a person's Undo and Redo of it are, each w
   expect(seen.map((cs) => [cs.seq, cs.source, cs.changes[0]!.was, cs.changes[0]!.set])).toEqual([[2, "undo", { name: "old" }, { name: "new 2" }], [3, "redo", { name: "old" }, { name: "new 3" }]]);
   expect(app.log).toEqual(["ack 2", "ack 3"]);
 });
+
+test("a put-back counts the host commit made after the refused commit", async () => {
+  const errors: SaveError[] = [];
+  const queue = new SaveQueue(fakeApp(), async () => { throw new SaveRefused({ message: "No." }); }, (error) => errors.push(error));
+  queue.add([commit(1), commit(2, { source: "host" })]);
+  await settle();
+  expect(errors).toMatchObject([{ seq: 1, undone: 2 }]);
+});

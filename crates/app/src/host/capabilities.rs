@@ -127,6 +127,11 @@ impl Session {
         Ok(())
     }
 
+    /// The words for the first group of `edits` the profile turned off.
+    pub(super) fn turned_off(&self, edits: &[Edit]) -> Option<&'static str> {
+        self.host.capabilities.refused(edits.iter().map(group))
+    }
+
     /// The profile's check for the action `plan` describes: its gesture, then the group of each edit
     /// it would make (the ones an undo, a redo or a discard replays included).
     pub(super) fn refuse_unallowed(&self, plan: &Plan) -> Result<(), EditError> {

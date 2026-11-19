@@ -40,6 +40,8 @@ export class SaveQueue {
   private readonly save: Save | Handlers;
   private readonly failed: (error: SaveError) => void;
   private readonly waiting: Waiting[] = [];
+  // The seq of each host commit made while a commit waits: a put-back takes the ones after its commit back too.
+  private hosted: number[] = [];
   private running = false;
   private stopped = false;
   private broken = false;
@@ -56,7 +58,11 @@ export class SaveQueue {
   /** Queue the commits an `edit` event carried and start sending. A rollback commit, a host commit (the host made that change itself) and a commit with no change are not sent. */
   add(commits: readonly Commit[]): void {
     if (this.stopped) return;
-    for (const commit of commits) if (commit.source !== "rollback" && commit.source !== "host" && commit.changes.length > 0 && commit.seq >= this.floor) this.waiting.push({ commit, calls: 0 });
+    for (const commit of commits) {
+      if (commit.source === "host") this.hosted.push(commit.seq);
+      else if (commit.source !== "rollback" && commit.changes.length > 0 && commit.seq >= this.floor) this.waiting.push({ commit, calls: 0 });
+    }
+    if (this.waiting.length === 0) this.hosted = [];
     this.go();
   }
 
@@ -123,7 +129,8 @@ export class SaveQueue {
       if (!this.stopped) answer = rollback();
     }
     if (this.stopped) return;
-    const undone = answer.ok ? this.waiting.length : 0;
+    const undone = answer.ok ? this.waiting.length + this.hosted.filter((seq) => seq > head.commit.seq).length : 0;
+    this.hosted = [];
     if (answer.ok) this.floor = answer.seq;
     this.waiting.length = 0;
     this.failed({

@@ -121,7 +121,7 @@ impl Session {
 
     /// [`Session::update_tasks`]'s work, answering the records written beside what each held, for
     /// [`Session::host_edit`]. With `undoable` a record whose Undo the engine would refuse is refused
-    /// (`hasActuals`, `notUndoable`), and a call that changes no value answers without a solve.
+    /// (`hasActuals`, `notAllowed`), and a call that changes no value answers without a solve.
     pub(super) fn apply_records(
         &mut self,
         json: &str,
@@ -205,23 +205,22 @@ impl Session {
         Ok((updated, planned))
     }
 
-    /// The first record of `planned` whose Undo the engine would refuse: one that sets progress (it writes
-    /// actual dates) or changes a task that has them (`hasActuals`), or renames a task whose old name a
-    /// rename refuses (`notUndoable`).
+    /// The first record of `planned` whose Undo would be refused: one that sets progress (it writes actual dates)
+    /// or changes a task that has them (`hasActuals`), or changes a group of fields the capability profile turned
+    /// off (`notAllowed`, the group named in `member`): an Undo is a person changing those fields.
     fn undo_refusal(&self, planned: &[Written]) -> Result<(), UpdateError> {
         for (at, (task, (new, old))) in planned.iter().enumerate() {
             let t = &self.schedule.tasks()[task.0 as usize];
             let held = t.actual_start.or(t.actual_finish).is_some();
-            let (task, name) = (*task, old.name.clone());
-            let back = Edit::Rename { task, name };
-            let kind = if new.percent.is_some() || held && !new.steps_back(old, task).is_empty() {
-                "hasActuals"
-            } else if new.name != old.name && back.check_typed().is_err() {
-                "notUndoable"
-            } else {
-                continue;
-            };
-            return Err(UpdateError::new(kind, Some(at), None));
+            let back: Vec<_> = (new.steps_back(old, *task).into_iter())
+                .map(|step| step.edit)
+                .collect();
+            if new.percent.is_some() || held && !back.is_empty() {
+                return Err(UpdateError::new("hasActuals", Some(at), None));
+            }
+            if let Some(what) = self.turned_off(&back) {
+                return Err(UpdateError::new("notAllowed", Some(at), Some(what)));
+            }
         }
         Ok(())
     }

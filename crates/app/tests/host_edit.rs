@@ -123,6 +123,12 @@ fn each_member_class_applies_undoes_and_redoes() {
     let members = r#""name":"New"|"duration":120|"start":"2026-01-12"|"snlt":"2026-01-15"|"fnet":"2026-01-16"|"fnlt":"2026-01-20""#;
     for member in members.split('|') {
         let mut s = renamed();
+        let name = "x / y".into();
+        s.apply(Edit::Rename {
+            task: TaskId(0),
+            name,
+        })
+        .unwrap();
         let before = write(&s, &extras);
         s.host_edit(&format!(r#"[{{"key":"a",{member}}}]"#))
             .unwrap();
@@ -136,7 +142,7 @@ fn each_member_class_applies_undoes_and_redoes() {
 }
 
 #[test]
-fn a_record_whose_undo_would_be_refused_is_refused_and_an_unchanged_call_changes_nothing() {
+fn a_record_that_sets_actuals_is_refused_and_an_unchanged_call_changes_nothing() {
     let mut s = renamed();
     let edit = Edit::SetProgress {
         task: TaskId(1),
@@ -145,15 +151,11 @@ fn a_record_whose_undo_would_be_refused_is_refused_and_an_unchanged_call_changes
         remaining: None,
     };
     s.edit(edit).unwrap();
-    let task = TaskId(2);
-    let name = "x / y".into();
-    s.apply(Edit::Rename { task, name }).unwrap();
     s.take_commits();
     let before = (s.history_len(), s.revision());
     for (record, kind) in [
         (r#"{"key":"b","duration":1}"#, "hasActuals"),
         (r#"{"key":"a","progress":50}"#, "hasActuals"),
-        (r#"{"key":"c","name":"N"}"#, "notUndoable"),
     ] {
         let error = s.host_edit(&format!("[{record}]")).unwrap_err();
         assert_eq!((error.kind, error.record), (kind, Some(0)), "{record}");
@@ -163,4 +165,16 @@ fn a_record_whose_undo_would_be_refused_is_refused_and_an_unchanged_call_changes
     assert_eq!(s.host_edit(&same).unwrap().solves, 0);
     assert_eq!((s.history_len(), s.revision()), before);
     assert!(s.take_commits().starts_with(r#"{"commits":[],"#));
+}
+
+#[test]
+fn a_record_in_a_group_the_profile_turned_off_is_refused() {
+    let mut s = renamed();
+    s.set_capabilities(r#"{"editable":{"names":false}}"#)
+        .unwrap();
+    let before = (s.history_len(), s.revision());
+    let error = s.host_edit(r#"[{"key":"c","name":"N"}]"#).unwrap_err();
+    let got = (error.kind, error.member.as_deref());
+    assert_eq!(got, ("notAllowed", Some("changing names")));
+    assert_eq!((s.history_len(), s.revision()), before);
 }
