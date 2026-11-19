@@ -78,6 +78,8 @@ export interface ViewState {
   unsaved: boolean;
   /** The import notes the panel lists: always what it shows (after a mount, an open, a load and a restart on WebGL2), the reader's lines without the ones `expectedNotes` names. Frozen. */
   importNotes: readonly string[];
+  /** The names of the members of your rows that the chart has no field for, for tasks and for links: the chart keeps them with the row and gives them back in a create's `set` and a delete's `was` (`fields` is the map of your own names). Frozen; the same object until a new name is seen. */
+  customFields: Readonly<{ tasks: readonly string[]; links: readonly string[] }>;
 }
 
 /** What the chart knows of the open file; the reader compares these with the last state it built. */
@@ -85,6 +87,7 @@ export interface OpenFacts {
   fileName: string | null;
   unsaved: boolean;
   importNotes: readonly string[];
+  customFields: Readonly<{ tasks: readonly string[]; links: readonly string[] }>;
 }
 
 /** What `Gantt.filterInputs()` returns: what the filter controls offer. It changes with an open (`open`), an edit (`edit`) and a baseline set, cleared or added to, which fires no `edit`: a `change` whose `baseline` is a new object. */
@@ -185,6 +188,7 @@ export function createViewState(app: PublicApp, open: (s: Status) => OpenFacts):
     v.fileName === o.fileName &&
     v.unsaved === o.unsaved &&
     v.importNotes === o.importNotes &&
+    v.customFields === o.customFields &&
     v.dataDate === dataDate &&
     v.dataDateTime === dataDateTime &&
     v.baseline === baseline &&
@@ -239,6 +243,7 @@ export function createViewState(app: PublicApp, open: (s: Status) => OpenFacts):
         fileName: o.fileName,
         unsaved: o.unsaved,
         importNotes: o.importNotes,
+        customFields: o.customFields,
       });
       // The frozen copy of the code filter is what the next comparison sees.
       codeFilter = last.codeFilter;

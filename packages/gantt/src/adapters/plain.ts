@@ -72,8 +72,8 @@ export interface PlainResult {
 
 const ACTUAL_KEYS = ["actualStart", "actualFinish", "remaining", "resume"];
 const KNOWN_CALENDAR = new Set(["key", "workDays", "hoursPerDay", "week", "exceptions"]);
-const KNOWN_TASK =new Set(["id", "name", "start", "end", "duration", "parent", "progress", "text", "start_date", "end_date", "type", "color", "label", "key", "calendar", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", "milestone", ...ACTUAL_KEYS]);
-const KNOWN_LINK = new Set(["id", "from", "to", "type", "lag", "source", "target", "key"]);
+export const KNOWN_TASK = new Set(["id", "name", "start", "end", "duration", "parent", "progress", "text", "start_date", "end_date", "type", "color", "label", "key", "calendar", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", "milestone", ...ACTUAL_KEYS]);
+export const KNOWN_LINK = new Set(["id", "from", "to", "type", "lag", "source", "target", "key"]);
 
 /** Count the fields of `item` that are not in `known` (and do not start with `$`). */
 function countUnread(item: object, known: Set<string>, counts: Map<string, number>): void {

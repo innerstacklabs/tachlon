@@ -1,5 +1,7 @@
 // The field map (decision 0022, rule 8.4): a host names the members of its rows once, at mount, and the chart renames them where a task or link crosses the boundary.
 // It renames members and converts no value. A change's own members, a `schedule` change, the document and `snapshot()` keep the chart's names.
+import { customFields } from "./custom-fields.ts"; // `.ts`, so the Node tier can load this file; the type comes from the `.js` name, which the declarations follow
+import type { CustomFields } from "./custom-fields.js";
 import type { Change } from "./events.js";
 import type { Fields } from "./gantt-types.js";
 import type { PlainLink, PlainTask } from "./adapters/plain.js";
@@ -29,6 +31,8 @@ export interface FieldMap {
   data(rows: { tasks?: readonly object[]; links?: readonly object[] }): { tasks?: PlainTask[]; links?: PlainLink[] };
   /** A commit's changes with the members of each `set` and `was` in the host's names; a change's own members and a `schedule` change are not renamed. */
   changes(changes: readonly Change[]): Change[];
+  /** The members of a row that are not a chart field, kept by key (`custom-fields.ts`). */
+  custom: CustomFields;
 }
 
 const isRow = (value: unknown): value is Row => typeof value === "object" && value !== null && !Array.isArray(value);
@@ -82,5 +86,5 @@ export function readFields(map: Fields | undefined, warn: (message: string) => v
     return names === same ? change : { ...change, ...(change.set ? { set: names.toHost(change.set) } : {}), ...(change.was ? { was: names.toHost(change.was) } : {}) };
   };
   const data: FieldMap["data"] = (rows) => ({ ...(rows.tasks && { tasks: tasks.rows(rows.tasks) }), ...(rows.links && { links: links.rows(rows.links) }) });
-  return { tasks, links, data, changes: (changes) => changes.map(named) };
+  return { tasks, links, data, changes: (changes) => changes.map(named), custom: customFields({ tasks, links }) };
 }
