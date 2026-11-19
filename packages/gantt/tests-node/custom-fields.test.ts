@@ -33,6 +33,8 @@ test("a misspelled member is kept and listed, and fromTasks counts nothing in le
   const taken = map.custom.take("tasks", [row({ durration: 3 }), row({ id: "t2", key: "t2" })]);
   taken.commit();
   expect(map.custom.names()).toEqual({ tasks: ["durration"], links: [] });
+  const { tasks: listed, links: none } = map.custom.names();
+  expect([Object.isFrozen(map.custom.names()), Object.isFrozen(listed), Object.isFrozen(none)], "the names and both lists are frozen").toEqual([true, true, true]);
   expect(fromTasks({ tasks: taken.rows as PlainTask[] }).leftOut).toEqual([]);
   expect(map.custom.add([deleted("t1", {})])[0]!.was).toEqual({ durration: 3 });
 });
@@ -76,5 +78,6 @@ test("a row with no text key keeps its unknown members for fromTasks to count, a
   expect(map.custom.names()).toBe(before);
   map.custom.clear();
   expect(map.custom.names()).toEqual({ tasks: [], links: [] });
+  expect([Object.isFrozen(map.custom.names().tasks), Object.isFrozen(map.custom.names().links)], "the lists after a clear, and at the start, are frozen").toEqual([true, true]);
   expect(map.custom.add([deleted("t1", { name: "Pour" })])[0]!.was).toEqual({ name: "Pour" });
 });

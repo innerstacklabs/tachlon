@@ -35,7 +35,8 @@ export function customFields(maps: { tasks: Pick<Names<object>, "toChart">; link
   const seen = { tasks: new Set<string>(), links: new Set<string>() };
   const known = { tasks: new Set([...KNOWN_TASK, "hostStart", "hostFinish"]), links: KNOWN_LINK }; // the two dates only `update` takes
   const cache = { tasks: new Map<string, boolean>(), links: new Map<string, boolean>() };
-  let listed: CustomNames = Object.freeze({ tasks: [], links: [] });
+  const named = (tasks: string[], links: string[]): CustomNames => Object.freeze({ tasks: Object.freeze(tasks), links: Object.freeze(links) });
+  let listed = named([], []);
   /** A host member is custom unless the map turns it into a member the chart reads: its own name for a mapped field is not one. */
   const isCustom = (kind: Kind, name: string): boolean => {
     let answer = cache[kind].get(name);
@@ -64,7 +65,7 @@ export function customFields(maps: { tasks: Pick<Names<object>, "toChart">; link
             held[kind].set(key, { ...held[kind].get(key), ...mine });
             for (const name of Object.keys(mine)) seen[kind].add(name);
           }
-          if (seen.tasks.size !== listed.tasks.length || seen.links.size !== listed.links.length) listed = Object.freeze({ tasks: [...seen.tasks], links: [...seen.links] });
+          if (seen.tasks.size !== listed.tasks.length || seen.links.size !== listed.links.length) listed = named([...seen.tasks], [...seen.links]);
         },
       };
     },
@@ -78,7 +79,7 @@ export function customFields(maps: { tasks: Pick<Names<object>, "toChart">; link
     names: () => listed,
     clear() {
       for (const kind of ["tasks", "links"] as const) [held[kind], seen[kind]].forEach((store) => store.clear());
-      if (listed.tasks.length + listed.links.length > 0) listed = Object.freeze({ tasks: [], links: [] });
+      if (listed.tasks.length + listed.links.length > 0) listed = named([], []);
     },
   };
 }
