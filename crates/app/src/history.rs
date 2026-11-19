@@ -67,6 +67,8 @@ enum Entry {
     DataDates(DataDates),
     /// Several steps one action made, run in this order as one undo step.
     Group(Vec<Step>),
+    /// An action the host took outside the chart; its token is all the chart keeps.
+    Host(String),
 }
 
 /// The task a history entry changes, for an edit of one row; none for a link, baseline or data-date step.
@@ -216,6 +218,7 @@ impl Session {
                 .map(|(inverse, ms)| (Entry::Step(inverse), ms)),
             Entry::DataDates(to) => self.set_data_dates(to),
             Entry::Group(steps) => self.run_group(steps, replay),
+            Entry::Host(token) => Ok(self.run_host(token)),
         }
     }
 
@@ -376,12 +379,6 @@ impl Session {
     /// The number of undo and redo entries, respectively.
     pub fn history_len(&self) -> (usize, usize) {
         (self.history.undo.len(), self.history.redo.len())
-    }
-
-    /// Replace the history with an empty one having `cap` entries.
-    pub fn with_history_cap(mut self, cap: usize) -> Session {
-        self.history = History::new(cap);
-        self
     }
 
     /// Record the drag that is ending as one undo step: the inverse holds the

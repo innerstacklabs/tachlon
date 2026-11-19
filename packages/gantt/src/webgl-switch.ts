@@ -303,6 +303,8 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
     setPending: (keys) => now().setPending(keys),
     update: (records) => (switching !== null && !destroyed ? refused("busy") : now().update(records)),
     hostEdit: (records) => (switching !== null && !destroyed ? refused("busy") : now().hostEdit(records)),
+    pushHostEntry: (token) => (switching !== null && !destroyed ? refused("busy") : now().pushHostEntry(token)),
+    clearHistory: () => { if (switching === null || destroyed) now().clearHistory(); }, // a switch starts a chart with no history
     setData: (data) => (switching !== null && !destroyed ? refused("busy") : now().setData(data)),
     // A call during a switch is kept for the start that follows it; the others throw then.
     setReadOnly: (on) => {

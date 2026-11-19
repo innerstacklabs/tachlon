@@ -59,6 +59,17 @@ impl App {
         updated_answer(self.session.host_edit(json))
     }
 
+    /// `push_host_entry`, answered as JSON: `{"ok":true}` or `{"ok":false,"reason":r}` (`badToken`).
+    pub fn try_push_host_entry(&mut self, token: &str) -> String {
+        let pushed = self.session.push_host_entry(token);
+        answer(pushed.map(|()| None), &self.session.texts)
+    }
+
+    /// `clear_history`: both undo stacks, the unsaved list and any what-if are emptied; `seq` is kept.
+    pub fn clear_history(&mut self) {
+        self.session.clear_history();
+    }
+
     /// `set_baseline_records`, answered as JSON: `{"ok":true}`, a record's refusal as `update_tasks` answers it, or
     /// the edit's as `try_set_baseline` does (`busy`, `readOnly`, `notAllowed`, `refused`).
     pub fn try_set_baseline_records(&mut self, json: &str) -> String {

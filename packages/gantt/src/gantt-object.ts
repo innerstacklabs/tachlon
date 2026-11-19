@@ -13,7 +13,7 @@ import { xlsxFile } from "./xlsx.js";
 import { snapshot } from "./snapshot.js";
 import { localDate, measureText, printColumns } from "./print-sheet.js";
 import type { Gantt, MountOptions } from "./index.js";
-import { update } from "./update.js";
+import { pushHostEntry, update } from "./update.js";
 import type { SetData } from "./host-data.js";
 import type { FieldMap } from "./field-map.js";
 import type { HasOn } from "./events.js";
@@ -189,6 +189,8 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       return update(app, p.busy, p.unit, Array.isArray(records) ? records.map(p.fields.tasks.toChart) : records, p.wrote, "host_edit");
     },
+    pushHostEntry: (token) => { alive(); return pushHostEntry(app, token); },
+    clearHistory: () => { alive(); app.clear_history(); },
     setData: (data) => {
       alive();
       return p.setData(p.fields.data(data), shell.status().epoch, (records) => update(app, p.busy, p.unit, records, p.wrote));

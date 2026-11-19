@@ -2,11 +2,14 @@
 // A `duration` is in the unit the host mounted with (decision 0017 rule 5); this is the one place it becomes the app's working minutes.
 import { readCalendars, toMinutes } from "./adapters/plain-calendars.js";
 import type { PublicApp } from "./api.js";
-import { readAnswer, refused } from "./edit-result.js";
+import { readAnswer, refused, type Refusal } from "./edit-result.js";
 import type { HostDifference, MountOptions, UpdateResult } from "./gantt-types.js";
 
 /** A duration of a record that holds one. */
 const hasDuration = (record: unknown): record is { duration: number } => typeof (record as { duration?: unknown } | null)?.duration === "number";
+
+/** `Gantt.pushHostEntry`: a `token` that is not text reads as empty, which the app refuses as `badToken`. */
+export const pushHostEntry = (app: PublicApp, token: string): { ok: true } | Refusal => readAnswer(app.try_push_host_entry(typeof token === "string" ? token : "")) as { ok: true } | Refusal;
 
 /** The working day in minutes of the task with each key, from the saved document: its own calendar's, as the plain-data reader counts a day. */
 function dayOfKey(app: PublicApp): (key: unknown) => number {
