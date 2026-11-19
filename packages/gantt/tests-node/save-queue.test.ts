@@ -153,7 +153,7 @@ test("any other throw puts nothing back and stops the queue", async () => {
   await settle();
   expect(seen).toEqual([1]);
   expect(app.log).toEqual([]);
-  expect(errors).toEqual([]);
+  expect(errors.map((e) => [e.reason, e.undone])).toEqual([["stopped", 0]]); // announced once, nothing put back
   mock.restoreAll();
 });
 

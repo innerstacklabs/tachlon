@@ -20,7 +20,8 @@ const edit = (...days) => days.forEach((day) => window.chart.commands.setDataDat
 const react = async (name) => { root ??= createRoot(document.getElementById("app")); root.render(h(Gantt, { schedule, forceWebgl: true, save: save(name), onReady: (chart) => ((window.chart = chart), run.mounts++) })); await wait(500); };
 const counts = [], never = () => new Promise(() => undefined);
 const gpu = async () => ((window.chart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, save: never })), window.chart.on("change", (s) => counts.push(s.unsavedCommits)));
-Object.assign(window, { log, run, edit, react, counts, gpu, plain: async () => (window.chart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, forceWebgl: true, save: save("f") })) });
+const quick = async (refuse) => ((window.chart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, forceWebgl: true, save: async () => { if (refuse) throw new SaveRefused({ message: "no" }); } })), window.chart.on("change", (s) => counts.push(s.unsavedCommits)));
+Object.assign(window, { log, run, edit, react, counts, gpu, quick, plain: async () => (window.chart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, forceWebgl: true, save: save("f") })) });
 window.ready = true;`;
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">import "/tests/save-queue-host.ts";</script></body></html>`;
 const host = { name: "save-queue-host", resolveId: (id: string) => (id === "/tests/save-queue-host.ts" ? id : null), load: (id: string) => (id === "/tests/save-queue-host.ts" ? MODULE : null) };
@@ -67,6 +68,19 @@ test("a switch to WebGL2 with commits waiting drops them: unsavedCommits goes fr
   expect(await page.evaluate("chart.state().unsavedCommits"), "the old chart's queue is stopped, and the new one starts empty").toBe(0);
   expect(await page.evaluate("counts.at(-1)"), "the last `change` carried 0").toBe(0);
 });
+
+for (const refuse of [false, true]) {
+  test(`a commit ${refuse ? "put back" : "saved"} within one frame still reaches the host through change, with state() in step`, async ({ page }) => {
+    await open(page);
+    await page.evaluate(`quick(${refuse})`);
+    await page.evaluate("window.gantt.app.rename_task(1, 'a')"); // the first edit turns `unsaved` on: the next one changes no other field
+    await expect.poll(() => page.evaluate("chart.state().unsavedCommits")).toBe(0);
+    await page.waitForTimeout(500);
+    await page.evaluate("counts.length = 0, window.gantt.app.rename_task(1, 'b')");
+    await expect.poll(() => page.evaluate("counts.length")).toBeGreaterThan(0);
+    expect(await page.evaluate("[counts.at(-1), chart.state().unsavedCommits]")).toEqual([0, 0]);
+  });
+}
 
 test("the React component calls the `save` it holds when the commit is sent, so a new function passed between two edits gets the second", async ({ page }) => {
   await open(page);

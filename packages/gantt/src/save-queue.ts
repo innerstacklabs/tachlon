@@ -149,10 +149,15 @@ export class SaveQueue {
   }
 
   private go(): void {
-    void this.pump().catch((err: unknown) => {
-      this.broken = true;
-      console.error("the save queue stopped", err);
-    });
+    void this.pump().catch((err: unknown) => this.halt("the save queue stopped", err));
+  }
+
+  /** The queue stops: no further call is made and the commits it holds stay unsaved (`unsavedCommits` keeps counting them). `failed` is told once, with `reason: "stopped"` and `held`. */
+  private halt(note: string, err: unknown): void {
+    this.broken = true;
+    console.error(note, err);
+    const head = this.waiting[0];
+    this.failed({ source: "save", message: err instanceof Error ? err.message : String(err), fatal: false, reason: "stopped", calls: head?.calls ?? 0, seq: head?.commit.seq ?? 0, undone: 0, reload: false, held: this.waiting.length });
   }
 
   private async pump(): Promise<void> {
@@ -179,8 +184,7 @@ export class SaveQueue {
         } catch (err) {
           if (this.stopped) return;
           if (!(err instanceof SaveRefused) && !(err instanceof BadResult)) {
-            this.broken = true;
-            console.error("a save threw, so the chart stopped saving", err);
+            this.halt("a save threw, so the chart stopped saving", err);
             return;
           }
           await this.putBack(err, head);

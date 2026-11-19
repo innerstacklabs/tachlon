@@ -1,9 +1,9 @@
 // `ViewState.unsavedCommits` (decision 0022, rule 3.9) is the real save queue's own count. The app is a fake that answers as `App.rollback_to` does;
 // a host that holds a restart until the count reaches 0 is released on every way a commit ends.
 import type { Commit } from "../src/events.ts";
-import type { ChangeSet } from "../src/gantt-types.ts";
+import type { ChangeSet, SaveError } from "../src/gantt-types.ts";
 import { liveSave, SaveQueue, SaveRefused } from "../src/save-queue.ts";
-import { test } from "node:test";
+import { mock, test } from "node:test";
 import { expect } from "@playwright/test";
 
 const commit = (seq: number, over: Partial<Commit> = {}): Commit => ({
@@ -86,6 +86,21 @@ test("a wrapper with no save yet drops each commit it is given: the count is 0 a
   expect(told).toEqual([1, 0]);
 });
 
+test("a save that throws a plain Error stops the queue: one error event, the held commits stay counted, no further call", async () => {
+  const errors: SaveError[] = [];
+  let calls = 0;
+  const app = { acknowledge: () => undefined, rollback_to: () => "" };
+  const queue = new SaveQueue(app, async () => { calls++; throw new Error("save failed: 503"); }, (e) => errors.push(e));
+  const quiet = mock.method(console, "error", () => undefined);
+  queue.add([commit(1)]);
+  await settle();
+  queue.add([commit(2), commit(3)]);
+  await settle();
+  quiet.mock.restore();
+  expect(errors.map((e) => [e.reason, e.message, e.held, e.undone])).toEqual([["stopped", "save failed: 503", 1, 0]]);
+  expect([queue.unsavedCommits, calls]).toEqual([3, 1]);
+});
+
 test("a call that never settles holds the count", async () => {
   const { queue, told } = setup(hang);
   queue.add([commit(1), commit(2)]);
@@ -103,12 +118,13 @@ for (const [way, save, act] of [
 ] as const) {
   test(`a host that holds a restart until the count is 0 is released when a commit is ${way}`, async () => {
     const { queue, hold, released } = setup(save);
+    const late = way.startsWith("dropped below");
     queue.add([commit(1), commit(2)]);
-    hold();
+    if (!late) hold();
     expect(released()).toBe(false);
     act(queue);
     await settle();
-    if (way.startsWith("dropped below")) queue.add([commit(4)]);
+    if (late) (queue.add([commit(4)]), hold()); // made before the put-back, read after it: never counted
     expect(released()).toBe(true);
     expect(queue.unsavedCommits).toBe(0);
   });

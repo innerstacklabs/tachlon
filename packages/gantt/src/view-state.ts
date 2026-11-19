@@ -76,7 +76,7 @@ export interface ViewState {
   fileName: string | null;
   /** True after an edit, undo or redo since the last open or save: the mark beside the file name. */
   unsaved: boolean;
-  /** The commits your `save` has not settled yet, from the save queue: 0 with no `save`, and 0 again once a commit is saved, put back or dropped. A chart that stops its queue (`destroy()`, a switch to WebGL2) drops the commits still waiting: they are never sent, and after a switch `unsaved` stays on. */
+  /** The commits your `save` has not saved, from the save queue: 0 with no `save`, and 0 again once a commit is saved, put back or dropped. A `change` follows every move of it, a 0 to N to 0 between two frames included. `destroy()` and a switch to WebGL2 drop the commits still waiting, never sent (after a switch `unsaved` stays on). A `save` that throws anything but a `SaveRefused` stops the queue: no later call is made, the commit and every later one stay unsaved and counted until `destroy()`, and one `error` event (`reason: "stopped"`) says so. A call that never settles holds the count too. */
   unsavedCommits: number;
   /** The import notes the panel lists: always what it shows (after a mount, an open, a load and a restart on WebGL2), the reader's lines without the ones `expectedNotes` names. Frozen. */
   importNotes: readonly string[];
@@ -89,6 +89,8 @@ export interface OpenFacts {
   fileName: string | null;
   unsaved: boolean;
   unsavedCommits: number;
+  /** How many times `unsavedCommits` has moved: a reader that last saw another number builds a new state even when the count is back where it was. */
+  countMoves: number;
   importNotes: readonly string[];
   customFields: Readonly<{ tasks: readonly string[]; links: readonly string[] }>;
 }
@@ -130,6 +132,7 @@ export interface ViewStateReader {
 export function createViewState(app: PublicApp, open: (s: Status) => OpenFacts): ViewStateReader { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const backend = app.backend() === "WebGPU" ? "WebGPU" : "WebGL2";
   let last: ViewState | null = null;
+  let moves = -1;
   // The status and code filter values, read again only when one of these moved.
   let readAt: [epoch: number, stamp: number, filter: string] = [-1, -1, ""];
   let statusFilter: StatusKind | null = null;
@@ -190,7 +193,7 @@ export function createViewState(app: PublicApp, open: (s: Status) => OpenFacts):
   const same = (v: ViewState, s: Status, o: OpenFacts): boolean =>
     v.fileName === o.fileName &&
     v.unsaved === o.unsaved &&
-    v.unsavedCommits === o.unsavedCommits &&
+    moves === o.countMoves &&
     v.importNotes === o.importNotes &&
     v.customFields === o.customFields &&
     v.dataDate === dataDate &&
@@ -225,6 +228,7 @@ export function createViewState(app: PublicApp, open: (s: Status) => OpenFacts):
       const o = open(s);
       if (last !== null && same(last, s, o)) return last;
       const { selected, moved } = s;
+      moves = o.countMoves;
       last = Object.freeze({
         filter: publicFilterName(s.filter),
         statusFilter,

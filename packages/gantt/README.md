@@ -359,14 +359,14 @@ const save: Handlers = { // one call into your API per change, in the order the 
 
 export function Schedule({ tasks, links, reload }: { tasks: Task[]; links: Link[]; reload: () => void }) {
   return <Gantt tasks={tasks} links={links} fields={fields} dateForm="day"
-    save={save} onError={(e) => e.source === "save" && reload()} style={{ height: 480 }} />;
+    save={save} onError={(e) => e.source === "save" && (e.reason === "stopped" ? alert("Saving stopped. Reload the page.") : reload())} style={{ height: 480 }} />;
 }
 ```
 
 - **The last argument,** `c`, carries `once`, the request's idempotency key (`<id>:<n>`); `signal`, aborted 10 seconds after the handler is called (the chart still waits for the handler to settle); `was`, the old values; and `changeSet`, the whole commit.
-- **Throw a `SaveRefused` when the server says no.** A handler that rejects, or resolves with a `Response` whose status is not a 2xx, ends the call. A `SaveRefused` puts that edit and the ones after it back and fires `error` with the source `"save"`; read your data again there, as the example does. Any other throw leaves the edit unsaved and stops saving.
+- **Throw a `SaveRefused` when the server says no.** A handler that rejects, or resolves with a `Response` whose status is not a 2xx, ends the call. A `SaveRefused` puts that edit and the ones after it back and fires `error` with the source `"save"`; read your data again there, as the example does. Any other throw (a 5xx, a lost connection) stops the queue: see `unsavedCommits` below.
 - **A handler that resolves with an object that has an `error`, `errors` or `userErrors` member is read as saved,** and the console warns once for that handler. The check reads the top level only: a client that nests `userErrors` deeper is not caught, so its handler throws when it finds one.
-- **Read `chart.state().unsavedCommits` to know how many edits the chart has not saved yet,** and `chart.on("change", ...)` tells you when that number moves. The queue counts it: it is 0 again after each commit is saved, put back (with the commits behind it), or dropped, and 0 with no `save`. Never count `edit` events yourself: a commit made after a put-back is not sent, and a switch to WebGL2 or `destroy()` drops the commits still waiting without sending them. A call that never settles keeps the count above 0. `chart.state().unsaved` is the other thing: the file mark, for a host that saves files.
+- **Read `chart.state().unsavedCommits` to know how many edits the chart has not saved yet,** and `chart.on("change", ...)` tells you when that number moves. The queue counts it: it is 0 again after each commit is saved, put back (with the commits behind it), or dropped, and 0 with no `save`. Never count `edit` events yourself: a commit made before a put-back and delivered after it (below its floor) is not sent, and a switch to WebGL2 or `destroy()` drops the commits still waiting without sending them. A call that never settles keeps the count above 0. **A `save` that throws anything but a `SaveRefused` stops the queue:** no later call is made, that commit and every later one stay unsaved and counted until `destroy()`, and `error` fires once with `reason: "stopped"`, the thrown `message` and `held`, the commits it holds. Today a host tells the person, and mounts the chart again, which drops the held edits (read your data again as you mount); retry and discard are not in the chart yet. `chart.state().unsaved` is the other thing: the file mark, for a host that saves files.
 - **The chart reads the object it holds at each call,** so a new `save` object on every render is safe. A change whose handler is missing stops saving, with a console error.
 
 A host that saves a whole commit at once, through a batch route, a transaction or a command stack of its own, gives `save` a function in place of the object. The chart calls it with the change set of each commit, `{ id, seq, source, changes }`, in the order the person made them and one at a time: the next call waits until the one before has resolved. Each change is `{ record, op, key, set, was, once }`, in your names, and `once` is its idempotency key. This function sends each change to its own route:
@@ -390,14 +390,14 @@ const save: Save = async ({ changes }) => {
     const url = c.op === "create" || c.record === "schedule" ? routes[c.record] : `${routes[c.record]}/${encodeURIComponent(c.key!)}`;
     const headers = { ...(c.set ? { "content-type": "application/json" } : {}), "idempotency-key": c.once };
     const res = await fetch(url, { method: methods[c.op], headers, body: JSON.stringify(c.set), signal: AbortSignal.timeout(10_000) });
-    if (res.status === 409 || res.status === 422) throw new SaveRefused({ message: (await res.json()).message }); // the server judged the change and said no
-    if (!res.ok) throw new Error(`save failed: ${res.status}`); // any other throw leaves the edit unsaved and stops saving
+    if (res.status === 409 || res.status === 422) throw new SaveRefused({ message: (await res.json()).message }); // a sentence the person can act on: the edit is put back
+    if (!res.ok) throw new Error(`save failed: ${res.status}`); // anything else stops the queue, and `error` says so (`reason: "stopped"`)
   }
 };
 
 export function Schedule({ tasks, links, reload }: { tasks: Task[]; links: Link[]; reload: () => void }) {
   return <Gantt tasks={tasks} links={links} fields={fields} dateForm="day"
-    save={save} onError={(e) => e.source === "save" && reload()} style={{ height: 480 }} />;
+    save={save} onError={(e) => e.source === "save" && (e.reason === "stopped" ? alert("Saving stopped. Reload the page.") : reload())} style={{ height: 480 }} />;
 }
 ```
 
