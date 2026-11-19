@@ -47,6 +47,7 @@ Read "Breaking changes" first. A page that reads neither the `edit` event nor th
 
 - The Float cell of a finished task (one with an actual finish) is empty; it read `0d`. The engine's float for it is unchanged.
 - A typed percent complete of `0` (in the percent cell, the task dialog and the by-key update's `progress`) leaves a task that has not started with no actual start and no remaining work; it used to give it its early start. A typed percent that would put an actual start or finish after the data date is refused with `actualAfterDataDate`, as the actual date cells and the by-key update already refuse it.
+- `setData` sets a changed `snlt`, `fnet` or `fnlt` on its task by key, as `update` does; before, it compared only `name`, `start`, `snet`, `duration` and `progress` and dropped a changed limit.
 
 ## 0.3.1
 
