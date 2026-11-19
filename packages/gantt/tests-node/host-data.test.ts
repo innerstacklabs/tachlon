@@ -45,9 +45,19 @@ test("a member left out keeps its last value, and a value that returns after one
 
 test("a null start or snet is a value, and members that are not compared are ignored", () => {
   const { calls, give } = chart();
-  give({ tasks: [task(1, { snet: "2026-03-09" }), task(2, { color: "#ff0000", milestone: "start", fnet: "2026-03-10" }), task(3)] });
-  give({ tasks: [task(1, { snet: null }), task(2, { color: "#ff0000", milestone: "start", fnet: "2026-03-10" }), task(3)] });
+  give({ tasks: [task(1, { snet: "2026-03-09" }), task(2, { color: "#ff0000", milestone: "start" }), task(3)] });
+  give({ tasks: [task(1, { snet: null }), task(2, { color: "#ff0000", milestone: "start" }), task(3)] });
   expect(calls).toEqual([[{ key: "k1", snet: "2026-03-09" }], [{ key: "k1", snet: null }]]);
+});
+
+test("a changed snlt, fnet, fnlt, mso or mfo reaches update by key, as update takes it, and one that did not change does not", () => {
+  const { calls, give } = chart();
+  const limits = { snlt: "2026-03-20", fnet: "2026-03-10", fnlt: "2026-03-25", mso: "2026-03-03", mfo: "2026-03-04" };
+  expect(give({ tasks: [task(1, limits), task(2), task(3)] })).toEqual({ ok: true, updated: 1 });
+  expect(calls, "update answers mso and mfo notUpdatable").toEqual([[{ key: "k1", ...limits }]]);
+  expect(give({ tasks: [task(1, limits), task(2), task(3)] }), "the same limits again").toEqual({ ok: true, updated: 0 });
+  give({ tasks: [task(1, { ...limits, fnlt: "2026-03-26" }), task(2), task(3)] });
+  expect(calls[1], "only the limit that changed").toEqual([{ key: "k1", fnlt: "2026-03-26" }]);
 });
 
 test("a task added, removed, moved or given another id or parent, a key that is no text, a repeated key and a changed link are refused with nothing set", () => {
