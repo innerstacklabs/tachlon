@@ -12,7 +12,7 @@ use app::{
     edit::Edit,
     host::KeyTarget,
 };
-use engine::{LinkType, TaskId};
+use engine::{DAY, Limit, LinkType, Pin, TaskDates, TaskId};
 
 /// A session over the demo outline with its first 30 leaf tasks keyed `k0` to `k29`.
 fn keyed() -> (Session, Vec<TaskId>) {
@@ -234,6 +234,91 @@ fn a_start_is_held_as_snet_unless_the_record_has_one_and_null_clears_it() {
     assert_eq!(session.schedule().tasks()[at].snet, None);
 }
 
+/// `k0`'s date limits and dates.
+fn limit_and_dates(session: &Session, task: TaskId) -> (Limit, TaskDates) {
+    let at = task.0 as usize;
+    (
+        session.schedule().tasks()[at].limit,
+        session.solution().dates[at],
+    )
+}
+
+#[test]
+fn a_start_no_later_than_is_set_the_late_start_follows_and_the_undo_list_is_left() {
+    let (mut session, leaves) = keyed();
+    let (depth, (_, before)) = (session.history_len(), limit_and_dates(&session, leaves[0]));
+    let first = session.origin().day_text(0);
+    let json = format!(r#"[{{"key":"k0","snlt":"{first}"}}]"#);
+    session.update_tasks(&json).unwrap();
+    let (limit, after) = limit_and_dates(&session, leaves[0]);
+    assert_eq!(limit.snlt, Some(0));
+    assert!(before.ls > 0 && after.ls <= 0, "{before:?} {after:?}");
+    assert_eq!(session.history_len(), depth);
+}
+
+#[test]
+fn a_finish_no_earlier_than_is_set_to_the_end_of_a_day_alone_and_the_early_finish_follows() {
+    let (mut session, leaves) = keyed();
+    let (depth, (_, before)) = (session.history_len(), limit_and_dates(&session, leaves[0]));
+    let day = session.origin().parse_day("2026-03-09").unwrap();
+    session
+        .update_tasks(r#"[{"key":"k0","fnet":"2026-03-09"}]"#)
+        .unwrap();
+    let (limit, after) = limit_and_dates(&session, leaves[0]);
+    assert_eq!(limit.fnet, Some(day + DAY));
+    assert!(before.ef < day && after.ef >= day, "{before:?} {after:?}");
+    assert_eq!(session.history_len(), depth);
+}
+
+#[test]
+fn a_finish_no_later_than_is_set_to_a_minute_and_the_late_finish_follows() {
+    let (mut session, leaves) = keyed();
+    let (depth, (_, before)) = (session.history_len(), limit_and_dates(&session, leaves[0]));
+    let first = session.origin().day_text(0);
+    let json = format!(r#"[{{"key":"k0","fnlt":"{first}T09:30"}}]"#);
+    session.update_tasks(&json).unwrap();
+    let (limit, after) = limit_and_dates(&session, leaves[0]);
+    assert_eq!(limit.fnlt, Some(570));
+    assert!(before.lf > 570 && after.lf <= 570, "{before:?} {after:?}");
+    assert_eq!(session.history_len(), depth);
+}
+
+#[test]
+fn a_bad_limit_date_is_refused_by_member_and_leaves_the_document_byte_equal() {
+    let (mut session, _) = keyed();
+    for (member, bad) in [
+        ("snlt", "2026-02-30"),
+        ("fnet", "2026-03-09 09:30"),
+        ("fnlt", "7"),
+    ] {
+        let before = saved(&session);
+        let json = format!(r#"[{{"key":"k1","duration":9}},{{"key":"k2","{member}":"{bad}"}}]"#);
+        let error = session.update_tasks(&json).unwrap_err();
+        assert_eq!((error.kind, error.record), ("badValue", Some(1)));
+        assert_eq!(error.member.as_deref(), Some(member));
+        assert_eq!(saved(&session), before, "{member}");
+    }
+}
+
+#[test]
+fn a_null_clears_a_limit_and_leaves_the_others_and_the_pin() {
+    let (mut session, leaves) = keyed();
+    let pin = Limit {
+        pin: Some(Pin::Start(0)),
+        ..Limit::default()
+    };
+    let task = leaves[0];
+    session.edit(Edit::SetLimit { task, limit: pin }).unwrap();
+    let all = r#"{"key":"k0","snlt":"2026-03-09","fnet":"2026-03-09","fnlt":"2026-03-10"}"#;
+    session.update_tasks(&format!("[{all}]")).unwrap();
+    session
+        .update_tasks(r#"[{"key":"k0","snlt":null,"fnet":null}]"#)
+        .unwrap();
+    let (limit, _) = limit_and_dates(&session, leaves[0]);
+    assert_eq!((limit.snlt, limit.fnet, limit.pin), (None, None, pin.pin));
+    assert!(limit.fnlt.is_some());
+}
+
 #[test]
 fn an_update_during_a_bar_press_is_refused_as_busy() {
     let (mut session, _, _, (x, y)) = setup();
@@ -350,6 +435,13 @@ fn a_call_that_mixes_no_progress_with_timing_solves_once() {
     let call = r#"[{"key":"k4","name":"Pour"},{"key":"k5","progress":50}]"#;
     let updated = session.update_tasks(call).unwrap();
     assert_eq!((updated.solves, session.stamp() - stamp), (1, 1));
+}
+
+#[test]
+fn a_progress_beside_a_limit_is_worked_out_against_the_plan_the_limit_leaves() {
+    let (mut session, _) = keyed();
+    let call = r#"[{"key":"k4","fnet":"2026-03-09","progress":50}]"#;
+    assert_eq!(session.update_tasks(call).unwrap().solves, 2);
 }
 
 #[test]
