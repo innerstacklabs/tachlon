@@ -14,11 +14,18 @@ const FINISHES = new Set(["actualFinish", "fnet", "fnlt", "mfo"]);
 
 /**
  * The working day of every change, by the session slot it carries (`task` or `link`), read from `App.day_lengths` once. A deleted row keeps its slot, so a delete, a cascade link delete and the undo
- * of either are measured as the row was; a slot the app does not hold yet (a link a before-edit call plans to create, which has no lag) takes the first task's day.
+ * of either are measured as the row was. A link a before-edit call plans to create has no slot yet: its day is the schedule's lag calendar's, or its successor's or predecessor's, found by the key
+ * or the `{ task }` slot in its `to` or `from`.
  */
 export function readDays(app: PublicApp): DayOf {
-  const { tasks, links } = JSON.parse(app.day_lengths()) as { tasks: number[]; links: number[] };
-  return (change) => (change.record === "link" ? links[change.link as number] : tasks[change.task as number]) ?? tasks[0] ?? 1440;
+  const { tasks, links, keys, lag } = JSON.parse(app.day_lengths()) as { tasks: number[]; links: number[]; keys: (string | null)[]; lag: number | "successor" | "predecessor" };
+  const first = tasks[0] ?? 1440;
+  const end = (ref: unknown): number => tasks[typeof ref === "string" ? keys.indexOf(ref) : (ref as { task: number }).task] ?? first;
+  return (change) => {
+    if (change.record !== "link") return tasks[change.task as number] ?? first;
+    const members = change.set ?? change.was;
+    return links[change.link as number] ?? (typeof lag === "number" ? lag : end(members?.[lag === "successor" ? "to" : "from"]));
+  };
 }
 
 /** One member's value in the host's form: a duration or lag in `unit`, a date in `dateForm`; any other value as it is. A finish-kind date is the day of its instant less one minute. */
@@ -34,7 +41,7 @@ function formOf(change: Change, name: string, value: unknown, unit: MountOptions
   return value;
 }
 
-/** `changes` with every duration and lag in `unit` and every date in `dateForm` (`day` measures a duration or lag from the saved document, and is asked only for one that is not in days). */
+/** `changes` with every duration and lag in `unit` and every date in `dateForm` (`day` measures a duration or lag, and is asked only for one that is not in days). */
 export function formChanges(changes: readonly Change[], unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], day: DayOf): Change[] {
   const form = (change: Change, members: Record<string, unknown> | undefined): Record<string, unknown> | undefined =>
     members && Object.fromEntries(Object.entries(members).map(([name, value]) => [name, formOf(change, name, value, unit, dateForm, day)]));

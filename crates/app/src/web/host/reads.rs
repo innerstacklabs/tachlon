@@ -50,7 +50,7 @@ impl App {
     }
 
     /// The working day in minutes of every task's calendar and of every link's lag calendar, by slot, as JSON
-    /// `{"tasks":[..],"links":[..]}`; a duration or a lag in days is a multiple of it. The slots last until the next load,
+    /// `{"tasks":[..],"links":[..],"keys":[..],"lag":l}`; a duration or a lag in days is a multiple of it. `keys` is each task slot's host key or `null`, `lag` the schedule's lag calendar. The slots last until the next load,
     /// open or remount. Reads only.
     pub fn day_lengths(&self) -> String {
         self.session.day_lengths()

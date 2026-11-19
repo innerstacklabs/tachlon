@@ -1,8 +1,8 @@
 //! A host's values as the session keeps them (decision 0017): a date is read by the kind of its
 //! field, a duration as whole working minutes, the engine's own unit.
 
-use crate::{Session, document::json_read::Value, edit::day_minutes};
-use engine::{DAY, DepId, Instant, Minutes, TaskId};
+use crate::{Session, document::json_read::Value, edit::day_minutes, json::quote};
+use engine::{DAY, DepId, Instant, LagCalendar, Minutes, TaskId};
 
 impl Session {
     /// The start-kind date `value` holds, `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm`, or `None` for anything else.
@@ -23,7 +23,7 @@ impl Session {
 }
 
 impl Session {
-    /// The working day in minutes of every task's calendar and of every link's lag calendar, by slot, as `{"tasks":[..],"links":[..]}`: what a duration or a lag in days is a multiple of.
+    /// The working day in minutes of every task's calendar and of every link's lag calendar, by slot, as `{"tasks":[..],"links":[..]}`, what a duration or a lag in days is a multiple of; with the host key of each task slot (`keys`, `null` for none) and the schedule's lag calendar (`lag`: `"successor"`, `"predecessor"` or its day), which find the day of a link not made yet.
     #[must_use]
     pub fn day_lengths(&self) -> String {
         let schedule = self.schedule();
@@ -36,7 +36,17 @@ impl Session {
             .zip(schedule.dependencies())
             .map(|(at, _)| self.lag_day_minutes(DepId(at)))
             .collect();
-        format!(r#"{{"tasks":{tasks:?},"links":{links:?}}}"#)
+        let keys: Vec<String> = (self.meta.iter())
+            .map(|m| m.key.as_deref().map_or("null".into(), quote))
+            .collect();
+        let lag: String = match schedule.lag_calendar() {
+            LagCalendar::Successor => r#""successor""#.into(),
+            LagCalendar::Predecessor => r#""predecessor""#.into(),
+            LagCalendar::TwentyFourHour => DAY.to_string(),
+            LagCalendar::Fixed(id) => day_minutes(&schedule.calendars()[id.0 as usize]).to_string(),
+        };
+        let keys = keys.join(",");
+        format!(r#"{{"tasks":{tasks:?},"links":{links:?},"keys":[{keys}],"lag":{lag}}}"#)
     }
 }
 

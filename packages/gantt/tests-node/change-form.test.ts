@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { expect } from "@playwright/test";
 
 // Tasks 0, 1 and 2 have days of 480, 450 and 450 minutes; link 0 counts a lag in 450, link 1 in 450 and link 2 in 1440.
-let lengths = { tasks: [480, 450, 450], links: [450, 450, 1440] };
+let lengths: Record<string, unknown> = { tasks: [480, 450, 450], links: [450, 450, 1440], keys: ["a", null, "c"], lag: "successor" };
 const reads: number[] = [];
 const app = { day_lengths: () => (reads.push(1), JSON.stringify(lengths)) } as unknown as PublicApp;
 const task = (slot: number, set: Record<string, unknown>, was: Record<string, unknown> = set, op: Change["op"] = "update"): Change => ({ record: "task", op, key: null, task: slot, set, was });
@@ -38,8 +38,14 @@ test("a task delete, the link delete that follows from it and the undo of both a
   expect(hours(link(1, 2, "create"))).toEqual({ lag: 15 });
 });
 
-test("a slot the app does not hold takes the first task's day", () => {
-  expect([hours(task(9, { duration: 1 })), hours(link(9, 1))]).toEqual([{ duration: 8 }, { lag: 8 }]);
+test("a link a before-edit call plans to create has no slot: its lag is measured by its ends and the schedule's lag calendar", () => {
+  const planned = (lag: unknown, from: unknown, to: unknown): unknown => {
+    lengths = { ...lengths, lag };
+    return (hours({ record: "link", op: "create", key: null, link: 3, set: { from, to, lag: 2 } }) as { lag: number }).lag;
+  };
+  expect([planned("successor", "a", { task: 1 }), planned("successor", { task: 1 }, "a")]).toEqual([15, 16]);
+  expect([planned("predecessor", "a", { task: 1 }), planned("predecessor", { task: 1 }, "c")]).toEqual([16, 15]);
+  expect([planned(1440, "a", "c"), planned(450, "a", "a")]).toEqual([48, 15]);
 });
 
 test("dateForm day: a start-kind date is its day, a finish-kind date the day of its instant less one minute", () => {

@@ -156,3 +156,15 @@ test("after a load, a before-edit call and the edit event measure a keyless row 
   expect((await asked(page, "setDuration"))[0]!.changes, "2 days of a 7.5-hour calendar, not of the schedule mounted first").toMatchObject([duration]);
   expect(await page.evaluate(() => (window as unknown as { heard: unknown[] }).heard)).toMatchObject([duration]);
 });
+
+test("a typed predecessor with a lag is measured by its successor's calendar in the before-edit call, as in the edit event", async ({ page }) => {
+  const calendars = [{ key: "std", workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 }, { key: "short", workDays: [1, 2, 3, 4, 5], hoursPerDay: 7.5 }];
+  const tasks = [{ id: "1", key: "k1", name: "Dig", start: "2026-03-02", duration: 2 }, { id: "2", key: "k2", name: "Pour", start: "2026-03-02", duration: 2, calendar: "short" }];
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, calendars, durationUnit: "hours" });
+  await page.evaluate(() => { const w = window as unknown as { heard: { record: string }[][] }; w.heard = []; window.beChart.on("edit", (edit) => w.heard.push(edit.commits[0]!.changes)); });
+  await page.evaluate(() => window.gantt!.app.set_predecessors_text(1, "1FS+2d"));
+  await expect.poll(() => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard.length)).toBe(1);
+  const made = { record: "link", op: "create", set: { lag: 15 } };
+  expect((await asked(page, "group"))[0]!.changes.find((c) => c.record === "link"), "2 days of the 7.5-hour successor, not of the first task's 8").toMatchObject(made);
+  expect((await page.evaluate(() => (window as unknown as { heard: { record: string }[][] }).heard))[0]!.find((c) => c.record === "link")).toMatchObject(made);
+});

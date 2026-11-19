@@ -312,6 +312,11 @@ fn the_working_day_of_each_task_and_link_is_read_by_slot() {
     let own = days(LagCalendar::Successor);
     assert_eq!(own["links"][0], own["tasks"][1], "the successor's day");
     assert_eq!(days(LagCalendar::TwentyFourHour)["links"][0], 1440);
+    assert_eq!(
+        (&own["keys"], &own["lag"]),
+        (&json!(["a1", null, "c3"]), &json!("successor"))
+    );
+    assert_eq!(days(LagCalendar::TwentyFourHour)["lag"], 1440);
 }
 
 /// The create the undo of a link's removal writes, the link having its own lag calendar `own`.
