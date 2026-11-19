@@ -46,8 +46,8 @@ export type EditRefusal =
   | "badRecords"
   /** `setData` rows that differ from the ones it holds in a task's `key`, `id`, `parent` or place in the list or in a link (what it cannot set in place), or that it has no rows to compare with. */
   | "rowsChanged"
-  /** `update` or `setBaseline` records: a record the app could not read (`badJson`), with no `key` (`noKey`) or a key an earlier record holds (`duplicateKey`), naming no task (`unknownKey`), setting a member or a summary it cannot set (`notUpdatable`), or holding a value it cannot take (`badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`). */
-  | "finishBeforeStart" | "badJson" | "noKey" | "duplicateKey" | "unknownKey" | "notUpdatable" | "badValue" | "badPercent" | "emptyName" | "invalidName" | "actualAfterDataDate"
+  /** `update`, `hostEdit` or `setBaseline` records: a record the app could not read (`badJson`), with no `key` (`noKey`) or a key an earlier record holds (`duplicateKey`), naming no task (`unknownKey`), setting a member or a summary it cannot set (`notUpdatable`), or holding a value it cannot take (`badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`); `hostEdit` alone answers `hasActuals` (the record sets progress or changes a task with actual dates) and `notAllowed` (a group of fields the host's capability profile turned off, or an old value it does not store; `member` says which), where an Undo could not put the values back. */
+  | "finishBeforeStart" | "badJson" | "noKey" | "duplicateKey" | "unknownKey" | "notUpdatable" | "badValue" | "badPercent" | "emptyName" | "invalidName" | "actualAfterDataDate" | "hasActuals"
   /** Anything else the schedule refused (rare: a solve that fails). */
   | "other";
 
@@ -90,7 +90,7 @@ const PUBLIC_REASON: Readonly<Record<string, EditRefusal>> = {
   keyTaken: "keyTaken",
   unknownTask: "unknownTask",
   unknownLink: "unknownLink",
-  ...Object.fromEntries(["finishBeforeStart", "badJson", "noKey", "duplicateKey", "unknownKey", "notUpdatable", "badValue", "badPercent", "emptyName", "invalidName", "actualAfterDataDate"].map((kind) => [kind, kind as EditRefusal])),
+  ...Object.fromEntries(["finishBeforeStart", "badJson", "noKey", "duplicateKey", "unknownKey", "notUpdatable", "badValue", "badPercent", "emptyName", "invalidName", "actualAfterDataDate", "hasActuals"].map((kind) => [kind, kind as EditRefusal])),
 };
 
 /** Read the JSON a `try_*` export answered. */

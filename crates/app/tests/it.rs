@@ -92,6 +92,7 @@ mod gesture;
 mod go_to_date;
 mod group;
 mod history;
+mod host_edit;
 mod insert;
 mod insert_activity_id;
 mod insert_many;

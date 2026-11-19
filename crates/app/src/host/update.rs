@@ -2,11 +2,12 @@
 //! edit: no gate, no undo step, no outbox commit, and `revision` stays; `stamp` rises, so the table
 //! redraws. Every record is read before a value is written, and a refusal puts every value back.
 
-use super::read::read_duration;
+use super::{Plan, read::read_duration};
 use crate::{
     Session,
     document::json_read::{Value, parse},
     edit::{Edit, EditError},
+    history::{Source, Step},
     json::quote,
 };
 use engine::{Instant, Limit, Minutes, TaskId};
@@ -47,7 +48,7 @@ impl UpdateError {
 /// What an update sets on one task. A record with no `progress` leaves `progress` and `percent` empty,
 /// and the task's actual dates and remaining work are not written.
 #[derive(Clone)]
-struct Values {
+pub(super) struct Values {
     duration: Minutes,
     snet: Option<Instant>,
     limit: Limit,
@@ -57,12 +58,44 @@ struct Values {
     host: Vec<(usize, String, Instant)>,
 }
 
+/// A task and what a record sets on it, beside what it held.
+pub(super) type Written = (TaskId, (Values, Values));
+
 /// A task's actual start, actual finish and remaining work: the three a percent sets.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct Progress {
     start: Option<Instant>,
     finish: Option<Instant>,
     remaining: Option<Minutes>,
+}
+
+impl Values {
+    /// The steps that put `old` back where `self` is, one for each of the name, duration, start floor and limits
+    /// that differ, in the order a call sets them: an undo runs them newest first.
+    pub(super) fn steps_back(&self, old: &Values, task: TaskId) -> Vec<Step> {
+        [
+            (self.name != old.name).then(|| Edit::Rename {
+                task,
+                name: old.name.clone(),
+            }),
+            (self.duration != old.duration).then(|| Edit::SetDuration {
+                task,
+                minutes: old.duration,
+            }),
+            (self.snet != old.snet).then(|| Edit::Move {
+                task,
+                snet: old.snet,
+            }),
+            (self.limit != old.limit).then(|| Edit::SetLimit {
+                task,
+                limit: old.limit,
+            }),
+        ]
+        .into_iter()
+        .flatten()
+        .map(Step::plain)
+        .collect()
+    }
 }
 
 impl Session {
@@ -80,6 +113,20 @@ impl Session {
     ///
     /// An [`UpdateError`]; the schedule, the selection, the history and `revision` are then as they were.
     pub fn update_tasks(&mut self, json: &str) -> Result<Updated, UpdateError> {
+        let revision = self.revision;
+        let done = self.apply_records(json, false);
+        self.revision = revision;
+        done.map(|(updated, _)| updated)
+    }
+
+    /// [`Session::update_tasks`]'s work, answering the records written beside what each held, for
+    /// [`Session::host_edit`]. With `undoable` a record whose Undo the engine would refuse is refused
+    /// (`hasActuals`, `notAllowed`), and a call that changes no value answers without a solve.
+    pub(super) fn apply_records(
+        &mut self,
+        json: &str,
+        undoable: bool,
+    ) -> Result<(Updated, Vec<Written>), UpdateError> {
         let refuse = |error: EditError| UpdateError::new(error.kind(), None, None);
         if self.busy() {
             return Err(refuse(EditError::Busy));
@@ -99,6 +146,21 @@ impl Session {
                 Some(task) => task,
             };
             planned.push((task, self.read_values(at, task, record)?));
+        }
+        if undoable {
+            self.undo_refusal(&planned)?;
+            if (planned.iter()).all(|(task, (new, old))| new.steps_back(old, *task).is_empty()) {
+                let differs = self.differences(records, &planned);
+                let tasks = planned.len();
+                return Ok((
+                    Updated {
+                        tasks,
+                        solves: 0,
+                        differs,
+                    },
+                    planned,
+                ));
+            }
         }
         let progress = planned.iter().any(|(_, (new, _))| new.percent.is_some());
         let mixed = progress
@@ -125,10 +187,8 @@ impl Session {
                 return Err(error);
             }
         }
-        let revision = self.revision;
-        let solved = self.solve_full(None, |session| session.put_back(&done));
-        self.revision = revision;
-        solved.map_err(refuse)?;
+        self.solve_full(None, |session| session.put_back(&done))
+            .map_err(refuse)?;
         if let Some(held) = &mut self.proposal {
             held.solved = None;
         }
@@ -137,19 +197,41 @@ impl Session {
                 self.typed_percent.insert(task.0, percent);
             }
         }
-        Ok(Updated {
+        let updated = Updated {
             tasks: planned.len(),
             solves: 1 + usize::from(mixed),
             differs: self.differences(records, &planned),
-        })
+        };
+        Ok((updated, planned))
+    }
+
+    /// The first record of `planned` whose Undo would be refused: one that sets progress (it writes actual dates)
+    /// or changes a task that has them (`hasActuals`), or whose put-back the profile check of Undo's gate refuses
+    /// (`notAllowed`, what it names in `member`): the same function answers, so no copy of it can fall behind.
+    fn undo_refusal(&self, planned: &[Written]) -> Result<(), UpdateError> {
+        for (at, (task, (new, old))) in planned.iter().enumerate() {
+            let t = &self.schedule.tasks()[task.0 as usize];
+            let held = t.actual_start.or(t.actual_finish).is_some();
+            let back: Vec<_> = (new.steps_back(old, *task).into_iter())
+                .map(|step| step.edit)
+                .collect();
+            if new.percent.is_some() || held && !back.is_empty() {
+                return Err(UpdateError::new("hasActuals", Some(at), None));
+            }
+            if let Err(error) = self.refuse_unallowed(&Plan::Group(&back, Source::Host)) {
+                let what = match &error {
+                    EditError::NotAllowed(what) => Some(*what),
+                    EditError::NotStored(what) => Some(what.as_str()),
+                    _ => None,
+                };
+                return Err(UpdateError::new(error.kind(), Some(at), what));
+            }
+        }
+        Ok(())
     }
 
     /// Each `hostStart` and `hostFinish` in `planned` that is not its task's early start or finish, as JSON.
-    fn differences(
-        &self,
-        records: &[Value],
-        planned: &[(TaskId, (Values, Values))],
-    ) -> Vec<String> {
+    fn differences(&self, records: &[Value], planned: &[Written]) -> Vec<String> {
         let mut found = vec![];
         for (record, (task, (new, _))) in planned.iter().enumerate() {
             let d = &self.solution.dates[task.0 as usize];
@@ -176,7 +258,7 @@ impl Session {
     /// is solved apart from the session when `mixed`, else the plan the session holds.
     fn work_out_progress(
         &mut self,
-        planned: &mut [(TaskId, (Values, Values))],
+        planned: &mut [Written],
         mixed: bool,
     ) -> Result<(), UpdateError> {
         let schedule_error = |e| UpdateError::new(EditError::from(e).kind(), None, None);

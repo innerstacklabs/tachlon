@@ -7,7 +7,7 @@ import type { PickerProject } from "./open-schedule.js";
 import type { ViewState } from "./view-state.js";
 
 /** Where a commit came from (decision 0019, rule 1). */
-export type CommitSource = "typed" | "drag" | "dialog" | "paste" | "proposal" | "undo" | "redo" | "rollback";
+export type CommitSource = "typed" | "drag" | "dialog" | "paste" | "proposal" | "undo" | "redo" | "rollback" | "host";
 
 /**
  * One task, link or the schedule a commit changed, as one record (decision 0022, section 2): `record` is `"task"`, `"link"` or `"schedule"`, `op`

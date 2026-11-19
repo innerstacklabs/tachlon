@@ -208,3 +208,21 @@ test("an error whose source is save is a SaveError, so a host reads reload and u
   const read = (e: GanttEvents["error"]) => (e.source === "save" ? [e.reload, e.undone] : []);
   expect(read({ source: "save", message: "m", fatal: false, reason: "refused", calls: 1, seq: 2, undone: 3, reload: true })).toEqual([true, 3]);
 });
+
+test("a host commit is not saved, but a person's Undo and Redo of it are, each with was and set", async () => {
+  const app = fakeApp();
+  const seen: ChangeSet[] = [];
+  const queue = new SaveQueue(app, async (cs) => void seen.push(cs), () => undefined);
+  queue.add([commit(1, { source: "host" }), commit(2, { source: "undo" }), commit(3, { source: "redo" })]);
+  await settle();
+  expect(seen.map((cs) => [cs.seq, cs.source, cs.changes[0]!.was, cs.changes[0]!.set])).toEqual([[2, "undo", { name: "old" }, { name: "new 2" }], [3, "redo", { name: "old" }, { name: "new 3" }]]);
+  expect(app.log).toEqual(["ack 2", "ack 3"]);
+});
+
+test("a put-back counts the host commit made after the refused commit", async () => {
+  const errors: SaveError[] = [];
+  const queue = new SaveQueue(fakeApp(), async () => { throw new SaveRefused({ message: "No." }); }, (error) => errors.push(error));
+  queue.add([commit(1), commit(2, { source: "host" })]);
+  await settle();
+  expect(errors).toMatchObject([{ seq: 1, undone: 2 }]);
+});

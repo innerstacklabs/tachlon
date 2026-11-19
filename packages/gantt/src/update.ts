@@ -16,17 +16,19 @@ function dayOfKey(app: PublicApp): (key: unknown) => number {
   return (key) => days.get(key as string) ?? list[0]!.day;
 }
 
-/** Answer what `app.update_tasks` answers for `records`; `busy` is `Gantt.busy()`, `unit` the unit of the host's durations, and `wrote` is told the slots of the tasks written (the table's). */
-export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["durationUnit"], records: unknown, wrote: (slots: readonly number[]) => void): UpdateResult {
+/** Answer what `app.update_tasks` (or `app.host_edit`, the same records as one undo step) answers for `records`; `busy` is `Gantt.busy()`, `unit` the unit of the host's durations, and `wrote` is told the slots of the tasks written (the table's). */
+export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["durationUnit"], records: unknown, wrote: (slots: readonly number[]) => void, call: "update_tasks" | "host_edit" = "update_tasks"): UpdateResult {
   if (!Array.isArray(records)) return Object.freeze({ ok: false, reason: "badRecords", message: "update takes an array of records." });
   if (busy()) return refused("busy");
   const day = unit === "hours" || unit === "minutes" || !records.some(hasDuration) ? () => 0 : dayOfKey(app);
-  const answer = readAnswer(app.update_tasks(JSON.stringify(records.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
+  const answer = readAnswer(app[call](JSON.stringify(records.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
   if (answer.ok) {
     wrote(JSON.parse(app.task_slots(records.map((record) => (record as { key: string }).key))) as number[]); // an accepted record names a live task by its key
     const { differs } = answer as { differs?: readonly HostDifference[] };
     return Object.freeze({ ok: true, updated: answer.updated!, ...(differs === undefined ? {} : { differs }) });
   }
   const key = (records[answer.record ?? -1] as { key?: unknown } | undefined)?.key;
-  return Object.freeze({ ...answer, message: `Nothing changed: ${answer.reason}${answer.record === undefined ? "" : ` in record ${answer.record}`}${answer.member === undefined ? "" : ` (${answer.member})`}.`, ...(typeof key === "string" ? { key } : {}) });
+  const undo = ({ hasActuals: "has actual dates, or the record sets them", notAllowed: `cannot be put back by an Undo under the host's capability profile (${answer.member})` } as Record<string, string>)[answer.reason];
+  const why = undo !== undefined ? `task ${String(key)} ${undo}, so hostEdit cannot take it; call update, which sets it without an undo step` :`${answer.reason}${answer.record === undefined ? "" : ` in record ${answer.record}`}${answer.member === undefined ? "" : ` (${answer.member})`}`;
+  return Object.freeze({ ...answer, message: `Nothing changed: ${why}.`, ...(typeof key === "string" ? { key } : {}) });
 }

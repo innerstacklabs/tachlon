@@ -208,6 +208,33 @@ test("setData sets only the 20 changed durations: selection, scroll and the undo
   expect(await minutes(page, keys(0, 20)), "and it leaves the 20 durations").toEqual(Array(20).fill(2400));
 });
 
+test("hostEdit then a typed rename: two Undo keystrokes take the rename back, then the durations, and the host commit is not a save", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(10) });
+  expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k0", duration: 5 }, { key: "k1", duration: 5 }]))).toEqual({ ok: true, updated: 2 });
+  await page.locator(`#table-rows .row[data-row="2"] .name`).dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("Renamed");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => window.edits.length > 1);
+  expect(await page.evaluate(() => (window.edits as { commits: { source: string }[] }[]).flatMap((e) => e.commits.map((c) => c.source))), "a host commit, then a typed one").toEqual(["host", "typed"]);
+  await page.locator("#app").focus();
+  await page.keyboard.press("Control+z");
+  await frames(page);
+  expect([(await saved(page))[2]!.name, ...(await minutes(page, ["k0", "k1"]))], "the first Undo takes back the rename only").toEqual(["Task 2", 2400, 2400]);
+  await page.keyboard.press("Control+z");
+  await frames(page);
+  expect(await minutes(page, ["k0", "k1"]), "the second takes back the host durations").toEqual([960, 960]);
+});
+
+test("hostEdit refuses a record that sets progress or changes a task with actual dates, names the task and says to call update, which sets it", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(3), durationUnit: "minutes", capabilities: { durationStep: "days" } });
+  const progress = { key: "k0", progress: 50 }, start = { key: "k0", snet: "2026-03-09" };
+  expect((await page.evaluate((r) => window.upChart.hostEdit([r]), progress) as { reason: string }).reason).toBe("hasActuals");
+  expect(await page.evaluate((r) => window.upChart.update([r]), progress)).toEqual({ ok: true, updated: 1 });
+  expect((await page.evaluate((r) => window.upChart.hostEdit([r]), start) as { message: string }).message).toBe("Nothing changed: task k0 has actual dates, or the record sets them, so hostEdit cannot take it; call update, which sets it without an undo step.");
+  expect(await page.evaluate((r) => window.upChart.update([r]), start)).toEqual({ ok: true, updated: 1 });
+  expect((await page.evaluate(() => { window.upChart.update([{ key: "k2", duration: 90 }]); return window.upChart.hostEdit([{ key: "k2", duration: 960 }]); }) as { message: string }).message).toBe("Nothing changed: task k2 cannot be put back by an Undo under the host's capability profile (durations in whole days), so hostEdit cannot take it; call update, which sets it without an undo step.");
+});
+
 test("a React host hands 20 tasks to the component as records while one is selected and scrolled to: the chart starts once, selection, scroll and undo hold, and the changed cells are marked", async ({ page }) => {
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: REACT_HOST }));
   await page.goto(`${base}host.html`);

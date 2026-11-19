@@ -4,6 +4,7 @@
 
 mod baseline;
 mod capabilities;
+mod edit;
 mod gate;
 mod keys;
 mod outbox;
