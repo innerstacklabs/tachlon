@@ -9,7 +9,7 @@ use crate::{
     edit::{Edit, EditError},
     json::quote,
 };
-use engine::{Instant, Minutes, TaskId};
+use engine::{Instant, Limit, Minutes, TaskId};
 use std::collections::HashSet;
 
 /// How many tasks an update changed and how many times it solved: twice if it mixes progress with timing.
@@ -50,6 +50,7 @@ impl UpdateError {
 struct Values {
     duration: Minutes,
     snet: Option<Instant>,
+    limit: Limit,
     name: String,
     progress: Option<Progress>,
     percent: Option<u8>,
@@ -67,13 +68,13 @@ struct Progress {
 impl Session {
     /// Set the durations, starts, names and progress that `json`, an array of records, gives, each record
     /// naming its task by `key`. `duration` is a whole number of working minutes; `start`
-    /// is held as `snet` unless the record has an `snet`; `start` and `snet` take a date or `null`. `name` is trimmed
+    /// is held as `snet` unless the record has an `snet`; `start`, `snet` and the limits `snlt` (start no later than), `fnet` and `fnlt` (finish no earlier and no later than; a date alone is the end of that day) take a date or `null`, and the limits are set as a typed limit sets them. `name` is trimmed
     /// and checked as a typed rename is. `progress` is a whole percent from 0 to 100, set as a typed percent
     /// sets it, and refused as a typed actual is when an actual it sets is after the data date. The call
-    /// applies every record's `duration`, `start`, `snet` and `name` first and works each `progress` out
+    /// applies every record's `duration`, `start`, `snet`, limits and `name` first and works each `progress` out
     /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
-    /// with a duration, start or snet in any record solves twice, and any other call once. A member a
-    /// record leaves out keeps its value. `hostStart` and `hostFinish`, the dates the host computed, set nothing and are named in `differs` when the chart's early start or finish is not theirs (a day alone compares the day, a finish's day being its last minute's). Every other member, the other limits and pins included, is `notUpdatable`.
+    /// with a duration, start, snet or limit in any record solves twice, and any other call once. A member a
+    /// record leaves out keeps its value. `hostStart` and `hostFinish`, the dates the host computed, set nothing and are named in `differs` when the chart's early start or finish is not theirs (a day alone compares the day, a finish's day being its last minute's). Every other member, the pins and `alap` included, is `notUpdatable`.
     ///
     /// # Errors
     ///
@@ -102,7 +103,7 @@ impl Session {
         let progress = planned.iter().any(|(_, (new, _))| new.percent.is_some());
         let mixed = progress
             && records.iter().any(|record| {
-                ["duration", "start", "snet"]
+                ["duration", "start", "snet", "snlt", "fnet", "fnlt"]
                     .iter()
                     .any(|member| record.get(member).is_some())
             });
@@ -211,6 +212,7 @@ impl Session {
         let mut old = Values {
             duration: current.duration,
             snet: current.snet,
+            limit: current.limit,
             name: self.meta[task.0 as usize].name.clone(),
             progress: None,
             percent: None,
@@ -233,6 +235,10 @@ impl Session {
                 Value::Null => Ok(None),
                 _ => self.read_date(value).map(Some).ok_or_else(bad),
             };
+            let finish = |value: &Value| match value {
+                Value::Null => Ok(None),
+                _ => self.read_finish(value).map(Some).ok_or_else(bad),
+            };
             match &**name {
                 "key" => {}
                 "duration" => new.duration = read_duration(value).ok_or_else(bad)?,
@@ -240,6 +246,9 @@ impl Session {
                     date(value)?;
                 }
                 "start" | "snet" => new.snet = date(value)?,
+                "snlt" => new.limit.snlt = date(value)?,
+                "fnet" => new.limit.fnet = finish(value)?,
+                "fnlt" => new.limit.fnlt = finish(value)?,
                 "hostStart" | "hostFinish" => {
                     let kind = usize::from(&**name == "hostFinish");
                     let at = [Session::read_date, Session::read_finish][kind](self, value);
@@ -279,6 +288,7 @@ impl Session {
     fn put(&mut self, task: TaskId, values: &Values) -> Result<(), EditError> {
         self.schedule.set_duration(task, values.duration)?;
         self.schedule.set_snet(task, values.snet)?;
+        self.schedule.set_limit(task, values.limit)?;
         if let Some(progress) = values.progress {
             self.schedule.set_remaining(task, progress.remaining)?;
             self.schedule.set_actual_start(task, progress.start)?;
