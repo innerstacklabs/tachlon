@@ -11,6 +11,8 @@ interface Dep { source: string; target: string }
 const fields = { tasks: { name: "title", start: "plannedStart", duration: "days", parent: "parentId", key: "id" }, links: { from: "source", to: "target" } } satisfies Fields;
 type F = typeof fields;
 declare const mount: typeof Lib.mount; // the chart itself loads in a browser: only its types are used here
+declare const reactGantt: typeof ReactGantt;
+declare const vueGantt: typeof VueGantt;
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends <T>() => T extends B ? 1 : 2 ? true : false;
 
 export async function hostTypes(root: HTMLDivElement, rows: Row[], deps: Dep[]): Promise<void> {
@@ -18,13 +20,22 @@ export async function hostTypes(root: HTMLDivElement, rows: Row[], deps: Dep[]):
   chart.update([{ id: "a", days: 3 }]);
   chart.setData({ tasks: rows, links: deps });
 
-  const react: Parameters<typeof ReactGantt<F>>[0] = { tasks: rows, links: deps, fields, onReady: (ready) => void ready.update([{ id: "a", days: 3 }]) };
-  const vue: InstanceType<typeof VueGantt<F>>["$props"] = { tasks: rows, links: deps, fields, onReady: (ready) => void ready.setData({ tasks: rows }) };
+  // The wrappers are called as a host does, with no `<F>`: `F` comes from `fields`, and a host with no map keeps the chart that `ready` hands it.
+  reactGantt({ tasks: rows, links: deps, fields, onReady: (ready) => void ready.update([{ id: "a", days: 3 }]) });
+  vueGantt({ tasks: rows, links: deps, fields, onReady: (ready) => void ready.setData({ tasks: rows }) });
+  vueGantt({ tasks: [{ id: "a", name: "A", start: "2026-03-02" }], onReady: (ready) => void ready.update([{ key: "a", name: "B" }]) });
+  vueGantt({ onReady: (ready) => void (ready satisfies Chart) });
+  // @ts-expect-error host rows with no `fields` are refused
+  vueGantt({ tasks: rows });
+  // @ts-expect-error host rows with no `fields` are refused
+  reactGantt({ tasks: rows });
+  // @ts-expect-error the chart a no-map host is handed has no `days` member
+  vueGantt({ onReady: (ready) => void ready.update([{ key: "a", days: 3 }]) });
   const angular = {} as AngularGantt<F>;
   angular.tasks = rows;
   angular.links = deps;
   angular.fields = fields;
-  void [react, vue, angular];
+  void angular;
 
   // @ts-expect-error "nme" is not a task field; with `[chartField: string]: string` this line compiled
   await mount(root, { tasks: rows, fields: { tasks: { nme: "title" } } });

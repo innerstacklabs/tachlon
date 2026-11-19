@@ -101,6 +101,7 @@ const component = defineComponent({
 });
 
 type Props = InstanceType<typeof component>["$props"];
+type VueProps<F extends Fields | undefined> = Omit<Props, "tasks" | "links" | "fields" | "onReady"> & { tasks?: MountOptions<F>["tasks"]; links?: MountOptions<F>["links"]; fields?: F; onReady?: (chart: Chart<F>) => void };
 /**
  * The mount options, one prop each, and an emit for each event: `@select` gets `{ task, key }`, `@move` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `find` or `choose-file` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
@@ -113,6 +114,4 @@ type Props = InstanceType<typeof component>["$props"];
  * thrown while rendering, for an `onErrorCaptured` hook or the app's `errorHandler`, until the next start clears it.
  * `F` is the type of `fields`: with a map, `tasks` and `links` take the host's own rows (`Rows`) as they are; with none every prop is what `MountOptions` says.
  */
-export const Gantt = component as unknown as new <F extends Fields | undefined = undefined>() => Omit<InstanceType<typeof component>, "$props"> & {
-  $props: Omit<Props, "tasks" | "links" | "fields" | "onReady"> & { tasks?: MountOptions<F>["tasks"]; links?: MountOptions<F>["links"]; fields?: F; onReady?: (chart: Chart<F>) => void };
-};
+export const Gantt = component as unknown as <F extends Fields | undefined = undefined>(props: VueProps<F>) => ReturnType<typeof h>;
