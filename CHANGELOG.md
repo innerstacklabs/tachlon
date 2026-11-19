@@ -20,7 +20,7 @@ Read "Breaking changes" first. A page that reads neither the `edit` event nor th
 
 - **`editable.structure` in the host profile (`mount`'s `capabilities`, `setCapabilities`) is now three members, `rows` (insert and delete), `outline` (indent, outdent and move) and `paste`.** A host that set `structure: false` must set the ones it needs; `structure` is refused as an unknown key.
 
-- **A `switch` over a type with no `default` needs the new cases.** `CommitSource` gains `"rollback"` and `"host"`, `ErrorSource` gains `"save"` and `EditRefusal` gains `"rowsChanged"`, `"finishBeforeStart"`, `"hasActuals"` and `"badToken"`. The `error` event's payload is now also a `SaveError`. `Gantt` gains `hostEdit`, `pushHostEntry`, `clearHistory` and `setData`, and `Commands` gains `setOverlay` and `ViewState` gains `customFields`; a test double or a copy of the type needs them. A change's `key` is `string | null`, where it could be left out.
+- **A `switch` over a type with no `default` needs the new cases.** `CommitSource` gains `"rollback"` and `"host"`, `ErrorSource` gains `"save"` and `EditRefusal` gains `"rowsChanged"`, `"finishBeforeStart"`, `"hasActuals"` and `"badToken"`. The `error` event's payload is now also a `SaveError`. `Gantt` gains `hostEdit`, `pushHostEntry`, `clearHistory` and `setData`, and `Commands` gains `setOverlay` and `ViewState` gains `customFields` and `unsavedCommits`; a test double or a copy of the type needs them. A change's `key` is `string | null`, where it could be left out.
 
 ### New
 
