@@ -39,9 +39,8 @@ export default async function (page: Page, url: string): Promise<void> {
           await run.route((u) => /^\/src\/main[\w-]*\.tsx$/.test(u.pathname), async (route) => {
             const response = await route.fetch();
             const [code, chart, own, record] = [await response.text(), "_jsxDEV(Gantt, {", "onError: (e) =>", "void (window.errors ??= []).push(e)"];
-            if (!code.includes(chart)) throw new Error("the page's chart call is not where the suite expects it");
-            const wired = code.includes(own) ? code.replace(own, `${own} ${record} ||`) : code.replace(chart, `${chart} onError: (e) => ${record},`);
-            return route.fulfill({ response, body: wired.replace(chart, `${chart} ${s.props ? `${s.props},` : ""}`) });
+            if (![chart, own].every((a) => code.includes(a))) throw new Error("the page's chart call is not where the suite expects it"); // a page with no onError of its own gets a branch here from the row that writes it
+            return route.fulfill({ response, body: code.replace(own, `${own} ${record} ||`).replace(chart, `${chart} ${s.props ? `${s.props},` : ""}`) });
           });
           const crashed = new Promise<never>((_, reject) => run.on("pageerror", reject)); // a page that throws (the chart refusing to mount) ends the scenario at once, not after its waits
           crashed.catch(() => undefined);

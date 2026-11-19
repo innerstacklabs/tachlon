@@ -62,7 +62,8 @@ async function away(page: Page, server: FakeServer): Promise<number[]> {
   await ready(page);
   const was = await Promise.all([0, 1, 2].map((n) => days(page, n)));
   for (const [n, value] of [[0, "7"], [1, "8"], [2, "9"]] as const) await edit(page, n, "dur", value);
-  await until("the chart to stop and ask", async () => (await alert(page)).includes("Not saved"), 25_000);
+  await until("the alert line to say it is trying again", async () => (await alert(page)).includes("Not saved yet. Trying again."), 5_000);
+  await until("the chart to stop and ask", async () => (await alert(page)).includes("Not saved: "), 25_000); // "Not saved yet." comes from the first failure
   assert.deepEqual(writes(server).map((r) => r.key), ["t1", "t1", "t1", "t1"], "the first is called four times, the others not at all");
   assert.deepEqual(await Promise.all([0, 1, 2].map((n) => days(page, n))), [7, 8, 9], "all three stay on screen");
   assert.deepEqual(await errors(page), [], "nothing is put back");
@@ -188,6 +189,7 @@ export const SCENARIOS: Scenario[] = [
     async run(page, server) {
       await ready(page);
       await insert(page, "Review");
+      await until("the alert line to say it is trying again", async () => (await alert(page)).includes("Not saved yet. Trying again."), 900); // between the two calls
       await until("the create called again", () => writes(server).length === 2, 10_000);
       await pause(1_500);
       const [first, again] = writes(server);
@@ -219,6 +221,7 @@ export const SCENARIOS: Scenario[] = [
       server.script.drop = (r) => (r.method !== "GET" && writes(server).length === sent + 2 ? "request" : undefined);
       await undo(page);
       await until("the undo saved whole", () => server.db.links.size === 2, 10_000);
+      await until("the alert line to clear", async () => (await alert(page)) === "", 5_000);
       const creates = writes(server).slice(sent).filter((r) => r.path === "/api/tasks").length;
       assert.equal(creates, form === "function" ? 2 : 1, "the handlers and the URL form resume at the second request; the function form sends the first again");
       assert.equal([...server.db.tasks.values()].filter((t) => t.title === "Build").length, 1, "and the server applied the first once");
