@@ -15,6 +15,7 @@ import { localDate, measureText, printColumns } from "./print-sheet.js";
 import type { Gantt, MountOptions } from "./index.js";
 import { pushHostEntry, update } from "./update.js";
 import type { SetData } from "./host-data.js";
+import type { UpdateResult } from "./gantt-types.js";
 import type { FieldMap } from "./field-map.js";
 import type { HasOn } from "./events.js";
 import type { Speed } from "./speed.js";
@@ -61,6 +62,13 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     if (destroyed) throw new Error("this chart was destroyed");
   };
   const printPages = (): PrintPages => app.print_pages(document.title, localDate(), undefined, measureText, printColumns(shell.root)) as PrintPages;
+  /** `update` or `hostEdit` of the host's records: the members of a record that the chart has no field for are kept once it took the rest (decision 0022, rule 8.3). */
+  const hostUpdate = (records: unknown, call?: "host_edit"): UpdateResult => {
+    const taken = Array.isArray(records) ? p.fields.custom.take("tasks", records) : undefined;
+    const answer = update(app, p.busy, p.unit, taken?.rows?.map(p.fields.tasks.toChart) ?? records, p.wrote, call);
+    if (answer.ok) taken?.commit();
+    return answer;
+  };
   return {
     commands: guardCommands(createCommands(shell, p.reason, p.busy), () => destroyed),
     open: async (file, options) => {
@@ -183,17 +191,20 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     },
     update: (records) => {
       alive();
-      return update(app, p.busy, p.unit, Array.isArray(records) ? records.map(p.fields.tasks.toChart) : records, p.wrote);
+      return hostUpdate(records);
     },
     hostEdit: (records) => {
       alive();
-      return update(app, p.busy, p.unit, Array.isArray(records) ? records.map(p.fields.tasks.toChart) : records, p.wrote, "host_edit");
+      return hostUpdate(records, "host_edit");
     },
     pushHostEntry: (token) => { alive(); return pushHostEntry(app, token); },
     clearHistory: () => { alive(); app.clear_history(); },
     setData: (data) => {
       alive();
-      return p.setData(p.fields.data(data), shell.status().epoch, (records) => update(app, p.busy, p.unit, records, p.wrote));
+      const custom = { tasks: p.fields.custom.take("tasks", data.tasks), links: p.fields.custom.take("links", data.links) };
+      const answer = p.setData(p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), shell.status().epoch, (records) => update(app, p.busy, p.unit, records, p.wrote));
+      if (answer.ok) [custom.tasks, custom.links].forEach((taken) => taken.commit());
+      return answer;
     },
     speed: () => {
       alive();

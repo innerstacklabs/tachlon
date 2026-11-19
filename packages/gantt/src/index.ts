@@ -104,6 +104,7 @@ export type { ProposedChange, ProposedKey, ProposeResult } from "./propose.js";
 export { callTool, toolDefinitions } from "./ai-tools.js";
 export type { ToolDefinition, ToolResult } from "./ai-tools.js";
 export type { CheckKind, CodeValue, FilterInputs, RowFilterName, StatusKind, ViewState, ZoomLevel } from "./view-state.js";
+export type { CustomNames } from "./custom-fields.js";
 export { MountError, preloadEngine } from "./mount-load.js";
 // The product's name (packages/gantt/src/product.ts), for a host page that shows it.
 export { PRODUCT_NAME };
@@ -128,10 +129,13 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
   const measured = page?.measure != null;
   // The page's own `document`, or its `tasks` and `links`, are held only until the chart has started: a restart on WebGL2 reads the running chart's schedule
   // (`webgl-switch.ts`), so a large list is not kept alive for it. No closure below holds `options`, only the fields it needs.
-  let plain: StartSource = options.document === undefined ? { tasks: options.tasks && names.tasks.rows(options.tasks), links: options.links && names.links.rows(options.links), dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
+  const given = { tasks: names.custom.take("tasks", options.tasks), links: names.custom.take("links", options.links) };
+  given.tasks.commit();
+  given.links.commit();
+  let plain: StartSource = options.document === undefined ? { tasks: given.tasks.rows && names.tasks.rows(given.tasks.rows), links: given.links.rows && names.links.rows(given.links.rows), dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
   const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, dateForm, save } = options;
   const { keys, newKey } = options;
-  const mistake = !hasSave(save) || schedule !== undefined || options.document !== undefined ? undefined : keyMistake("task", options.tasks && names.tasks.rows(options.tasks)) ?? keyMistake("link", options.links && names.links.rows(options.links));
+  const mistake = !hasSave(save) || schedule !== undefined || options.document !== undefined ? undefined : keyMistake("task", given.tasks.rows && names.tasks.rows(given.tasks.rows)) ?? keyMistake("link", given.links.rows && names.links.rows(given.links.rows));
   if (mistake !== undefined || (keys !== undefined && keys !== "chart" && keys !== "server")) throw new MountError("schedule", mistake ?? `keys is "chart" or "server", not ${JSON.stringify(keys)}.`);
   const start = (source: StartSource, run: Run): Promise<Started> => {
     const again = measured && schedule !== undefined && source !== undefined && "document" in source;
@@ -185,7 +189,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   own.app = app;
   app.set_read_only(run.readOnly());
   app.set_capabilities(JSON.stringify(run.capabilities() ?? {}));
-  const form = (changes: readonly Stamped[]): Change[] => names.changes(formChanges(changes, unit, dateForm));
+  const form = (changes: readonly Stamped[]): Change[] => names.custom.add(names.changes(formChanges(changes, unit, dateForm)));
   if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message), form));
   const themeTokens = JSON.parse(App.theme_tokens()) as string[];
   const { sync: syncTheme, stop: stopTheme } = installTheme(root, app, themeTokens);
@@ -237,8 +241,8 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   // between frames must not move the state the event compares against, or an event could carry a state equal to the last sent.
   // What the open file shows a host: `adopt` sets the name and notes, the save mark's callback the unsaved flag.
   // A mount with a File starts on it; the notes are what the panel lists from the first frame.
-  const open: OpenFacts = { fileName: source instanceof File ? source.name : null, unsaved: false, importNotes: Object.freeze([...(unsupported ?? [])]) };
-  const openFacts = (s: Status): OpenFacts => (saveState.sync(s), open);
+  const open: OpenFacts = { fileName: source instanceof File ? source.name : null, unsaved: false, importNotes: Object.freeze([...(unsupported ?? [])]), customFields: names.custom.names() };
+  const openFacts = (s: Status): OpenFacts => (saveState.sync(s), (open.customFields = names.custom.names()), open);
   const view = createViewState(app, openFacts);
   const hostView = createViewState(app, openFacts);
   // The events outlive this start (the switch to WebGL2 starts another): they read this start's view state, commits and task keys from now on.
@@ -304,7 +308,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
     timed: (file) => {
       if (file.timings !== undefined) info.open = { name: file.name, timings: file.timings };
     },
-    opened: adopt,
+    opened: (...opened) => (names.custom.clear(), adopt(...opened)),
   });
 
   const hook = installTestHook({ app, status, syncTheme, loadMs: info.loadMs, fallback, unsupported: info.unsupported });
