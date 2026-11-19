@@ -27,9 +27,13 @@ const S: u32 = 4;
 /// Leaves A, B, C and D, then the summary S over E, in rows 0 to 5, 24/7 at one minute per pixel.
 /// A and B are linked, and so are C and D.
 pub(crate) fn session() -> Session {
+    session_on(&[(0, 24 * 60)])
+}
+
+/// [`session`] with `day` as the working periods of every day.
+pub(crate) fn session_on(day: &[(u16, u16)]) -> Session {
     let mut schedule = Schedule::new();
-    let day = vec![(0, 24 * 60)];
-    let calendar = Calendar::new(std::array::from_fn(|_| day.clone()), &[]).expect("24/7");
+    let calendar = Calendar::new(std::array::from_fn(|_| day.to_vec()), &[]).expect("a day");
     let calendar = schedule.add_calendar(calendar);
     let tasks = [
         ("A", None, HOUR),
