@@ -25,7 +25,7 @@ const problems = checkGuide({
     option: new Set(names(model.options)),
     event: new Set(names(model.events)),
     // A `call:` names a command or a method of the chart itself; `describe` lists only the commands.
-    call: new Set([...names(model.commands), ...memberNames(read(`${WEB_ROOT}/src/gantt-types.ts`), /export interface Gantt [^{]*\{/)]),
+    call: new Set([...names(model.commands), ...memberNames(read(`${WEB_ROOT}/src/gantt-types.ts`), /export interface Gantt[^{]*\{/)]),
   },
   labels: new Set([...Object.values(TEXTS_EN), ...Object.values(FIELDS_EN)]),
   samples: [...definedSamples(read("apps/hosted/scripts/build-samples.mjs"))],

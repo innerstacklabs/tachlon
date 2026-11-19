@@ -8,7 +8,7 @@ import { App } from "./wasm/app.js";
 import { engine, load, MountError, renderError, type StartSource } from "./mount-load.js";
 import { createGantt } from "./gantt-object.js";
 import { hostData } from "./host-data.js";
-import type { Gantt, MountOptions } from "./gantt-types.js";
+import type { Fields, Gantt, MountOptions } from "./gantt-types.js";
 import { Metrics } from "./measure.js";
 import { speedOf } from "./speed.js";
 import { type PageKnobs, type RunFacts, takePageKnobs } from "./page-knobs.js";
@@ -27,6 +27,7 @@ import { installTheme } from "./theme.js";
 import { createApp, reason } from "./boot.js";
 import { guardBeforeEdit } from "./before-edit.js";
 import { formChanges } from "./change-form.js";
+import { readFields, type FieldMap } from "./field-map.js";
 import type { Stamped } from "./change-set.js";
 import type { Change } from "./events.js";
 import { refused } from "./edit-result.js";
@@ -85,7 +86,7 @@ import "./styles/print.css";
 export { fromBryntum, fromDhtmlx, fromTasks, PlainDataError, toPlain, validate } from "./adapters/index.js";
 export type { BryntumResult, DhtmlxOptions, DhtmlxResult, PlainCalendar, PlainIssue, PlainLink, PlainOptions, PlainResult, PlainTask, PlainValidation, ScheduleDocument } from "./adapters/index.js";
 // The chart's own types (`gantt-types.ts`).
-export type { BeforeEdit, BeforeEditChange, ChangeSet, Gantt, HostCapabilities, HostDifference, MountOptions, Save, SaveError, SaveResult, TaskUpdate, UpdateResult } from "./gantt-types.js";
+export type { BeforeEdit, BeforeEditChange, ChangeSet, Fields, Gantt, HostCapabilities, HostDifference, MountOptions, Rows, Save, SaveError, SaveResult, TaskUpdate, UpdateResult } from "./gantt-types.js";
 export { SaveRefused } from "./save-queue.js";
 export type { Commands, ScrollTarget } from "./commands.js";
 export type { Change, Commit, CommitSource, GanttEvents } from "./events.js";
@@ -114,9 +115,12 @@ export { PRODUCT_NAME };
  * other failure is a bug and is thrown as it is. A WebGPU failure, at the start or in a later frame, starts the
  * chart again on WebGL2 in the same root with the same schedule (`webgl-switch.ts`); the page is never reloaded.
  */
-export async function mount(root: HTMLDivElement, options: MountOptions): Promise<Gantt> {
+export async function mount<F extends Fields | undefined = undefined>(root: HTMLDivElement, options: MountOptions<F>): Promise<Gantt<F>>;
+export async function mount(root: HTMLDivElement, options: MountOptions<Fields | undefined>): Promise<Gantt<Fields | undefined>> {
   numberFormat(options.locale); // a tag that is not a language tag throws here, before the chart touches the root
   // The developer page's knobs (`page-knobs.ts`, not an export of this entry); a host page sets none.
+  let names: FieldMap;
+  try { names = readFields(options.fields); } catch (err) { throw new MountError("schedule", (err as Error).message); }
   const page = takePageKnobs();
   const restart = page === undefined ? undefined : (why: string) => page.restart(why);
   // A measured run starts its script again on the WebGL2 start, as the reload it replaces did, so it starts on the page's own schedule:
@@ -124,13 +128,13 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
   const measured = page?.measure != null;
   // The page's own `document`, or its `tasks` and `links`, are held only until the chart has started: a restart on WebGL2 reads the running chart's schedule
   // (`webgl-switch.ts`), so a large list is not kept alive for it. No closure below holds `options`, only the fields it needs.
-  let plain: StartSource = options.document === undefined ? { tasks: options.tasks, links: options.links, dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
+  let plain: StartSource = options.document === undefined ? { tasks: options.tasks && names.tasks.rows(options.tasks), links: options.links && names.links.rows(options.links), dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
   const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, dateForm, save } = options;
   const start = (source: StartSource, run: Run): Promise<Started> => {
     const again = measured && schedule !== undefined && source !== undefined && "document" in source;
     const from = again ? schedule : (source ?? plain);
     if (from === undefined) return Promise.reject(new MountError("schedule", "The chart could not read its schedule to start again: the page's tasks and links were let go once it had started."));
-    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit, dateForm, save));
+    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit, dateForm, save, names));
   };
   const gantt = await mountSwitching(root, { schedule, forceWebgl, readOnly: options.readOnly, capabilities: options.capabilities, beforeEdit: options.beforeEdit }, start, page?.fallback ?? null, restart);
   plain = undefined;
@@ -138,7 +142,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
 }
 
 /** One start of the chart in `root`, on `source`, as `run` says; `own` holds what `destroy` takes down, and its app once made. */
-async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], hostSave: MountOptions["save"]): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
+async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], hostSave: MountOptions["save"], names: FieldMap): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const { disposers } = own;
   root.innerHTML = chartHtml;
   applyTexts(root, texts);
@@ -178,7 +182,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   own.app = app;
   app.set_read_only(run.readOnly());
   app.set_capabilities(JSON.stringify(run.capabilities() ?? {}));
-  const form = (changes: readonly Stamped[]): Change[] => formChanges(changes, unit, dateForm);
+  const form = (changes: readonly Stamped[]): Change[] => names.changes(formChanges(changes, unit, dateForm));
   if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message), form));
   const themeTokens = JSON.parse(App.theme_tokens()) as string[];
   const { sync: syncTheme, stop: stopTheme } = installTheme(root, app, themeTokens);
@@ -340,7 +344,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
 
   const gantt = createGantt({
     shell, reason, name: () => name, setName: (n) => { name = n; }, save, note, printOn, openFile: (f, options) => opener.openFile(f, options),
-    adopt, busy, guard, hostView, events, setData: hostData("tasks" in source ? source : {}, s0.epoch), setPending: table.setPending, wrote: table.wrote, speed: () => speedOf(info.open, metrics.view()), unit,
+    adopt, busy, guard, hostView, events, setData: hostData("tasks" in source ? source : {}, s0.epoch), setPending: table.setPending, wrote: table.wrote, speed: () => speedOf(info.open, metrics.view()), unit, fields: names,
   });
   // The panel is written beside the chart, not in its root; the switch to WebGL2 takes it down with this start and writes a new one with no history.
   if (assistant !== undefined) disposers.push(mountAssistantPanel(assistant.into, assistant.send, gantt.commands, texts).destroy);

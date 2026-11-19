@@ -3,30 +3,20 @@
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { camelize, defineComponent, getCurrentInstance, h, onBeforeUnmount, onMounted, onUpdated, shallowRef, toHandlerKey, watch, type PropType } from "vue";
 import { liveSave } from "./save-queue.js";
-import { mount, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
+import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
 
 /** The events of `Gantt.on`, each one an emit of the component: `@select`, `@move`, `@toggle-status` and the rest of `GanttEvents`. */
 const EVENTS = { select: null, edit: null, move: null, open: null, load: null, change: null, error: null, find: null, "toggle-status": null, "choose-file": null, "toggle-keys": null } as const satisfies Record<keyof GanttEvents, null>;
-type Emits = { [K in keyof GanttEvents]: (detail: GanttEvents[K]) => true } & { ready: (chart: Chart) => true };
+type Emits = { [K in keyof GanttEvents]: (detail: GanttEvents[K]) => true } & { ready: (chart: Chart<Fields | undefined>) => true };
 type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 
-/**
- * The mount options, one prop each, and an emit for each event: `@select` gets `{ task, key }`, `@move` gets `{ task, key, start }` and so on through `GanttEvents`.
- * Give a listener for `find` or `choose-file` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
- * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
- * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
- * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
- * `@ready` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
- * `class` and `style` land on the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. A start that fails is
- * thrown while rendering, for an `onErrorCaptured` hook or the app's `errorHandler`, until the next start clears it.
- */
-export const Gantt = defineComponent({
+const component = defineComponent({
   name: "Gantt",
   props: {
     schedule: { type: null as unknown as PropType<NonNullable<MountOptions["schedule"]>>, default: undefined },
     document: { type: null as unknown as PropType<NonNullable<MountOptions["document"]>>, default: undefined },
-    tasks: { type: Array as PropType<NonNullable<MountOptions["tasks"]>>, default: undefined },
-    links: { type: Array as PropType<NonNullable<MountOptions["links"]>>, default: undefined },
+    tasks: { type: Array as PropType<readonly object[]>, default: undefined },
+    links: { type: Array as PropType<readonly object[]>, default: undefined },
     dataDate: { type: String, default: undefined },
     mustFinishBy: { type: String, default: undefined },
     calendars: { type: Array as PropType<NonNullable<MountOptions["calendars"]>>, default: undefined },
@@ -38,6 +28,7 @@ export const Gantt = defineComponent({
     readOnly: { type: Boolean, default: undefined },
     capabilities: { type: Object as PropType<NonNullable<MountOptions["capabilities"]>>, default: undefined },
     beforeEdit: { type: Function as PropType<NonNullable<MountOptions["beforeEdit"]>>, default: undefined },
+    fields: { type: Object as PropType<Fields>, default: undefined },
     save: { type: Function as PropType<NonNullable<MountOptions["save"]>>, default: undefined },
     wasmUrl: { type: null as unknown as PropType<NonNullable<MountOptions["wasmUrl"]>>, default: undefined },
     locale: { type: String, default: undefined },
@@ -50,7 +41,7 @@ export const Gantt = defineComponent({
     const root = shallowRef<HTMLDivElement | null>(null);
     const failure = shallowRef<{ error: unknown } | null>(null);
     let queue: Promise<void> = Promise.resolve();
-    let live: { chart: Chart; heard: Map<string, () => void>; loaded: boolean } | null = null;
+    let live: { chart: Chart<Fields | undefined>; heard: Map<string, () => void>; loaded: boolean } | null = null;
     let stopStart = (): void => {};
     // Listen for the events that have a listener (and stop for the ones that lost theirs), on the chart that is mounted. It runs as soon as `mount`
     // settles, so an event the first frames fire is not lost, and a listener added later does not make the others listen again: `load` is told to
@@ -74,12 +65,12 @@ export const Gantt = defineComponent({
     const start = (): void => {
       stopStart();
       failure.value = null;
-      let started: Chart | undefined;
+      let started: Chart<Fields | undefined> | undefined;
       let stopped = false;
       queue = queue.then(async () => {
         if (stopped) return;
         try {
-          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, dateForm: props.dateForm, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: liveSave(() => props.save) });
+          started = await mount<Fields | undefined>(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, dateForm: props.dateForm, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, fields: props.fields, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: liveSave(() => props.save) });
         } catch (error) {
           return void (stopped || (failure.value = { error }));
         }
@@ -108,3 +99,19 @@ export const Gantt = defineComponent({
     };
   },
 });
+
+type Props = InstanceType<typeof component>["$props"];
+type VueProps<F extends Fields | undefined> = Omit<Props, "tasks" | "links" | "fields" | "onReady"> & { tasks?: MountOptions<F>["tasks"]; links?: MountOptions<F>["links"]; fields?: F; onReady?: (chart: Chart<F>) => void };
+/**
+ * The mount options, one prop each, and an emit for each event: `@select` gets `{ task, key }`, `@move` gets `{ task, key, start }` and so on through `GanttEvents`.
+ * Give a listener for `find` or `choose-file` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
+ * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
+ * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
+ * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
+ * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
+ * `@ready` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
+ * `class` and `style` land on the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. A start that fails is
+ * thrown while rendering, for an `onErrorCaptured` hook or the app's `errorHandler`, until the next start clears it.
+ * `F` is the type of `fields`: with a map, `tasks` and `links` take the host's own rows (`Rows`) as they are; with none every prop is what `MountOptions` says.
+ */
+export const Gantt = component as unknown as <F extends Fields | undefined = undefined>(props: VueProps<F>) => ReturnType<typeof h>;

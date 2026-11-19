@@ -89,7 +89,7 @@ export function buildModel(pkg: string): Model {
   );
   const product = /PRODUCT_NAME = "([^"]+)"/.exec(read("src/product.ts"))?.[1] ?? "";
   return {
-    options: members(read("src/gantt-types.ts"), /export interface MountOptions \{/).map(item),
+    options: members(read("src/gantt-types.ts"), /export interface MountOptions[^{]*\{/).map(item),
     events: members(read("src/events.ts"), /export interface GanttEvents \{/).map(item),
     commands,
     tokens: tokens(read("src/styles/tokens.css"), read("../../docs/WASM_API.md")),

@@ -3,7 +3,7 @@
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
 import { liveSave } from "./save-queue.js";
-import { mount, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
+import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
 export type { ChangeSet, Save, SaveError, SaveResult } from "./index.js";
 
 /** The prop that takes each event of `Gantt.on`. */
@@ -27,6 +27,7 @@ const EVENTS = {
  * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
  * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `tasks`, `links`, `texts` and `fonts` stable between renders.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
+ * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `wasmUrl` is where the page serves the engine file, for an app that does not serve it next to the chart (a Next.js app serves it from `public/`).
  * `onReady(chart)` is called once each time the chart mounts, with the chart `mount` resolved to (to call `load` or `open` on it), and never
@@ -34,18 +35,18 @@ const EVENTS = {
  * where the theme tokens go; the root has no size of its own, so give it one. The page imports the chart's stylesheet. A start that fails is thrown
  * while rendering, for an error boundary.
  */
-export type GanttProps = MountOptions & { className?: string; style?: CSSProperties; onReady?: (chart: Chart) => void } & {
+export type GanttProps<F extends Fields | undefined = undefined> = MountOptions<F> & { className?: string; style?: CSSProperties; onReady?: (chart: Chart<F>) => void } & {
   [K in keyof GanttEvents as (typeof EVENTS)[K]]?: (detail: GanttEvents[K]) => void;
 };
 
 type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 
-export function Gantt(props: GanttProps): JSX.Element {
+export function Gantt<F extends Fields | undefined = undefined>(props: GanttProps<F>): JSX.Element {
   const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly, capabilities, className, style } = props;
   const root = useRef<HTMLDivElement>(null);
   const latest = useRef(props);
   const queue = useRef<Promise<void>>(Promise.resolve());
-  const live = useRef<{ chart: Chart; heard: Map<string, () => void>; loaded: boolean } | null>(null);
+  const live = useRef<{ chart: Chart<F>; heard: Map<string, () => void>; loaded: boolean } | null>(null);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
   if (failure !== null) throw failure.error;
 
@@ -75,12 +76,12 @@ export function Gantt(props: GanttProps): JSX.Element {
   // One start at a time: StrictMode runs this effect, its cleanup and the effect again before the first `mount` has settled, and two
   // charts must never start in one root. A start whose cleanup has already run never mounts.
   useEffect(() => {
-    let started: Chart | undefined;
+    let started: Chart<F> | undefined;
     let stopped = false;
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
+        started = await mount<F>(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: latest.current.fields, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;

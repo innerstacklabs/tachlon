@@ -18,7 +18,7 @@ test("the emitted typings hold the entry's API, name no wasm type, and compile f
     const text = (f: string): string => readFileSync(join(out, f), "utf8");
     expect(files.filter((f) => /\/wasm\/|\.css"|\b(InitOutput|PublicApp|GanttHook|HostInit|createApp|installTestHook)\b/.test(text(f)))).toEqual([]);
     expect(text("mount-load.d.ts")).toContain("export declare function preloadEngine(options?: Pick<MountOptions, \"wasmUrl\">): Promise<void>;");
-    expect(text("index.d.ts")).toContain("export declare function mount(root: HTMLDivElement, options: MountOptions): Promise<Gantt>;");
+    expect(text("index.d.ts")).toContain("export declare function mount<F extends Fields | undefined = undefined>(root: HTMLDivElement, options: MountOptions<F>): Promise<Gantt<F>>;");
     // A consumer's compile: no tsconfig, no @types, only the emitted files.
     const tsc = ["--noEmit", "--strict", "--target", "es2022", "--module", "esnext", "--moduleResolution", "bundler", "--lib", "es2022,dom", "index.d.ts"];
     execFileSync(at("../node_modules/.bin/tsc"), tsc, { cwd: out, stdio: "pipe" });

@@ -4,7 +4,7 @@
 // It is compiled by `ngc` (`pnpm build:ng`, tsconfig.ng.json), the way an Angular library is built: the partial compilation it writes is what an app's own build links.
 import { Component, ElementRef, ErrorHandler, EventEmitter, Input, NgZone, Output, type AfterViewInit, type OnChanges, type OnDestroy, type SimpleChanges } from "@angular/core";
 import { liveSave } from "./save-queue.js";
-import { mount, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
+import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
 
 const INPUTS = ["schedule", "document", "tasks", "links", "dataDate", "mustFinishBy", "calendars", "durationUnit", "dateForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
 /** Each output and the event of `Gantt.on` it emits: `(chartToggleStatus)` is `toggle-status`. The `chart` in front keeps an output apart from the DOM event of the same name: Angular also listens on the element for `change` and `select`, which an input inside the chart fires and which bubble. */
@@ -17,17 +17,18 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
  * Give a listener for `chartFind` or `chartChooseFile` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
  * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
+ * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `(ready)` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
  * The component's element is the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. The chart runs outside
  * Angular's zone and each output emits inside it. A start that fails goes to the app's `ErrorHandler`.
  */
 @Component({ selector: "gantt-chart", standalone: true, template: "", host: { tabindex: "0", class: "gantt" } })
-export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
+export class Gantt<F extends Fields | undefined = undefined> implements OnChanges, AfterViewInit, OnDestroy {
   @Input() schedule?: MountOptions["schedule"];
   @Input() document?: MountOptions["document"];
-  @Input() tasks?: MountOptions["tasks"];
-  @Input() links?: MountOptions["links"];
+  @Input() tasks?: MountOptions<F>["tasks"];
+  @Input() links?: MountOptions<F>["links"];
   @Input() dataDate?: MountOptions["dataDate"];
   @Input() mustFinishBy?: MountOptions["mustFinishBy"];
   @Input() calendars?: MountOptions["calendars"];
@@ -39,6 +40,7 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
   @Input() readOnly?: boolean;
   @Input() capabilities?: MountOptions["capabilities"];
   @Input() beforeEdit?: MountOptions["beforeEdit"];
+  @Input() fields?: F;
   @Input() save?: MountOptions["save"];
   @Input() wasmUrl?: MountOptions["wasmUrl"];
   @Input() locale?: MountOptions["locale"];
@@ -55,11 +57,11 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
   @Output() readonly chartToggleStatus = new EventEmitter<GanttEvents["toggle-status"]>();
   @Output() readonly chartChooseFile = new EventEmitter<GanttEvents["choose-file"]>();
   @Output() readonly chartToggleKeys = new EventEmitter<GanttEvents["toggle-keys"]>();
-  @Output() readonly ready = new EventEmitter<Chart>();
+  @Output() readonly ready = new EventEmitter<Chart<F>>();
   private queue: Promise<void> = Promise.resolve();
   private stopStart = (): void => {};
   private viewed = false;
-  private chart?: Chart;
+  private chart?: Chart<F>;
 
   constructor(
     private readonly host: ElementRef<HTMLDivElement>,
@@ -85,14 +87,14 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
   // subscriber when the chart mounts are listened for.
   private start(): void {
     this.stopStart();
-    let started: Chart | undefined;
+    let started: Chart<F> | undefined;
     let stopped = false;
     let stops: (() => void)[] = [];
     this.queue = this.queue.then(async () => {
       if (stopped) return;
       const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts } = this;
       try {
-        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
+        started = await this.zone.runOutsideAngular(() => mount<F>(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: this.fields, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
       } catch (error) {
         return void (stopped || this.errors.handleError(error));
       }
