@@ -79,20 +79,20 @@ variants! {
         Edit::Insert { place: after(3), name: "New".into() },
         r#""task":6,"op":"create","fields":{"parent":null,"after":{"task":3},"name":"New"}"#, false;
     a_delete_is_seen_as_the_task_and_its_links_going: none,
-        Edit::Delete { task: TaskId(2) }, r#""link":1,"op":"delete","fields":{"from":{"task":2},"to":{"task":3},"type":"FS","lag":0.0}},{"record":"task","key":null,"task":2,"op":"delete","fields":{"parent":null,"after":{"task":1}"#, true;
+        Edit::Delete { task: TaskId(2) }, r#""link":1,"dayMinutes":1440,"op":"delete","fields":{"from":{"task":2},"to":{"task":3},"type":"FS","lag":0.0}},{"record":"task","key":null,"task":2,"dayMinutes":1440,"op":"delete","fields":{"parent":null,"after":{"task":1}"#, true;
     a_restore_is_seen_as_the_task_and_its_links_coming_back: deleted,
         Edit::Restore { task: TaskId(2), place: after(1) },
-        r#""task":2,"op":"create","fields":{"parent":null,"after":{"task":1}"#, true;
+        r#""task":2,"dayMinutes":1440,"op":"create","fields":{"parent":null,"after":{"task":1}"#, true;
     a_reparent_is_seen_with_the_old_and_new_place_of_each_task_it_moves: none,
         Edit::Reparent { task: TaskId(4), place: after(0), siblings: Siblings::Release(1) },
-        r#""task":4,"field":"after","old":{"task":3},"new":{"task":0}"#, true;
+        r#""task":4,"dayMinutes":1440,"field":"after","old":{"task":3},"new":{"task":0}"#, true;
     an_added_link_is_seen_as_a_create_with_its_type_and_lag: none,
         Edit::AddLink { pred: TaskId(1), succ: TaskId(2), kind: LinkType::SS, lag: 120 },
         r#""type":"SS","lag":0.08333333333333333"#, true;
     a_removed_link_is_seen_as_a_delete: none,
-        Edit::RemoveLink { dep: DepId(0) }, r#""link":0,"op":"delete""#, true;
+        Edit::RemoveLink { dep: DepId(0) }, r#""link":0,"dayMinutes":1440,"op":"delete""#, true;
     a_restored_link_is_seen_as_a_create: unlinked,
-        Edit::RestoreLink { dep: DepId(0) }, r#""link":0,"op":"create""#, true;
+        Edit::RestoreLink { dep: DepId(0) }, r#""link":0,"dayMinutes":1440,"op":"create""#, true;
     a_set_link_is_seen_with_the_old_and_new_type_and_lag: none,
         Edit::SetLink { dep: DepId(0), kind: LinkType::SS, lag: 1440 },
         r#""field":"lag","old":0.0,"new":1.0"#, true;

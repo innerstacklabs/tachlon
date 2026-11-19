@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
 import type { BeforeEditChange, Gantt, GanttEvents } from "../src/index";
 import { chromePath } from "./support/knobs";
+import { fromTasks } from "../src/adapters/plain";
 
 declare global {
   interface Window { beChart: Gantt; asked: BeforeEditChange[]; answers: unknown[]; errors: GanttEvents["error"][]; mountBe(code: string, options?: Record<string, unknown>): Promise<unknown> }
@@ -118,4 +119,65 @@ test("the function is still asked after the switch to WebGL2", async ({ page }) 
   await page.waitForFunction(() => { try { return window.beChart.backend() === "WebGL2"; } catch { return false; } }, undefined, { timeout: 60_000 });
   await typeDuration(page);
   await expect(alert(page)).toHaveText("no");
+});
+
+test("a chart mounted with hours and dateForm day tells the edit event and the before-edit call in them", async ({ page }) => {
+  const tasks = [{ id: "a", key: "k-a", name: "Dig", start: "2026-03-02", duration: 2 }, { id: "b", key: "k-b", name: "Pour", start: "2026-03-02", duration: 3 }];
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, durationUnit: "hours", dateForm: "day" });
+  const heard = () => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard);
+  await page.evaluate(() => { const w = window as unknown as { heard: unknown[] }; w.heard = []; window.beChart.on("edit", (edit) => w.heard.push(edit.commits[0]!.changes[0])); });
+  await page.locator("#table-rows .row").nth(0).locator(".dur").dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("17");
+  await page.keyboard.press("Enter");
+  await page.locator("#table-rows .row").nth(1).locator(".start").dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("2026-03-04");
+  await page.keyboard.press("Enter");
+  await expect.poll(async () => (await heard()).length).toBe(2);
+  const duration = { record: "task", key: "k-a", set: { duration: 136 }, was: { duration: 2 } };
+  const start = { record: "task", key: "k-b", set: { snet: "2026-03-04" } };
+  expect((await asked(page, "setDuration"))[0]!.changes, "17 days of an 8-hour calendar is 136 hours; the 2 the host gave comes back as 2").toMatchObject([duration]);
+  expect((await asked(page, "move"))[0]!.changes).toMatchObject([start]);
+  expect(await heard()).toMatchObject([duration, start]);
+});
+
+test("after a load, a before-edit call and the edit event measure a keyless row with the loaded schedule's day", async ({ page }) => {
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks: [{ id: "a", key: "k-a", name: "Dig", start: "2026-03-02", duration: 2 }], durationUnit: "hours" });
+  const rows = [{ id: "a", name: "Dig", start: "2026-03-02", duration: 2 }, { id: "b", name: "Pour", start: "2026-03-02", duration: 2, calendar: "short" }];
+  const calendars = [{ key: "std", workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 }, { key: "short", workDays: [1, 2, 3, 4, 5], hoursPerDay: 7.5 }];
+  const { document } = fromTasks({ tasks: rows, calendars, durationUnit: "hours" });
+  await page.evaluate(() => { const w = window as unknown as { opened: number; heard: unknown[] }; [w.opened, w.heard] = [0, []]; window.beChart.on("open", () => (w.opened += 1)); window.beChart.on("edit", (edit) => w.heard.push(edit.commits[0]!.changes[0])); });
+  await page.evaluate((loaded) => window.beChart.load({ document: loaded }), document);
+  await page.waitForFunction(() => (window as unknown as { opened: number }).opened === 1);
+  await page.locator("#table-rows .row").nth(1).locator(".dur").dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("2");
+  await page.keyboard.press("Enter");
+  await expect.poll(() => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard.length)).toBe(1);
+  const duration = { record: "task", key: null, set: { duration: 15 }, was: { duration: 2 } };
+  expect((await asked(page, "setDuration"))[0]!.changes, "2 days of a 7.5-hour calendar, not of the schedule mounted first").toMatchObject([duration]);
+  expect(await page.evaluate(() => (window as unknown as { heard: unknown[] }).heard)).toMatchObject([duration]);
+});
+
+test("a typed predecessor with a lag is measured by its successor's calendar in the before-edit call, as in the edit event", async ({ page }) => {
+  const calendars = [{ key: "std", workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 }, { key: "short", workDays: [1, 2, 3, 4, 5], hoursPerDay: 7.5 }];
+  const tasks = [{ id: "1", key: "k1", name: "Dig", start: "2026-03-02", duration: 2 }, { id: "2", key: "k2", name: "Pour", start: "2026-03-02", duration: 2, calendar: "short" }];
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, calendars, durationUnit: "hours" });
+  await page.evaluate(() => { const w = window as unknown as { heard: { record: string }[][] }; w.heard = []; window.beChart.on("edit", (edit) => w.heard.push(edit.commits[0]!.changes)); });
+  await page.evaluate(() => window.gantt!.app.set_predecessors_text(1, "1FS+2d"));
+  await expect.poll(() => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard.length)).toBe(1);
+  const made = { record: "link", op: "create", set: { lag: 15 } };
+  expect((await asked(page, "group"))[0]!.changes.find((c) => c.record === "link"), "2 days of the 7.5-hour successor, not of the first task's 8").toMatchObject(made);
+  expect((await page.evaluate(() => (window as unknown as { heard: { record: string }[][] }).heard))[0]!.find((c) => c.record === "link")).toMatchObject(made);
+});
+
+test("a lag updated at a link made since the last commit, in the same tick, is measured by its own day in the before-edit call and the edit event", async ({ page }) => {
+  const calendars = [{ key: "std", workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 }, { key: "short", workDays: [1, 2, 3, 4, 5], hoursPerDay: 7.5 }];
+  const tasks = [{ id: "1", key: "k1", name: "Dig", start: "2026-03-02", duration: 2 }, { id: "2", key: "k2", name: "Pour", start: "2026-03-02", duration: 2, calendar: "short" }];
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, calendars, durationUnit: "hours" });
+  await page.evaluate(() => { const w = window as unknown as { heard: { record: string }[][] }; w.heard = []; window.beChart.on("edit", (edit) => w.heard.push(...edit.commits.map((commit) => commit.changes))); });
+  await page.evaluate(() => { window.gantt!.app.set_predecessors_text(1, "1FS+2d"); window.gantt!.app.set_predecessors_text(1, "1FS+3d"); });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard.length)).toBe(2);
+  const later = { record: "link", op: "update", set: { lag: 22.5 }, was: { lag: 15 } };
+  const linkOf = (changes: readonly { record: string }[]) => changes.find((c) => c.record === "link");
+  expect(linkOf((await page.evaluate(() => window.asked)).at(-1)!.changes), "3 days of the 7.5-hour successor, though the link is not in an edit event yet").toMatchObject(later);
+  expect(linkOf((await page.evaluate(() => (window as unknown as { heard: { record: string }[][] }).heard))[1]!)).toMatchObject(later);
 });

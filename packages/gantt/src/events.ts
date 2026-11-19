@@ -1,7 +1,7 @@
 // The events a host reacts to with `Gantt.on` (gs#1086). They are read from the `Status` the loop already takes
 // once per frame: `watch` compares it with the one before and fires only on a change, so an idle chart fires nothing.
 import type { Status } from "./api.js";
-import { foldChanges, type FieldChange } from "./change-set.js";
+import { foldChanges, type FieldChange, type Stamped } from "./change-set.js";
 import type { SaveError } from "./gantt-types.js";
 import type { PickerProject } from "./open-schedule.js";
 import type { ViewState } from "./view-state.js";
@@ -117,12 +117,14 @@ export interface EventReads {
   commits(): string;
   /** `App.task_ref`: a task's key and early start, as JSON; undefined for a slot the app does not hold. */
   ref(task: number): string | undefined;
+  /** Put a commit's changes in the unit and date form the host mounted with (`formChanges`). */
+  form(changes: readonly Stamped[]): Change[];
 }
 
-/** `App.take_commits` read as an `edit` carries it: each commit's changes folded to one per record. */
-function parseCommits(json: string): Omit<GanttEvents["edit"], "revision"> {
+/** `App.take_commits` read as an `edit` carries it: each commit's changes folded to one per record, in the host's unit and date form. */
+function parseCommits(json: string, form: EventReads["form"]): Omit<GanttEvents["edit"], "revision"> {
   const read = JSON.parse(json) as { commits: (Omit<Commit, "changes"> & { changes: FieldChange[] })[]; snapshot: boolean; seq: number };
-  return { ...read, commits: read.commits.map((commit) => ({ ...commit, changes: foldChanges(commit.changes) })) };
+  return { ...read, commits: read.commits.map((commit) => ({ ...commit, changes: form(foldChanges(commit.changes)) })) };
 }
 
 /** `reads` is the current start's: the events outlive a switch to WebGL2, which gives them a new app. */
@@ -192,7 +194,7 @@ export function createEvents(reads: () => EventReads): Events { // oxlint-disabl
         }
         if (s.revision !== before.revision || released) {
           // A held bar makes no commit until its release, which can leave the revision where the last frame had it: it reads too.
-          const read = dragging ? { commits: [], snapshot: false, seq } : parseCommits(reads().commits());
+          const read = dragging ? { commits: [], snapshot: false, seq } : parseCommits(reads().commits(), reads().form);
           seq = read.seq;
           const snapshot = read.snapshot || (!dragging && lost);
           if (!dragging) lost = false;

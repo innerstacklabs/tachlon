@@ -105,8 +105,7 @@ fn a_group_is_seen_in_order_with_the_first_old_value_and_the_last_new_one() {
     let plan = asked.borrow()[0].clone();
     assert_eq!((plan.kind, plan.tasks), ("group", vec![0]));
     assert_eq!(plan.source, Proposal);
-    let name =
-        r#"{"record":"task","op":"update","key":null,"task":0,"field":"name","old":"A","new":"Y"}"#;
+    let name = r#"{"record":"task","op":"update","key":null,"task":0,"dayMinutes":1440,"field":"name","old":"A","new":"Y"}"#;
     assert_eq!(plan.changes[0], name);
     assert!(plan.changes[1].contains(r#""field":"duration""#) && plan.changes.len() == 2);
 }
@@ -251,6 +250,10 @@ fn a_link_drag_is_shown_the_link_it_creates_with_from_and_to() {
     assert_eq!(
         ends,
         (&json!("create"), &json!({"task": 0}), &json!({"task": 2}))
+    );
+    assert_eq!(
+        made[0]["dayMinutes"], 1440,
+        "a link not made yet has its day"
     );
     assert_eq!(Value::from(made), written(&mut s));
 }

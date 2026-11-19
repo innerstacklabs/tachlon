@@ -112,10 +112,18 @@ impl Session {
 
     /// One task field's change: `old` and `new` are written as `carried` writes them.
     pub(crate) fn task_update(&self, task: TaskId, field: &str, old: &str, new: &str) -> String {
-        let (key, slot) = (self.task_key(task), task.0);
+        let (key, slot, day) = (self.task_key(task), task.0, self.task_day(task));
         format!(
-            r#"{{"record":"task","op":"update","key":{key},"task":{slot},"field":"{field}","old":{old},"new":{new}}}"#
+            r#"{{"record":"task","op":"update","key":{key},"task":{slot}{day},"field":"{field}","old":{old},"new":{new}}}"#
         )
+    }
+
+    /// The stamp a task's change carries (`,"dayMinutes":n`): the working day in minutes of the task's calendar,
+    /// which the page measures a duration by. None for a slot not made yet, which names no duration.
+    pub(crate) fn task_day(&self, task: TaskId) -> String {
+        let made = (task.0 as usize) < self.schedule.tasks().len();
+        let day = made.then(|| day_minutes(self.schedule.calendar_of(task)));
+        day.map_or_else(String::new, |day| format!(r#","dayMinutes":{day}"#))
     }
 
     pub(crate) fn task_key(&self, task: TaskId) -> String {
@@ -132,9 +140,10 @@ impl Session {
     pub(crate) fn outline_changes(&self, step: &Step) -> Vec<String> {
         let head = |task: TaskId| {
             format!(
-                r#""record":"task","key":{},"task":{}"#,
+                r#""record":"task","key":{},"task":{}{}"#,
                 self.task_key(task),
-                task.0
+                task.0,
+                self.task_day(task)
             )
         };
         match step.edit {
@@ -270,11 +279,15 @@ impl Session {
         format!("{:?}", minutes as f64 / day as f64)
     }
 
-    /// The head of a link's record: its key and slot.
+    /// The head of a link's record: its key and slot, and the day its lag is counted in.
     pub(crate) fn link_head(&self, dep: DepId) -> String {
         let key = self.host.keys.link_key(dep);
         let key = key.map_or_else(|| "null".into(), quote);
-        format!(r#""record":"link","key":{key},"link":{}"#, dep.0)
+        let day = self.lag_day_minutes(dep);
+        format!(
+            r#""record":"link","key":{key},"link":{},"dayMinutes":{day}"#,
+            dep.0
+        )
     }
 
     /// The updates that take link `dep` from the (type, lag) pair `old` to `new`, one per value
