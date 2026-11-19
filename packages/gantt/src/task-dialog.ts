@@ -76,8 +76,9 @@ export function installTaskDialog({ app, root, canvas, status }: Shell, refuseRe
     if (dialog.open || status().gesture !== "idle" || details === undefined || refuseReadOnly()) return false;
     const text = read(app, task, details);
     for (const input of inputs) input.value = text[input.name] ?? "";
-    // Predecessors are Activity IDs, so the field is there only while the tasks have them.
-    for (const input of inputs.filter((i) => i.name === "predecessors")) input.closest("label")!.style.display = app.has_codes() ? "" : "none";
+    // Predecessors are Activity IDs, so the field is there only while the tasks have them, and not for a summary or a task whose list holds a task with no ID: a Save would drop that link.
+    const showPred = app.has_codes() && details.summary !== true && app.predecessors_text(task) !== undefined;
+    for (const input of inputs.filter((i) => i.name === "predecessors")) input.closest("label")!.style.display = showPred ? "" : "none";
     held = { task, epoch: status().epoch, text };
     title.textContent = `Edit task: ${text.name}`;
     error.hidden = true;

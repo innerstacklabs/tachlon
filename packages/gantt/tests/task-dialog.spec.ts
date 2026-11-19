@@ -139,6 +139,21 @@ test("with IDs the dialog shows the Predecessors list, refuses a bad one with th
   await expect(g.page.locator('#table-rows .row[data-row="2"] > .pred')).toHaveText("1, 2 SS+1d");
 });
 
+test("a summary, and a task that follows a task with no Activity ID, have no Predecessors field", async ({ g }) => {
+  await g.open({ n: 20 });
+  const tasks = [1, 2, 3, 4].map((id) => ({ id: String(id), name: `T${id}`, start: "2026-03-02", duration: 2, ...(id === 4 ? { parent: "3" } : {}) }));
+  await g.page.evaluate((d) => {
+    d.tasks[0]!.code = null; // task 1 has no ID, and task 2 follows it
+    return window.gantt!.api!.load({ document: d });
+  }, fromTasks({ tasks, links: [{ from: "1", to: "2" }] }).document);
+  await g.nextFrame(3);
+  await openDialog(g, 1);
+  await expect(field(g.page, "predecessors")).toBeHidden();
+  await g.page.keyboard.press("Escape");
+  await openDialog(g, 2);
+  await expect(field(g.page, "predecessors")).toBeHidden();
+});
+
 test("without Activity IDs the dialog has no Predecessors field", async ({ g }) => {
   await openDialog(g, (await leaf(g)).row);
   await expect(field(g.page, "predecessors")).toBeHidden();
