@@ -36,9 +36,10 @@ impl Session {
 
     /// A task create record for `task`, which may not exist yet, with its `fields` written.
     fn task_create(&self, task: TaskId, fields: &str) -> String {
-        let key = self.task_key(task);
-        let slot = task.0;
-        format!(r#"{{"record":"task","key":{key},"task":{slot},"op":"create","fields":{fields}}}"#)
+        let (key, slot, day) = (self.task_key(task), task.0, self.task_day(task));
+        format!(
+            r#"{{"record":"task","key":{key},"task":{slot}{day},"op":"create","fields":{fields}}}"#
+        )
     }
 
     /// The records `edit` would write; none for an edit that names what is not there.
@@ -85,8 +86,11 @@ impl Session {
                 kind,
                 lag,
             } if live(pred) && live(succ) => {
-                let head = format!(r#""record":"link","key":null,"link":{}"#, deps.len());
                 let day = self.pair_day_minutes(*pred, *succ, None);
+                let head = format!(
+                    r#""record":"link","key":null,"link":{},"dayMinutes":{day}"#,
+                    deps.len()
+                );
                 let ends = [self.task_ref(*pred), self.task_ref(*succ)];
                 vec![link_create(
                     &head,

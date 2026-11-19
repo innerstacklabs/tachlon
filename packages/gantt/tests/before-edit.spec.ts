@@ -168,3 +168,16 @@ test("a typed predecessor with a lag is measured by its successor's calendar in 
   expect((await asked(page, "group"))[0]!.changes.find((c) => c.record === "link"), "2 days of the 7.5-hour successor, not of the first task's 8").toMatchObject(made);
   expect((await page.evaluate(() => (window as unknown as { heard: { record: string }[][] }).heard))[0]!.find((c) => c.record === "link")).toMatchObject(made);
 });
+
+test("a lag updated at a link made since the last commit, in the same tick, is measured by its own day in the before-edit call and the edit event", async ({ page }) => {
+  const calendars = [{ key: "std", workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 }, { key: "short", workDays: [1, 2, 3, 4, 5], hoursPerDay: 7.5 }];
+  const tasks = [{ id: "1", key: "k1", name: "Dig", start: "2026-03-02", duration: 2 }, { id: "2", key: "k2", name: "Pour", start: "2026-03-02", duration: 2, calendar: "short" }];
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, calendars, durationUnit: "hours" });
+  await page.evaluate(() => { const w = window as unknown as { heard: { record: string }[][] }; w.heard = []; window.beChart.on("edit", (edit) => w.heard.push(...edit.commits.map((commit) => commit.changes))); });
+  await page.evaluate(() => { window.gantt!.app.set_predecessors_text(1, "1FS+2d"); window.gantt!.app.set_predecessors_text(1, "1FS+3d"); });
+  await expect.poll(() => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard.length)).toBe(2);
+  const later = { record: "link", op: "update", set: { lag: 22.5 }, was: { lag: 15 } };
+  const linkOf = (changes: readonly { record: string }[]) => changes.find((c) => c.record === "link");
+  expect(linkOf((await page.evaluate(() => window.asked)).at(-1)!.changes), "3 days of the 7.5-hour successor, though the link is not in an edit event yet").toMatchObject(later);
+  expect(linkOf((await page.evaluate(() => (window as unknown as { heard: { record: string }[][] }).heard))[1]!)).toMatchObject(later);
+});

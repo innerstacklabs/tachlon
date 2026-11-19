@@ -235,10 +235,10 @@ fn a_link_is_a_create_an_update_per_field_a_delete_and_its_undo_a_create() {
     let ends = json!({"from":{"task":0},"to":{"task":2}});
     let create = |kind: &str, lag: f64| {
         let fields = json!({"from":ends["from"],"to":ends["to"],"type":kind,"lag":lag});
-        json!([{"record":"link","key":null,"link":slot,"op":"create","fields":fields}])
+        json!([{"record":"link","key":null,"link":slot,"dayMinutes":480,"op":"create","fields":fields}])
     };
-    let update = |field: &str, old: Value, new: Value| json!({"record":"link","key":null,"link":slot,"op":"update","field":field,"old":old,"new":new});
-    let delete = json!([{"record":"link","key":null,"link":slot,"op":"delete","fields":create("SS", 2.0)[0]["fields"]}]);
+    let update = |field: &str, old: Value, new: Value| json!({"record":"link","key":null,"link":slot,"dayMinutes":480,"op":"update","field":field,"old":old,"new":new});
+    let delete = json!([{"record":"link","key":null,"link":slot,"dayMinutes":480,"op":"delete","fields":create("SS", 2.0)[0]["fields"]}]);
     let want = [
         create("FS", 0.0),
         json!([
@@ -284,7 +284,7 @@ fn a_link_drawn_between_keyed_tasks_names_them_by_key() {
     let to = link_gesture::on(&s, 2);
     link_gesture::link(&mut s, 0, to);
     let fields = json!({"from":"a1","to":"c3","type":"FS","lag":0.0});
-    let want = json!([{"record":"link","key":null,"link":2,"op":"create","fields":fields}]);
+    let want = json!([{"record":"link","key":null,"link":2,"dayMinutes":480,"op":"create","fields":fields}]);
     let out: Value = serde_json::from_str(&s.take_commits()).unwrap();
     assert_eq!(out["commits"][0]["source"], "drag");
     assert_eq!(out["commits"][0]["changes"], want);
@@ -301,22 +301,42 @@ fn a_lag_on_the_24_hour_lag_calendar_counts_1440_minutes_a_day() {
         lag: 1440,
     })
     .unwrap();
-    let want = json!([{"record":"link","key":null,"link":0,"op":"update",
+    let want = json!([{"record":"link","key":null,"link":0,"dayMinutes":1440,"op":"update",
         "field":"lag","old":0.0,"new":1.0}]);
     assert_eq!(raw(&mut s), [want]);
 }
 
 #[test]
-fn the_working_day_of_each_task_and_link_is_read_by_slot() {
-    let days = |lag| serde_json::from_str::<Value>(&keyed(lag).day_lengths()).unwrap();
-    let own = days(LagCalendar::Successor);
-    assert_eq!(own["links"][0], own["tasks"][1], "the successor's day");
-    assert_eq!(days(LagCalendar::TwentyFourHour)["links"][0], 1440);
+fn each_change_carries_the_day_its_duration_or_lag_is_counted_in() {
+    let mut s = keyed(LagCalendar::TwentyFourHour);
+    let kind = LinkType::FS;
+    s.edit(Edit::SetDuration {
+        task: TaskId(1),
+        minutes: 960,
+    })
+    .unwrap();
+    s.edit(Edit::AddLink {
+        pred: TaskId(0),
+        succ: TaskId(2),
+        kind,
+        lag: 0,
+    })
+    .unwrap();
+    s.edit(Edit::SetLink {
+        dep: DepId(2),
+        kind,
+        lag: 1440,
+    })
+    .unwrap();
+    let days: Vec<Value> = raw(&mut s)
+        .iter()
+        .map(|c| c[0]["dayMinutes"].clone())
+        .collect();
     assert_eq!(
-        (&own["keys"], &own["lag"]),
-        (&json!(["a1", null, "c3"]), &json!("successor"))
+        days,
+        [480, 1440, 1440],
+        "a task's calendar, then the lag calendar of a link made since the last read"
     );
-    assert_eq!(days(LagCalendar::TwentyFourHour)["lag"], 1440);
 }
 
 /// The create the undo of a link's removal writes, the link having its own lag calendar `own`.

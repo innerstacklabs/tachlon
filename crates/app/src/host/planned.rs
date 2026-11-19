@@ -118,8 +118,9 @@ impl Session {
                 names.iter().enumerate().map(create).collect()
             }
             Plan::Link(pred, succ) => {
+                let day = self.pair_day_minutes(pred, succ, None);
                 let head = format!(
-                    r#""record":"link","key":null,"link":{}"#,
+                    r#""record":"link","key":null,"link":{},"dayMinutes":{day}"#,
                     self.schedule.dependencies().len()
                 );
                 let ends = [self.task_ref(pred), self.task_ref(succ)];

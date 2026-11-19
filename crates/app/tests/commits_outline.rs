@@ -77,13 +77,14 @@ fn born(name: &str, after: Value, code: Value) -> Value {
 }
 
 fn create(key: Value, task: u32, fields: Value) -> Value {
-    let mut change = json!({"record":"task","task":task,"op":"create"});
+    let mut change = json!({"record":"task","task":task,"op":"create","dayMinutes":480});
     (change["key"], change["fields"]) = (key, fields);
     change
 }
 
 fn delete(key: Value, task: u32, fields: &Value) -> Value {
-    let mut change = json!({"record":"task","task":task,"op":"delete","fields":fields});
+    let mut change =
+        json!({"record":"task","task":task,"op":"delete","dayMinutes":480,"fields":fields});
     change["key"] = key;
     change
 }
@@ -285,7 +286,7 @@ fn a_copy_made_from_the_records_matches_the_session_after_a_commit_of_link_steps
 }
 
 fn up(task: u32, key: &Value, field: &str, old: &Value, new: &Value) -> Value {
-    json!({"record":"task","op":"update","key":key,"task":task,"field":field,"old":old,"new":new})
+    json!({"record":"task","op":"update","key":key,"task":task,"dayMinutes":480,"field":field,"old":old,"new":new})
 }
 
 fn reparent(s: &mut Session, task: u32, parent: Option<u32>, siblings: Siblings) {

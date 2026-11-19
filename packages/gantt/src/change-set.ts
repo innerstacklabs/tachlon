@@ -13,14 +13,19 @@ export interface FieldChange {
   old?: unknown;
   new?: unknown;
   fields?: Record<string, unknown>;
+  /** The working day in minutes that measures the record's duration or lag, stamped by the app where it makes the change. */
+  dayMinutes?: number;
 }
+
+/** A folded change still carrying the stamp, which `formChanges` removes before a host sees it. */
+export type Stamped = Change & { dayMinutes?: number };
 
 /**
  * Fold the changes of one commit into one change per record, in the order each record first appears (rule 2.6 holds: the engine writes a
  * child's delete before its parent's). A create's `fields` are its `set`, a delete's `fields` its `was` (any member the same commit also
  * updated read as it was before), and a link delete with an end that a task delete in the same commit removed is `cascade: true` (rule 2.7).
  */
-export function foldChanges(changes: readonly FieldChange[]): Change[] {
+export function foldChanges(changes: readonly FieldChange[]): Stamped[] {
   const records = new Map<string, FieldChange[]>();
   for (const c of changes) {
     const id = `${c.record}:${c.task ?? c.link ?? ""}`;
@@ -35,9 +40,10 @@ export function foldChanges(changes: readonly FieldChange[]): Change[] {
     const lost = rows.find((r) => r.op === "delete");
     const updates = rows.filter((r) => r.op === "update");
     const was = Object.fromEntries(updates.map((r) => [r.field, r.old]));
-    const change: Change = { record: first.record, op: made ? "create" : lost ? "delete" : "update", key: first.key ?? null };
+    const change: Stamped = { record: first.record, op: made ? "create" : lost ? "delete" : "update", key: first.key ?? null };
     if (first.task !== undefined) change.task = first.task;
     if (first.link !== undefined) change.link = first.link;
+    if (first.dayMinutes !== undefined) change.dayMinutes = first.dayMinutes;
     if (made) change.set = { ...made.fields };
     else if (lost) change.was = { ...lost.fields, ...was };
     else Object.assign(change, { set: Object.fromEntries(updates.map((r) => [r.field, r.new])), was });
