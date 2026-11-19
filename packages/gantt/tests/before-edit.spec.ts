@@ -1,19 +1,19 @@
 import { createServer, type ViteDevServer } from "vite";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import type { BeforeEditChange, Gantt, GanttEvents } from "../src/index";
+import type { BeforeEditChange, ChangeSet, Gantt, GanttEvents } from "../src/index";
 import { chromePath } from "./support/knobs";
 import { fromTasks } from "../src/adapters/plain";
 
 declare global {
-  interface Window { beChart: Gantt; asked: BeforeEditChange[]; answers: unknown[]; errors: GanttEvents["error"][]; mountBe(code: string, options?: Record<string, unknown>): Promise<unknown> }
+  interface Window { beChart: Gantt; asked: BeforeEditChange[]; sets: ChangeSet[]; answers: unknown[]; errors: GanttEvents["error"][]; mountBe(code: string, options?: Record<string, unknown>): Promise<unknown> }
 }
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">
   import { mount } from "/src/index.ts";
-  window.asked = [], window.errors = [];
+  window.asked = [], window.errors = [], window.sets = [];
   window.mountBe = async (code, options = {}) => {
     const answer = (0, eval)("(" + code + ")");
-    window.beChart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, forceWebgl: true, ...options, beforeEdit: (change) => (window.asked.push(change), answer(change)) });
+    window.beChart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, forceWebgl: true, ...options, ...(options.recordSaves ? { save: async (set) => void window.sets.push(set) } : {}), beforeEdit: (change) => (window.asked.push(change), answer(change)) });
     window.beChart.on("error", (error) => window.errors.push(error));
   };
   window.ready = true;
@@ -123,7 +123,7 @@ test("the function is still asked after the switch to WebGL2", async ({ page }) 
 
 test("a chart mounted with hours and dateForm day tells the edit event and the before-edit call in them", async ({ page }) => {
   const tasks = [{ id: "a", key: "k-a", name: "Dig", start: "2026-03-02", duration: 2 }, { id: "b", key: "k-b", name: "Pour", start: "2026-03-02", duration: 3 }];
-  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, durationUnit: "hours", dateForm: "day" });
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, durationUnit: "hours", dateForm: "day", recordSaves: true });
   const heard = () => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard);
   await page.evaluate(() => { const w = window as unknown as { heard: unknown[] }; w.heard = []; window.beChart.on("edit", (edit) => w.heard.push(edit.commits[0]!.changes[0])); });
   await page.locator("#table-rows .row").nth(0).locator(".dur").dblclick();
@@ -138,6 +138,8 @@ test("a chart mounted with hours and dateForm day tells the edit event and the b
   expect((await asked(page, "setDuration"))[0]!.changes, "17 days of an 8-hour calendar is 136 hours; the 2 the host gave comes back as 2").toMatchObject([duration]);
   expect((await asked(page, "move"))[0]!.changes).toMatchObject([start]);
   expect(await heard()).toMatchObject([duration, start]);
+  await expect.poll(() => page.evaluate(() => window.sets), "a save for each commit, in hours and days too, with no stamp").toMatchObject([{ changes: [duration] }, { changes: [start] }]);
+  expect(await page.evaluate(() => JSON.stringify(window.sets))).not.toContain("dayMinutes");
 });
 
 test("after a load, a before-edit call and the edit event measure a keyless row with the loaded schedule's day", async ({ page }) => {

@@ -66,6 +66,16 @@ test("`@ready` draws no Vue warning, and a failed start followed by a working on
   expect.soft(await page.evaluate("problems()"), "its re-render does not report the old error again").toEqual({ warnings: [], errors: 1 });
 });
 
+test("a `save` added or removed after the mount is read when a change set is sent, and mounts nothing", async ({ page }) => {
+  const base = server.resolvedUrls!.local[0]!;
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction("window.start");
+  await page.evaluate("start()");
+  expect.soft(await page.evaluate("later(true)"), "a save added after the mount is called by the chart that is mounted").toEqual({ mounts: 1, answer: "sent" });
+  expect.soft(await page.evaluate("later(false)"), "removed again, the change set is kept and nothing throws").toEqual({ mounts: 1, answer: { saved: false } });
+});
+
 test("a new `readOnly` switches the chart that is mounted, without mounting it again", async ({ page }) => {
   const base = server.resolvedUrls!.local[0]!;
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));

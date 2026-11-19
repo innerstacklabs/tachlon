@@ -35,8 +35,8 @@ test("a task delete, the link delete that follows from it and the undo of both a
   expect(hours(link(450, 2, "create"))).toEqual({ lag: 15 });
 });
 
-test("a change with no stamp, such as a planned task insert, keeps its numbers as they are", () => {
-  const planned: Stamped = { record: "task", op: "create", key: null, task: 9, set: { name: "T", duration: 2 } };
+test("a planned task insert carries no stamp and no duration, and passes through as it is", () => {
+  const planned: Stamped = { record: "task", op: "create", key: null, task: 9, set: { name: "T" } };
   expect(formChanges([planned], "hours", "minute")).toEqual([planned]);
 });
 
@@ -45,5 +45,8 @@ test("dateForm day: a start-kind date is its day, a finish-kind date the day of 
   expect(formChanges([dates], "days", "day")).toEqual([bare(task(480, { snet: "2026-01-12", snlt: "2026-01-13", fnet: "2026-01-12", fnlt: "2026-01-12", actualStart: null, actualFinish: "2026-02-28", name: "T" }, { mfo: "2025-12-31", mso: "2026-01-01" }))]);
   const schedule: Change = { record: "schedule", op: "update", key: null, set: { dataDate: "2026-01-12T00:00" }, was: { dataDate: "2026-01-09T08:00" } };
   expect(formChanges([schedule], "days", "day")).toEqual([{ ...schedule, set: { dataDate: "2026-01-12" }, was: { dataDate: "2026-01-09" } }]);
+  const baseline: Change = { record: "schedule", op: "update", key: null, set: { baseline: { projectFinish: "2026-01-13T00:00", dataDate: "2026-01-12T08:00" } }, was: { baseline: null } };
+  expect(formChanges([baseline], "days", "day")[0]!.set, "the baseline's project finish is a finish, its data date a start").toEqual({ baseline: { projectFinish: "2026-01-12", dataDate: "2026-01-12" } });
+  expect(formChanges([baseline], "days", "minute"), 'dateForm "minute" leaves it as the engine wrote it').toEqual([baseline]);
   expect(formChanges([dates], "days", "minute"), 'dateForm "minute" leaves a date as the engine wrote it').toEqual([bare(dates)]);
 });

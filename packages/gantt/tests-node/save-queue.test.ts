@@ -1,6 +1,6 @@
 // The host's save queue (decision 0022, rule 3.3): the host's `save` function gets each commit as a change set, one call at a time, in `seq` order, and a
 // `SaveRefused` puts that commit and the ones behind it back. The app is a fake that answers as `App.rollback_to` does; the browser case is a later row.
-import type { Commit } from "../src/events.ts";
+import type { Commit, GanttEvents } from "../src/events.ts";
 import type { ChangeSet, SaveError } from "../src/gantt-types.ts";
 import { SaveQueue, SaveRefused } from "../src/save-queue.ts";
 import { mock, test } from "node:test";
@@ -168,4 +168,18 @@ test("a call that is running when the queue stops finishes, and its result is ig
   await settle();
   expect(host.seqs).toEqual([1]);
   expect(app.log).toEqual([]);
+});
+
+test("a save that resolves saved: false is not acknowledged and the next commit is sent", async () => {
+  const app = fakeApp();
+  const seen: number[] = [];
+  new SaveQueue(app, async (cs) => (seen.push(cs.seq), cs.seq === 1 ? { saved: false as const } : undefined), () => undefined).add([commit(1), commit(2)]);
+  await settle();
+  expect(seen).toEqual([1, 2]);
+  expect(app.log, "commit 2 is acknowledged, commit 1 stays for rollbackTo").toEqual(["ack 2"]);
+});
+
+test("an error whose source is save is a SaveError, so a host reads reload and undone with no cast", () => {
+  const read = (e: GanttEvents["error"]) => (e.source === "save" ? [e.reload, e.undone] : []);
+  expect(read({ source: "save", message: "m", fatal: false, reason: "refused", calls: 1, seq: 2, undone: 3, reload: true })).toEqual([true, 3]);
 });
