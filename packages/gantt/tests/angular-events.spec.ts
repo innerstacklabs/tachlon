@@ -31,8 +31,8 @@ test("the component mounts the chart outside the zone, emits its events inside i
     standalone: true,
     inputs: { schedule: "schedule", document: "document", tasks: "tasks", links: "links", dataDate: "dataDate", mustFinishBy: "mustFinishBy", calendars: "calendars", durationUnit: "durationUnit", dateForm: "dateForm", lagCalendar: "lagCalendar", options: "options", forceWebgl: "forceWebgl", wasmUrl: "wasmUrl", locale: "locale", texts: "texts", fonts: "fonts" },
     options: ["beforeEdit", "calendars", "capabilities", "dataDate", "dateForm", "document", "durationUnit", "fields", "fonts", "forceWebgl", "lagCalendar", "links", "locale", "mustFinishBy", "options", "readOnly", "save", "schedule", "tasks", "texts", "wasmUrl"],
-    emitters: ["chartChange", "chartChooseFile", "chartEdit", "chartError", "chartFind", "chartLoad", "chartMove", "chartOpen", "chartSelect", "chartToggleKeys", "chartToggleStatus", "ready"],
-    outputs: Object.fromEntries(["chartChange", "chartChooseFile", "chartEdit", "chartError", "chartFind", "chartLoad", "chartMove", "chartOpen", "chartSelect", "chartToggleKeys", "chartToggleStatus", "ready"].map((n) => [n, n])),
+    emitters: ["chartChange", "chartChooseFile", "chartEdit", "chartError", "chartFind", "chartLoad", "chartMove", "chartOpen", "chartSelect", "chartToggleKeys", "chartToggleStatus", "ready", "update"],
+    outputs: Object.fromEntries(["chartChange", "chartChooseFile", "chartEdit", "chartError", "chartFind", "chartLoad", "chartMove", "chartOpen", "chartSelect", "chartToggleKeys", "chartToggleStatus", "ready", "update"].map((n) => [n, n])),
   });
 });
 

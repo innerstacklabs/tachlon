@@ -124,6 +124,8 @@ import "tachlon/gantt.css";
 
 To call `chart.load` or `chart.open` (to open a file the user picks), give `onReady`: `<Gantt onReady={(chart) => (chartRef.current = chart)} />`. It is called once each time the chart mounts, with the chart `mount` resolves to, and never for a chart removed before it started. The component `npx tachlon init` writes in a React project takes the same `onReady` prop. A start that fails is thrown while `Gantt` renders, so wrap it in an error boundary to show your own message; `onError` hears the chart's `error` events once it has started.
 
+To hand the chart the values your server recalculated, without starting it again, give `records`, a new array of `chart.update` records, and `onUpdate`: `<Gantt tasks={tasks} records={records} onUpdate={(result) => console.log(result)} />`. A new array calls `update` on the chart that is mounted, so the scroll position, the selection and the undo list stay, and `onUpdate` gets the answer, a refusal too. A new array that comes while the chart is starting is applied after it, the latest one only. The first array is not applied, and neither is one that comes with a new `tasks` (the chart starts again from `tasks`): put those values in `tasks`.
+
 ## Use it in Vue
 
 `tachlon/vue` is a Vue 3 component, `Gantt`, from the same package: `import { Gantt } from "tachlon/vue"` and `import "tachlon/gantt.css"`. It takes the options of `mount` as props (`schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `forceWebgl`, `readOnly`, `capabilities`, `beforeEdit`, `fields`, `save`, `locale`, `texts`, `fonts` and `wasmUrl`) and emits the chart's events (`select`, `move`, `toggle-status` and the rest). It mounts the chart when it mounts and calls `destroy()` when it unmounts. Vue 3 or later is a peer dependency that you install yourself; an app with no Vue needs none. The `assistant` option is not a prop yet: for the chat box, call `mount` (see "Tools for an AI assistant"). A new `capabilities` (see "What a host allows") is set on the chart that is mounted and does not mount it again; a chart that mounts again starts on the latest one.
@@ -134,6 +136,8 @@ To call `chart.load` or `chart.open` (to open a file the user picks), give `onRe
 
 Keep `tasks` and `links` the same objects between renders: the chart starts again when they change. `@ready` gets the chart `mount` resolves to, once each time it mounts, to call `chart.load` or `chart.open`. A start that fails is thrown while `Gantt` renders: catch it with `onErrorCaptured` or the app's `errorHandler`.
 
+`:records` and `@update` do the same in Vue (`<Gantt :tasks="tasks" :records="records" @update="(result) => console.log(result)" />`): a new array of `chart.update` records is applied to the chart that is mounted, in place, `@update` gets the answer, and the first array, or one that comes with a new `tasks`, is not applied.
+
 ## Use it in Angular
 
 `tachlon/angular` is an Angular standalone component, `Gantt` (selector `gantt-chart`), from the same package: `import { Gantt } from "tachlon/angular"`, add it to your component's `imports` and add `tachlon/gantt.css` to your styles. It takes the options of `mount` as inputs (`schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `forceWebgl`, `readOnly`, `capabilities`, `beforeEdit`, `fields`, `save`, `locale`, `texts`, `fonts` and `wasmUrl`) and has an output for each of the chart's events, named `chart` and the event: `chartSelect`, `chartMove`, `chartToggleStatus` and the rest (the prefix keeps `(chartChange)` and `(chartSelect)` apart from the browser's own `change` and `select` events, which an input inside the chart fires and which Angular would also deliver). It mounts the chart once its view exists and calls `destroy()` when the component is destroyed. Angular 17 or later is a peer dependency that you install yourself; an app with no Angular needs none. The `assistant` option is not an input yet: for the chat box, call `mount` (see "Tools for an AI assistant"). A new `capabilities` (see "What a host allows") is set on the chart that is mounted and does not mount it again; a chart that mounts again starts on the latest one.
@@ -143,6 +147,8 @@ Keep `tasks` and `links` the same objects between renders: the chart starts agai
 ```
 
 Keep `tasks` and `links` the same objects between changes: the chart starts again when they change. `(ready)` gets the chart `mount` resolves to, once each time it mounts, to call `chart.load` or `chart.open`. Outputs that have a subscriber when the chart mounts are the ones it listens for, so give `(chartFind)` or `(chartChooseFile)` only when your app answers the key. A start that fails goes to your app's `ErrorHandler`. The chart runs outside Angular's zone, and each output emits inside it.
+
+`[records]` and `(update)` do the same in Angular (`<gantt-chart [tasks]="tasks" [records]="records" (update)="answered($event)" />`): a new array of `chart.update` records is applied to the chart that is mounted, in place, `(update)` gets the answer inside the zone, and the first array, or one that comes with a new `tasks`, is not applied.
 
 ## Load a P6 or MS Project file
 

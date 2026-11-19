@@ -12,12 +12,17 @@ const readOnly = shallowRef<boolean | undefined>(undefined);
 const capabilities = shallowRef<object | undefined>(undefined);
 const save = shallowRef<(() => Promise<string>) | object | undefined>(undefined);
 const handlers = shallowRef<Record<string, () => void>>({ onChange: () => void (seen.change += 1), onLoad: () => void (seen.load += 1), onReady: () => void (seen.ready += 1) });
-const app = createApp({ render: () => h(Gantt, { schedule: schedule.value, locale: locale.value, mustFinishBy: mustFinishBy.value, texts: texts.value, readOnly: readOnly.value, capabilities: capabilities.value, save: save.value as never, ...handlers.value }) });
+const tasks = shallowRef<object[] | undefined>(undefined);
+const records = shallowRef<object[] | undefined>(undefined);
+const results: unknown[] = [];
+let started = false;
+const app = createApp({ render: () => h(Gantt, { tasks: tasks.value as never, records: records.value as never, onUpdate: (r: unknown) => void results.push(r), schedule: schedule.value, locale: locale.value, mustFinishBy: mustFinishBy.value, texts: texts.value, readOnly: readOnly.value, capabilities: capabilities.value, save: save.value as never, ...handlers.value }) });
 const problems = { warnings: [] as string[], errors: 0 };
 console.warn = (...parts: unknown[]) => void problems.warnings.push(parts.join(" ")); // Vue's own warn handler only sees warnings raised while it renders; an emit after the mount warns on the console
 app.config.errorHandler = () => void (problems.errors += 1);
 const report = async () => (await new Promise((done) => setTimeout(done, 300)), { ...seen, mounts: (g.mounts ?? []).map((o) => o.schedule?.demo), destroyed: g.destroyed?.length ?? 0, listened: [...(g.listened ?? [])].sort() });
 Object.assign(window, {
+  put: (more: { tasks?: object[]; records?: object[]; locale?: string }) => ("tasks" in more && (tasks.value = more.tasks), "records" in more && (records.value = more.records), "locale" in more && (locale.value = more.locale), started || ((started = true), app.mount(document.body.appendChild(document.createElement("div")))), report().then(() => ({ mounts: g.mounts?.length, updates: (g as { updates?: unknown[] }).updates ?? [], results: [...results] }))), // gantt#2087
   start: () => (app.mount(document.body.appendChild(document.createElement("div"))), report()),
   change: (demo: number) => ((schedule.value = { demo }), report()),
   lang: (tag: string) => ((locale.value = tag), report().then((seen) => ({ ...seen, locales: (g.mounts ?? []).map((o) => o.locale ?? "-") }))),

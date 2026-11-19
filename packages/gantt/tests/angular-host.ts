@@ -13,7 +13,12 @@ const outputs = chart as unknown as Record<string, Emitter>;
 const report = async () => (await new Promise((done) => setTimeout(done, 300)), { ...seen, errors, zone: [zone.outside, zone.inside], mounts: (g.mounts ?? []).map((o) => o.schedule?.demo), destroyed: g.destroyed?.length ?? 0, listened: [...(g.listened ?? [])].sort() });
 const set = (schedule: Schedule) => ((chart.schedule = schedule as never), chart.ngOnChanges({ schedule } as never));
 const declaration = () => ({ ...g.declared!.component!, emitters: Object.keys(chart).filter((k) => typeof (chart as unknown as Record<string, { emit?: unknown }>)[k]?.emit === "function").sort(), options: Object.keys((g.mounts ?? [])[0] ?? {}).sort() });
+const results: unknown[] = [];
+let viewed = false;
+(outputs.update as unknown as { subscribe(handler: (r: unknown) => void): void }).subscribe((r) => void results.push(r)); // gantt#2087
+(outputs.ready as unknown as Emitter).subscribe(() => { const next = (chart as { next?: never }).next; delete (chart as { next?: never }).next; next && ((chart.records = next), chart.ngOnChanges({ records: next } as never)); }); // a `next` in `put` is the records the ready handler sets
 Object.assign(window, {
+  put: (more: Record<string, unknown>) => (Object.assign(chart, more), chart.ngOnChanges({ ...more } as never), viewed || ((viewed = true), chart.ngAfterViewInit()), report().then(() => ({ mounts: g.mounts?.length, updates: (g as { updates?: unknown[] }).updates ?? [], results: [...results] }))),
   declaration,
   start: () => (set({ demo: 1 }), outputs.chartChange!.subscribe(() => void (seen.change += 1)), outputs.chartLoad!.subscribe(() => void (seen.load += 1)), outputs.ready!.subscribe(() => void (seen.ready += 1)), chart.ngAfterViewInit(), report()),
   change: (demo: number) => (set({ demo }), report()),
