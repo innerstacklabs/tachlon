@@ -16,6 +16,7 @@ const declaration = () => ({ ...g.declared!.component!, emitters: Object.keys(ch
 const results: unknown[] = [];
 let viewed = false;
 (outputs.update as unknown as { subscribe(handler: (r: unknown) => void): void }).subscribe((r) => void results.push(r)); // gantt#2087
+(outputs.ready as unknown as Emitter).subscribe(() => { const next = (chart as { next?: never }).next; delete (chart as { next?: never }).next; next && ((chart.records = next), chart.ngOnChanges({ records: next } as never)); }); // a `next` in `put` is the records the ready handler sets
 Object.assign(window, {
   put: (more: Record<string, unknown>) => (Object.assign(chart, more), chart.ngOnChanges({ ...more } as never), viewed || ((viewed = true), chart.ngAfterViewInit()), report().then(() => ({ mounts: g.mounts?.length, updates: (g as { updates?: unknown[] }).updates ?? [], results: [...results] }))),
   declaration,

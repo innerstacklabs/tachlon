@@ -42,5 +42,8 @@ for (const [name, host] of Object.entries(HOSTS)) {
     await page.evaluate("release()");
     expect.soft(await put({}), "the start settled: the latest value, once").toEqual({ mounts: 1, updates: [c], results: [{ ok: true, updated: 1 }] });
     expect.soft(await put({ tasks: [], records: b }), "the chart mounts again from tasks: records of that render are not applied").toMatchObject({ mounts: 2, updates: [c] });
+    expect.soft(await put({ locale: "x", records: a }), "a prop written after records that mounts again: records are not applied to the chart that is going").toMatchObject({ mounts: 3, updates: [c] });
   });
+
+  if (name !== "Vue") test(`${name}: records that a ready handler sets are applied once`, async ({ page }) => expect(await (await open(page, host))({ tasks: [], records: a, next: b })).toMatchObject({ mounts: 1, updates: [b] }));
 }

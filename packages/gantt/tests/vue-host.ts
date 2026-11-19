@@ -22,7 +22,7 @@ console.warn = (...parts: unknown[]) => void problems.warnings.push(parts.join("
 app.config.errorHandler = () => void (problems.errors += 1);
 const report = async () => (await new Promise((done) => setTimeout(done, 300)), { ...seen, mounts: (g.mounts ?? []).map((o) => o.schedule?.demo), destroyed: g.destroyed?.length ?? 0, listened: [...(g.listened ?? [])].sort() });
 Object.assign(window, {
-  put: (more: { tasks?: object[]; records?: object[] }) => ("tasks" in more && (tasks.value = more.tasks), "records" in more && (records.value = more.records), started || ((started = true), app.mount(document.body.appendChild(document.createElement("div")))), report().then(() => ({ mounts: g.mounts?.length, updates: (g as { updates?: unknown[] }).updates ?? [], results: [...results] }))), // gantt#2087
+  put: (more: { tasks?: object[]; records?: object[]; locale?: string }) => ("tasks" in more && (tasks.value = more.tasks), "records" in more && (records.value = more.records), "locale" in more && (locale.value = more.locale), started || ((started = true), app.mount(document.body.appendChild(document.createElement("div")))), report().then(() => ({ mounts: g.mounts?.length, updates: (g as { updates?: unknown[] }).updates ?? [], results: [...results] }))), // gantt#2087
   start: () => (app.mount(document.body.appendChild(document.createElement("div"))), report()),
   change: (demo: number) => ((schedule.value = { demo }), report()),
   lang: (tag: string) => ((locale.value = tag), report().then((seen) => ({ ...seen, locales: (g.mounts ?? []).map((o) => o.locale ?? "-") }))),

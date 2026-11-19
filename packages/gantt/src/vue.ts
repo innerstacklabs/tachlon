@@ -93,8 +93,7 @@ const component = defineComponent({
       };
     };
     onMounted(start);
-    watch(() => [props.schedule, props.document, props.tasks, props.links, props.dataDate, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts], start);
-    watch(() => props.records, send);
+    watch(() => [props.schedule, props.document, props.tasks, props.links, props.dataDate, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.records], (now, before) => (now.slice(0, -1).some((value, i) => value !== before[i]) ? start() : send(props.records))); // `records` is last: any other prop that changed mounts again, in whatever order the host wrote them
     // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
     watch(() => props.capabilities, (profile) => live?.chart.setCapabilities(profile));

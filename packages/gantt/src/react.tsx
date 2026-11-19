@@ -43,14 +43,14 @@ export type GanttProps<F extends Fields | undefined = undefined> = MountOptions<
 type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 
 /** `update` is synchronous, so a chart that is mounted answers at once; with none mounted (a start is pending) the start sends `records` when it has settled. */
-function sendRecords<F extends Fields | undefined>(chart: Chart<F> | undefined, props: GanttProps<F>): void {
-  if (chart !== undefined && props.records !== undefined) props.onUpdate?.(chart.update(props.records));
+function sendRecords<F extends Fields | undefined>(chart: Chart<F> | undefined, props: GanttProps<F>, applied: { current: GanttProps<F>["records"] }): void {
+  if (chart !== undefined && props.records !== undefined) props.onUpdate?.(chart.update((applied.current = props.records)));
 }
 
 export function Gantt<F extends Fields | undefined = undefined>(props: GanttProps<F>): JSX.Element {
   const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly, capabilities, records, className, style } = props;
   const root = useRef<HTMLDivElement>(null);
-  const latest = useRef(props);
+  const latest = useRef(props), applied = useRef<GanttProps<F>["records"]>(undefined); // `applied`: the `records` the chart started with or was last sent
   const queue = useRef<Promise<void>>(Promise.resolve());
   const live = useRef<{ chart: Chart<F>; heard: Map<string, () => void>; loaded: boolean } | null>(null);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
@@ -82,7 +82,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
   // One start at a time: StrictMode runs this effect, its cleanup and the effect again before the first `mount` has settled, and two
   // charts must never start in one root. A start whose cleanup has already run never mounts.
   useEffect(() => {
-    const given = latest.current.records;
+    applied.current = latest.current.records;
     let started: Chart<F> | undefined;
     let stopped = false;
     queue.current = queue.current.then(async () => {
@@ -97,7 +97,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
       live.current = { chart: started, heard: new Map(), loaded: false };
       try { started.setReadOnly(latest.current.readOnly === true), started.setCapabilities(latest.current.capabilities); } catch (error) { return setFailure({ error }); } // a change while `mount` was pending found no chart to switch; a profile the chart rejects fails like a start
       listen();
-      for (const call of [() => latest.current.onReady?.(started as Chart<F>), () => latest.current.records !== given && sendRecords(started, latest.current)]) {
+      for (const call of [() => latest.current.onReady?.(started as Chart<F>), () => !stopped && latest.current.records !== applied.current && sendRecords(live.current?.chart, latest.current, applied)]) {
         try { call(); } catch (error) { reportError(error); } // a handler that throws must not stall the queue the next mount waits on
       }
     });
@@ -112,7 +112,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
   // `readOnly` switches the chart that is mounted and never mounts it again; a chart that mounts later starts on the latest value.
   useEffect(() => live.current?.chart.setReadOnly(readOnly === true), [readOnly]);
   useEffect(() => live.current?.chart.setCapabilities(capabilities), [capabilities]);
-  useEffect(() => sendRecords(live.current?.chart, latest.current), [records]);
+  useEffect(() => sendRecords(live.current?.chart, latest.current, applied), [records]);
 
   // Only the events that have a handler are listened for, since a handler for some of them changes what a key does.
   const names = (Object.keys(EVENTS) as (keyof GanttEvents)[]).filter((name) => props[EVENTS[name]] !== undefined).join();

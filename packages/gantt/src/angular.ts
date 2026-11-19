@@ -65,6 +65,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   private queue: Promise<void> = Promise.resolve();
   private stopStart = (): void => {};
   private viewed = false;
+  private applied?: Parameters<Chart<F>["update"]>[0]; // the `records` the chart started with or was last sent
   private chart?: Chart<F>;
 
   constructor(
@@ -91,7 +92,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   private send(): void {
     const { chart, records } = this;
     if (chart === undefined || records === undefined) return;
-    const result = chart.update(records);
+    const result = chart.update((this.applied = records));
     this.zone.run(() => this.update.emit(result));
   }
 
@@ -100,7 +101,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   // subscriber when the chart mounts are listened for.
   private start(): void {
     this.stopStart();
-    const given = this.records;
+    this.applied = this.records;
     let started: Chart<F> | undefined;
     let stopped = false;
     let stops: (() => void)[] = [];
@@ -118,7 +119,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
       try { chart.setCapabilities(this.capabilities); } catch (error) { return void this.errors.handleError(error); } // a profile the chart rejects fails like a start
       stops = EVENTS.filter(([output]) => this[output].observed).map(([output, name]) => (chart.on as Listen)(name, (detail) => this.zone.run(() => (this[output] as EventEmitter<unknown>).emit(detail))));
       this.zone.run(() => this.ready.emit(chart));
-      if (this.records !== given) this.send();
+      if (!stopped && this.records !== this.applied) this.send();
     });
     this.stopStart = () => {
       stopped = true;
