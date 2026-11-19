@@ -356,6 +356,42 @@ export function Schedule({ tasks, links, reload }: { tasks: Task[]; links: Link[
 - **A handler that resolves with an object that has an `error`, `errors` or `userErrors` member is read as saved,** and the console warns once for that handler. The check reads the top level only: a client that nests `userErrors` deeper is not caught, so its handler throws when it finds one.
 - **The chart reads the object it holds at each call,** so a new `save` object on every render is safe. A change whose handler is missing stops saving, with a console error.
 
+A host that saves a whole commit at once, through a batch route, a transaction or a command stack of its own, gives `save` a function in place of the object. The chart calls it with the change set of each commit, `{ id, seq, source, changes }`, in the order the person made them and one at a time: the next call waits until the one before has resolved. Each change is `{ record, op, key, set, was, once }`, in your names, and `once` is its idempotency key. This function sends each change to its own route:
+
+```tsx
+import { Gantt, type Save } from "tachlon/react";
+import { SaveRefused } from "tachlon";
+import "tachlon/gantt.css";
+import type { Task, Link } from "./api-types"; // your own rows
+
+const fields = {
+  tasks: { key: "id", name: "title", start: "plannedStart", duration: "days", parent: "parentId" },
+  links: { key: "id", from: "source", to: "target" },
+};
+
+const routes = { task: "/api/tasks", link: "/api/links", schedule: "/api/schedule" };
+const methods = { create: "POST", update: "PATCH", delete: "DELETE" };
+
+const save: Save = async ({ changes }) => {
+  for (const c of changes) {
+    const url = c.op === "create" || c.record === "schedule" ? routes[c.record] : `${routes[c.record]}/${encodeURIComponent(c.key!)}`;
+    const headers = { ...(c.set ? { "content-type": "application/json" } : {}), "idempotency-key": c.once };
+    const res = await fetch(url, { method: methods[c.op], headers, body: JSON.stringify(c.set), signal: AbortSignal.timeout(10_000) });
+    if (res.status === 409 || res.status === 422) throw new SaveRefused({ message: (await res.json()).message }); // the server judged the change and said no
+    if (!res.ok) throw new Error(`save failed: ${res.status}`); // any other throw leaves the edit unsaved and stops saving
+  }
+};
+
+export function Schedule({ tasks, links, reload }: { tasks: Task[]; links: Link[]; reload: () => void }) {
+  return <Gantt tasks={tasks} links={links} fields={fields} dateForm="day"
+    save={save} onError={(e) => e.source === "save" && reload()} style={{ height: 480 }} />;
+}
+```
+
+- **A `SaveRefused` puts that commit and every commit made after it back,** and the chart shows its `message` with the number of edits put back and fires `error` with the source `"save"`; read your data again there, as the example does.
+- **A batch endpoint is one request in place of the loop.** Send `changes` whole and make the one server transaction all or nothing, so a refusal puts back the whole commit.
+- **The chart reads the function it holds when it sends a commit,** so passing a new `save` between two edits is safe: the second edit goes to the new function. The React, Vue and Angular components do not mount the chart again for it.
+
 ## Stop the chart
 
 `chart.destroy()` stops the frame loop, frees the engine, and empties the element. Call it when the page removes the chart. It is safe to call twice; every other method throws once it has run, except `chart.commands`, whose calls return `undefined`.
