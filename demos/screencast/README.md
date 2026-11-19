@@ -14,6 +14,7 @@ scroll, a drag or a zoom from it would misstate it.
 | A drag, a scroll, a zoom, a fling, or a caption that claims speed | The MacBook | `demos/screencast/run.sh` (the story and the feature clips) |
 | A still or near-still clip with no animation claim, such as `open-a-schedule.mp4` | The hub is fine, into a scratch folder; an agent copies it into the book by hand (see below) | `demos/screencast/clip.mjs` |
 | A book chapter still (`j2-navigate`, `j4-checks`, `j5-print`, `j6-build`, `j7-change`, `j8-progress`, `j9-save`, `keys`) | The hub is fine, into a scratch folder; copy by hand as above | `demos/screencast/stills.mjs --out <scratch dir>` (`--dry` lists the stills with no browser; `--only <still>` writes one) |
+| The product page's nine pictures of the chart (`apps/site/shots/*.webp`, not `video-poster.webp`) | The hub is fine: a still, no frame rate. It writes into `apps/site/shots` (or `--out`) at the sizes and crops the page's `<img>` tags name | `demos/screencast/site-shots.mjs` (`--dry` lists the names; `--only <name>` writes one). It takes the chart's colors from the two `.gantt[data-theme]` rules in `apps/site/home.css`, so a change to the page's identity is one run |
 | A draft you look at and throw away | The hub, into a folder outside `book/src/media` | `demos/screencast/run.sh --local` writes `demos/screencast/draft/` |
 
 Two guards keep a hub recording of motion out of the repo:
