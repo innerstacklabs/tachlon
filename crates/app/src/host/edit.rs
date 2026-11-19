@@ -11,7 +11,7 @@ impl Session {
     ///
     /// # Errors
     ///
-    /// An [`UpdateError`], as `update_tasks` gives, or `hasActuals`;
+    /// An [`UpdateError`], as `update_tasks` gives, `hasActuals` or `notUndoable`;
     /// the schedule, the history and the outbox are then as they were.
     pub fn host_edit(&mut self, json: &str) -> Result<Updated, UpdateError> {
         let (updated, planned) = self.apply_records(json, true)?;

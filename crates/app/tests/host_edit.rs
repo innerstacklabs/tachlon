@@ -114,7 +114,29 @@ fn a_busy_press_answers_busy_and_a_read_only_chart_takes_the_call_without_asking
 }
 
 #[test]
-fn a_start_floor_on_a_task_with_actuals_is_refused_and_an_unchanged_call_adds_no_step() {
+fn each_member_class_applies_undoes_and_redoes() {
+    let extras = Extras {
+        name: "u",
+        notes: &[],
+        source: None,
+    };
+    let members = r#""name":"New"|"duration":120|"start":"2026-01-12"|"snlt":"2026-01-15"|"fnet":"2026-01-16"|"fnlt":"2026-01-20""#;
+    for member in members.split('|') {
+        let mut s = renamed();
+        let before = write(&s, &extras);
+        s.host_edit(&format!(r#"[{{"key":"a",{member}}}]"#))
+            .unwrap();
+        let after = write(&s, &extras);
+        assert_ne!(after, before, "{member}");
+        assert!(s.undo().unwrap());
+        assert_eq!(write(&s, &extras), before, "{member}");
+        assert!(s.redo().unwrap());
+        assert_eq!(write(&s, &extras), after, "{member}");
+    }
+}
+
+#[test]
+fn a_record_whose_undo_would_be_refused_is_refused_and_an_unchanged_call_changes_nothing() {
     let mut s = renamed();
     let edit = Edit::SetProgress {
         task: TaskId(1),
@@ -123,12 +145,22 @@ fn a_start_floor_on_a_task_with_actuals_is_refused_and_an_unchanged_call_adds_no
         remaining: None,
     };
     s.edit(edit).unwrap();
-    let error = s
-        .host_edit(r#"[{"key":"b","snet":"2026-01-12"}]"#)
-        .unwrap_err();
-    assert_eq!((error.kind, error.record), ("hasActuals", Some(0)));
+    let task = TaskId(2);
+    let name = "x / y".into();
+    s.apply(Edit::Rename { task, name }).unwrap();
+    s.take_commits();
+    let before = (s.history_len(), s.revision());
+    for (record, kind) in [
+        (r#"{"key":"b","duration":1}"#, "hasActuals"),
+        (r#"{"key":"a","progress":50}"#, "hasActuals"),
+        (r#"{"key":"c","name":"N"}"#, "notUndoable"),
+    ] {
+        let error = s.host_edit(&format!("[{record}]")).unwrap_err();
+        assert_eq!((error.kind, error.record), (kind, Some(0)), "{record}");
+    }
     let duration = s.schedule().tasks()[2].duration;
-    s.host_edit(&format!(r#"[{{"key":"c","duration":{duration}}}]"#))
-        .unwrap();
-    assert_eq!(s.history_len(), (2, 0));
+    let same = format!(r#"[{{"key":"c","duration":{duration}}}]"#);
+    assert_eq!(s.host_edit(&same).unwrap().solves, 0);
+    assert_eq!((s.history_len(), s.revision()), before);
+    assert!(s.take_commits().starts_with(r#"{"commits":[],"#));
 }

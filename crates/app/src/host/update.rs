@@ -70,10 +70,9 @@ struct Progress {
 }
 
 impl Values {
-    /// The steps that put `old` back where `self` is, one for each of the name, duration, start floor, limits
-    /// and progress that differ, in the order a call sets them: an undo runs them newest first.
+    /// The steps that put `old` back where `self` is, one for each of the name, duration, start floor and limits
+    /// that differ, in the order a call sets them: an undo runs them newest first.
     pub(super) fn steps_back(&self, old: &Values, task: TaskId) -> Vec<Step> {
-        let was = self.progress.zip(old.progress).filter(|(a, b)| a != b);
         [
             (self.name != old.name).then(|| Edit::Rename {
                 task,
@@ -90,12 +89,6 @@ impl Values {
             (self.limit != old.limit).then(|| Edit::SetLimit {
                 task,
                 limit: old.limit,
-            }),
-            was.map(|(_, p)| Edit::SetProgress {
-                task,
-                actual_start: p.start,
-                actual_finish: p.finish,
-                remaining: p.remaining,
             }),
         ]
         .into_iter()
@@ -127,8 +120,8 @@ impl Session {
     }
 
     /// [`Session::update_tasks`]'s work, answering the records written beside what each held, for
-    /// [`Session::host_edit`]. With `undoable` a call that changes the start floor of a task with actuals
-    /// is refused as a typed move is, because the step that puts the floor back would be.
+    /// [`Session::host_edit`]. With `undoable` a record whose Undo the engine would refuse is refused
+    /// (`hasActuals`, `notUndoable`), and a call that changes no value answers without a solve.
     pub(super) fn apply_records(
         &mut self,
         json: &str,
@@ -154,6 +147,21 @@ impl Session {
             };
             planned.push((task, self.read_values(at, task, record)?));
         }
+        if undoable {
+            self.undo_refusal(&planned)?;
+            if (planned.iter()).all(|(task, (new, old))| new.steps_back(old, *task).is_empty()) {
+                let differs = self.differences(records, &planned);
+                let tasks = planned.len();
+                return Ok((
+                    Updated {
+                        tasks,
+                        solves: 0,
+                        differs,
+                    },
+                    planned,
+                ));
+            }
+        }
         let progress = planned.iter().any(|(_, (new, _))| new.percent.is_some());
         let mixed = progress
             && records.iter().any(|record| {
@@ -164,11 +172,7 @@ impl Session {
         let mut done = Vec::with_capacity(planned.len());
         for (at, (task, (new, old))) in planned.iter().enumerate() {
             done.push((*task, old.clone()));
-            let t = &self.schedule.tasks()[task.0 as usize];
-            let started = t.actual_start.or(t.actual_finish).is_some();
-            let refused =
-                (undoable && started && new.snet != old.snet).then_some(EditError::HasActuals);
-            if let Some(error) = refused.or_else(|| self.put(*task, new).err()) {
+            if let Err(error) = self.put(*task, new) {
                 self.put_back(&done);
                 return Err(UpdateError::new(error.kind(), Some(at), None));
             }
@@ -199,6 +203,27 @@ impl Session {
             differs: self.differences(records, &planned),
         };
         Ok((updated, planned))
+    }
+
+    /// The first record of `planned` whose Undo the engine would refuse: one that sets progress (it writes
+    /// actual dates) or changes a task that has them (`hasActuals`), or renames a task whose old name a
+    /// rename refuses (`notUndoable`).
+    fn undo_refusal(&self, planned: &[Written]) -> Result<(), UpdateError> {
+        for (at, (task, (new, old))) in planned.iter().enumerate() {
+            let t = &self.schedule.tasks()[task.0 as usize];
+            let held = t.actual_start.or(t.actual_finish).is_some();
+            let (task, name) = (*task, old.name.clone());
+            let back = Edit::Rename { task, name };
+            let kind = if new.percent.is_some() || held && !new.steps_back(old, task).is_empty() {
+                "hasActuals"
+            } else if new.name != old.name && back.check_typed().is_err() {
+                "notUndoable"
+            } else {
+                continue;
+            };
+            return Err(UpdateError::new(kind, Some(at), None));
+        }
+        Ok(())
     }
 
     /// Each `hostStart` and `hostFinish` in `planned` that is not its task's early start or finish, as JSON.

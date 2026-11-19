@@ -28,6 +28,7 @@ export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["
     return Object.freeze({ ok: true, updated: answer.updated!, ...(differs === undefined ? {} : { differs }) });
   }
   const key = (records[answer.record ?? -1] as { key?: unknown } | undefined)?.key;
-  const why = answer.reason === "hasActuals" ? `task ${String(key)} has actual dates, so hostEdit cannot move its start (an Undo could not put it back); call update, which moves it without an undo step` : `${answer.reason}${answer.record === undefined ? "" : ` in record ${answer.record}`}${answer.member === undefined ? "" : ` (${answer.member})`}`;
+  const undo = ({ hasActuals: "has actual dates, or the record sets them", notUndoable: "has a name an Undo could not put back" } as Record<string, string>)[answer.reason];
+  const why = undo !== undefined ? `task ${String(key)} ${undo}, so hostEdit cannot take it; call update, which sets it without an undo step` :`${answer.reason}${answer.record === undefined ? "" : ` in record ${answer.record}`}${answer.member === undefined ? "" : ` (${answer.member})`}`;
   return Object.freeze({ ...answer, message: `Nothing changed: ${why}.`, ...(typeof key === "string" ? { key } : {}) });
 }

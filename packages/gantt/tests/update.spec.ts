@@ -219,10 +219,12 @@ test("hostEdit then a typed rename: two Undo keystrokes take the rename back, th
   expect(await minutes(page, ["k0", "k1"]), "the second takes back the host durations").toEqual([960, 960]);
 });
 
-test("hostEdit refuses a start on a task with actual dates, names the task and says to call update, which sets it", async ({ page }) => {
+test("hostEdit refuses a record that sets progress or changes a task with actual dates, names the task and says to call update, which sets it", async ({ page }) => {
   await mountHost(page, { tasks: tasks(3) });
-  expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k0", progress: 50 }]))).toEqual({ ok: true, updated: 1 });
+  const progress = { key: "k0", progress: 50 };
+  expect((await page.evaluate((r) => window.upChart.hostEdit([r]), progress) as { reason: string }).reason).toBe("hasActuals");
+  expect(await page.evaluate((r) => window.upChart.update([r]), progress)).toEqual({ ok: true, updated: 1 });
   const start = { key: "k0", snet: "2026-03-09" };
-  expect((await page.evaluate((r) => window.upChart.hostEdit([r]), start) as { message: string }).message).toBe("Nothing changed: task k0 has actual dates, so hostEdit cannot move its start (an Undo could not put it back); call update, which moves it without an undo step.");
+  expect((await page.evaluate((r) => window.upChart.hostEdit([r]), start) as { message: string }).message).toBe("Nothing changed: task k0 has actual dates, or the record sets them, so hostEdit cannot take it; call update, which sets it without an undo step.");
   expect(await page.evaluate((r) => window.upChart.update([r]), start)).toEqual({ ok: true, updated: 1 });
 });
