@@ -26,5 +26,5 @@ test("the_headless_and_schema_entries_load_in_node", async () => {
 test("the_angular_entry_is_what_ngc_wrote", () => {
   const read = (file: string): string => readFileSync(new URL(file, dir), "utf8");
   expect(read("dist-lib/angular.js")).toContain("ɵɵngDeclareComponent");
-  expect(read("dist-lib/types/angular.d.ts")).toContain("ɵɵComponentDeclaration<Gantt, \"gantt-chart\"");
+  expect(read("dist-lib/types/angular.d.ts")).toContain("ɵɵComponentDeclaration<Gantt<any>, \"gantt-chart\"");
 });
