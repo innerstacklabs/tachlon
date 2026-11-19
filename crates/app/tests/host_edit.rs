@@ -178,3 +178,24 @@ fn a_record_in_a_group_the_profile_turned_off_is_refused() {
     assert_eq!(got, ("notAllowed", Some("changing names")));
     assert_eq!((s.history_len(), s.revision()), before);
 }
+
+#[test]
+fn a_record_whose_put_back_the_profile_does_not_store_is_refused() {
+    for case in [
+        r#"{"durationStep":"days"}|"duration":90|"duration":1920|durations in whole days"#,
+        r#"{"kinds":["snet"]}|"snlt":"2026-01-09"|"snlt":"2026-01-12"|no snlt limit"#,
+    ] {
+        let [profile, held, call, what] = case.split('|').collect::<Vec<_>>()[..] else {
+            panic!()
+        };
+        let record = |member| format!(r#"[{{"key":"b",{member}}}]"#);
+        let mut s = renamed();
+        s.update_tasks(&record(held)).unwrap();
+        s.set_capabilities(profile).unwrap();
+        let before = (s.history_len(), s.revision());
+        let error = s.host_edit(&record(call)).unwrap_err();
+        let got = (error.kind, error.member.as_deref());
+        assert_eq!(got, ("notAllowed", Some(what)));
+        assert_eq!((s.history_len(), s.revision()), before);
+    }
+}

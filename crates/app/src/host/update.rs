@@ -2,12 +2,12 @@
 //! edit: no gate, no undo step, no outbox commit, and `revision` stays; `stamp` rises, so the table
 //! redraws. Every record is read before a value is written, and a refusal puts every value back.
 
-use super::read::read_duration;
+use super::{Plan, read::read_duration};
 use crate::{
     Session,
     document::json_read::{Value, parse},
     edit::{Edit, EditError},
-    history::Step,
+    history::{Source, Step},
     json::quote,
 };
 use engine::{Instant, Limit, Minutes, TaskId};
@@ -206,8 +206,8 @@ impl Session {
     }
 
     /// The first record of `planned` whose Undo would be refused: one that sets progress (it writes actual dates)
-    /// or changes a task that has them (`hasActuals`), or changes a group of fields the capability profile turned
-    /// off (`notAllowed`, the group named in `member`): an Undo is a person changing those fields.
+    /// or changes a task that has them (`hasActuals`), or whose put-back the profile check of Undo's gate refuses
+    /// (`notAllowed`, what it names in `member`): the same function answers, so no copy of it can fall behind.
     fn undo_refusal(&self, planned: &[Written]) -> Result<(), UpdateError> {
         for (at, (task, (new, old))) in planned.iter().enumerate() {
             let t = &self.schedule.tasks()[task.0 as usize];
@@ -218,8 +218,13 @@ impl Session {
             if new.percent.is_some() || held && !back.is_empty() {
                 return Err(UpdateError::new("hasActuals", Some(at), None));
             }
-            if let Some(what) = self.turned_off(&back) {
-                return Err(UpdateError::new("notAllowed", Some(at), Some(what)));
+            if let Err(error) = self.refuse_unallowed(&Plan::Group(&back, Source::Host)) {
+                let what = match &error {
+                    EditError::NotAllowed(what) => Some(*what),
+                    EditError::NotStored(what) => Some(what.as_str()),
+                    _ => None,
+                };
+                return Err(UpdateError::new(error.kind(), Some(at), what));
             }
         }
         Ok(())
