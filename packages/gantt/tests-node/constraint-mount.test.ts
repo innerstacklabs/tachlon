@@ -31,6 +31,9 @@ test("a row with a constraint needs no start to validate, and still needs one wi
   const task = { id: 1, name: "A" };
   expect(validate({ tasks: [{ ...task, constraint: { type: "fnlt", date: "2026-03-20" } }, { id: 2, name: "B", constraint: null }] })).toEqual({ ok: true });
   expect(validate({ tasks: [task] }).ok).toBe(false);
+  const startless = (row: Record<string, unknown>) => fromTasks({ tasks: [{ ...task, duration: 2, ...row }] }).document.tasks[0]!;
+  expect(startless({ constraint: { type: "snet", date: "2026-03-09" } }).snet, "the constraint is the floor, with no start").not.toBeNull();
+  expect([startless({ constraint: { type: "fnlt", date: "2026-03-20" } }).snet, startless({ constraint: null }).snet], "a limit that is no floor, and null, leave none").toEqual([null, null]);
   const twice = validate({ tasks: [{ ...task, constraint: { type: "snet", date: "2026-03-09" }, fnet: "2026-03-20" }] });
   expect(twice.ok === false && twice.issues.map((issue) => issue.path)).toEqual(["tasks[0].fnet"]);
   expect(() => floorOf({ constraint: { type: "snet", date: "2026-03-09" }, fnet: "2026-03-20" })).toThrow(/constraint or this member/);

@@ -26,7 +26,7 @@ export interface PlainTask {
   id: string | number;
   calendar?: string;
   name: string;
-  start: string;
+  start?: string;
   end?: string;
   duration?: number;
   parent?: string | number;
