@@ -68,7 +68,7 @@ export interface MountOptions {
   options?: ScheduleOptions;
   /** The working calendars of the plain `tasks` (`PlainCalendar`): a task's `calendar` names one by `key`, and the first is every other task's. Without them the one Monday to Friday calendar, 08:00 to 17:00 with an hour at noon, is used. Read with `tasks`, and ignored when there is a `schedule` or a `document`. */
   calendars?: PlainCalendar[];
-  /** What the plain `tasks` count `duration`, `remaining` and `lag` in: `"days"` (default; a day is the working day of the calendar that measures the value), `"hours"` or `"minutes"`. Read with `tasks`, and kept no longer than they are. It is also the unit of `update`'s `duration`, for the life of the chart, whatever the schedule was read from.
+  /** What `duration`, `remaining` and `lag` are counted in, in the plain `tasks`, in `update`, and in each change the chart tells you of (an `edit` event, a `save` change set, a before-edit call): `"days"` (default; a day is the working day of the calendar that measures the value), `"hours"` or `"minutes"`. For `tasks` it is read with them and kept no longer than they are; for `update` and the changes it holds for the life of the chart, whatever the schedule was read from.
    * @defaultValue `"days"` */
   durationUnit?: "days" | "hours" | "minutes";
   /** The form of every date the chart tells you of in an `edit` event, a `save` change set and a before-edit call: `"minute"` (default) is `YYYY-MM-DDTHH:mm`, `"day"` is `YYYY-MM-DD`, a finish as the last day worked (the day of its instant less one minute). The durations and lags there are in `durationUnit`, whatever the schedule was read from.
@@ -87,7 +87,7 @@ export interface MountOptions {
   capabilities?: HostCapabilities;
   /** A function the chart asks before each change a person makes; it can refuse the change with a reason the chart shows (README, "Control editing"). Without it every change goes ahead. */
   beforeEdit?: BeforeEdit;
-  /** The host's save function (`Save`): the chart calls it with each commit's change set, one call at a time, in the order the commits were made, and puts an edit back when it throws a `SaveRefused`. Without it the chart saves nothing and the host reads the `edit` event. React, Vue and Angular ask the latest function and never mount the chart again for a new one. */
+  /** The host's save function (`Save`): the chart calls it with each commit's change set, one call at a time, in the order the commits were made, and puts an edit back when it throws a `SaveRefused`. Without it the chart saves nothing and the host reads the `edit` event. React, Vue and Angular ask the latest function when a change set is sent, never mount the chart again for a new one, and send nothing while there is none. */
   save?: Save;
   /** Where to fetch the engine file (`app_bg.wasm`) from, a URL or an address read against the page's own. Without it the chart loads the file beside its script (`dist-lib/app_bg.wasm`). When `preloadEngine` already started the load, its `wasmUrl` is the one used. */
   wasmUrl?: string | URL;

@@ -57,7 +57,7 @@ export interface GanttEvents {
    * WebGL2 that could not start), and only a reload of the page brings it back; the host decides whether to do that.
    * A save the host refused puts the edits back and fires `error` once with the source `save` and a `SaveError`.
    */
-  error: { source: ErrorSource; message: string; fatal: boolean; projects?: readonly PickerProject[] } | (SaveError & { projects?: undefined });
+  error: { source: Exclude<ErrorSource, "save">; message: string; fatal: boolean; projects?: readonly PickerProject[] } | (SaveError & { projects?: undefined });
   /** The chart's find key (Ctrl+F, Cmd+F) was pressed while focus was in it: a host puts focus in its find box. With a handler the browser's own find does not open. */
   find: Record<string, never>;
   /** The chart's status key (`s`) was pressed while focus was in it: a host shows or hides its status line. */
@@ -96,7 +96,7 @@ export interface Events {
   /** Fire the events `s` shows against the status before it. */
   watch(s: Status): void;
   /** Fire `error`; `fatal` when the chart has stopped. */
-  fail(source: ErrorSource, message: string, fatal?: boolean, projects?: readonly PickerProject[]): void;
+  fail(source: Exclude<ErrorSource, "save">, message: string, fatal?: boolean, projects?: readonly PickerProject[]): void;
   /** Fire `error` for a save the host refused, after the chart put the edits back. */
   putBack(error: SaveError): void;
   /**

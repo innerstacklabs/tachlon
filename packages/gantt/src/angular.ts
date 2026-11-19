@@ -3,6 +3,7 @@
 // `mount` and its types, imported by relative path, so the page loads the chart once, whether it imports the package's main entry as well or not.
 // It is compiled by `ngc` (`pnpm build:ng`, tsconfig.ng.json), the way an Angular library is built: the partial compilation it writes is what an app's own build links.
 import { Component, ElementRef, ErrorHandler, EventEmitter, Input, NgZone, Output, type AfterViewInit, type OnChanges, type OnDestroy, type SimpleChanges } from "@angular/core";
+import { liveSave } from "./save-queue.js";
 import { mount, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
 
 const INPUTS = ["schedule", "document", "tasks", "links", "dataDate", "mustFinishBy", "calendars", "durationUnit", "dateForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
@@ -16,7 +17,7 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
  * Give a listener for `chartFind` or `chartChooseFile` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
  * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
- * `save` is called as each change set is sent, with the latest function the component was given, so a new function never mounts the chart again.
+ * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `(ready)` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
  * The component's element is the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. The chart runs outside
  * Angular's zone and each output emits inside it. A start that fails goes to the app's `ErrorHandler`.
@@ -91,7 +92,7 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
       if (stopped) return;
       const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts } = this;
       try {
-        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: this.save === undefined ? undefined : (changeSet) => this.save!(changeSet) }));
+        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
       } catch (error) {
         return void (stopped || this.errors.handleError(error));
       }

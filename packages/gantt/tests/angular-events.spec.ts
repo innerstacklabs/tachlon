@@ -57,6 +57,16 @@ test("a new `readOnly` switches the chart that is mounted, without mounting it a
   expect.soft(await page.evaluate("hold()"), "a change while `mount` is pending is applied once it settles").toEqual([false, true, false, true]);
 });
 
+test("a `save` added or removed after the mount is read when a change set is sent, and mounts nothing", async ({ page }) => {
+  const base = server.resolvedUrls!.local[0]!;
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction("window.start");
+  await page.evaluate("start()");
+  expect.soft(await page.evaluate("later(true)"), "a save added after the mount is called by the chart that is mounted").toEqual({ mounts: 1, answer: "sent" });
+  expect.soft(await page.evaluate("later(false)"), "removed again, there is nothing to call and nothing throws").toEqual({ mounts: 1, answer: "none" });
+});
+
 test("a new `capabilities` reaches the chart that is mounted without mounting it again, and a chart that mounts again gets the latest", async ({ page }) => {
   const base = server.resolvedUrls!.local[0]!;
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));

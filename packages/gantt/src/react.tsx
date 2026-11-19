@@ -2,6 +2,7 @@
 // mount options as props and the chart's events as callbacks. It uses only what the entry exports, `mount` and its types, imported by relative path, so
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
+import { liveSave } from "./save-queue.js";
 import { mount, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
 export type { ChangeSet, Save, SaveError, SaveResult } from "./index.js";
 
@@ -26,7 +27,7 @@ const EVENTS = {
  * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
  * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `tasks`, `links`, `texts` and `fonts` stable between renders.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
- * `save` is called as each change set is sent, with the latest function the component was given, so a new function never mounts the chart again.
+ * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `wasmUrl` is where the page serves the engine file, for an app that does not serve it next to the chart (a Next.js app serves it from `public/`).
  * `onReady(chart)` is called once each time the chart mounts, with the chart `mount` resolved to (to call `load` or `open` on it), and never
  * for a chart that was removed first; the chart is gone at the unmount, so drop what you kept. `className` and `style` are the chart's root,
@@ -79,7 +80,7 @@ export function Gantt(props: GanttProps): JSX.Element {
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: latest.current.save === undefined ? undefined : (changeSet) => latest.current.save!(changeSet) });
+        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;

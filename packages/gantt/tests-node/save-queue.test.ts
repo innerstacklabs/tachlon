@@ -1,8 +1,8 @@
 // The host's save queue (decision 0022, rule 3.3): the host's `save` function gets each commit as a change set, one call at a time, in `seq` order, and a
 // `SaveRefused` puts that commit and the ones behind it back. The app is a fake that answers as `App.rollback_to` does; the browser case is a later row.
-import type { Commit } from "../src/events.ts";
-import type { ChangeSet, SaveError } from "../src/gantt-types.ts";
-import { SaveQueue, SaveRefused } from "../src/save-queue.ts";
+import type { Commit, GanttEvents } from "../src/events.ts";
+import type { ChangeSet, Save, SaveError } from "../src/gantt-types.ts";
+import { liveSave, SaveQueue, SaveRefused } from "../src/save-queue.ts";
 import { mock, test } from "node:test";
 import { expect } from "@playwright/test";
 
@@ -168,4 +168,27 @@ test("a call that is running when the queue stops finishes, and its result is ig
   await settle();
   expect(host.seqs).toEqual([1]);
   expect(app.log).toEqual([]);
+});
+
+test("a live save with none writes no change set and acknowledges nothing; once there is one, a synchronous save that returns nothing has saved", async () => {
+  const app = fakeApp();
+  const uuid = mock.method(globalThis.crypto, "randomUUID");
+  const seen: number[] = [];
+  let current: Save | undefined;
+  const queue = new SaveQueue(app, liveSave(() => current), () => undefined);
+  queue.add([commit(1)]);
+  await settle();
+  expect(uuid.mock.callCount(), "no change set is written").toBe(0);
+  expect(app.log).toEqual([]);
+  current = ((cs: ChangeSet) => void seen.push(cs.seq)) as never;
+  queue.add([commit(2)]);
+  await settle();
+  expect(seen).toEqual([2]);
+  expect(app.log).toEqual(["ack 2"]);
+  mock.restoreAll();
+});
+
+test("an error whose source is save is a SaveError, so a host reads reload and undone with no cast", () => {
+  const read = (e: GanttEvents["error"]) => (e.source === "save" ? [e.reload, e.undone] : []);
+  expect(read({ source: "save", message: "m", fatal: false, reason: "refused", calls: 1, seq: 2, undone: 3, reload: true })).toEqual([true, 3]);
 });
