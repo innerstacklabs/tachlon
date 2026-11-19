@@ -14,7 +14,9 @@ const BUILT: Form[] = ["handlers"];
 /** The scenarios that fail until what they test is built. Each is expected to fail, and the run fails, naming it, when one passes: the row that makes it pass deletes its name here. */
 const PENDING = new Set([
   "1 slow saves", "2 a field refusal", "3 a new row's key", "3 a new row's key, host data first", "4 an edit before the create is saved", "5 a refused create with edits behind it",
-  "6 a server recalculation", "7 an outside change during a save", "8 a late result", "9 an old read", "16 the host's own names",
+  "6 a server recalculation", "7 an outside change during a save", "8 a late result", "9 an old read", "10 a lost response", "11 a failure part of the way",
+  "11 a failure part of the way, a dropped request", "12 undo across the server", "13 the server is away", "14 discard", "15 repeats off", "16 the host's own names",
+  "17 a server that ignores the key, keys chart", "17 a server that ignores the key, keys server", "21 a 500 that applied nothing", "22 an expired login",
 ]);
 
 const scenarios = SCENARIOS.map((s) => ({ ...s, forms: FORMS.filter((f) => !SKIP[f].includes(s.n) && !s.not?.includes(f)) }));
@@ -33,11 +35,19 @@ export default async function (page: Page, url: string): Promise<void> {
             const u = new URL(route.request().url());
             return route.continue({ url: server.url + u.pathname + u.search });
           });
+          // The page's chart records every `error` event in `window.errors` and gets the setting a scenario names (`props`); the page's own code has neither.
+          await run.route((u) => /^\/src\/main[\w-]*\.tsx$/.test(u.pathname), async (route) => {
+            const response = await route.fetch();
+            const [code, chart, own, record] = [await response.text(), "_jsxDEV(Gantt, {", "onError: (e) =>", "void (window.errors ??= []).push(e)"];
+            if (!code.includes(chart)) throw new Error("the page's chart call is not where the suite expects it");
+            const wired = code.includes(own) ? code.replace(own, `${own} ${record} ||`) : code.replace(chart, `${chart} onError: (e) => ${record},`);
+            return route.fulfill({ response, body: wired.replace(chart, `${chart} ${s.props ? `${s.props},` : ""}`) });
+          });
           const crashed = new Promise<never>((_, reject) => run.on("pageerror", reject)); // a page that throws (the chart refusing to mount) ends the scenario at once, not after its waits
           crashed.catch(() => undefined);
           run.setDefaultTimeout(10_000);
           await run.goto(`${url}?keys=${keys}`);
-          const failure = await Promise.race([s.run(run, server, keys), crashed]).then(() => undefined, (e: Error) => e);
+          const failure = await Promise.race([s.run(run, server, keys, form), crashed]).then(() => undefined, (e: Error) => e);
           if (!PENDING.has(s.name)) {
             if (failure) throw new Error(`${label}: ${failure.message}`);
             console.log(`  pass ${label}`);
