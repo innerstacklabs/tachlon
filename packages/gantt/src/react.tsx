@@ -88,7 +88,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount<F>(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: latest.current.fields, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
+        started = await mount<F>(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: latest.current.fields, keys: latest.current.keys, newKey: latest.current.newKey, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;

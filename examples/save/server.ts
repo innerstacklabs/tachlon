@@ -73,7 +73,7 @@ export async function startServer(script: Script = {}): Promise<FakeServer> {
     const table = what === "tasks" ? db.tasks : db.links;
     if (r.method === "POST") {
       const row = parse(kind, r.body ?? {});
-      const key = script.keys === "server" ? `s${++made}` : row.id;
+      const key = script.keys === "server" && row.id === undefined ? `s${++made}` : row.id; // a row that comes back (an undo) carries the key it had
       if (typeof key !== "string") return { status: 400, body: { message: "A new row needs a key" } };
       if (table.has(key)) return { status: 409, body: { message: "A row with that key exists", key } };
       table.set(key, { ...row, id: key });
@@ -96,7 +96,7 @@ export async function startServer(script: Script = {}): Promise<FakeServer> {
       const set = c.set && Object.fromEntries(Object.entries(c.set).map(([k, v]) => [k, swap(v)]));
       const answer = apply({ ...r, method: METHOD[c.op as keyof typeof METHOD], path, key: key ?? undefined, body: set });
       if (answer.status >= 300) return (Object.assign(db, before), answer);
-      if (typeof c.ref === "string") keys.push({ ref: c.ref, key: `s${made}` });
+      if (typeof c.ref === "string") keys.push({ ref: c.ref, key: typeof c.key === "string" ? c.key : `s${made}` });
     }
     const more = script.changed?.(r, db);
     for (const row of more ?? []) Object.assign(db.tasks.get(row.id as string) ?? {}, row);

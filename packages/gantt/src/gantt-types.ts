@@ -29,9 +29,9 @@ export interface HostDifference { record: number; key: string; member: "start" |
 export type UpdateResult = { ok: true; updated: number; differs?: readonly HostDifference[] } | (Refusal & { key?: string });
 
 /** One undo step as a host's save function gets it (decision 0022, rule 2.1): `id` is a UUID that is new for each change set and the same on every call of it, `seq` and `source` are the commit's, and each change is the `edit` event's without the session slots, with `once`, its idempotency key `<id>:<n>` (`n` from 0). */
-export interface ChangeSet { id: string; seq: number; source: CommitSource; changes: readonly (Omit<Change, "task" | "link"> & { once: string })[] }
+export interface ChangeSet { id: string; seq: number; source: CommitSource; changes: readonly (Omit<Change, "task" | "link"> & { once: string; ref?: string })[] }
 
-/** What a save function may resolve with. The chart does not read it yet: a function that resolves has saved the change set. */
+/** What a save function may resolve with: with `keys: "server"`, one `{ ref, key }` for each create that carries a `ref` (a mount with `keys: "chart"` puts back a result that has `keys`). Otherwise a function that resolves has saved the change set. */
 export interface SaveResult { keys?: readonly { ref: string; key: string }[] }
 
 /** The host's save function: it gets each change set the person's edits make, one at a time, in the order made, and resolves when the server has it. Throw a `SaveRefused` when the server judged the change and said no: the chart puts that edit and the ones made after it back and fires `error` with the source `save`. */
@@ -58,7 +58,7 @@ export interface Handlers {
 }
 
 /** The `error` event of a put-back, fired once, after it. `calls`: how many times `save` ran for the change set; `key` and `field` are the refusal's; `seq`: the refused commit's; `undone`: how many commits the chart put back, a `hostEdit` made after the refused one too (send it again); `reload`: the chart could not put itself back (the commit had left its history), so the host reads its data again. */
-export interface SaveError { source: "save"; message: string; fatal: false; reason: "refused"; calls: number; key?: string; field?: string; seq: number; undone: number; reload: boolean }
+export interface SaveError { source: "save"; message: string; fatal: false; reason: "refused" | "result"; calls: number; key?: string; field?: string; seq: number; undone: number; reload: boolean }
 
 /** What a host's database can take, as the host tells the chart (`mount`'s `capabilities`, `Gantt.setCapabilities`). Each member is on unless it is `false`. A change a person makes that a member turned off is refused with `"notAllowed"` on every path, undo and redo included, and the chart says the host does not allow it; a bar, edge or link drag says it in the drag note. `gestures` turns off moving a bar, stretching it and drawing a link. `editable` turns off a group of fields: `rows` (adding and deleting rows), `outline` (indent, outdent and move), `paste`, `names`, `dates` (start, duration and the date limits), `links`, `progress` (actual dates, remaining, percent and the data date) and `baseline`. What the database stores: `kinds` lists the date limits it takes (all seven when left out), `perTask` is the most it takes for one task (a start no earlier than counts), `durationStep` and `lagStep` say a duration or lag is a whole number of minutes, hours or days (a day is the length of that task's calendar day), and `dates: "day"` says a date has no time of day (a start at its calendar's opening and a finish at its closing count as none). A change outside them is refused with `"notAllowed"` and says what the host stores; a bar drag that would make one is refused. A member the chart does not have is an error. */
 export interface HostCapabilities {
@@ -128,6 +128,11 @@ export interface MountOptions<F extends Fields | undefined = undefined> {
   texts?: Readonly<Record<string, string>>;
   /** Write the assistant's chat panel into `into`, an element of the host's own (the panel is styled as the chart is, from a `.gantt` element at or above `into`, or its own where there is none): each message sent runs a turn that calls `send`, the host's call to its own model (the whole conversation in, the model's next reply out), so the page sends the conversation nowhere else. Without it the page has no panel and sends nothing. A switch to WebGL2 starts the panel again with an empty history. */
   assistant?: { send: Send; into: HTMLElement };
+  /** Who makes the key of a row the person creates, when `save` is set: `"chart"` (default) makes it before the change set is written, with `newKey` or `crypto.randomUUID()`, and the create carries it, so the server stores it; `"server"` leaves it to the server, and the create carries `key: null` and a `ref` that the answer (the handler's result, or `SaveResult.keys`) names. Read once, at start.
+   * @defaultValue `"chart"` */
+  keys?: "chart" | "server";
+  /** The function that makes the key of a new row under `keys: "chart"`, a text no other row of its kind holds. Without it the chart uses `crypto.randomUUID()`. Read once, at start. */
+  newKey?: () => string;
 }
 
 /** What `mount` returns: the chart, as a host page may drive it. */

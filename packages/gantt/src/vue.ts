@@ -32,6 +32,8 @@ const component = defineComponent({
     fields: { type: Object as PropType<Fields>, default: undefined },
     records: { type: Array as PropType<readonly object[]>, default: undefined },
     save: { type: [Function, Object] as PropType<NonNullable<MountOptions["save"]>>, default: undefined },
+    keys: { type: String as PropType<NonNullable<MountOptions["keys"]>>, default: undefined },
+    newKey: { type: Function as PropType<NonNullable<MountOptions["newKey"]>>, default: undefined },
     wasmUrl: { type: null as unknown as PropType<NonNullable<MountOptions["wasmUrl"]>>, default: undefined },
     locale: { type: String, default: undefined },
     texts: { type: Object as PropType<NonNullable<MountOptions["texts"]>>, default: undefined },
@@ -75,7 +77,7 @@ const component = defineComponent({
       queue = queue.then(async () => {
         if (stopped) return;
         try {
-          started = await mount<Fields | undefined>(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, dateForm: props.dateForm, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, fields: props.fields, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: liveSave(() => props.save) });
+          started = await mount<Fields | undefined>(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, dateForm: props.dateForm, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, fields: props.fields, keys: props.keys, newKey: props.newKey, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: liveSave(() => props.save) });
         } catch (error) {
           return void (stopped || (failure.value = { error }));
         }
