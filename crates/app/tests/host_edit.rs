@@ -247,8 +247,9 @@ fn an_entry_pushed_after_an_undo_clears_the_redo_stack() {
     let mut s = renamed();
     assert!(s.undo().unwrap());
     assert_eq!(s.history_len(), (0, 1));
+    let stamp = s.stamp();
     s.push_host_entry("x").unwrap();
-    assert_eq!(s.history_len(), (1, 0));
+    assert_eq!((s.history_len(), s.stamp() != stamp), ((1, 0), true));
 }
 
 #[test]

@@ -41,6 +41,7 @@ impl Session {
             return Err(EditError::BadToken);
         }
         self.commit(Entry::Host(token.into()), Source::Host);
+        self.stamp = self.stamp.wrapping_add(1);
         Ok(())
     }
 
