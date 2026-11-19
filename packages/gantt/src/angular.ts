@@ -5,7 +5,7 @@
 import { Component, ElementRef, ErrorHandler, EventEmitter, Input, NgZone, Output, type AfterViewInit, type OnChanges, type OnDestroy, type SimpleChanges } from "@angular/core";
 import { mount, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
 
-const INPUTS = ["schedule", "document", "tasks", "links", "dataDate", "mustFinishBy", "calendars", "durationUnit", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
+const INPUTS = ["schedule", "document", "tasks", "links", "dataDate", "mustFinishBy", "calendars", "durationUnit", "dateForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
 /** Each output and the event of `Gantt.on` it emits: `(chartToggleStatus)` is `toggle-status`. The `chart` in front keeps an output apart from the DOM event of the same name: Angular also listens on the element for `change` and `select`, which an input inside the chart fires and which bubble. */
 const EVENTS = [["chartSelect", "select"], ["chartEdit", "edit"], ["chartMove", "move"], ["chartOpen", "open"], ["chartLoad", "load"], ["chartChange", "change"], ["chartError", "error"], ["chartFind", "find"], ["chartToggleStatus", "toggle-status"], ["chartChooseFile", "choose-file"], ["chartToggleKeys", "toggle-keys"]] as const satisfies readonly (readonly [string, keyof GanttEvents])[];
 ({}) as Record<(typeof EVENTS)[number][1], true> satisfies Record<keyof GanttEvents, true>; // an event of `GanttEvents` with no output here does not compile
@@ -14,7 +14,7 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 /**
  * The mount options, one input each, and an output for each event, named `chart` and the event (see `EVENTS`): `(chartSelect)` gets `{ task, key }`, `(chartMove)` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `chartFind` or `chartChooseFile` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
- * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
+ * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * `save` is called as each change set is sent, with the latest function the component was given, so a new function never mounts the chart again.
  * `(ready)` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
@@ -31,6 +31,7 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
   @Input() mustFinishBy?: MountOptions["mustFinishBy"];
   @Input() calendars?: MountOptions["calendars"];
   @Input() durationUnit?: MountOptions["durationUnit"];
+  @Input() dateForm?: MountOptions["dateForm"];
   @Input() lagCalendar?: MountOptions["lagCalendar"];
   @Input() options?: MountOptions["options"];
   @Input() forceWebgl?: boolean;
@@ -88,9 +89,9 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
     let stops: (() => void)[] = [];
     this.queue = this.queue.then(async () => {
       if (stopped) return;
-      const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts } = this;
+      const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts } = this;
       try {
-        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: this.save === undefined ? undefined : (changeSet) => this.save!(changeSet) }));
+        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: this.save === undefined ? undefined : (changeSet) => this.save!(changeSet) }));
       } catch (error) {
         return void (stopped || this.errors.handleError(error));
       }

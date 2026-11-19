@@ -119,3 +119,22 @@ test("the function is still asked after the switch to WebGL2", async ({ page }) 
   await typeDuration(page);
   await expect(alert(page)).toHaveText("no");
 });
+
+test("a chart mounted with hours and dateForm day tells the edit event and the before-edit call in them", async ({ page }) => {
+  const tasks = [{ id: "a", key: "k-a", name: "Dig", start: "2026-03-02", duration: 2 }, { id: "b", key: "k-b", name: "Pour", start: "2026-03-02", duration: 3 }];
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, durationUnit: "hours", dateForm: "day" });
+  const heard = () => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard);
+  await page.evaluate(() => { const w = window as unknown as { heard: unknown[] }; w.heard = []; window.beChart.on("edit", (edit) => w.heard.push(edit.commits[0]!.changes[0])); });
+  await page.locator("#table-rows .row").nth(0).locator(".dur").dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("17");
+  await page.keyboard.press("Enter");
+  await page.locator("#table-rows .row").nth(1).locator(".start").dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("2026-03-04");
+  await page.keyboard.press("Enter");
+  await expect.poll(async () => (await heard()).length).toBe(2);
+  const duration = { record: "task", key: "k-a", set: { duration: 136 }, was: { duration: 2 } };
+  const start = { record: "task", key: "k-b", set: { snet: "2026-03-04" } };
+  expect((await asked(page, "setDuration"))[0]!.changes, "17 days of an 8-hour calendar is 136 hours; the 2 the host gave comes back as 2").toMatchObject([duration]);
+  expect((await asked(page, "move"))[0]!.changes).toMatchObject([start]);
+  expect(await heard()).toMatchObject([duration, start]);
+});

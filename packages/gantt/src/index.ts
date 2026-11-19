@@ -26,6 +26,7 @@ import { type PublicApp, type Status } from "./api.js";
 import { installTheme } from "./theme.js";
 import { createApp, reason } from "./boot.js";
 import { guardBeforeEdit } from "./before-edit.js";
+import { changeForm } from "./change-form.js";
 import { refused } from "./edit-result.js";
 import { SaveQueue } from "./save-queue.js";
 import { mountAssistantPanel } from "./assistant/panel.js";
@@ -122,12 +123,12 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
   // The page's own `document`, or its `tasks` and `links`, are held only until the chart has started: a restart on WebGL2 reads the running chart's schedule
   // (`webgl-switch.ts`), so a large list is not kept alive for it. No closure below holds `options`, only the fields it needs.
   let plain: StartSource = options.document === undefined ? { tasks: options.tasks, links: options.links, dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
-  const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, save } = options;
+  const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, dateForm, save } = options;
   const start = (source: StartSource, run: Run): Promise<Started> => {
     const again = measured && schedule !== undefined && source !== undefined && "document" in source;
     const from = again ? schedule : (source ?? plain);
     if (from === undefined) return Promise.reject(new MountError("schedule", "The chart could not read its schedule to start again: the page's tasks and links were let go once it had started."));
-    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit, save));
+    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit, dateForm, save));
   };
   const gantt = await mountSwitching(root, { schedule, forceWebgl, readOnly: options.readOnly, capabilities: options.capabilities, beforeEdit: options.beforeEdit }, start, page?.fallback ?? null, restart);
   plain = undefined;
@@ -135,7 +136,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions): Promis
 }
 
 /** One start of the chart in `root`, on `source`, as `run` says; `own` holds what `destroy` takes down, and its app once made. */
-async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], hostSave: MountOptions["save"]): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
+async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], hostSave: MountOptions["save"]): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const { disposers } = own;
   root.innerHTML = chartHtml;
   applyTexts(root, texts);
@@ -175,7 +176,8 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   own.app = app;
   app.set_read_only(run.readOnly());
   app.set_capabilities(JSON.stringify(run.capabilities() ?? {}));
-  if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message)));
+  const form = changeForm(app, unit, dateForm, run.beforeEdit !== undefined);
+  if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message), (changes) => form(changes, false)));
   const themeTokens = JSON.parse(App.theme_tokens()) as string[];
   const { sync: syncTheme, stop: stopTheme } = installTheme(root, app, themeTokens);
   disposers.push(stopTheme);
@@ -231,7 +233,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   const view = createViewState(app, openFacts);
   const hostView = createViewState(app, openFacts);
   // The events outlive this start (the switch to WebGL2 starts another): they read this start's view state, commits and task keys from now on.
-  run.reads({ view: (s) => view.read(s), commits: () => app.take_commits(), ref: (task) => app.task_ref(task) });
+  run.reads({ view: (s) => view.read(s), commits: () => app.take_commits(), ref: (task) => app.task_ref(task), form: (changes) => form(changes, true) });
   const events = run.events;
   if (hostSave !== undefined) {
     const queue = new SaveQueue(app, hostSave, (error) => {

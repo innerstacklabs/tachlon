@@ -66,6 +66,9 @@ export interface MountOptions {
   /** What the plain `tasks` count `duration`, `remaining` and `lag` in: `"days"` (default; a day is the working day of the calendar that measures the value), `"hours"` or `"minutes"`. Read with `tasks`, and kept no longer than they are. It is also the unit of `update`'s `duration`, for the life of the chart, whatever the schedule was read from.
    * @defaultValue `"days"` */
   durationUnit?: "days" | "hours" | "minutes";
+  /** The form of every date the chart tells you of in an `edit` event, a `save` change set and a before-edit call: `"minute"` (default) is `YYYY-MM-DDTHH:mm`, `"day"` is `YYYY-MM-DD`, a finish as the last day worked (the day of its instant less one minute). The durations and lags there are in `durationUnit`, whatever the schedule was read from.
+   * @defaultValue `"minute"` */
+  dateForm?: "minute" | "day";
   /** The calendar a lag day is counted on for the plain `tasks`: `"successor"` (default), `"predecessor"`, `"24h"` or `{ calendar: key }`. Read with `tasks`, and kept no longer than they are.
    * @defaultValue `"successor"` */
   lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string };
