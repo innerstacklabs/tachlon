@@ -241,7 +241,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   // between frames must not move the state the event compares against, or an event could carry a state equal to the last sent.
   // What the open file shows a host: `adopt` sets the name and notes, the save mark's callback the unsaved flag.
   // A mount with a File starts on it; the notes are what the panel lists from the first frame.
-  const open: OpenFacts = { fileName: source instanceof File ? source.name : null, unsaved: false, importNotes: Object.freeze([...(unsupported ?? [])]), customFields: names.custom.names() };
+  const open: OpenFacts = { fileName: source instanceof File ? source.name : null, unsaved: false, unsavedCommits: 0, countMoves: 0, importNotes: Object.freeze([...(unsupported ?? [])]), customFields: names.custom.names() };
   const openFacts = (s: Status): OpenFacts => (saveState.sync(s), (open.customFields = names.custom.names()), open);
   const view = createViewState(app, openFacts);
   const hostView = createViewState(app, openFacts);
@@ -251,9 +251,9 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   if (hostSave !== undefined) {
     const keyName = (map: { toHost(members: Record<string, unknown>): Record<string, unknown> | undefined }): string => Object.keys(map.toHost({ key: "" })!)[0]!;
     const queue = new SaveQueue(app, hostSave, (error) => {
-      rows.refuse(error.reload ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
+      rows.refuse(error.reload || error.reason === "stopped" ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
       events.putBack(error);
-    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: keyName(names.tasks), link: keyName(names.links) }));
+    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: keyName(names.tasks), link: keyName(names.links) }), (count) => ((open.unsavedCommits = count), open.countMoves++));
     disposers.push(events.on("edit", ({ commits }) => queue.add(commits)), () => queue.stop());
   }
   installKeys(shell, events.request, rows, cursor, () => card, split, links, save, taskDialog);
