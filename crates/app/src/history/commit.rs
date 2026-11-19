@@ -15,6 +15,7 @@ pub enum Source {
     Undo,
     Redo,
     Rollback,
+    Host,
 }
 
 impl Session {

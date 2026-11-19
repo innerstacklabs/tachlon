@@ -302,6 +302,7 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
     speed: () => now().speed(),
     setPending: (keys) => now().setPending(keys),
     update: (records) => (switching !== null && !destroyed ? refused("busy") : now().update(records)),
+    hostEdit: (records) => (switching !== null && !destroyed ? refused("busy") : now().hostEdit(records)),
     setData: (data) => (switching !== null && !destroyed ? refused("busy") : now().setData(data)),
     // A call during a switch is kept for the start that follows it; the others throw then.
     setReadOnly: (on) => {

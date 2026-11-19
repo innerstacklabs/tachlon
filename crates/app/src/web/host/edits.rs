@@ -3,7 +3,7 @@
 use super::{App, answer};
 use crate::Session;
 use crate::edit::{Edit, EditError};
-use crate::host::{BaselineRecordsError, UpdateError};
+use crate::host::{BaselineRecordsError, UpdateError, Updated};
 use crate::json::quote;
 use wasm_bindgen::prelude::*;
 
@@ -51,18 +51,12 @@ impl App {
     /// `update_tasks`, answered as JSON: `{"ok":true,"updated":n}` (and `"differs":[...]` when a host date differs) or `{"ok":false,"reason":r}` with `record`
     /// (from 0) and `member` when named. Not an edit: no undo step, no commit, `revision` kept; one recompute, or two when the call mixes progress with a duration, start, snet or a limit.
     pub fn update_tasks(&mut self, json: &str) -> String {
-        match self.session.update_tasks(json) {
-            Ok(done) => {
-                let list = done.differs.join(",");
-                let more = (!list.is_empty()).then(|| format!(r#","differs":[{list}]"#));
-                format!(
-                    r#"{{"ok":true,"updated":{}{}}}"#,
-                    done.tasks,
-                    more.unwrap_or_default()
-                )
-            }
-            Err(error) => record_refusal(error),
-        }
+        updated_answer(self.session.update_tasks(json))
+    }
+
+    /// `host_edit`, answered as `update_tasks` answers, `hasActuals` being one more reason.
+    pub fn host_edit(&mut self, json: &str) -> String {
+        updated_answer(self.session.host_edit(json))
     }
 
     /// `set_baseline_records`, answered as JSON: `{"ok":true}`, a record's refusal as `update_tasks` answers it, or
@@ -116,6 +110,18 @@ impl App {
             &self.session.texts,
         )
     }
+}
+
+/// What `update_tasks` and `host_edit` answer.
+fn updated_answer(result: Result<Updated, UpdateError>) -> String {
+    let done = match result {
+        Ok(done) => done,
+        Err(error) => return record_refusal(error),
+    };
+    let list = done.differs.join(",");
+    let more = (!list.is_empty()).then(|| format!(r#","differs":[{list}]"#));
+    let (tasks, more) = (done.tasks, more.unwrap_or_default());
+    format!(r#"{{"ok":true,"updated":{tasks}{more}}}"#)
 }
 
 /// `{"ok":false,"reason":"<kind>"}`, with `"record":n` and `"member":m` when the refusal names them.

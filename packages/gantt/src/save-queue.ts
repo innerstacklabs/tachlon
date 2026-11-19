@@ -53,10 +53,10 @@ export class SaveQueue {
     this.failed = failed;
   }
 
-  /** Queue the commits an `edit` event carried and start sending. A rollback commit and a commit with no change are not sent. */
+  /** Queue the commits an `edit` event carried and start sending. A rollback commit, a host commit (the host made that change itself) and a commit with no change are not sent. */
   add(commits: readonly Commit[]): void {
     if (this.stopped) return;
-    for (const commit of commits) if (commit.source !== "rollback" && commit.changes.length > 0 && commit.seq >= this.floor) this.waiting.push({ commit, calls: 0 });
+    for (const commit of commits) if (commit.source !== "rollback" && commit.source !== "host" && commit.changes.length > 0 && commit.seq >= this.floor) this.waiting.push({ commit, calls: 0 });
     this.go();
   }
 

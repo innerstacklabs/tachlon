@@ -7,6 +7,7 @@ use crate::{
     Session,
     document::json_read::{Value, parse},
     edit::{Edit, EditError},
+    history::Step,
     json::quote,
 };
 use engine::{Instant, Limit, Minutes, TaskId};
@@ -47,7 +48,7 @@ impl UpdateError {
 /// What an update sets on one task. A record with no `progress` leaves `progress` and `percent` empty,
 /// and the task's actual dates and remaining work are not written.
 #[derive(Clone)]
-struct Values {
+pub(super) struct Values {
     duration: Minutes,
     snet: Option<Instant>,
     limit: Limit,
@@ -57,12 +58,51 @@ struct Values {
     host: Vec<(usize, String, Instant)>,
 }
 
+/// A task and what a record sets on it, beside what it held.
+pub(super) type Written = (TaskId, (Values, Values));
+
 /// A task's actual start, actual finish and remaining work: the three a percent sets.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 struct Progress {
     start: Option<Instant>,
     finish: Option<Instant>,
     remaining: Option<Minutes>,
+}
+
+impl Values {
+    /// The steps that put `old` back where `self` is, one for each of the name, duration, start floor, limits
+    /// and progress that differ, in the order a call sets them: an undo runs them newest first.
+    pub(super) fn steps_back(&self, old: &Values, task: TaskId) -> Vec<Step> {
+        let was = self.progress.zip(old.progress).filter(|(a, b)| a != b);
+        [
+            (self.name != old.name).then(|| Edit::Rename {
+                task,
+                name: old.name.clone(),
+            }),
+            (self.duration != old.duration).then(|| Edit::SetDuration {
+                task,
+                minutes: old.duration,
+            }),
+            (self.snet != old.snet).then(|| Edit::Move {
+                task,
+                snet: old.snet,
+            }),
+            (self.limit != old.limit).then(|| Edit::SetLimit {
+                task,
+                limit: old.limit,
+            }),
+            was.map(|(_, p)| Edit::SetProgress {
+                task,
+                actual_start: p.start,
+                actual_finish: p.finish,
+                remaining: p.remaining,
+            }),
+        ]
+        .into_iter()
+        .flatten()
+        .map(Step::plain)
+        .collect()
+    }
 }
 
 impl Session {
@@ -80,6 +120,20 @@ impl Session {
     ///
     /// An [`UpdateError`]; the schedule, the selection, the history and `revision` are then as they were.
     pub fn update_tasks(&mut self, json: &str) -> Result<Updated, UpdateError> {
+        let revision = self.revision;
+        let done = self.apply_records(json, false);
+        self.revision = revision;
+        done.map(|(updated, _)| updated)
+    }
+
+    /// [`Session::update_tasks`]'s work, answering the records written beside what each held, for
+    /// [`Session::host_edit`]. With `undoable` a call that changes the start floor of a task with actuals
+    /// is refused as a typed move is, because the step that puts the floor back would be.
+    pub(super) fn apply_records(
+        &mut self,
+        json: &str,
+        undoable: bool,
+    ) -> Result<(Updated, Vec<Written>), UpdateError> {
         let refuse = |error: EditError| UpdateError::new(error.kind(), None, None);
         if self.busy() {
             return Err(refuse(EditError::Busy));
@@ -110,7 +164,11 @@ impl Session {
         let mut done = Vec::with_capacity(planned.len());
         for (at, (task, (new, old))) in planned.iter().enumerate() {
             done.push((*task, old.clone()));
-            if let Err(error) = self.put(*task, new) {
+            let t = &self.schedule.tasks()[task.0 as usize];
+            let started = t.actual_start.or(t.actual_finish).is_some();
+            let refused =
+                (undoable && started && new.snet != old.snet).then_some(EditError::HasActuals);
+            if let Some(error) = refused.or_else(|| self.put(*task, new).err()) {
                 self.put_back(&done);
                 return Err(UpdateError::new(error.kind(), Some(at), None));
             }
@@ -125,10 +183,8 @@ impl Session {
                 return Err(error);
             }
         }
-        let revision = self.revision;
-        let solved = self.solve_full(None, |session| session.put_back(&done));
-        self.revision = revision;
-        solved.map_err(refuse)?;
+        self.solve_full(None, |session| session.put_back(&done))
+            .map_err(refuse)?;
         if let Some(held) = &mut self.proposal {
             held.solved = None;
         }
@@ -137,19 +193,16 @@ impl Session {
                 self.typed_percent.insert(task.0, percent);
             }
         }
-        Ok(Updated {
+        let updated = Updated {
             tasks: planned.len(),
             solves: 1 + usize::from(mixed),
             differs: self.differences(records, &planned),
-        })
+        };
+        Ok((updated, planned))
     }
 
     /// Each `hostStart` and `hostFinish` in `planned` that is not its task's early start or finish, as JSON.
-    fn differences(
-        &self,
-        records: &[Value],
-        planned: &[(TaskId, (Values, Values))],
-    ) -> Vec<String> {
+    fn differences(&self, records: &[Value], planned: &[Written]) -> Vec<String> {
         let mut found = vec![];
         for (record, (task, (new, _))) in planned.iter().enumerate() {
             let d = &self.solution.dates[task.0 as usize];
@@ -176,7 +229,7 @@ impl Session {
     /// is solved apart from the session when `mixed`, else the plan the session holds.
     fn work_out_progress(
         &mut self,
-        planned: &mut [(TaskId, (Values, Values))],
+        planned: &mut [Written],
         mixed: bool,
     ) -> Result<(), UpdateError> {
         let schedule_error = |e| UpdateError::new(EditError::from(e).kind(), None, None);

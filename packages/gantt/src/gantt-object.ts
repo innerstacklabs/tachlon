@@ -185,6 +185,10 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       return update(app, p.busy, p.unit, Array.isArray(records) ? records.map(p.fields.tasks.toChart) : records, p.wrote);
     },
+    hostEdit: (records) => {
+      alive();
+      return update(app, p.busy, p.unit, Array.isArray(records) ? records.map(p.fields.tasks.toChart) : records, p.wrote, "host_edit");
+    },
     setData: (data) => {
       alive();
       return p.setData(p.fields.data(data), shell.status().epoch, (records) => update(app, p.busy, p.unit, records, p.wrote));
