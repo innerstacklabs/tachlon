@@ -188,6 +188,22 @@ test("a live save with none writes no change set and acknowledges nothing; once 
   mock.restoreAll();
 });
 
+test("a page with no crypto.randomUUID still gets a v4 change-set id, and the save is called", async () => {
+  const app = fakeApp();
+  const seen: ChangeSet[] = [];
+  const real = crypto.randomUUID;
+  Object.defineProperty(crypto, "randomUUID", { value: undefined, configurable: true });
+  try {
+    const queue = new SaveQueue(app, async (cs) => void seen.push(cs), () => undefined);
+    queue.add([commit(1)]);
+    await settle();
+  } finally {
+    Object.defineProperty(crypto, "randomUUID", { value: real, configurable: true });
+  }
+  expect(seen.map((cs) => cs.id)).toEqual([expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)]);
+  expect(app.log).toEqual(["ack 1"]);
+});
+
 test("an error whose source is save is a SaveError, so a host reads reload and undone with no cast", () => {
   const read = (e: GanttEvents["error"]) => (e.source === "save" ? [e.reload, e.undone] : []);
   expect(read({ source: "save", message: "m", fatal: false, reason: "refused", calls: 1, seq: 2, undone: 3, reload: true })).toEqual([true, 3]);
