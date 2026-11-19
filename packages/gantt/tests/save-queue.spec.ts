@@ -61,12 +61,14 @@ test("a switch to WebGL2 with commits waiting drops them: unsavedCommits goes fr
   await open(page);
   test.skip(!(await page.evaluate(() => "gpu" in navigator)), "this browser has no WebGPU to lose");
   await page.evaluate("gpu()");
+  await page.waitForFunction("(() => { try { return window.gantt.status().frames >= 5; } catch { return false; } })()", undefined, { timeout: 120_000 }); // a start that falls back at its first frame has restarted by now
+  test.skip((await page.evaluate("chart.state().backend")) !== "WebGPU", "the chart is on WebGL2 already: no WebGPU device to lose");
   await page.evaluate("edit('2024-02-05', '2024-02-06')");
   await expect.poll(() => page.evaluate("chart.state().unsavedCommits"), "two commits wait behind a call that never settles").toBe(2);
   await page.evaluate("window.gantt.failNextFrame(false)");
-  await expect.poll(() => page.evaluate("window.gantt.status().backend === 'WebGL2' && chart.state().backend === 'WebGL2'"), { timeout: 120_000 }).toBe(true);
-  expect(await page.evaluate("chart.state().unsavedCommits"), "the old chart's queue is stopped, and the new one starts empty").toBe(0);
-  expect(await page.evaluate("counts.at(-1)"), "the last `change` carried 0").toBe(0);
+  await expect.poll(() => page.evaluate("chart.state().unsavedCommits"), "the old chart's queue is stopped, and the new one starts empty").toBe(0);
+  await expect.poll(() => page.evaluate("counts.at(-1)"), "the last `change` carried 0").toBe(0);
+  expect(await page.evaluate("chart.state().backend")).toBe("WebGL2");
 });
 
 for (const refuse of [false, true]) {
