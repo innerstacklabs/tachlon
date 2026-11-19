@@ -7,11 +7,12 @@ import schema from "../src/adapters/plain.schema.json" with { type: "json" };
 import { test } from "node:test";
 import { expect } from "@playwright/test";
 
-type Schema = { oneOf?: Schema[]; exclusiveMinimum?: number; $ref?: string; type?: string | string[]; required?: string[]; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; enum?: unknown[]; pattern?: string; minimum?: number; maximum?: number };
+type Schema = { oneOf?: Schema[]; anyOf?: Schema[]; exclusiveMinimum?: number; $ref?: string; type?: string | string[]; required?: string[]; properties?: Record<string, Schema>; additionalProperties?: boolean; items?: Schema; enum?: unknown[]; pattern?: string; minimum?: number; maximum?: number };
 
 function accepts(s: Schema, v: unknown): boolean {
   if (s.$ref) return accepts(s.$ref.split("/").reduce<any>((n, k) => (k === "#" ? schema : n[k]), schema), v);
   if (s.oneOf) return s.oneOf.some((x) => accepts(x, v));
+  if (s.anyOf && !s.anyOf.some((x) => accepts(x, v))) return false;
   const kinds = s.type === undefined ? [] : [s.type].flat();
   const kind = Array.isArray(v) ? "array" : v === null ? "null" : typeof v;
   if (kinds.length > 0 && !kinds.includes(kind) && !(kinds.includes("integer") && Number.isInteger(v))) return false;
@@ -45,6 +46,12 @@ const shapes: [string, unknown, boolean][] = [
   ["name missing", { tasks: [{ id: 1, start: "2026-03-02" }] }, false],
   ["name number", { tasks: [{ ...t, name: 5 }] }, false],
   ["start missing", { tasks: [{ id: 1, name: "A" }] }, false],
+  ["a constraint needs no start", { tasks: [{ id: 1, name: "A", constraint: { type: "fnlt", date: "2026-03-20" } }] }, true],
+  ["a null constraint needs no start", { tasks: [{ id: 1, name: "A", constraint: null }] }, true],
+  ["a constraint and a start", { tasks: [{ ...t, constraint: { type: "snet", date: "2026-03-09" } }] }, true],
+  ["a constraint of another type", { tasks: [{ ...t, constraint: { type: "alap", date: "2026-03-20" } }] }, false],
+  ["a constraint with no date", { tasks: [{ ...t, constraint: { type: "snet" } }] }, false],
+  ["a constraint with a bad date", { tasks: [{ ...t, constraint: { type: "snet", date: "02/03/2026" } }] }, false],
   ["start slashes", { tasks: [{ ...t, start: "02/03/2026" }] }, false],
   ["end a number", { tasks: [{ ...t, end: 20260309 }] }, false],
   ["duration negative", { tasks: [{ ...t, duration: -1 }] }, false],

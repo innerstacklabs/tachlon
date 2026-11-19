@@ -27,7 +27,6 @@ import { installTheme } from "./theme.js";
 import { createApp, reason } from "./boot.js";
 import { guardBeforeEdit } from "./before-edit.js";
 import { formChanges } from "./change-form.js";
-import { toSeparate } from "./constraint-form.js";
 import { readFields, type FieldMap } from "./field-map.js";
 import type { Stamped } from "./change-set.js";
 import type { Change } from "./events.js";
@@ -132,9 +131,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
   const given = { tasks: names.custom.take("tasks", options.tasks), links: names.custom.take("links", options.links) };
   given.tasks.commit();
   given.links.commit();
-  let tasks = given.tasks.rows && names.tasks.rows(given.tasks.rows);
-  try { tasks = tasks?.map((task) => toSeparate(task) as typeof task); } catch (err) { throw new MountError("schedule", `tasks: ${(err as Error).message}`); }
-  let plain: StartSource = options.document === undefined ? { tasks, links: given.links.rows && names.links.rows(given.links.rows), dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
+  let plain: StartSource = options.document === undefined ? { tasks: given.tasks.rows && names.tasks.rows(given.tasks.rows), links: given.links.rows && names.links.rows(given.links.rows), dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
   const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, dateForm, save } = options;
   const { keys, newKey } = options;
   const mistake = !hasSave(save) || schedule !== undefined || options.document !== undefined ? undefined : keyMistake("task", given.tasks.rows && names.tasks.rows(given.tasks.rows)) ?? keyMistake("link", given.links.rows && names.links.rows(given.links.rows));

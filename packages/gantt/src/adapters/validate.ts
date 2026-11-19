@@ -33,7 +33,8 @@ export class PlainDataError extends Error {
   }
 }
 
-type Kind = "id" | "text" | "date" | "number" | "type" | "flag" | "milestone";
+type Kind = "id" | "text" | "date" | "number" | "type" | "flag" | "milestone" | "constraint";
+const LIMITS = ["snet", "snlt", "fnet", "fnlt", "mso", "mfo"];
 interface Field {
   kind: Kind;
   required?: boolean;
@@ -56,6 +57,7 @@ const TASK: Record<string, Field> = {
   fnlt: { kind: "date" },
   mso: { kind: "date" },
   mfo: { kind: "date" },
+  constraint: { kind: "constraint" },
   alap: { kind: "flag" },
   milestone: { kind: "milestone" },
   calendar: { kind: "text" },
@@ -72,7 +74,7 @@ const LINK: Record<string, Field> = {
   key: { kind: "text" },
 };
 
-const EXAMPLE: Record<Kind, string> = { id: '"site" or 7', text: '"Site works"', date: '"2026-03-02" or "2026-03-02T08:00"', number: "5", type: '"FS"', flag: "true", milestone: '"start"' };
+const EXAMPLE: Record<Kind, string> = { id: '"site" or 7', text: '"Site works"', date: '"2026-03-02" or "2026-03-02T08:00"', number: "5", type: '"FS"', flag: "true", milestone: '"start"', constraint: '{ "type": "fnlt", "date": "2026-03-20" } or null' };
 
 function show(v: unknown): string {
   if (v === undefined) return "nothing";
@@ -100,6 +102,8 @@ function fine(f: Field, v: unknown): boolean {
       return typeof v === "boolean";
     case "milestone":
       return v === "start" || v === "finish";
+    case "constraint":
+      return v === null || (typeof v === "object" && !Array.isArray(v) && LIMITS.includes((v as { type?: string }).type!) && fine({ kind: "date" }, (v as { date?: unknown }).date));
     case "number":
       return typeof v === "number" && Number.isFinite(v) && (f.min === undefined || v >= f.min) && (f.max === undefined || v <= f.max);
   }
@@ -115,6 +119,8 @@ function problem(name: string, f: Field, v: unknown): Pick<PlainIssue, "expected
       return as("true or false");
     case "milestone":
       return as('"start" or "finish"');
+    case "constraint":
+      return as("null, or { type, date } with a type of snet, snlt, fnet, fnlt, mso or mfo and a date");
     case "text":
       return as("text");
     case "date":
@@ -225,7 +231,7 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
     for (const [name, f] of table) {
       const v = rec[name];
       if (v === undefined) {
-        if (f.required) add(`${path}.${name}`, `a ${name}`, "nothing", `Add ${name}, for example ${EXAMPLE[f.kind]}.`);
+        if (f.required && !(name === "start" && rec.constraint !== undefined)) add(`${path}.${name}`, `a ${name}`, "nothing", `Add ${name}, for example ${EXAMPLE[f.kind]}.`);
       } else if (!fine(f, v)) {
         const p = problem(name, f, v);
         add(`${path}.${name}`, p.expected, show(v), p.fix);
@@ -254,6 +260,8 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
       keyed("tasks", t, i);
       const calendar = (t as { calendar?: unknown } | null)?.calendar;
       if (typeof calendar === "string" && !calendarKeys.has(calendar)) add(`tasks[${i}].calendar`, "the key of a calendar in calendars", show(calendar), "Use the key of a calendar in calendars, or leave calendar out for the first.");
+      const twice = typeof t === "object" && t !== null && (t as { constraint?: unknown }).constraint !== undefined ? LIMITS.find((limit) => (t as Record<string, unknown>)[limit] !== undefined) : undefined;
+      if (twice !== undefined) add(`tasks[${i}].${twice}`, "constraint or this member, not both", show((t as Record<string, unknown>)[twice]), `Keep constraint, or the limit members snet to mfo, and remove the other: they are two spellings of one date limit.`);
       const pins = t as { mso?: unknown; mfo?: unknown } | null;
       if (pins?.mso !== undefined && pins.mfo !== undefined) add(`tasks[${i}].mfo`, "one pin, mso or mfo, not both", show(pins.mfo), "Keep mso (must start on) or mfo (must finish on), and remove the other.");
       if (typeof t === "object" && t !== null) progressIssues(t as Record<string, unknown>, `tasks[${i}]`, add, unstarted, read?.list[typeof calendar === "string" ? read.at.get(calendar) ?? 0 : 0]?.week);

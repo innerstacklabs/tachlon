@@ -7,6 +7,8 @@ import { DAY, barLook, minutesOf, plural, unreadLines, type DocumentLink, type S
 import { dateAt, readActuals } from "./plain-actuals.ts";
 import { exceptionsOf, lagCalendar, lagDay, readCalendars, toMinutes } from "./plain-calendars.ts";
 import { readLimits, shiftLimit } from "./plain-limits.ts";
+import { toSeparate } from "../constraint-form.ts";
+import type { Constraint } from "../gantt-types.js";
 import { PlainDataError, inspect } from "./validate.ts";
 
 /** A working calendar: its `key` (your own text, which a task's `calendar` and the data's `lagCalendar` name), and either `workDays` (ISO weekday numbers, 1 for Monday to 7, each worked from 08:00 for `hoursPerDay` hours) or `week` (seven lists of `[from, to]` minutes of the day, Monday first). `exceptions` are days that differ: `{ date, working }`, a holiday or an extra working day, which has the first worked weekday's hours. A calendar's day, the length a `days` duration counts, is `hoursPerDay`, or the average worked day of its `week`. */
@@ -38,6 +40,8 @@ export interface PlainTask {
   fnlt?: string;
   mso?: string;
   mfo?: string;
+  /** The one date limit, `{ type, date }` with a `type` of `snet`, `snlt`, `fnet`, `fnlt`, `mso` or `mfo`, or `null` for none: it is the limit its type names, and it wins over `start`, which is then not a start-no-earlier-than (and may be left out). A task that gives it with one of those six members is refused. */
+  constraint?: Constraint;
   alap?: boolean;
   milestone?: "start" | "finish";
   actualStart?: string;
@@ -72,7 +76,7 @@ export interface PlainResult {
 
 const ACTUAL_KEYS = ["actualStart", "actualFinish", "remaining", "resume"];
 const KNOWN_CALENDAR = new Set(["key", "workDays", "hoursPerDay", "week", "exceptions"]);
-export const KNOWN_TASK = new Set(["id", "name", "start", "end", "duration", "parent", "progress", "text", "start_date", "end_date", "type", "color", "label", "key", "calendar", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", "milestone", ...ACTUAL_KEYS]);
+export const KNOWN_TASK = new Set(["id", "name", "start", "end", "duration", "parent", "progress", "text", "start_date", "end_date", "type", "color", "label", "key", "calendar", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "constraint", "alap", "milestone", ...ACTUAL_KEYS]);
 export const KNOWN_LINK = new Set(["id", "from", "to", "type", "lag", "source", "target", "key"]);
 
 /** Count the fields of `item` that are not in `known` (and do not start with `$`). */
@@ -127,7 +131,9 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
     return minutes;
   };
   const documentTasks: DocumentTask[] = order.map((i) => {
-    const task = tasks[i]!;
+    const given = tasks[i]!;
+    const constrained = given.constraint !== undefined; // the task's constraint wins over its start: `start` is then no floor (decision 0022, rule 9.5)
+    const task = constrained ? (toSeparate(given) as PlainTask) : given;
     countUnread(task, KNOWN_TASK, unreadTask);
     const id = String(task.id);
     const parentAt = task.parent !== undefined && ids.has(String(task.parent)) ? place[ids.get(String(task.parent))!]! : null;
@@ -146,7 +152,8 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
       progress.push(null);
       return { ...base, duration: 0, snet: null, progress: 0 };
     }
-    starts.push(lim.snet ?? start);
+    const floor = constrained ? lim.snet : (lim.snet ?? start);
+    starts.push(floor);
     const act = readActuals(task, week, (value) => toMinutes(value, data.durationUnit, day)); progress.push(act);
     limitDates.push(...lim.dates, ...act.dates);
     const limit = act.resume === null ? lim.limit : { ...lim.limit, resume: act.resume };
@@ -157,7 +164,7 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
       else noDuration += 1;
       if (duration < 0) throw new Error(`DHTMLX data: task ${id} has a negative duration`);
     }
-    return { ...base, duration: Math.round(duration), snet: lim.snet ?? start, ...(limit === undefined ? {} : { limit }), progress: Math.round(Math.min(1, Math.max(0, fraction)) * 100) };
+    return { ...base, duration: Math.round(duration), snet: floor, ...(limit === undefined ? {} : { limit }), progress: Math.round(Math.min(1, Math.max(0, fraction)) * 100) };
   });
 
   // The origin is the Monday on or before the earliest start (1970-01-01 was a Thursday); starts become minutes from it.

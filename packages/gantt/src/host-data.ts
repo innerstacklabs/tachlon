@@ -1,5 +1,6 @@
 // `Gantt.setData` (decision 0022, rules 4.1 and 4.2): the host hands the chart its rows again, and the chart sets only the members that differ from the rows it was last given.
 import type { PlainLink, PlainTask } from "./adapters/plain.js";
+import { spelledTwice } from "./constraint-form.ts";
 import type { TaskUpdate, UpdateResult } from "./gantt-types.js";
 
 /** The members of a task that `update` takes: the only ones `setData` compares. */
@@ -43,6 +44,10 @@ export function hostData(first: HostRows, epoch: number): SetData {
     if (next.tasks !== undefined && next.tasks !== kept.tasks?.deref()) {
       const given = membersByKey(next.tasks);
       if (given === undefined) return rowsChanged("every task needs its own text key.");
+      for (const task of next.tasks) {
+        const twice = spelledTwice(task);
+        if (twice !== undefined) return Object.freeze({ ok: false, reason: "badRecords", message: `Nothing changed: task ${task.key} gives both "constraint" and "${twice}", two spellings of one date limit; give one.` });
+      }
       if (!same(shapeOf(next.tasks), kept.shape)) return rowsChanged("a task was added, removed or moved, or its id or parent changed.");
       for (const [key, values] of given) {
         const was = old.get(key)!;

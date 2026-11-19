@@ -13,6 +13,9 @@ const READING = ["mso", "mfo", "snlt", "fnlt", "snet", "fnet"] as const satisfie
 
 const isConstraint = (value: unknown): value is Constraint => value === null || (typeof value === "object" && !Array.isArray(value) && TYPES.includes((value as Row).type as ConstraintType) && typeof (value as Row).date === "string");
 
+/** The first of the six limit members that `task` gives beside a `constraint` (two spellings of one limit, rule 9.2), or `undefined`. */
+export const spelledTwice = (task: Row): ConstraintType | undefined => (task.constraint === undefined ? undefined : TYPES.find((type) => task[type] !== undefined));
+
 /**
  * `task` with its `constraint` written as the member its type names; a task with no `constraint` is returned as it is.
  * `forUpdate` is for `update`: a `start` beside the `constraint` is dropped, since the record's `constraint` wins (rule 9.5), and `null`, or a type, also sets the other three of `snet`, `snlt`, `fnet` and `fnlt` to `null`, so the one limit replaces every bound (a pin names no such members: `update` refuses it).
@@ -23,7 +26,7 @@ export function toSeparate(task: Row, forUpdate = false): Row {
   if (typeof task !== "object" || task === null || task.constraint === undefined) return task; // a row that is not an object is for the chart to refuse
   const { constraint } = task;
   const rest = Object.fromEntries(Object.entries(task).filter(([name]) => name !== "constraint" && !(forUpdate && name === "start")));
-  const twice = TYPES.find((type) => rest[type] !== undefined);
+  const twice = spelledTwice(task);
   if (twice !== undefined) throw new Error(`a task gives both "constraint" and "${twice}", two spellings of one date limit; give one.`);
   if (!isConstraint(constraint)) throw new Error('"constraint" is { type, date } with a type of snet, snlt, fnet, fnlt, mso or mfo, or null (with a type member and a date member of your own, both or neither).');
   const cleared = forUpdate &&(constraint === null || !["mso", "mfo"].includes(constraint.type)) ? Object.fromEntries(FLOORS_AND_CEILINGS.map((type) => [type, null])) : {};

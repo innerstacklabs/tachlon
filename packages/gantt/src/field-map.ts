@@ -73,11 +73,12 @@ function namesOf<T extends object>(kind: "tasks" | "links", chartFields: readonl
     if (toChartName.has(host)) throw new Error(`fields.tasks gives the host name "${host}" to both "${toChartName.get(host)!}" and "constraint".`);
     if (chartFields.includes(host) && !toHostName.has(host)) throw new Error(`fields.tasks.constraint names "${host}", the chart's own name for another field, which has no entry: add one for "${host}".`);
   }
-  /** The two members of the flat form as one `constraint`; one of them set alone is left as a `constraint` the chart refuses. */
+  /** The two members of the flat form as one `constraint`: none when both are left out (`undefined`), `null` when both are `null`, and otherwise `{ type, date }`, which the chart refuses when one is missing or `null`. */
   const joined = (record: Row): Row => {
     if (flat === undefined || !(flat.type in record || flat.date in record)) return record;
     const { [flat.type]: type, [flat.date]: date, ...rest } = record;
-    return { ...rest, constraint: type == null && date == null ? null : { type, date } };
+    if (type === undefined && date === undefined) return rest;
+    return { ...rest, constraint: type === null && date === null ? null : { type, date } };
   };
   const toChart = (given: unknown): unknown => {
     if (!isRow(given)) return given;
