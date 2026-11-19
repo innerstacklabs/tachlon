@@ -31,6 +31,8 @@ export interface Commit {
   seq: number;
   source: CommitSource;
   changes: Change[];
+  /** The token of a host entry (`pushHostEntry`), on its push (source `"host"`) and on the Undo or Redo that reached it: your page undoes or redoes its own action. */
+  host?: string;
 }
 
 /** What each event carries. */

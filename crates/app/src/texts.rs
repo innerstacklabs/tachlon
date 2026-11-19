@@ -67,6 +67,7 @@ texts! {
     NOT_ALLOWED "notAllowed" "The host does not allow {what}.";
     NOT_STORED "notStored" "The host stores {what}.";
     REFUSED "refused" "This change is not allowed.";
+    BAD_TOKEN "badToken" "An entry for the host on the undo list needs a token of one or more characters.";
     ROLLBACK_GONE "rollbackGone" "The chart can no longer go back to before that change. Load the saved schedule again.";
     BEFORE_EDIT_FAILED "beforeEditFailed" "This change was not made: the page's before-edit function failed.";
     LINK_CYCLE "linkCycle" "\"{pred}\" to \"{succ}\" would make a loop: {chain}.";

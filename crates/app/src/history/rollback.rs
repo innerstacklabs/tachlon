@@ -83,7 +83,11 @@ impl Session {
         let (mut done, mut changes) = (Vec::new(), Vec::new());
         for kind in walk {
             let entry = self.history.top(kind);
-            match self.run_entry(entry, true) {
+            let ran = match entry {
+                Entry::Host(_) => Err(EditError::RollbackGone),
+                entry => self.run_entry(entry, true),
+            };
+            match ran {
                 Ok((inverse, _)) => {
                     changes.extend(self.changes_of(&inverse));
                     self.history.settle(kind, inverse.clone());
@@ -100,6 +104,6 @@ impl Session {
         }
         self.host.pending.truncate(seq);
         self.history.end_whatif_past_mark();
-        Ok(self.record(Source::Rollback, &changes.join(",")))
+        Ok(self.record(Source::Rollback, &changes.join(","), ""))
     }
 }

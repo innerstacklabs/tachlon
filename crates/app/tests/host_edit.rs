@@ -199,3 +199,96 @@ fn a_record_whose_put_back_the_profile_does_not_store_is_refused() {
         assert_eq!((s.history_len(), s.revision()), before);
     }
 }
+
+fn rename(s: &mut Session, name: &str) {
+    let (task, name) = (TaskId(0), name.into());
+    s.edit(Edit::Rename { task, name }).unwrap();
+}
+
+/// One Undo or Redo, with the values, the revision and the commit it left.
+fn walk(s: &mut Session, undo: bool) -> ((Vec<i64>, Option<i64>, String), u32, Value) {
+    s.take_commits();
+    assert!(if undo { s.undo() } else { s.redo() }.unwrap());
+    let out: Value = serde_json::from_str(&s.take_commits()).unwrap();
+    (values(s), s.revision(), out["commits"][0].clone())
+}
+
+#[test]
+fn a_host_entry_between_two_edits_undoes_and_redoes_in_order_changing_no_value() {
+    let mut s = renamed();
+    s.push_host_entry("lock-7").unwrap();
+    rename(&mut s, "Two");
+    let start = values(&s);
+    let [a, b, c] = [true; 3].map(|undo| walk(&mut s, undo));
+    assert!(
+        a.0 != start && a.2["host"].is_null(),
+        "the first Undo takes the second edit"
+    );
+    assert_eq!(
+        (b.0 == a.0, b.1),
+        (true, a.1 + 1),
+        "the host entry changes no value"
+    );
+    assert_eq!(
+        (&b.2["source"], &b.2["host"]),
+        (&"undo".into(), &"lock-7".into())
+    );
+    assert!(c.0 != b.0, "the third Undo takes the first edit");
+    let [r1, r2] = [false; 2].map(|undo| walk(&mut s, undo));
+    assert_eq!((r1.2["host"].is_null(), r2.0 == r1.0), (true, true));
+    assert_eq!(
+        (&r2.2["source"], &r2.2["host"]),
+        (&"redo".into(), &"lock-7".into())
+    );
+}
+
+#[test]
+fn an_entry_pushed_after_an_undo_clears_the_redo_stack() {
+    let mut s = renamed();
+    assert!(s.undo().unwrap());
+    assert_eq!(s.history_len(), (0, 1));
+    s.push_host_entry("x").unwrap();
+    assert_eq!(s.history_len(), (1, 0));
+}
+
+#[test]
+fn clear_history_empties_the_stacks_the_journal_and_a_whatif_and_keeps_seq() {
+    let mut s = renamed();
+    s.begin_whatif().unwrap();
+    rename(&mut s, "Two");
+    assert!(s.undo().unwrap() && s.can_redo() && s.whatif_summary().is_some());
+    s.clear_history();
+    let held = (s.can_undo(), s.can_redo(), s.history_len());
+    assert_eq!(
+        (held, s.whatif_summary().is_some()),
+        ((false, false, (0, 0)), false)
+    );
+    assert_eq!(s.rollback_to(1).unwrap_err().kind(), "rollbackGone");
+    assert!(s.take_commits().ends_with(r#""seq":3}"#), "seq stays");
+}
+
+#[test]
+fn an_empty_token_is_refused_and_the_cap_drops_a_host_entry_like_any_entry() {
+    let mut s = renamed();
+    let before = (s.history_len(), s.revision());
+    assert_eq!(s.push_host_entry("").unwrap_err().kind(), "badToken");
+    assert_eq!((s.history_len(), s.revision()), before);
+    let mut s = renamed().with_history_cap(2);
+    s.push_host_entry("dropped").unwrap();
+    rename(&mut s, "A");
+    rename(&mut s, "B");
+    s.take_commits();
+    assert!(s.undo().unwrap() && s.undo().unwrap() && !s.undo().unwrap());
+    assert!(!s.take_commits().contains("dropped"));
+}
+
+#[test]
+fn a_rollback_over_a_host_entry_is_refused_and_one_short_of_it_is_taken() {
+    let mut s = renamed();
+    s.push_host_entry("h").unwrap();
+    rename(&mut s, "Two");
+    let before = (values(&s), s.history_len());
+    assert_eq!(s.rollback_to(2).unwrap_err().kind(), "rollbackGone");
+    assert_eq!((values(&s), s.history_len()), before, "nothing moved");
+    assert!(s.rollback_to(3).is_ok());
+}

@@ -128,6 +128,8 @@ pub enum EditError {
     NotStored(String),
     /// The host's before-edit function refused it: its reason, or the default sentence when empty.
     Refused(String),
+    /// A host entry's token is empty: the host could not tell which of its own actions to undo.
+    BadToken,
     /// The host asked to go back to a change the chart can no longer go back to: it was saved, or the
     /// history or the unsaved list dropped it.
     RollbackGone,
@@ -185,6 +187,7 @@ impl EditError {
             Self::ReadOnly => "readOnly",
             Self::NotAllowed(_) | Self::NotStored(_) => "notAllowed",
             Self::Refused(_) => "refused",
+            Self::BadToken => "badToken",
             Self::RollbackGone => "rollbackGone",
             Self::BeforeEditFailed => "beforeEditFailed",
         }
@@ -259,6 +262,7 @@ impl Worded for EditError {
             Self::NotStored(what) => texts.say(&NOT_STORED, &[("what", what)]),
             Self::Refused(reason) if !reason.is_empty() => reason.clone(),
             Self::Refused(_) => plain(&REFUSED),
+            Self::BadToken => plain(&crate::texts::BAD_TOKEN),
             Self::RollbackGone => plain(&ROLLBACK_GONE),
             Self::BeforeEditFailed => plain(&BEFORE_EDIT_FAILED),
         }

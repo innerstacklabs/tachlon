@@ -225,6 +225,18 @@ test("hostEdit then a typed rename: two Undo keystrokes take the rename back, th
   expect(await minutes(page, ["k0", "k1"]), "the second takes back the host durations").toEqual([960, 960]);
 });
 
+test("pushHostEntry then an Undo keystroke fires an edit whose commit carries the token, and clearHistory empties the redo list", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(10) });
+  expect(await page.evaluate(() => [window.upChart.pushHostEntry("assign-7"), window.upChart.pushHostEntry("")])).toMatchObject([{ ok: true }, { ok: false, reason: "badToken" }]);
+  await page.locator("#app").focus();
+  await page.keyboard.press("Control+z");
+  await page.waitForFunction(() => window.edits.length > 0);
+  const commits = await page.evaluate(() => (window.edits as { commits: { source: string; host?: string }[] }[]).flatMap((e) => e.commits));
+  expect(commits.map((c) => [c.source, c.host]), "the push, then the Undo that reached it").toEqual([["host", "assign-7"], ["undo", "assign-7"]]);
+  await page.evaluate(() => window.upChart.clearHistory());
+  expect(await page.evaluate(() => window.upChart.commands.redo()), "the redo entry went").toBe(false);
+});
+
 test("hostEdit refuses a record that sets progress or changes a task with actual dates, names the task and says to call update, which sets it", async ({ page }) => {
   await mountHost(page, { tasks: tasks(3), durationUnit: "minutes", capabilities: { durationStep: "days" } });
   const progress = { key: "k0", progress: 50 }, start = { key: "k0", snet: "2026-03-09" };

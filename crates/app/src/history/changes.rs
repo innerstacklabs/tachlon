@@ -47,7 +47,7 @@ fn edits_of(entry: &Entry) -> Vec<Edit> {
     let steps = match entry {
         Entry::Step(step) => std::slice::from_ref(step),
         Entry::Group(steps) => steps.as_slice(),
-        Entry::DataDates(_) => &[],
+        Entry::DataDates(_) | Entry::Host(_) => &[],
     };
     steps.iter().map(|step| step.edit.clone()).collect()
 }
@@ -73,7 +73,7 @@ impl Session {
         let steps: Vec<&Step> = match inverse {
             Entry::Step(step) => vec![step],
             Entry::Group(steps) => steps.iter().rev().collect(),
-            Entry::DataDates(_) => Vec::new(),
+            Entry::DataDates(_) | Entry::Host(_) => Vec::new(),
         };
         let (mut seen, mut changes) = (Vec::new(), Vec::new());
         for (task, field, old) in steps.iter().flat_map(|step| self.carried(&step.edit)) {
