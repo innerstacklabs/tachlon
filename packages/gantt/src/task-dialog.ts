@@ -26,12 +26,13 @@ function read(app: Shell["app"], task: number, details: TaskDetails): Record<str
     snlt: app.task_limit(task, "snlt"),
     fnet: app.task_limit(task, "fnet"),
     fnlt: app.task_limit(task, "fnlt"),
+    predecessors: app.predecessors_text(task) ?? "",
   };
 }
 
 /**
  * The task dialog (gantt#1875): `Shift+Enter` on the selected task opens a modal `<dialog>` holding its name, duration, start,
- * finish, percent complete, actual dates, remaining, start no later than, finish no earlier than and finish no later than. Save
+ * finish, percent complete, actual dates, remaining, start no later than, finish no earlier than, finish no later than and, while tasks have Activity IDs, predecessors. Save
  * (or `Enter` in a field) sends the fields that changed through
  * `App.set_task_fields`, which applies them as one undo step; a refusal shows its reason, beginning with the field's name, in
  * the dialog and keeps it open with nothing changed. While the chart is read-only (`refuseReadOnly` says so and shows why) it does not open. Cancel and `Escape` close it and change nothing. It reads and writes only
@@ -75,6 +76,9 @@ export function installTaskDialog({ app, root, canvas, status }: Shell, refuseRe
     if (dialog.open || status().gesture !== "idle" || details === undefined || refuseReadOnly()) return false;
     const text = read(app, task, details);
     for (const input of inputs) input.value = text[input.name] ?? "";
+    // Predecessors are Activity IDs, so the field is there only while the tasks have them, and not for a summary or a task whose list holds a task with no ID: a Save would drop that link.
+    const showPred = app.has_codes() && details.summary !== true && app.predecessors_text(task) !== undefined;
+    for (const input of inputs.filter((i) => i.name === "predecessors")) input.closest("label")!.style.display = showPred ? "" : "none";
     held = { task, epoch: status().epoch, text };
     title.textContent = `Edit task: ${text.name}`;
     error.hidden = true;

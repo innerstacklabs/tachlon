@@ -11,7 +11,7 @@ use web_sys::js_sys::{Object, Reflect};
 impl App {
     /// Apply task `i`'s changed fields as one undo step. `fields` holds the changed ones as text
     /// under `name`, `duration`, `start`, `finish`, `snlt`, `fnet`, `fnlt`, `percent`,
-    /// `actual_start`, `actual_finish` and `remaining`, each as its table cell takes it; limits
+    /// `actual_start`, `actual_finish`, `remaining` and `predecessors`, each as its table cell takes it; limits
     /// take a day or blank to clear. A key it lacks is left alone. Throws
     /// `JsError`, changing nothing, starting with the field it refused (`Duration: ...`).
     pub fn set_task_fields(&mut self, i: u32, fields: &Object) -> Result<(), JsError> {

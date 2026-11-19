@@ -124,3 +124,31 @@ fn a_refusal_after_a_field_applied_puts_the_task_back() {
     assert!(error.starts_with("Finish: "), "{error}");
     untouched(&s);
 }
+
+/// Two tasks with the Activity IDs `1` and `2` and no link, and what the dialog sends for the second.
+fn with_ids(fields: &[(&str, &str)]) -> (Session, Result<(), String>) {
+    let tasks = [("A", None, 60), ("B", None, 60)];
+    let mut s = crate::links::build_with(&tasks, &[], |meta| {
+        (meta[0].code, meta[1].code) = (Some("1".into()), Some("2".into()));
+    });
+    let result = s.set_task_fields(engine::TaskId(1), fields);
+    (s, result)
+}
+
+#[test]
+fn a_name_and_a_predecessors_list_are_one_undo_step() {
+    let (mut s, result) = with_ids(&[("name", "Pour"), ("predecessors", "1SS+1d")]);
+    result.unwrap();
+    assert_eq!(s.predecessors_text(engine::TaskId(1)).unwrap(), "1 SS+1d");
+    assert_eq!(s.history_len(), (1, 0), "one step, not two");
+    assert!(s.undo().unwrap());
+    assert_eq!(s.meta()[1].name, "B");
+    assert_eq!(s.predecessors_text(engine::TaskId(1)).unwrap(), "");
+}
+
+#[test]
+fn a_bad_predecessors_list_names_predecessors_and_changes_nothing() {
+    let (s, result) = with_ids(&[("name", "Pour"), ("predecessors", "9")]);
+    assert!(result.unwrap_err().starts_with("Predecessors: "));
+    assert_eq!((s.meta()[1].name.as_str(), s.history_len()), ("B", (0, 0)));
+}
