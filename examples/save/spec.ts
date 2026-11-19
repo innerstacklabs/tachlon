@@ -11,11 +11,11 @@ const SKIP: Record<Form, number[]> = {
 };
 /** The forms the example has so far; the row that adds the URL and the function form adds them here. */
 const BUILT: Form[] = ["handlers"];
-/** The scenarios that fail until what they test is built. Each is expected to fail, and the run fails, naming it, when one passes: the row that makes it pass deletes its name here. */
+/** The scenarios that fail until what they test is built. Each is expected to fail, and the run fails, naming it, when one passes: the row that makes it pass deletes its name here. A name ending in `(keys chart)` or `(keys server)` is pending in that key mode only. */
 const PENDING = new Set([
-  "1 slow saves", "2 a field refusal", "3 a new row's key", "3 a new row's key, host data first", "4 an edit before the create is saved", "5 a refused create with edits behind it",
+  "2 a field refusal", "3 a new row's key (keys chart)", "3 a new row's key, host data first (keys chart)", "4 an edit before the create is saved", "5 a refused create with edits behind it",
   "6 a server recalculation", "7 an outside change during a save", "8 a late result", "9 an old read", "10 a lost response", "11 a failure part of the way",
-  "11 a failure part of the way, a dropped request", "12 undo across the server", "13 the server is away", "14 discard", "15 repeats off", "16 the host's own names",
+  "11 a failure part of the way, a dropped request (keys chart)", "12 undo across the server", "13 the server is away", "14 discard", "15 repeats off", "16 the host's own names",
   "17 a server that ignores the key, keys chart", "17 a server that ignores the key, keys server", "21 a 500 that applied nothing", "22 an expired login",
   "23 a refusal that carries a status", "24 a 503 part of the way", "25 a create the server cannot repeat", "26 a missing handler",
 ]);
@@ -48,7 +48,7 @@ export default async function (page: Page, url: string): Promise<void> {
           run.setDefaultTimeout(10_000);
           await run.goto(`${url}?keys=${keys}`);
           const failure = await Promise.race([s.run(run, server, keys, form), crashed]).then(() => undefined, (e: Error) => e);
-          if (!PENDING.has(s.name)) {
+          if (!PENDING.has(s.name) && !PENDING.has(`${s.name} (keys ${keys})`)) {
             if (failure) throw new Error(`${label}: ${failure.message}`);
             console.log(`  pass ${label}`);
           } else if (failure) console.log(`  pending ${label}: failed as expected, ${failure.message.split("\n")[0]}`);

@@ -1,4 +1,4 @@
-import type { SaveContext } from "./pending";
+import type { SaveContext } from "tachlon/react";
 
 export type Task = { id: string; title: string; plannedStart: string; days: number; parentId?: string };
 export type Link = { id: string; source: string; target: string };

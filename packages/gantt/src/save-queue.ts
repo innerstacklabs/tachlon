@@ -1,7 +1,8 @@
 // The host's save queue (decision 0022, rule 3.3): each commit the person makes goes to the host's `save` function as a change set, one call at a time, in `seq`
 // order. A `SaveRefused` puts that commit and every commit behind it back through `App.rollback_to`; any other throw leaves the commit unsaved and stops the queue.
 import type { Commit } from "./events.js";
-import type { ChangeSet, Save, SaveError } from "./gantt-types.js";
+import type { ChangeSet, Handlers, Save, SaveError } from "./gantt-types.js";
+import { callSave } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
 
 /** Throw this from `save` when the server judged the change and said no; `message` is the line the person sees. */
 export class SaveRefused extends Error {
@@ -27,8 +28,8 @@ const BUSY_WAIT = 50;
 const LIVE = Symbol.for("gantt.liveSave");
 
 /** What a wrapper hands `mount` as `save`: the queue asks `get` for the host's current function when it sends a commit, and with none it writes no change set and acknowledges nothing. A symbol key, so the entry bundles agree on it. */
-export function liveSave(get: () => Save | undefined): Save {
-  return Object.assign((changeSet: ChangeSet) => get()!(changeSet), { [LIVE]: get });
+export function liveSave(get: () => Save | Handlers | undefined): Save {
+  return Object.assign((changeSet: ChangeSet) => callSave(get()!, changeSet), { [LIVE]: get });
 }
 
 /** A commit that is not saved yet, its change set (written at the first call) and how many times `save` has run for it. */
@@ -36,7 +37,7 @@ interface Waiting { commit: Commit; set?: ChangeSet; calls: number }
 
 export class SaveQueue {
   private readonly app: SaveApp;
-  private readonly save: Save;
+  private readonly save: Save | Handlers;
   private readonly failed: (error: SaveError) => void;
   private readonly waiting: Waiting[] = [];
   private running = false;
@@ -46,7 +47,7 @@ export class SaveQueue {
   private floor = 0;
 
   /** `failed` is told of each put-back once, after it. */
-  constructor(app: SaveApp, save: Save, failed: (error: SaveError) => void) {
+  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError) => void) {
     this.app = app;
     this.save = save;
     this.failed = failed;
@@ -84,7 +85,7 @@ export class SaveQueue {
     try {
       while (!this.stopped && !this.broken && this.waiting.length > 0) {
         const head = this.waiting[0]!;
-        const live = (this.save as { [LIVE]?: () => Save | undefined })[LIVE];
+        const live = (this.save as { [LIVE]?: () => Save | Handlers | undefined })[LIVE];
         const save = live === undefined ? this.save : live();
         if (save === undefined) {
           this.waiting.shift();
@@ -93,7 +94,7 @@ export class SaveQueue {
         head.set ??= write(head.commit);
         head.calls++;
         try {
-          await save(head.set);
+          await callSave(save, head.set, () => this.stopped);
         } catch (err) {
           if (this.stopped) return;
           if (!(err instanceof SaveRefused)) {

@@ -321,6 +321,41 @@ The function gets `{ kind, source, tasks, changes }`: the action, what made it (
 
 When one task dialog sends dependent fields (a start with a finish, a duration with a finish), each is planned against the chart before any applies, so the new value the function sees for the dependent field can differ from the one the commit writes. Never call the chart from inside the function: a call that reaches the chart (`toDocument`, `state`, a command such as `commands.insertRow`) throws and the change is refused with an `error` event, except that, while a cell is being edited, an edit command returns `busy` and does nothing (`undo`, `redo` and `layoutJson` catch the throw and return `false` with no refusal and no error event, and `select`, `zoomIn`, `setFilter`, `whatIf` and `explain` throw even then). The function cannot wait for an approver: refuse the change with a reason such as "Sent to the planner for approval", send it on, and when it is approved hold it with `chart.commands.propose` and accept it with `acceptProposal`. The chart asks your function again for that accept, with the source `proposal`, so let a `proposal` through for a change you approved. The React, Vue and Angular components take `beforeEdit` as a prop or input and ask the latest function they were given, without mounting the chart again.
 
+## Connect to your backend
+
+A host that already has an API client gives `save` one handler for each kind of change. The chart calls the right one for each edit, in the order the person made them, each after the one before has resolved, with the row, its key and what changed. You write no save queue, no repeat and no put-back.
+
+```tsx
+import { Gantt, type Handlers } from "tachlon/react";
+import "tachlon/gantt.css";
+import { api, type Task, type Link } from "./api"; // your client: it sends c.once and c.signal
+
+const fields = { // the chart's names on the left, your API's on the right; any other member of a row comes back untouched
+  tasks: { key: "id", name: "title", start: "plannedStart", duration: "days", parent: "parentId" },
+  links: { key: "id", from: "source", to: "target" },
+};
+
+const save: Handlers = { // one call into your API per change, in the order the person made them
+  createTask: (row, c) => api.createTask(row, c),
+  updateTask: (key, set, c) => api.updateTask(key, set, c),
+  deleteTask: (key, c) => api.deleteTask(key, c),
+  createLink: (row, c) => api.createLink(row, c),
+  updateLink: (key, set, c) => api.updateLink(key, set, c),
+  deleteLink: (key, c) => api.deleteLink(key, c),
+  updateSchedule: (set, c) => api.updateSchedule(set, c),
+};
+
+export function Schedule({ tasks, links, reload }: { tasks: Task[]; links: Link[]; reload: () => void }) {
+  return <Gantt tasks={tasks} links={links} fields={fields} dateForm="day"
+    save={save} onError={(e) => e.source === "save" && reload()} style={{ height: 480 }} />;
+}
+```
+
+- **The last argument,** `c`, carries `once`, the request's idempotency key (`<id>:<n>`); `signal`, aborted 10 seconds after the handler is called (the chart still waits for the handler to settle); `was`, the old values; and `changeSet`, the whole commit.
+- **Throw a `SaveRefused` when the server says no.** A handler that rejects, or resolves with a `Response` whose status is not a 2xx, ends the call. A `SaveRefused` puts that edit and the ones after it back and fires `error` with the source `"save"`; read your data again there, as the example does. Any other throw leaves the edit unsaved and stops saving.
+- **A handler that resolves with an object that has an `error`, `errors` or `userErrors` member is read as saved,** and the console warns once for that handler. The check reads the top level only: a client that nests `userErrors` deeper is not caught, so its handler throws when it finds one.
+- **The chart reads the object it holds at each call,** so a new `save` object on every render is safe. A change whose handler is missing stops saving, with a console error.
+
 ## Stop the chart
 
 `chart.destroy()` stops the frame loop, frees the engine, and empties the element. Call it when the page removes the chart. It is safe to call twice; every other method throws once it has run, except `chart.commands`, whose calls return `undefined`.

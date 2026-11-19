@@ -86,7 +86,7 @@ import "./styles/print.css";
 export { fromBryntum, fromDhtmlx, fromTasks, PlainDataError, toPlain, validate } from "./adapters/index.js";
 export type { BryntumResult, DhtmlxOptions, DhtmlxResult, PlainCalendar, PlainIssue, PlainLink, PlainOptions, PlainResult, PlainTask, PlainValidation, ScheduleDocument } from "./adapters/index.js";
 // The chart's own types (`gantt-types.ts`).
-export type { BeforeEdit, BeforeEditChange, ChangeSet, Fields, Gantt, HostCapabilities, HostDifference, MountOptions, Rows, Save, SaveError, SaveResult, TaskUpdate, UpdateResult } from "./gantt-types.js";
+export type { BeforeEdit, BeforeEditChange, ChangeSet, Fields, Gantt, Handlers, HostCapabilities, HostDifference, MountOptions, Rows, Save, SaveContext, SaveError, SaveResult, TaskUpdate, UpdateResult } from "./gantt-types.js";
 export { SaveRefused } from "./save-queue.js";
 export type { Commands, ScrollTarget } from "./commands.js";
 export type { Change, Commit, CommitSource, GanttEvents } from "./events.js";
