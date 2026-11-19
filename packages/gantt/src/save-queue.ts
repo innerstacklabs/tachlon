@@ -157,7 +157,7 @@ export class SaveQueue {
     this.broken = true;
     console.error(note, err);
     const head = this.waiting[0];
-    this.failed({ source: "save", message: err instanceof Error ? err.message : String(err), fatal: false, reason: "stopped", calls: head?.calls ?? 0, seq: head?.commit.seq ?? 0, undone: 0, reload: false, held: this.waiting.length });
+    this.failed({ source: "save", message: err instanceof Response ? `the save answered with status ${err.status}` : typeof (err as { message?: unknown } | null)?.message === "string" ? (err as Error).message : note, fatal: false, reason: "stopped", calls: head?.calls ?? 0, seq: head?.commit.seq ?? 0, undone: 0, reload: false, held: this.waiting.length });
   }
 
   private async pump(): Promise<void> {

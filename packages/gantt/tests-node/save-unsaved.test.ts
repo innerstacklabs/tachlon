@@ -96,8 +96,9 @@ test("a save that throws a plain Error stops the queue: one error event, the hel
   await settle();
   queue.add([commit(2), commit(3)]);
   await settle();
-  quiet.mock.restore();
   expect(errors.map((e) => [e.reason, e.message, e.held, e.undone])).toEqual([["stopped", "save failed: 503", 1, 0]]);
+  for (const [thrown, message] of [[new Response(null, { status: 422 }), "the save answered with status 422"], [{ code: 7 }, "a save threw, so the chart stopped saving"]] as const) { new SaveQueue(app, async () => { throw thrown; }, (e) => errors.push(e)).add([commit(1)]); await settle(); expect(errors.at(-1)?.message).toBe(message); }
+  quiet.mock.restore();
   expect([queue.unsavedCommits, calls]).toEqual([3, 1]);
 });
 
