@@ -22,8 +22,7 @@ On this page, the toolbar shows the data date as `Data date YYYY-MM-DD HH:MM`. W
 instead. To move it, click the date (or focus it and press `Enter` or `Space`) and type a day
 written `YYYY-MM-DD`, then press `Enter`. `ArrowUp` and `ArrowDown` step the box by a day and
 `Shift` with either steps a week; the date applies only when you press `Enter`, and `Escape`
-puts the shown date back. Text that is not a date is refused in the alert line ("Write the data
-date as YYYY-MM-DD."), and the box keeps focus and your text. An empty box plus `Enter` clears
+puts the shown date back. On this page the refusal shows in the alert line, and the box keeps focus and your text. An empty box plus `Enter` clears
 the data date. `Enter` on the date as it stands adds no undo step.
 
 {{#include ../../packages/gantt/guide/progress.md:moves}}

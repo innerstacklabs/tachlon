@@ -62,7 +62,7 @@
 <!-- needs: edit, call:setDataDate -->
 
 <!-- ANCHOR: move -->
-6. **Move the data date.** Give the chart a day written `YYYY-MM-DD` to move the data date to it, or no day to clear it. Text that is not a date is refused ("Write the data
+6. **Move the data date.** The data date is a line on the chart. Give the chart a day written `YYYY-MM-DD` to move the data date to it, or no day to clear it. Text that is not a date is refused ("Write the data
    date as YYYY-MM-DD."), and nothing changes.
    <!-- control: setDataDate | moves the data date to 00:00 on a day written YYYY-MM-DD, or clears it -->
 <!-- ANCHOR_END: move -->
