@@ -17,6 +17,7 @@ const PENDING = new Set([
   "6 a server recalculation", "7 an outside change during a save", "8 a late result", "9 an old read", "10 a lost response", "11 a failure part of the way",
   "11 a failure part of the way, a dropped request", "12 undo across the server", "13 the server is away", "14 discard", "15 repeats off", "16 the host's own names",
   "17 a server that ignores the key, keys chart", "17 a server that ignores the key, keys server", "21 a 500 that applied nothing", "22 an expired login",
+  "23 a refusal that carries a status", "24 a 503 part of the way", "25 a create the server cannot repeat", "26 a missing handler",
 ]);
 
 const scenarios = SCENARIOS.map((s) => ({ ...s, forms: FORMS.filter((f) => !SKIP[f].includes(s.n) && !s.not?.includes(f)) }));
@@ -40,7 +41,7 @@ export default async function (page: Page, url: string): Promise<void> {
             const response = await route.fetch();
             const [code, chart, own, record] = [await response.text(), "_jsxDEV(Gantt, {", "onError: (e) =>", "void (window.errors ??= []).push(e)"];
             if (![chart, own].every((a) => code.includes(a))) throw new Error("the page's chart call is not where the suite expects it"); // a page with no onError of its own gets a branch here from the row that writes it
-            return route.fulfill({ response, body: code.replace(own, `${own} ${record} ||`).replace(chart, `${chart} ${s.props ? `${s.props},` : ""}`) });
+            return route.fulfill({ response, body: code.replace(own, `${s.props ? `${s.props}, ` : ""}${own} ${record} ||`) }); // after the page's own props, so a scenario's setting wins over the page's
           });
           const crashed = new Promise<never>((_, reject) => run.on("pageerror", reject)); // a page that throws (the chart refusing to mount) ends the scenario at once, not after its waits
           crashed.catch(() => undefined);

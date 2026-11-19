@@ -348,4 +348,102 @@ export const SCENARIOS: Scenario[] = [
       assert.deepEqual([await days(page, 1), (await errors(page)).map((e) => e.reason)], [7, ["refused"]]);
     },
   },
+  {
+    n: 23, name: "23 a refusal that carries a status", // the body is not JSON; the handlers form's client throws an error with `status: 422` and its status line as the message
+    script: { latency: (r) => (r.method === "PATCH" ? 800 : 0), refuse: (r) => (r.method === "PATCH" ? { status: 422, body: "That change is not allowed" } : undefined) },
+    async run(page, server, _keys, form) {
+      await ready(page);
+      const was = await days(page, 1);
+      await edit(page, 1, "dur", "7");
+      await row(page, 0).click({ position: { x: 4, y: 4 } }); // another row is selected while the save is in flight, so a selected row 1 afterwards is the chart's doing
+      await until("the put-back", async () => (await errors(page)).length === 1 && (await days(page, 1)) === was, 8_000);
+      const shown = await alert(page);
+      if (form === "handlers") assert.ok(shown.includes("Unprocessable Entity"), "the error's message shows");
+      else assert.ok(shown.includes("The server refused the change") && shown.includes("422"), "the chart's own message, with the status");
+      if (form !== "url") assert.deepEqual(await Promise.all([0, 1].map((n) => row(page, n).getAttribute("data-selected"))), form === "handlers" ? [null, "true"] : ["true", null], form === "handlers" ? "the refused change's row is selected, though the error names no key" : "the selection stays: the chart cannot tell which request was refused"); // the record names no row for the URL form
+      await pause(1_500);
+      assert.equal(writes(server).length, 1, "no repeat");
+      assert.deepEqual((await errors(page)).map((e) => e.reason), ["refused"]);
+    },
+  },
+  {
+    n: 24, name: "24 a 503 part of the way", script: {}, // deleting the second task is three requests (its two links, then the task); the second is answered 503
+    async run(page, server) {
+      await ready(page);
+      server.script.fail = (r) => (r.method !== "GET" && writes(server).length === 2 ? 503 : undefined); // only the second request: the repeat is the third
+      await row(page, 1).click({ position: { x: 4, y: 4 } });
+      await page.keyboard.press("Delete");
+      await until("the commit saved", () => server.db.links.size === 0 && !server.db.tasks.has("t2"), 10_000);
+      await pause(1_500);
+      const [first, second, again, last] = writes(server);
+      assert.equal(writes(server).length, 4, "the first request once, the second twice, the third once");
+      assert.deepEqual([again!.method, again!.path, again!.once], [second!.method, second!.path, second!.once], "the repeat resumes at the second change, with its key");
+      assert.ok(first!.path !== second!.path && last!.path === "/api/tasks/t2", "the links, then the task");
+      assert.deepEqual([await errors(page), await alert(page)], [[], ""], "nothing is put back");
+    },
+  },
+  {
+    n: 25, name: "25 a create the server cannot repeat", keys: "server", props: "idempotent: false", // the page's `idempotent` is the one this scenario leaves off
+    script: { honor: false, latency: (r) => (r.method === "POST" ? 1_500 : 0) }, // the latency keeps the failure from landing while insert() is still typing (scenario 5)
+    async run(page, server) {
+      await ready(page);
+      server.script.drop = (r) => (r.method === "POST" ? "response" : undefined);
+      await insert(page, "Review");
+      await until("the put-back and the read after it", async () => reads(server) === 2 && (await errors(page)).length === 1, 8_000);
+      await pause(1_500);
+      assert.deepEqual([writes(server).length, (await errors(page)).map((e) => e.reason)], [1, ["failed"]], "put back at once, no repeat");
+      assert.deepEqual([server.db.tasks.size, await rows(page)], [4, 4], "the row the server made, once");
+      server.script.drop = (r) => (r.method === "PATCH" && !r.repeat ? "response" : undefined);
+      await edit(page, 1, "dur", "7");
+      await until("the update repeated", () => writes(server).length === 3, 10_000);
+      await until("the alert line to clear", async () => (await alert(page)) === "", 5_000);
+      const [, first, again] = writes(server);
+      assert.deepEqual([again!.method, again!.path, again!.once], [first!.method, first!.path, first!.once], "the same call");
+      assert.deepEqual([server.db.tasks.get("t2")!.days, await days(page, 1)], [7, 7], "saved");
+      server.script.drop = (r) => (r.method === "DELETE" && !r.repeat ? "response" : undefined);
+      await row(page, 3).click({ position: { x: 4, y: 4 } });
+      await page.keyboard.press("Delete");
+      await until("the delete repeated", () => writes(server).length === 5, 10_000); // the repeat is answered 404 and counts as saved
+      await pause(1_500);
+      assert.deepEqual(writes(server).slice(3).map((r) => `${r.method} ${r.path}`), ["DELETE /api/tasks/s1", "DELETE /api/tasks/s1"], "once more, and no more");
+      assert.deepEqual([await rows(page), (await errors(page)).length, await alert(page)], [3, 1, ""], "saved: nothing else is put back");
+    },
+  },
+  {
+    n: 26, name: "26 a missing handler", props: "save: (({ createLink, ...rest }) => rest)(save)", // the page's handlers without `createLink`
+    script: {},
+    async run(page, server) {
+      const warned: string[] = [];
+      page.on("console", (m) => void (m.type() === "warning" && warned.push(m.text())));
+      page.on("framenavigated", () => void (warned.length = 0)); // only the mount after the reload counts
+      await page.reload(); // the warning is logged at mount, so mount again with the listener on
+      await ready(page);
+      assert.equal(warned.filter((w) => w.includes("createLink")).length, 1, "one warning, and it names the handler");
+      const hook = (read: string, r?: number) => page.evaluate(`(() => { const g = window.gantt, r = ${r}; return ${read}; })()`);
+      const [from, to] = await Promise.all([0, 2].map((n) => hook("g.app.x_of(g.app.row_start(r))", n) as Promise<number>));
+      const [a, b, box] = [await row(page, 0).boundingBox(), await row(page, 2).boundingBox(), await page.locator("#timeline").boundingBox()];
+      const down = { x: box!.x + from + 4, y: a!.y + a!.height / 2 };
+      await page.mouse.move(down.x, down.y);
+      await until("the pointer over the first bar", async () => (await hook("g.status().hover")) !== null, 3_000); // the press below is on a bar
+      await page.keyboard.down("Alt");
+      try {
+        await page.mouse.down();
+        await page.mouse.move(box!.x + to + 4, b!.y + b!.height / 2, { steps: 8 });
+        assert.equal(await hook("g.app.linking()"), false, "no link gesture starts");
+        await page.mouse.move(down.x, down.y, { steps: 8 }); // back where it began, so a press that became a bar drag moves nothing
+      } finally {
+        await page.mouse.up();
+        await page.keyboard.up("Alt");
+      }
+      await pause(1_500);
+      const base = writes(server).length;
+      await row(page, 1).click({ position: { x: 4, y: 4 } });
+      await page.keyboard.press("Delete");
+      await until("the delete saved", () => !server.db.tasks.has("t2") && writes(server).length === base + 3, 8_000);
+      await undo(page);
+      await pause(1_500);
+      assert.deepEqual([await rows(page), writes(server).length - base, server.db.tasks.size, server.db.links.size], [2, 3, 2, 0], "nothing changes and save is not called");
+      assert.ok(!server.seen.some((r) => r.method === "POST" && r.path === "/api/links"), "no link was made");
+    },
+  },
 ];
