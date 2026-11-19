@@ -49,7 +49,7 @@ impl App {
     }
 
     /// `update_tasks`, answered as JSON: `{"ok":true,"updated":n}` (and `"differs":[...]` when a host date differs) or `{"ok":false,"reason":r}` with `record`
-    /// (from 0) and `member` when named. Not an edit: no undo step, no commit, `revision` kept; one recompute, or two when the call mixes progress with a duration, start or snet.
+    /// (from 0) and `member` when named. Not an edit: no undo step, no commit, `revision` kept; one recompute, or two when the call mixes progress with a duration, start, snet or a limit.
     pub fn update_tasks(&mut self, json: &str) -> String {
         match self.session.update_tasks(json) {
             Ok(done) => {
