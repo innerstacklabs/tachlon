@@ -6,8 +6,8 @@ import type { AddressInfo } from "node:net";
 
 type Row = Record<string, unknown>;
 type Answer = { status: number; body?: unknown };
-/** One request as the script sees it; `n` counts the requests the server has received, from 1. `key` is the decoded `:key` of the path. */
-export interface Seen { n: number; method: string; path: string; key?: string; once?: string; body?: Row }
+/** One request as the script sees it; `n` counts the requests the server has received, from 1. `key` is the decoded `:key` of the path. `repeat`: an earlier request carried the same `Idempotency-Key`. */
+export interface Seen { n: number; method: string; path: string; key?: string; once?: string; repeat: boolean; body?: Row }
 export interface Db { tasks: Map<string, Row>; links: Map<string, Row>; schedule: Row }
 
 export interface Script {
@@ -25,7 +25,8 @@ export interface Script {
   honor?: boolean; // answer a repeated idempotency key as the first request was (default true)
 }
 
-export interface FakeServer { url: string; seen: Seen[]; db: Db; maxInFlight: number; close(): Promise<void> }
+/** `script` is the one the server reads at every request, so a scenario changes it as the person acts (the server comes back, the session is accepted again). */
+export interface FakeServer { url: string; seen: Seen[]; db: Db; script: Script; maxInFlight: number; close(): Promise<void> }
 
 const TO_CHART = {
   task: { id: "key", title: "name", plannedStart: "start", days: "duration", parentId: "parent" },
@@ -57,7 +58,7 @@ export async function startServer(script: Script = {}): Promise<FakeServer> {
   const seen: Seen[] = [];
   let made = 0;
   let inFlight = 0;
-  const out: FakeServer = { url: "", seen, db, maxInFlight: 0, close: async () => void 0 };
+  const out: FakeServer = { url: "", seen, db, script, maxInFlight: 0, close: async () => void 0 };
 
   const apply = (r: Seen): Answer => {
     const what = r.path.split("/")[2] ?? "";
@@ -108,7 +109,8 @@ export async function startServer(script: Script = {}): Promise<FakeServer> {
     let text = "";
     for await (const chunk of req) text += chunk;
     const part = url.pathname.split("/")[3];
-    const r: Seen = { n: seen.length + 1, method: req.method ?? "GET", path: url.pathname, key: part && decodeURIComponent(part), once: req.headers["idempotency-key"] as string | undefined, body: text ? JSON.parse(text) : undefined };
+    const once = req.headers["idempotency-key"] as string | undefined;
+    const r: Seen = { n: seen.length + 1, method: req.method ?? "GET", path: url.pathname, key: part && decodeURIComponent(part), once, repeat: once !== undefined && seen.some((p) => p.once === once), body: text ? JSON.parse(text) : undefined };
     seen.push(r);
     out.maxInFlight = Math.max(out.maxInFlight, ++inFlight);
     res.on("close", () => inFlight--);

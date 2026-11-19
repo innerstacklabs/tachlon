@@ -3,8 +3,10 @@ import type { Page } from "@playwright/test";
 import type { FakeServer, Script } from "./server.ts";
 
 export type Form = "handlers" | "url" | "function";
-/** A scenario of decision 0022, rule 11.2. `keys` pins the key mode it runs in; without it the suite runs both. `not` names forms it skips on top of rule 11.1's list. */
-export interface Scenario { n: number; name: string; keys?: "chart" | "server"; not?: Form[]; script: Script; run(page: Page, server: FakeServer, keys: "chart" | "server"): Promise<void> }
+/** A scenario of decision 0022, rule 11.2. `keys` pins the key mode it runs in; without it the suite runs both. `not` names forms it skips on top of rule 11.1's list. `props` is a setting the scenario names, written as the props it adds to the chart (`retry: false`): the page changes in that and nothing else. */
+export interface Scenario { n: number; name: string; keys?: "chart" | "server"; not?: Form[]; props?: string; script: Script; run(page: Page, server: FakeServer, keys: "chart" | "server", form: Form): Promise<void> }
+/** What an `error` event carries (rule 3.5); the suite records every one the chart fires in `window.errors`. */
+interface SaveError { source: string; message: string; reason?: string; calls?: number; undone?: number }
 
 const until = async (what: string, ok: () => boolean | Promise<boolean>, ms: number): Promise<void> => {
   for (const end = Date.now() + ms; !(await ok()); await new Promise((resolve) => setTimeout(resolve, 50))) if (Date.now() > end) assert.fail(`timed out waiting for ${what}`);
@@ -28,6 +30,10 @@ const writes = (server: FakeServer) => server.seen.filter((r) => r.method !== "G
 const rows = (page: Page) => page.locator("#table-rows .row").count();
 const alert = async (page: Page): Promise<string> => (await page.locator("#edit-error-text").allTextContents()).join(" ");
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const reads = (server: FakeServer) => server.seen.filter((r) => r.method === "GET" && r.path === "/api/schedule").length; // the mount's read, and the read after a put-back: the host's, or in the URL form the chart's
+const errors = (page: Page): Promise<SaveError[]> => page.evaluate(() => Reflect.get(window, "errors") ?? []);
+const press = (page: Page, button: string | RegExp) => page.getByRole("button", { name: button }).click();
+const undo = async (page: Page) => { await row(page, 0).click({ position: { x: 4, y: 4 } }); await page.keyboard.press("ControlOrMeta+z"); };
 const HOST = new Set(["id", "title", "plannedStart", "days", "parentId"]); // the member names the server's rows use
 const task = (i: number) => ({ id: `t${i}`, title: `Task ${i}`, plannedStart: "2026-11-02", days: 2 });
 const newKey = (body?: Record<string, unknown>) => String(body?.id ?? "s1"); // the key a create's row gets: the chart's, or the server's first
@@ -41,6 +47,30 @@ async function oneRow(page: Page, server: FakeServer): Promise<void> {
   assert.equal(await rows(page), 4, "the row appears once");
   assert.ok(server.db.tasks.has(newKey(writes(server)[0]?.body)), "under the key the chart made or the key the result gives");
 }
+
+// The second task has two links, so deleting it saves three requests and undoing that saves three more (the task, then its links). Returns how many writes the delete took.
+async function deleteBuild(page: Page, server: FakeServer): Promise<number> {
+  await ready(page);
+  await row(page, 1).click({ position: { x: 4, y: 4 } });
+  await page.keyboard.press("Delete");
+  await until("the delete saved", () => !server.db.tasks.has("t2") && writes(server).length === 3, 8_000);
+  return 3;
+}
+// The server drops every write while three edits are made; the chart calls the first at the default waits (1, 3 and 9 s), then stops and asks. Returns the durations before the edits.
+const AWAY: Script = { drop: (r) => (r.method === "GET" ? undefined : "request") };
+async function away(page: Page, server: FakeServer): Promise<number[]> {
+  await ready(page);
+  const was = await Promise.all([0, 1, 2].map((n) => days(page, n)));
+  for (const [n, value] of [[0, "7"], [1, "8"], [2, "9"]] as const) await edit(page, n, "dur", value);
+  await until("the alert line to say it is trying again", async () => (await alert(page)).includes("Not saved yet. Trying again."), 5_000);
+  await until("the chart to stop and ask", async () => (await alert(page)).includes("Not saved: "), 25_000); // "Not saved yet." comes from the first failure
+  assert.deepEqual(writes(server).map((r) => r.key), ["t1", "t1", "t1", "t1"], "the first is called four times, the others not at all");
+  assert.deepEqual(await Promise.all([0, 1, 2].map((n) => days(page, n))), [7, 8, 9], "all three stay on screen");
+  assert.deepEqual(await errors(page), [], "nothing is put back");
+  return was;
+}
+// A create whose response is lost: the server stores it and the connection closes.
+const LOST: Script = { drop: (r) => (r.method === "POST" && !r.repeat ? "response" : undefined) };
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -155,6 +185,99 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
+    n: 10, name: "10 a lost response", script: LOST,
+    async run(page, server) {
+      await ready(page);
+      await insert(page, "Review");
+      await until("the alert line to say it is trying again", async () => (await alert(page)).includes("Not saved yet. Trying again."), 900); // between the two calls
+      await until("the create called again, then the rename queued behind it", () => writes(server).length === 3, 10_000);
+      await pause(1_500);
+      const [first, again] = writes(server);
+      assert.deepEqual([again!.once, again!.body], [first!.once, first!.body], "the same call: same key, same body");
+      assert.deepEqual(writes(server).map((r) => r.method), ["POST", "POST", "PATCH"], "the create twice, then the rename once, and no more"); // insert() makes two commits (scenario 4)
+      assert.equal(server.db.tasks.size, 4, "the server holds the row once");
+      assert.equal(await rows(page), 4, "the row appears once");
+      assert.deepEqual([await errors(page), await alert(page)], [[], ""], "nothing is put back");
+    },
+  },
+  {
+    n: 11, name: "11 a failure part of the way", // the second of the three requests of the undo is refused
+    script: {},
+    async run(page, server) {
+      const sent = await deleteBuild(page, server);
+      server.script.refuse = (r) => (r.method !== "GET" && writes(server).length === sent + 2 ? { status: 422, body: { message: "No new links today" } } : undefined);
+      await undo(page);
+      await until("the put-back and the read after it", async () => reads(server) === 2 && (await errors(page)).length === 1, 8_000);
+      assert.deepEqual((await errors(page)).map((e) => [e.reason, e.undone]), [["refused", 1]], "the commit is put back");
+      assert.equal(writes(server).length, sent + 2, "the third request is never sent");
+      assert.deepEqual([server.db.tasks.size, server.db.links.size], [3, 0], "the server kept the first request");
+      await until("the row the server kept", async () => (await rows(page)) === 3, 5_000);
+    },
+  },
+  {
+    n: 11, name: "11 a failure part of the way, a dropped request", script: {},
+    async run(page, server, _keys, form) {
+      const sent = await deleteBuild(page, server);
+      server.script.drop = (r) => (r.method !== "GET" && writes(server).length === sent + 2 ? "request" : undefined);
+      await undo(page);
+      await until("the undo saved whole", () => server.db.links.size === 2, 10_000);
+      await until("the alert line to clear", async () => (await alert(page)) === "", 5_000);
+      const creates = writes(server).slice(sent).filter((r) => r.path === "/api/tasks").length;
+      assert.equal(creates, form === "function" ? 2 : 1, "the handlers and the URL form resume at the second request; the function form sends the first again");
+      assert.equal([...server.db.tasks.values()].filter((t) => t.title === "Build").length, 1, "and the server applied the first once");
+      assert.deepEqual([await errors(page), await alert(page), reads(server)], [[], "", 1], "nothing is put back or read again");
+    },
+  },
+  {
+    n: 12, name: "12 undo across the server", script: { outside: (r, db) => void (r.n === 1 && (db.tasks.get("t2")!.note = "Call the architect")) }, // `note` is a column the chart does not know
+    async run(page, server) {
+      const sent = await deleteBuild(page, server);
+      server.script.refuse = (r) => (r.method === "POST" ? { status: 422, body: { message: "No new tasks today" } } : undefined);
+      await undo(page);
+      await until("the refusal", async () => (await alert(page)).includes("No new tasks today"), 8_000);
+      assert.equal(await rows(page), 2, "the task is gone again");
+      assert.equal(writes(server).length, sent + 1, "the undo stopped at its first request");
+      server.script.refuse = undefined;
+      await undo(page); // the step is back on the undo list
+      await until("the task and its links", () => server.db.links.size === 2 && [...server.db.tasks.values()].some((t) => t.title === "Build"), 8_000);
+      assert.deepEqual(writes(server).slice(sent + 1).map((r) => `${r.method} ${r.path}`), ["POST /api/tasks", "POST /api/links", "POST /api/links"], "the task, then the links");
+      assert.equal([...server.db.tasks.values()].find((t) => t.title === "Build")!.note, "Call the architect", "the column the chart does not know is intact");
+      assert.equal(await rows(page), 3);
+    },
+  },
+  { n: 13, name: "13 the server is away", script: AWAY,
+    async run(page, server) {
+      await away(page, server);
+      server.script.drop = undefined; // the server comes back
+      await press(page, "Try again");
+      await until("the three saved", () => [7, 8, 9].every((d, i) => server.db.tasks.get(`t${i + 1}`)!.days === d), 8_000);
+      assert.deepEqual(writes(server).slice(4).map((r) => r.key), ["t1", "t2", "t3"], "once each, in commit order");
+      assert.deepEqual(await errors(page), []);
+    },
+  },
+  { n: 14, name: "14 discard", script: AWAY,
+    async run(page, server) {
+      const was = await away(page, server);
+      await press(page, "Discard 3 changes");
+      await until("the read after the put-back", () => reads(server) === 2, 8_000); // the host's, or in the URL form the chart's
+      assert.deepEqual((await errors(page)).map((e) => [e.reason, e.calls, e.undone]), [["failed", 4, 3]], "error fires once");
+      await until("the three put back", async () => (await Promise.all([0, 1, 2].map((n) => days(page, n)))).every((d, i) => d === was[i]), 8_000);
+    },
+  },
+  {
+    n: 15, name: "15 repeats off", props: "retry: false", // the latency keeps the failure from landing while insert() is still typing: the rename queues behind the create, and one put-back takes both (scenario 5)
+    script: { latency: (r) => (r.method === "POST" ? 1_500 : 0), drop: (r) => (r.method === "POST" ? "response" : undefined) },
+    async run(page, server) {
+      await ready(page);
+      await insert(page, "Review");
+      await until("the put-back and the read after it", () => reads(server) === 2, 8_000); // the host's, or in the URL form the chart's
+      await pause(1_500); // longer than the first of the default waits
+      assert.equal(writes(server).length, 1, "save ran once");
+      assert.deepEqual((await errors(page)).map((e) => e.reason), ["failed"]);
+      assert.equal(await rows(page), 4, "the row the server kept, once");
+    },
+  },
+  {
     n: 16, name: "16 the host's own names", script: { outside: (r, db) => void (r.n === 1 && (db.tasks.get("t1")!.name = "Own name")) },
     async run(page, server, keys) {
       await ready(page);
@@ -166,6 +289,63 @@ export const SCENARIOS: Scenario[] = [
       if (keys === "chart") assert.equal(typeof bodies[1]!.id, "string", "a create carries the new key as id");
       assert.deepEqual([server.db.tasks.get("t1")!.title, server.db.tasks.get("t1")!.name], ["Renamed", "Own name"], "a row with title and a name of its own keeps both");
       assert.equal(await text(page, 0, "name"), "Renamed");
+    },
+  },
+  // Scenario 17 asserts what rule 3.12 warns of, not a fix: a server that ignores the key breaks the repeat of scenario 10's create.
+  {
+    n: 17, name: "17 a server that ignores the key, keys chart", keys: "chart", script: { ...LOST, honor: false },
+    async run(page, server) {
+      await ready(page);
+      await insert(page, "Review");
+      await until("the put-back and the read after it", async () => reads(server) === 2 && (await errors(page)).length === 1, 10_000);
+      assert.match((await errors(page))[0]!.message, /A row with that key exists/, "the repeated create is refused");
+      assert.equal(server.db.tasks.size, 4);
+      await until("one row", async () => (await rows(page)) === 4, 5_000);
+    },
+  },
+  {
+    n: 17, name: "17 a server that ignores the key, keys server", keys: "server", not: ["url"], script: { ...LOST, honor: false }, // with `idempotent`, as the copy of rule 11.1 has it; the URL form never sees host data arrive from outside
+    async run(page, server) {
+      await ready(page);
+      await insert(page, "Review");
+      await until("two rows stored", () => server.db.tasks.size === 5, 10_000);
+      await page.locator("#refresh").click();
+      await until("two rows shown", async () => (await rows(page)) === 5, 5_000);
+      assert.deepEqual(await errors(page), [], "nothing is put back");
+    },
+  },
+  {
+    n: 21, name: "21 a 500 that applied nothing", script: { fail: (r) => (r.method === "PATCH" && !r.repeat ? 500 : undefined) },
+    async run(page, server) {
+      await ready(page);
+      await edit(page, 1, "dur", "7");
+      await until("the repeat applied", () => server.db.tasks.get("t2")!.days === 7, 10_000);
+      await pause(1_500);
+      const [first, again] = writes(server);
+      assert.deepEqual([writes(server).length, again!.once], [2, first!.once], "one repeat, with the same key");
+      assert.equal(await days(page, 1), 7, "saved");
+      assert.deepEqual([await errors(page), await alert(page), reads(server)], [[], "", 1], "nothing put back, no error, src not read");
+    },
+  },
+  {
+    n: 22, name: "22 an expired login", script: { fail: (r) => (r.method === "PATCH" ? 401 : undefined) },
+    async run(page, server) {
+      await ready(page);
+      await edit(page, 1, "dur", "7");
+      await until("the alert line", async () => /sign in/i.test(await alert(page)), 5_000);
+      await pause(1_500); // longer than the first of the default waits
+      assert.equal(writes(server).length, 1, "no call follows");
+      assert.deepEqual([await page.getByRole("button", { name: "Try again" }).count(), await page.getByRole("button", { name: /^Discard 1 changes?$/ }).count()], [1, 1], "both buttons");
+      assert.deepEqual(await errors(page), [], "no error fires");
+      server.script.fail = undefined; // the script accepts the session again
+      await press(page, "Try again");
+      await until("the commit saved", () => server.db.tasks.get("t2")!.days === 7, 8_000);
+      assert.equal(writes(server).length, 2, "saved by one more call");
+      server.script.refuse = (r) => (r.method === "PATCH" ? { status: 403, body: { message: "You may not change this schedule" } } : undefined);
+      await edit(page, 1, "dur", "8");
+      await until("the message", async () => (await alert(page)).includes("You may not change this schedule"), 8_000);
+      assert.equal(writes(server).length, 3, "a 403 is put back at once");
+      assert.deepEqual([await days(page, 1), (await errors(page)).map((e) => e.reason)], [7, ["refused"]]);
     },
   },
 ];
