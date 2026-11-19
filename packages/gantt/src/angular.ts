@@ -4,7 +4,7 @@
 // It is compiled by `ngc` (`pnpm build:ng`, tsconfig.ng.json), the way an Angular library is built: the partial compilation it writes is what an app's own build links.
 import { Component, ElementRef, ErrorHandler, EventEmitter, Input, NgZone, Output, type AfterViewInit, type OnChanges, type OnDestroy, type SimpleChanges } from "@angular/core";
 import { liveSave } from "./save-queue.js";
-import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
+import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions, type UpdateResult } from "./index.js";
 export type { Handlers, SaveContext } from "./index.js";
 
 const INPUTS = ["schedule", "document", "tasks", "links", "dataDate", "mustFinishBy", "calendars", "durationUnit", "dateForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
@@ -20,6 +20,7 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
+ * `records` is a new array of `Gantt.update` records: each one that arrives calls `update` on the chart that is mounted, in place, and `(update)` gets its answer, a refusal too. One that arrives while the chart starts is applied once it has, the latest only. The first value, and a value that comes with a change that mounts the chart again, is not applied: put those values in `tasks`.
  * `(ready)` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
  * The component's element is the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. The chart runs outside
  * Angular's zone and each output emits inside it. A start that fails goes to the app's `ErrorHandler`.
@@ -42,6 +43,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   @Input() capabilities?: MountOptions["capabilities"];
   @Input() beforeEdit?: MountOptions["beforeEdit"];
   @Input() fields?: F;
+  @Input() records?: Parameters<Chart<F>["update"]>[0];
   @Input() save?: MountOptions["save"];
   @Input() wasmUrl?: MountOptions["wasmUrl"];
   @Input() locale?: MountOptions["locale"];
@@ -59,6 +61,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   @Output() readonly chartChooseFile = new EventEmitter<GanttEvents["choose-file"]>();
   @Output() readonly chartToggleKeys = new EventEmitter<GanttEvents["toggle-keys"]>();
   @Output() readonly ready = new EventEmitter<Chart<F>>();
+  @Output() readonly update = new EventEmitter<UpdateResult>();
   private queue: Promise<void> = Promise.resolve();
   private stopStart = (): void => {};
   private viewed = false;
@@ -74,6 +77,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
     if (this.viewed && INPUTS.some((name) => name in changes)) this.start();
     if ("readOnly" in changes) this.chart?.setReadOnly(this.readOnly === true);
     if ("capabilities" in changes) this.chart?.setCapabilities(this.capabilities);
+    if ("records" in changes) this.send();
   }
   ngAfterViewInit(): void {
     this.viewed = true;
@@ -83,11 +87,20 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
     this.stopStart();
   }
 
+  // `update` is synchronous, so the chart that is mounted answers at once; with none mounted (a start is pending) the start applies `records` when it has settled.
+  private send(): void {
+    const { chart, records } = this;
+    if (chart === undefined || records === undefined) return;
+    const result = chart.update(records);
+    this.zone.run(() => this.update.emit(result));
+  }
+
   // One start at a time: a start that began while the one before it was still mounting waits for it, so two charts never start in one root.
   // A start that a later one (or the destroy) has stopped never mounts, and a chart that mounts after that is destroyed. The outputs with a
   // subscriber when the chart mounts are listened for.
   private start(): void {
     this.stopStart();
+    const given = this.records;
     let started: Chart<F> | undefined;
     let stopped = false;
     let stops: (() => void)[] = [];
@@ -105,6 +118,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
       try { chart.setCapabilities(this.capabilities); } catch (error) { return void this.errors.handleError(error); } // a profile the chart rejects fails like a start
       stops = EVENTS.filter(([output]) => this[output].observed).map(([output, name]) => (chart.on as Listen)(name, (detail) => this.zone.run(() => (this[output] as EventEmitter<unknown>).emit(detail))));
       this.zone.run(() => this.ready.emit(chart));
+      if (this.records !== given) this.send();
     });
     this.stopStart = () => {
       stopped = true;

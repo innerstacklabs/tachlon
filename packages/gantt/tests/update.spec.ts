@@ -6,8 +6,14 @@ import { chromePath } from "./support/knobs";
 
 // gantt#2087: a host hands the chart new values for many tasks by key, in place: the selection, the scroll and the undo list stay as they were.
 declare global {
-  interface Window { upChart: Gantt; edits: unknown[]; mountUp(options: Record<string, unknown>): Promise<void> }
+  interface Window { upChart: Gantt; edits: unknown[]; mountUp(options: Record<string, unknown>): Promise<void>; render(props: object): void; starts: number; answers: unknown[] }
 }
+// gantt#2087: the same host as a React page: `render(props)` renders the component with the props it was given so far, and `records` reaches the chart as `update`.
+const REACT_MODULE = `import { createElement as h } from "react"; import { createRoot } from "react-dom/client"; import { Gantt } from "/src/react.tsx";
+  const root = createRoot(document.body.appendChild(document.createElement("div"))), props = { forceWebgl: true, style: { width: 1000, height: 500 }, onEdit: (change) => window.edits.push(change), onReady: (chart) => ((window.upChart = chart), (window.starts += 1)), onUpdate: (answer) => window.answers.push(answer) };
+  Object.assign(window, { edits: [], answers: [], starts: 0, render: (more) => root.render(h(Gantt, Object.assign(props, more))), ready: true });`;
+const reactHost = { name: "react-host", resolveId: (id: string) => (id === "/tests/react-update-host.ts" ? id : null), load: (id: string) => (id === "/tests/react-update-host.ts" ? REACT_MODULE : null) };
+const REACT_HOST = `<!doctype html><html><body style="margin: 0"><script type="module">import "/tests/react-update-host.ts";</script></body></html>`;
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">
   import { mount } from "/src/index.ts";
   window.edits = [];
@@ -20,7 +26,7 @@ const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="
 let server: ViteDevServer;
 let base = "";
 test.beforeAll(async () => {
-  server = await createServer({ root: fileURLToPath(new URL("..", import.meta.url)), logLevel: "silent", server: { host: "127.0.0.1", port: 0, strictPort: false } });
+  server = await createServer({ root: fileURLToPath(new URL("..", import.meta.url)), logLevel: "silent", plugins: [reactHost], server: { host: "127.0.0.1", port: 0, strictPort: false } });
   await server.listen();
   base = server.resolvedUrls!.local[0]!;
 });
@@ -200,4 +206,35 @@ test("setData sets only the 20 changed durations: selection, scroll and the undo
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
   expect((await saved(page))[2]!.name, "the undo list is the person's: the one undo is the rename").toBe("Task 2");
   expect(await minutes(page, keys(0, 20)), "and it leaves the 20 durations").toEqual(Array(20).fill(2400));
+});
+
+test("a React host hands 20 tasks to the component as records while one is selected and scrolled to: the chart starts once, selection, scroll and undo hold, and the changed cells are marked", async ({ page }) => {
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: REACT_HOST }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction(() => (window as unknown as { ready?: boolean }).ready === true, undefined, { timeout: 120_000 });
+  await page.evaluate((rows) => window.render({ tasks: rows }), tasks(40));
+  await page.waitForFunction(() => window.starts === 1, undefined, { timeout: 120_000 });
+  await page.locator('#table-rows .row[data-row="2"] .name').dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("Renamed");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => window.edits.length > 0);
+  await expect.poll(async () => {
+    await page.evaluate(() => { document.querySelector("#table-body")!.scrollTop = 25 * document.querySelector("#table-rows .row")!.getBoundingClientRect().height; });
+    await frames(page);
+    return page.locator('#table-rows .row[data-row="30"]').count();
+  }).toBe(1);
+  await page.locator('#table-rows .row[data-row="30"]').click({ position: { x: 4, y: 4 } });
+  await frames(page);
+  const before = { selected: await page.evaluate(() => window.upChart.state().selection?.task), top: await scrollTop(page) };
+  expect([before.selected !== undefined, before.top > 0], "a task is selected and the list is scrolled").toEqual([true, true]);
+  await page.evaluate((ks) => window.render({ records: ks.map((key) => ({ key, duration: 5 })) }), keys(20, 40));
+  await page.waitForFunction(() => window.answers.length > 0);
+  expect(await page.evaluate(() => ({ answers: window.answers, starts: window.starts, canvases: document.querySelectorAll("canvas").length })), "onUpdate got the answer, and there was no second start").toEqual({ answers: [{ ok: true, updated: 20 }], starts: 1, canvases: 1 });
+  await expect(page.locator("#table-rows [data-changed]").first(), "a changed cell is marked").toBeAttached();
+  expect(await minutes(page, keys(20, 40)), "the 20 new durations").toEqual(Array(20).fill(2400));
+  expect(await minutes(page, keys(0, 20)), "the others keep theirs").toEqual(Array(20).fill(960));
+  expect({ selected: await page.evaluate(() => window.upChart.state().selection?.task), top: await scrollTop(page) }, "selection and scroll are as they were").toEqual(before);
+  expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
+  expect((await saved(page))[2]!.name, "undo undoes the rename").toBe("Task 2");
+  expect(await minutes(page, keys(20, 40)), "and leaves the 20 durations").toEqual(Array(20).fill(2400));
 });

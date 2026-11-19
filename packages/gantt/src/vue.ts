@@ -3,12 +3,12 @@
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { camelize, defineComponent, getCurrentInstance, h, onBeforeUnmount, onMounted, onUpdated, shallowRef, toHandlerKey, watch, type PropType } from "vue";
 import { liveSave } from "./save-queue.js";
-import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
+import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions, type UpdateResult } from "./index.js";
 export type { Handlers, SaveContext } from "./index.js";
 
 /** The events of `Gantt.on`, each one an emit of the component: `@select`, `@move`, `@toggle-status` and the rest of `GanttEvents`. */
 const EVENTS = { select: null, edit: null, move: null, open: null, load: null, change: null, error: null, find: null, "toggle-status": null, "choose-file": null, "toggle-keys": null } as const satisfies Record<keyof GanttEvents, null>;
-type Emits = { [K in keyof GanttEvents]: (detail: GanttEvents[K]) => true } & { ready: (chart: Chart<Fields | undefined>) => true };
+type Emits = { [K in keyof GanttEvents]: (detail: GanttEvents[K]) => true } & { ready: (chart: Chart<Fields | undefined>) => true; update: (result: UpdateResult) => true };
 type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 
 const component = defineComponent({
@@ -30,13 +30,14 @@ const component = defineComponent({
     capabilities: { type: Object as PropType<NonNullable<MountOptions["capabilities"]>>, default: undefined },
     beforeEdit: { type: Function as PropType<NonNullable<MountOptions["beforeEdit"]>>, default: undefined },
     fields: { type: Object as PropType<Fields>, default: undefined },
+    records: { type: Array as PropType<readonly object[]>, default: undefined },
     save: { type: [Function, Object] as PropType<NonNullable<MountOptions["save"]>>, default: undefined },
     wasmUrl: { type: null as unknown as PropType<NonNullable<MountOptions["wasmUrl"]>>, default: undefined },
     locale: { type: String, default: undefined },
     texts: { type: Object as PropType<NonNullable<MountOptions["texts"]>>, default: undefined },
     fonts: { type: Array as PropType<NonNullable<MountOptions["fonts"]>>, default: undefined },
   },
-  emits: { ...EVENTS, ready: null } as unknown as Emits,
+  emits: { ...EVENTS, ready: null, update: null } as unknown as Emits,
   setup(props, { emit }) {
     const instance = getCurrentInstance()!;
     const root = shallowRef<HTMLDivElement | null>(null);
@@ -61,11 +62,14 @@ const component = defineComponent({
         now.heard.set(name, (now.chart.on as Listen)(name, handler));
       }
     };
+    // `update` is synchronous, so the chart that is mounted answers at once; with none mounted (a start is pending) the start applies `records` when it has settled.
+    const send = (records: readonly object[] | undefined): void => { if (live !== null && records !== undefined) emit("update", live.chart.update(records as never)); };
     // One start at a time: a start that began while the one before it was still mounting waits for it, so two charts never start in one root.
     // A start that a later one (or the unmount) has stopped never mounts, and a chart that mounts after that is destroyed.
     const start = (): void => {
       stopStart();
       failure.value = null;
+      const given = props.records;
       let started: Chart<Fields | undefined> | undefined;
       let stopped = false;
       queue = queue.then(async () => {
@@ -81,6 +85,7 @@ const component = defineComponent({
         try { started.setCapabilities(props.capabilities); } catch (error) { return void (failure.value = { error }); } // a profile the chart rejects fails like a start
         listen();
         emit("ready", started);
+        if (props.records !== given) send(props.records);
       });
       stopStart = () => {
         (stopped = true), live?.heard.forEach((stop) => stop()), (live = null);
@@ -89,6 +94,7 @@ const component = defineComponent({
     };
     onMounted(start);
     watch(() => [props.schedule, props.document, props.tasks, props.links, props.dataDate, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts], start);
+    watch(() => props.records, send);
     // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
     watch(() => props.capabilities, (profile) => live?.chart.setCapabilities(profile));
@@ -102,7 +108,7 @@ const component = defineComponent({
 });
 
 type Props = InstanceType<typeof component>["$props"];
-type VueProps<F extends Fields | undefined> = Omit<Props, "tasks" | "links" | "fields" | "onReady"> & { tasks?: MountOptions<F>["tasks"]; links?: MountOptions<F>["links"]; fields?: F; onReady?: (chart: Chart<F>) => void };
+type VueProps<F extends Fields | undefined> = Omit<Props, "tasks" | "links" | "fields" | "records" | "onReady"> & { tasks?: MountOptions<F>["tasks"]; links?: MountOptions<F>["links"]; fields?: F; records?: Parameters<Chart<F>["update"]>[0]; onReady?: (chart: Chart<F>) => void };
 /**
  * The mount options, one prop each, and an emit for each event: `@select` gets `{ task, key }`, `@move` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `find` or `choose-file` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
@@ -110,6 +116,7 @@ type VueProps<F extends Fields | undefined> = Omit<Props, "tasks" | "links" | "f
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
+ * `records` is a new array of `Gantt.update` records: each one that arrives calls `update` on the chart that is mounted, in place, and `@update` gets its answer, a refusal too. One that arrives while the chart starts is applied once it has, the latest only. The first value, and a value that comes with a change that mounts the chart again, is not applied: put those values in `tasks`.
  * `@ready` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
  * `class` and `style` land on the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. A start that fails is
  * thrown while rendering, for an `onErrorCaptured` hook or the app's `errorHandler`, until the next start clears it.
