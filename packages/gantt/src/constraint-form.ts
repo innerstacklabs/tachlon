@@ -10,7 +10,8 @@ export type Constraint = { type: ConstraintType; date: string } | null;
 
 type Row = Record<string, unknown>;
 
-const TYPES = ["snet", "snlt", "fnet", "fnlt", "mso", "mfo"] as const satisfies readonly ConstraintType[];
+/** The six limit members, one per `ConstraintType`; `setData` compares each of them. */
+export const TYPES = ["snet", "snlt", "fnet", "fnlt", "mso", "mfo"] as const satisfies readonly ConstraintType[];
 /** The four members `update` takes; `mso` and `mfo` it answers `notUpdatable`. */
 const FLOORS_AND_CEILINGS = ["snet", "snlt", "fnet", "fnlt"] as const;
 /** The order a task with several bounds reads its one constraint in (rule 9.5). */
