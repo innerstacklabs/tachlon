@@ -27,6 +27,18 @@ export interface HostDifference { record: number; key: string; member: "start" |
 /** What `update` answers: how many tasks it set, with `differs` when a host date differs from the chart's, or why it changed none (`reason`, `message`, and `record` from 0, `member` and the record's `key` when they are known). */
 export type UpdateResult = { ok: true; updated: number; differs?: readonly HostDifference[] } | (Refusal & { key?: string });
 
+/** One undo step as a host's save function gets it (decision 0022, rule 2.1): `id` is a UUID that is new for each change set and the same on every call of it, `seq` and `source` are the commit's, and each change is the `edit` event's without the session slots, with `once`, its idempotency key `<id>:<n>` (`n` from 0). */
+export interface ChangeSet { id: string; seq: number; source: CommitSource; changes: readonly (Omit<Change, "task" | "link"> & { once: string })[] }
+
+/** What a save function may resolve with. The chart does not read it yet: a function that resolves has saved the change set. */
+export interface SaveResult { keys?: readonly { ref: string; key: string }[] }
+
+/** The host's save function: it gets each change set the person's edits make, one at a time, in the order made, and resolves when the server has it. Throw a `SaveRefused` when the server judged the change and said no: the chart puts that edit and the ones made after it back and fires `error` with the source `save`. */
+export type Save = (changeSet: ChangeSet) => Promise<SaveResult | void>;
+
+/** The `error` event of a put-back, fired once, after it. `calls`: how many times `save` ran for the change set; `key` and `field` are the refusal's; `seq`: the refused commit's; `undone`: how many commits the chart put back; `reload`: the chart could not put itself back (the commit had left its history), so the host reads its data again. */
+export interface SaveError { source: "save"; message: string; fatal: false; reason: "refused"; calls: number; key?: string; field?: string; seq: number; undone: number; reload: boolean }
+
 /** What a host's database can take, as the host tells the chart (`mount`'s `capabilities`, `Gantt.setCapabilities`). Each member is on unless it is `false`. A change a person makes that a member turned off is refused with `"notAllowed"` on every path, undo and redo included, and the chart says the host does not allow it; a bar, edge or link drag says it in the drag note. `gestures` turns off moving a bar, stretching it and drawing a link. `editable` turns off a group of fields: `rows` (adding and deleting rows), `outline` (indent, outdent and move), `paste`, `names`, `dates` (start, duration and the date limits), `links`, `progress` (actual dates, remaining, percent and the data date) and `baseline`. A member the chart does not have is an error. */
 export interface HostCapabilities {
   gestures?: { barMove?: boolean; resize?: boolean; link?: boolean };
@@ -67,6 +79,8 @@ export interface MountOptions {
   capabilities?: HostCapabilities;
   /** A function the chart asks before each change a person makes; it can refuse the change with a reason the chart shows (README, "Control editing"). Without it every change goes ahead. */
   beforeEdit?: BeforeEdit;
+  /** The host's save function (`Save`): the chart calls it with each commit's change set, one call at a time, in the order the commits were made, and puts an edit back when it throws a `SaveRefused`. Without it the chart saves nothing and the host reads the `edit` event. React, Vue and Angular ask the latest function and never mount the chart again for a new one. */
+  save?: Save;
   /** Where to fetch the engine file (`app_bg.wasm`) from, a URL or an address read against the page's own. Without it the chart loads the file beside its script (`dist-lib/app_bg.wasm`). When `preloadEngine` already started the load, its `wasmUrl` is the one used. */
   wasmUrl?: string | URL;
   /** The language and region the chart runs in, a BCP 47 tag such as `"de"` or `"pt-BR"`: it is written as the root's `lang`, and the chart's numbers show in that region's style (`1.234,5` for `"de"`). Without it the numbers read as `"en-US"` and the root's `lang` stays the page's own. A tag that is not a language tag rejects `mount` with a `RangeError`, before it touches the root. */
