@@ -38,7 +38,7 @@ export interface SaveResult { keys?: readonly { ref: string; key: string }[] }
 export type Save = (changeSet: ChangeSet) => Promise<SaveResult | void>;
 
 type Row = Record<string, unknown>;
-/** The second argument of every handler: `once` is the change's idempotency key, `signal` aborts 10 seconds after the handler is called (the chart still waits for it to settle), `was` the old values of an update or a delete, `changeSet` the whole commit. */
+/** The last argument of every handler: `once` is the change's idempotency key, `signal` aborts 10 seconds after the handler is called (the chart still waits for it to settle), `was` the old values of an update or a delete, `changeSet` the whole commit. */
 export interface SaveContext { once: string; signal: AbortSignal; was?: Row; changeSet: ChangeSet }
 
 /**
@@ -114,7 +114,7 @@ export interface MountOptions<F extends Fields | undefined = undefined> {
   capabilities?: HostCapabilities;
   /** A function the chart asks before each change a person makes; it can refuse the change with a reason the chart shows (README, "Control editing"). Without it every change goes ahead. */
   beforeEdit?: BeforeEdit;
-  /** The host's save function (`Save`), or an object of one handler for each kind of change (`Handlers`): the chart calls it with each commit's change set, one call at a time, in the order the commits were made, and puts an edit back when it throws a `SaveRefused`. Without it the chart saves nothing and the host reads the `edit` event. React, Vue and Angular ask the latest function when a change set is sent, never mount the chart again for a new one, and send nothing while there is none. */
+  /** The host's save function (`Save`), or an object of one handler for each kind of change (`Handlers`): the chart calls it with each commit's change set, one call at a time, in the order the commits were made, and puts an edit back when it throws a `SaveRefused`. Without it the chart saves nothing and the host reads the `edit` event. React, Vue and Angular ask the latest function or object when a change set is sent, never mount the chart again for a new one, and send nothing while there is none. */
   save?: Save | Handlers;
   /** The host's names for the members of its rows (`Fields`), given once: the chart reads `tasks`, `links`, `update` and `setData` in them and writes them in the `set` and `was` of every change it tells you of (an `edit` event, a `save` change set, a before-edit call), so the host writes no rename function. It renames members and converts no value (`durationUnit` and `dateForm` do that). `mount` rejects an entry for a field the chart does not have, one host name given to two fields, and a host name that is another field's own name with no entry (`key: "id"` is the exception). When both `key` and `id` have an entry, the member you name for `id` is the row's id, and the member for `key` fills it only for a row that has none. Its type `F` is inferred from the map you give: with none, `tasks`, `links`, `update` and `setData` are typed as before; with one, they take `readonly object[]`, your own row type, and only the names in the map are checked. Read once, at start: a later change does nothing. */
   fields?: F;

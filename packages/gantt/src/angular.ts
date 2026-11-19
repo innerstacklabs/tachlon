@@ -5,6 +5,7 @@
 import { Component, ElementRef, ErrorHandler, EventEmitter, Input, NgZone, Output, type AfterViewInit, type OnChanges, type OnDestroy, type SimpleChanges } from "@angular/core";
 import { liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
+export type { Handlers, SaveContext } from "./index.js";
 
 const INPUTS = ["schedule", "document", "tasks", "links", "dataDate", "mustFinishBy", "calendars", "durationUnit", "dateForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
 /** Each output and the event of `Gantt.on` it emits: `(chartToggleStatus)` is `toggle-status`. The `chart` in front keeps an output apart from the DOM event of the same name: Angular also listens on the element for `change` and `select`, which an input inside the chart fires and which bubble. */

@@ -65,6 +65,7 @@ test("a `save` added or removed after the mount is read when a change set is sen
   await page.evaluate("start()");
   expect.soft(await page.evaluate("later(true)"), "a save added after the mount is called by the chart that is mounted").toEqual({ mounts: 1, answer: "sent" });
   expect.soft(await page.evaluate("later(false)"), "removed again, there is nothing to call and nothing throws").toEqual({ mounts: 1, answer: "none" });
+  expect.soft(await page.evaluate("handlersForm()"), "a Handlers object is called for its change").toEqual(["t1"]);
 });
 
 test("a new `capabilities` reaches the chart that is mounted without mounting it again, and a chart that mounts again gets the latest", async ({ page }) => {

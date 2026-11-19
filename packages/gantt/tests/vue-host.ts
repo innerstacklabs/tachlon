@@ -10,7 +10,7 @@ const mustFinishBy = shallowRef<string | undefined>(undefined);
 const texts = shallowRef<Record<string, string> | undefined>(undefined);
 const readOnly = shallowRef<boolean | undefined>(undefined);
 const capabilities = shallowRef<object | undefined>(undefined);
-const save = shallowRef<(() => Promise<string>) | undefined>(undefined);
+const save = shallowRef<(() => Promise<string>) | object | undefined>(undefined);
 const handlers = shallowRef<Record<string, () => void>>({ onChange: () => void (seen.change += 1), onLoad: () => void (seen.load += 1), onReady: () => void (seen.ready += 1) });
 const app = createApp({ render: () => h(Gantt, { schedule: schedule.value, locale: locale.value, mustFinishBy: mustFinishBy.value, texts: texts.value, readOnly: readOnly.value, capabilities: capabilities.value, save: save.value as never, ...handlers.value }) });
 const problems = { warnings: [] as string[], errors: 0 };
@@ -29,6 +29,7 @@ Object.assign(window, {
   hold: () => { let release!: () => void; (globalThis as { gate?: Promise<void> }).gate = new Promise<void>((done) => (release = done)); const wait = (ms: number) => new Promise((done) => setTimeout(done, ms)); schedule.value = { demo: 2 }; return wait(100).then(() => ((readOnly.value = true), wait(100))).then(() => (release(), report())).then(() => [...(g.switched ?? [])]); },
   caps: (value?: object) => ((capabilities.value = value), report().then(() => ({ mounts: (g.mounts ?? []).map((o) => o.capabilities ?? null), profiled: [...(g.profiled ?? [])] }))),
   later: (on: boolean) => ((save.value = on ? async () => "sent" : undefined), report().then(async () => ({ mounts: (g.mounts ?? []).length, answer: (await g.mounts![0]!.save![Symbol.for("gantt.liveSave")]!()?.({})) ?? "none" }))),
+  handlersForm: () => { const called: string[] = []; save.value = { updateTask: async (key: string) => void called.push(key) }; return report().then(async () => (await (g.mounts![0]!.save as unknown as (set: object) => Promise<unknown>)({ id: "a", seq: 1, source: "typed", changes: [{ record: "task", op: "update", key: "t1", set: {}, once: "a:0" }] }), called)); },
   problems: () => ({ ...problems }),
   stop: () => (app.unmount(), report()),
 });

@@ -4,6 +4,7 @@
 import { camelize, defineComponent, getCurrentInstance, h, onBeforeUnmount, onMounted, onUpdated, shallowRef, toHandlerKey, watch, type PropType } from "vue";
 import { liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
+export type { Handlers, SaveContext } from "./index.js";
 
 /** The events of `Gantt.on`, each one an emit of the component: `@select`, `@move`, `@toggle-status` and the rest of `GanttEvents`. */
 const EVENTS = { select: null, edit: null, move: null, open: null, load: null, change: null, error: null, find: null, "toggle-status": null, "choose-file": null, "toggle-keys": null } as const satisfies Record<keyof GanttEvents, null>;
@@ -29,7 +30,7 @@ const component = defineComponent({
     capabilities: { type: Object as PropType<NonNullable<MountOptions["capabilities"]>>, default: undefined },
     beforeEdit: { type: Function as PropType<NonNullable<MountOptions["beforeEdit"]>>, default: undefined },
     fields: { type: Object as PropType<Fields>, default: undefined },
-    save: { type: Function as PropType<NonNullable<MountOptions["save"]>>, default: undefined },
+    save: { type: [Function, Object] as PropType<NonNullable<MountOptions["save"]>>, default: undefined },
     wasmUrl: { type: null as unknown as PropType<NonNullable<MountOptions["wasmUrl"]>>, default: undefined },
     locale: { type: String, default: undefined },
     texts: { type: Object as PropType<NonNullable<MountOptions["texts"]>>, default: undefined },

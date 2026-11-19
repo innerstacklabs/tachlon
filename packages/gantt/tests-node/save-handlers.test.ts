@@ -189,3 +189,20 @@ test("a handler that resolves with an object that has an error, errors or userEr
     mock.restoreAll();
   }
 });
+
+test("a queue stopped while the first change's handler is pending starts no other handler, and acknowledges nothing", async () => {
+  const app = fakeApp();
+  const host = held();
+  const queue = new SaveQueue(app, host.handlers, () => undefined);
+  queue.add([commit(1, [
+    { record: "task", op: "update", key: "t1", task: 0, set: { name: "a" } },
+    { record: "task", op: "update", key: "t2", task: 1, set: { name: "b" } },
+  ])]);
+  await settle();
+  expect(host.calls.length).toBe(1);
+  queue.stop();
+  host.release();
+  await settle();
+  expect(host.calls.length).toBe(1);
+  expect(app.log).toEqual([]);
+});

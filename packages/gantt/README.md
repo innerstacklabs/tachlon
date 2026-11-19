@@ -351,8 +351,9 @@ export function Schedule({ tasks, links, reload }: { tasks: Task[]; links: Link[
 }
 ```
 
-- **The second argument,** `c`, carries `once`, the request's idempotency key (`<id>:<n>`); `signal`, aborted 10 seconds after the handler is called (the chart still waits for the handler to settle); `was`, the old values; and `changeSet`, the whole commit.
+- **The last argument,** `c`, carries `once`, the request's idempotency key (`<id>:<n>`); `signal`, aborted 10 seconds after the handler is called (the chart still waits for the handler to settle); `was`, the old values; and `changeSet`, the whole commit.
 - **Throw a `SaveRefused` when the server says no.** A handler that rejects, or resolves with a `Response` whose status is not a 2xx, ends the call. A `SaveRefused` puts that edit and the ones after it back and fires `error` with the source `"save"`; read your data again there, as the example does. Any other throw leaves the edit unsaved and stops saving.
+- **A handler that resolves with an object that has an `error`, `errors` or `userErrors` member is read as saved,** and the console warns once for that handler. The check reads the top level only: a client that nests `userErrors` deeper is not caught, so its handler throws when it finds one.
 - **The chart reads the object it holds at each call,** so a new `save` object on every render is safe. A change whose handler is missing stops saving, with a console error.
 
 ## Stop the chart
@@ -374,5 +375,3 @@ Copyright (c) 2026 Inner Stack Labs LLC. Tachlon is open source under the MIT li
 The TypeScript declarations (`dist-lib/types`, the package's `types` entry) are the reference: they cover the whole API, every exported member carries its documentation comment, and your editor shows it on hover.
 
 To see what the installed version offers, run `npx tachlon describe`: it answers from the package in `node_modules`, so it always matches the version you installed.
-
-A handler that resolves with an object that has an `error`, `errors` or `userErrors` member is read as saved, and the console warns once for that handler. The check reads the top level only: a client that nests `userErrors` deeper is not caught, so its handler throws when it finds one.

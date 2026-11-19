@@ -94,7 +94,7 @@ export class SaveQueue {
         head.set ??= write(head.commit);
         head.calls++;
         try {
-          await callSave(save, head.set);
+          await callSave(save, head.set, () => this.stopped);
         } catch (err) {
           if (this.stopped) return;
           if (!(err instanceof SaveRefused)) {

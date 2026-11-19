@@ -18,13 +18,14 @@ const nameOf = ({ record, op }: Change): Name => (record === "schedule" ? "updat
 /** What a handler takes before its context: a create the row, an update the key and `set`, a delete the key, the schedule `set`. */
 const argsOf = ({ record, op, key, set }: Change): unknown[] => (record === "schedule" || op === "create" ? [set] : op === "update" ? [key, set] : [key]);
 
-/** Send a change set through `save`: a function is called with it, an object (the handlers form) runs its handlers. */
-export function callSave(save: Save | Handlers, changeSet: ChangeSet): Promise<SaveResult | void> {
-  return typeof save === "function" ? save(changeSet) : runHandlers(save, changeSet);
+/** Send a change set through `save`: a function is called with it, an object (the handlers form) runs its handlers, and stops before the next one once `stopped()` is true. */
+export function callSave(save: Save | Handlers, changeSet: ChangeSet, stopped: () => boolean = () => false): Promise<SaveResult | void> {
+  return typeof save === "function" ? save(changeSet) : runHandlers(save, changeSet, stopped);
 }
 
-async function runHandlers(handlers: Handlers, changeSet: ChangeSet): Promise<void> {
+async function runHandlers(handlers: Handlers, changeSet: ChangeSet, stopped: () => boolean): Promise<void> {
   for (let n = resolved.get(changeSet) ?? 0; n < changeSet.changes.length; n++) {
+    if (stopped()) return;
     const change = changeSet.changes[n]!;
     const name = nameOf(change);
     const handler = handlers[name] as ((...args: unknown[]) => Promise<unknown>) | undefined;
