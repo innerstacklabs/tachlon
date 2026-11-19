@@ -190,11 +190,11 @@ export const SCENARIOS: Scenario[] = [
       await ready(page);
       await insert(page, "Review");
       await until("the alert line to say it is trying again", async () => (await alert(page)).includes("Not saved yet. Trying again."), 900); // between the two calls
-      await until("the create called again", () => writes(server).length === 2, 10_000);
+      await until("the create called again, then the rename queued behind it", () => writes(server).length === 3, 10_000);
       await pause(1_500);
       const [first, again] = writes(server);
       assert.deepEqual([again!.once, again!.body], [first!.once, first!.body], "the same call: same key, same body");
-      assert.equal(writes(server).length, 2, "and no third");
+      assert.deepEqual(writes(server).map((r) => r.method), ["POST", "POST", "PATCH"], "the create twice, then the rename once, and no more"); // insert() makes two commits (scenario 4)
       assert.equal(server.db.tasks.size, 4, "the server holds the row once");
       assert.equal(await rows(page), 4, "the row appears once");
       assert.deepEqual([await errors(page), await alert(page)], [[], ""], "nothing is put back");
