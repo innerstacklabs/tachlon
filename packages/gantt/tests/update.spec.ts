@@ -118,6 +118,21 @@ test("a null start clears the floor a record gave: the type takes it and the cha
   expect(await start(), "start: null takes the floor away").not.toBe(floored);
 });
 
+test("a constraint is the one date limit: it replaces the other bounds, null clears them, a record with two spellings is refused, and a host edit tells the edit event in the same form", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(2).map((t, i) => (i === 0 ? { ...t, constraint: { type: "snlt", date: "2026-03-20" } } : t)) });
+  const limits = () => page.evaluate(() => { const { snet, snlt, fnet, fnlt } = window.upChart.snapshot().tasks[0] as Record<string, unknown>; return { snet, snlt, fnet, fnlt }; });
+  expect(await limits(), "a constraint in the rows at mount is the limit its type names").toMatchObject({ snlt: expect.stringMatching(/^2026-03-20/) });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: { type: "fnlt", date: "2026-03-27" } }]))).toEqual({ ok: true, updated: 1 });
+  expect(await limits(), "the new limit replaces the old one").toMatchObject({ fnlt: "2026-03-28T00:00", snlt: undefined });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: null }]))).toEqual({ ok: true, updated: 1 });
+  expect(await limits(), "null clears every bound").toEqual({ snet: undefined, snlt: undefined, fnet: undefined, fnlt: undefined });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: { type: "snet", date: "2026-03-09" }, snlt: "2026-03-20" }]))).toMatchObject({ ok: false, reason: "badRecords", message: expect.stringContaining('both "constraint" and "snlt"') });
+  expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k1", constraint: { type: "fnet", date: "2026-03-30" } }]))).toEqual({ ok: true, updated: 1 });
+  await expect.poll(() => page.evaluate(() => window.edits.length)).toBe(1);
+  const [edit] = await page.evaluate(() => window.edits as { commits: { changes: { key: string; set: unknown; was: unknown }[] }[] }[]);
+  expect(edit!.commits[0]!.changes, "the edit event carries the one member in both set and was").toMatchObject([{ key: "k1", set: { constraint: { type: "fnet", date: "2026-03-31T00:00" } }, was: { constraint: null } }]);
+});
+
 const shown = (page: Page) => page.evaluate(() => [...document.querySelectorAll<HTMLElement>("#table-rows .row[data-task] > span")].map((c) => ({ text: c.textContent, marked: c.dataset.changed === "true", motion: getComputedStyle(c).animationName })));
 
 test("an update highlights the cells in view whose shown value changed and no others, and the mark goes after its timer", async ({ page }) => {

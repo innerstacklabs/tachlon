@@ -3,7 +3,9 @@ import type { PlainLink, PlainTask } from "./adapters/plain.js";
 import type { TaskUpdate, UpdateResult } from "./gantt-types.js";
 
 /** The members of a task that `update` takes: the only ones `setData` compares. */
-const MEMBERS = ["name", "start", "snet", "duration", "progress"] as const;
+const MEMBERS = ["name", "start", "snet", "constraint", "duration", "progress"] as const;
+/** A member that differs from the one held; a `constraint` is an object, so it is compared by value. */
+const differs = (given: unknown, held: unknown): boolean => given !== held && JSON.stringify(given) !== JSON.stringify(held);
 
 /** The rows a host gives: either list may be left out. */
 export interface HostRows { tasks?: PlainTask[]; links?: PlainLink[] }
@@ -44,7 +46,7 @@ export function hostData(first: HostRows, epoch: number): SetData {
       if (!same(shapeOf(next.tasks), kept.shape)) return rowsChanged("a task was added, removed or moved, or its id or parent changed.");
       for (const [key, values] of given) {
         const was = old.get(key)!;
-        const set = MEMBERS.flatMap((member, i) => (values[i] !== undefined && values[i] !== was[i] ? [[member, values[i]] as const] : []));
+        const set = MEMBERS.flatMap((member, i) => (values[i] !== undefined && differs(values[i], was[i]) ? [[member, values[i]] as const] : []));
         if (set.length > 0) records.push({ key, ...Object.fromEntries(set) });
         byKey.set(key, values.map((value, i) => (value === undefined ? was[i] : value)));
       }

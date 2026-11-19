@@ -19,8 +19,14 @@ export interface BeforeEditChange { kind: string; source: CommitSource; tasks: r
 /** The answer: `undefined`, `null` or `true` allows the change; a string refuses it with that reason, which the chart shows; `false` refuses it with the chart's own sentence. Answer at once: a promise, a throw or any other value refuses the change and fires `error` with the source `beforeEdit`. Never call the chart from inside it. */
 export type BeforeEdit = (change: BeforeEditChange) => string | boolean | null | undefined;
 
-/** What `update` sets on one task: its `key`, and any of `name`, `start` (a date, or `null` for none; held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet`, `snlt` (start no later than), `fnet` and `fnlt` (finish no earlier and no later than; a date alone is the end of that day) (each a date, or `null` for none) and `progress` (a whole percent). A member left out keeps its value. `hostStart` and `hostFinish` set nothing: they are the early start and finish your own code computed (`YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm`; a finish that is a date alone is the end of that day), and the answer's `differs` names each the chart computed otherwise. */
-export interface TaskUpdate { key: string; name?: string; start?: string | null; duration?: number; snet?: string | null; snlt?: string | null; fnet?: string | null; fnlt?: string | null; progress?: number; hostStart?: string; hostFinish?: string }
+/** The kind of a date limit (decision 0022, rule 9): `snet`, `snlt`, `fnet` and `fnlt` are the floors and ceilings of a start and a finish, `mso` and `mfo` the pins. */
+export type ConstraintType = "snet" | "snlt" | "fnet" | "fnlt" | "mso" | "mfo";
+
+/** A task's one date limit, `{ type, date }`, or `null` for none. */
+export type Constraint = { type: ConstraintType; date: string } | null;
+
+/** What `update` sets on one task: its `key`, and any of `name`, `start` (a date, or `null` for none; held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet`, `snlt` (start no later than), `fnet` and `fnlt` (finish no earlier and no later than; a date alone is the end of that day) (each a date, or `null` for none) and `progress` (a whole percent). `constraint` (`{ type, date }`, or `null` for none) sets the one date limit and clears the other three of `snet`, `snlt`, `fnet` and `fnlt`; a record that gives `constraint` and one of `snet`, `snlt`, `fnet`, `fnlt`, `mso` or `mfo` is refused, and a `start` beside `constraint` is ignored. A member left out keeps its value. `hostStart` and `hostFinish` set nothing: they are the early start and finish your own code computed (`YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm`; a finish that is a date alone is the end of that day), and the answer's `differs` names each the chart computed otherwise. */
+export interface TaskUpdate { key: string; name?: string; start?: string | null; duration?: number; snet?: string | null; snlt?: string | null; fnet?: string | null; fnlt?: string | null; constraint?: Constraint; progress?: number; hostStart?: string; hostFinish?: string }
 
 /** One date a host sent in `hostStart` or `hostFinish` that the chart computed otherwise: the `record` (from 0) and its `key`, the `member` (`"start"` or `"finish"`), the `host` date as sent, and the `chart` date written in the same form (a day when the host sent a day). */
 export interface HostDifference { record: number; key: string; member: "start" | "finish"; host: string; chart: string }
@@ -72,7 +78,7 @@ export interface HostCapabilities {
 }
 
 /** The host's names for the members of its rows (`MountOptions.fields`): each entry gives one chart field (the names `PlainTask` and `PlainLink` list, with `key`) the host's name for it, `{ name: "title", start: "plannedStart", duration: "days", key: "id" }`. A field with no entry keeps its own name, and a name that is not a chart field does not compile. */
-export interface Fields { tasks?: Partial<Record<TaskField, string>>; links?: Partial<Record<LinkField, string>> }
+export interface Fields { tasks?: Partial<Record<Exclude<TaskField, "constraint">, string>> & { constraint?: string | { type: string; date: string } }; links?: Partial<Record<LinkField, string>> }
 
 /** The rows a call takes: with no map (`F` is `undefined`, the default) the type `Plain`, as before `fields`; with a map, the host's own rows, which the chart reads by the names the map gives (`readonly object[]`: the host's row type is its own and needs no cast). */
 export type Rows<Plain, F extends Fields | undefined> = [F] extends [undefined] ? Plain : readonly object[];
@@ -101,6 +107,9 @@ export interface MountOptions<F extends Fields | undefined = undefined> {
   /** The form of every date the chart tells you of in an `edit` event, a `save` change set and a before-edit call: `"minute"` (default) is `YYYY-MM-DDTHH:mm`, `"day"` is `YYYY-MM-DD`, a finish as the last day worked (the day of its instant less one minute). The durations and lags there are in `durationUnit`, whatever the schedule was read from.
    * @defaultValue `"minute"` */
   dateForm?: "minute" | "day";
+  /** The spelling of a task's date limit in an `edit` event, a `save` change set and a before-edit call: `"typed"` is one member, `constraint: { type, date }` or `null` (`type` is `snet`, `snlt`, `fnet`, `fnlt`, `mso` or `mfo`), and `"separate"` is the six members `snet`, `snlt`, `fnet`, `fnlt`, `mso` and `mfo`. `tasks`, `update` and `setData` take both spellings, and a task that gives `constraint` and one of the six is refused. `fields` may map `constraint` (to one member, or to a type member and a date member) only under `"typed"`; `mount` rejects it under `"separate"`.
+   * @defaultValue `"typed"` */
+  constraintForm?: "typed" | "separate";
   /** The calendar a lag day is counted on for the plain `tasks`: `"successor"` (default), `"predecessor"`, `"24h"` or `{ calendar: key }`. Read with `tasks`, and kept no longer than they are.
    * @defaultValue `"successor"` */
   lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string };
