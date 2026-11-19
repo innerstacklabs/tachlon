@@ -9,7 +9,7 @@ use engine::TaskId;
 
 /// The fields the dialog sends and the label a refusal names, in the order their edits run: a name
 /// first, since an edit that moves nothing ends the change summary of the one before it.
-pub const TASK_FIELDS: [(&str, &str); 11] = [
+pub const TASK_FIELDS: [(&str, &str); 12] = [
     ("name", "Name"),
     ("duration", "Duration"),
     ("start", "Start"),
@@ -21,6 +21,7 @@ pub const TASK_FIELDS: [(&str, &str); 11] = [
     ("actual_start", "Actual start"),
     ("actual_finish", "Actual finish"),
     ("remaining", "Remaining"),
+    ("predecessors", "Predecessors"),
 ];
 
 impl Session {
@@ -55,6 +56,16 @@ impl Session {
         })
     }
 
+    /// The edits the dialog's field `key` makes of `task` for `typed`: a predecessors list is one per link it changes.
+    fn plan_edits(&self, task: TaskId, key: &str, typed: &str) -> Result<Vec<Edit>, String> {
+        if key == "predecessors" {
+            return self
+                .plan_predecessors_text(task, typed)
+                .map_err(self.said());
+        }
+        Ok(self.plan_field(task, key, typed)?.into_iter().collect())
+    }
+
     /// The edits `text` asks of `task`, each planned against what the session holds now (a finish
     /// after a start in one dialog reads the old start); a text its plan refuses is left out.
     pub(crate) fn dialog_edits<'t>(
@@ -66,8 +77,9 @@ impl Session {
             .iter()
             .filter(|_| self.is_live(task))
             .filter_map(|&(key, _)| Some((key, text(key)?)));
-        let plan = |(key, typed): (&str, &str)| self.plan_field(task, key, typed).ok().flatten();
-        typed.filter_map(plan).collect()
+        let plan =
+            |(key, typed): (&str, &str)| self.plan_edits(task, key, typed).unwrap_or_default();
+        typed.flat_map(plan).collect()
     }
 
     /// Apply the changed `fields` of `task`, `(key, text)` pairs with keys from [`TASK_FIELDS`], as
@@ -97,13 +109,12 @@ impl Session {
             };
             // Planned against the state the earlier fields left: a finish is measured from the
             // start just set, a percent from the duration just set.
-            let planned = self.plan_field(task, key, typed);
-            let Some(edit) = planned.map_err(|e| format!("{label}: {e}"))? else {
-                return Ok(());
-            };
-            edit.check_typed()
-                .map_err(|e| format!("{label}: {}", self.say(&e)))?;
-            inverses.push(self.run(edit.clone()).map_err(self.said())?.0);
+            let planned = self.plan_edits(task, key, typed);
+            for edit in planned.map_err(|e| format!("{label}: {e}"))? {
+                edit.check_typed()
+                    .map_err(|e| format!("{label}: {}", self.say(&e)))?;
+                inverses.push(self.run(edit.clone()).map_err(self.said())?.0);
+            }
             Ok::<(), String>(())
         });
         if let Err(error) = applied {

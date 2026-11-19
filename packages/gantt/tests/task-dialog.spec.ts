@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import { fromTasks } from "../src/adapters/plain";
 import { expect, test, type Gantt } from "./support/gantt";
 
 // The task dialog (gantt#1875): Shift+Enter on the selected task opens its fields in one dialog. Save applies the changed ones as
@@ -118,4 +119,27 @@ test("F2 still opens the cell editor after the dialog closes", async ({ g }) => 
   await g.page.keyboard.press("F2");
   await expect(g.page.locator("#table-rows input.cell-edit")).toBeVisible();
   await expect(g.page.locator(DIALOG)).toBeHidden();
+});
+
+test("with IDs the dialog shows the Predecessors list, refuses a bad one with the reason, and Save makes the links", async ({ g }) => {
+  await g.open({ n: 20 });
+  const tasks = [1, 2, 3].map((id) => ({ id: String(id), name: `T${id}`, start: "2026-03-02", duration: 2 }));
+  await g.page.evaluate((d) => window.gantt!.api!.load({ document: d }), fromTasks({ tasks, links: [{ from: "1", to: "3" }] }).document);
+  await g.nextFrame(3);
+  await openDialog(g, 2);
+  await expect(field(g.page, "predecessors")).toHaveValue("1");
+  const revision = (await g.status()).revision;
+  await field(g.page, "predecessors").fill("9");
+  await g.page.getByRole("button", { name: "Save" }).click();
+  await expect(g.page.locator("#task-dialog-error")).toContainText("Predecessors:");
+  expect((await g.status()).revision, "a refused list changes nothing").toBe(revision);
+  await field(g.page, "predecessors").fill("1, 2SS+1d");
+  await g.page.getByRole("button", { name: "Save" }).click();
+  await closed(g);
+  await expect(g.page.locator('#table-rows .row[data-row="2"] > .pred')).toHaveText("1, 2 SS+1d");
+});
+
+test("without Activity IDs the dialog has no Predecessors field", async ({ g }) => {
+  await openDialog(g, (await leaf(g)).row);
+  await expect(field(g.page, "predecessors")).toBeHidden();
 });

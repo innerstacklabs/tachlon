@@ -15,7 +15,7 @@ work, start no later than, finish no earlier than and finish no later than toget
    dialog is titled `Edit task:` and the task's name, and shows the task's fields as the list
    writes them: **Name**, **Duration**, **Start**, **Finish**, **Percent complete**,
    **Actual start**, **Actual finish**, **Remaining**, **Start no later than**, **Finish no earlier
-   than** and **Finish no later than**. Double-clicking a name, duration, start,
+   than**, **Finish no later than** and, when tasks have IDs, **Predecessors**. Double-clicking a name, duration, start,
    finish or progress cell still opens that cell's own editor, and `F2` still does too. The dialog
    does not open while a drag is under way.
 2. **Change the fields.** Type in any of them. A date is written `YYYY-MM-DD`.
