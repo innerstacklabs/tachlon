@@ -27,7 +27,7 @@ export const TEXTS_EN: Readonly<Record<string, string>> = {
   "link": "Link", "link-input": "Link type and lag, such as FS or SS+2d",
   "link-title": "Type and lag: FS, SS, FF or SF, then an optional lag such as +2d. Enter applies, Escape closes.", "name": "Name",
   "duration": "Duration", "percent": "Percent complete", "actual-start": "Actual start", "actual-finish": "Actual finish", "remaining": "Remaining",
-  "snlt": "Start no later than", "fnet": "Finish no earlier than", "fnlt": "Finish no later than",
+  "snlt": "Start no later than", "fnet": "Finish no earlier than", "fnlt": "Finish no later than", "predecessors": "Predecessors",
   "date-format": "YYYY-MM-DD", "save": "Save", "cancel": "Cancel", "dismiss": "Dismiss", "reload": "Reload", "show-moved": "Show moved",
   "measurement-link": "Download the measurement (JSON)", "loading": "loading…",
 };
@@ -39,7 +39,7 @@ export const FIELDS_EN: Readonly<Record<string, string>> = {
   "var-finish-title": "Finish against the baseline, in working days", "var-float-title": "Float against the baseline, in working days",
   "start-no-earlier": "Start no earlier than", "deadline": "Deadline", "late-start": "Late start", "late-finish": "Late finish", "calendar": "Calendar",
   "resources": "Resources", "critical": "Critical", "driven-by": "Driven by", "status": "Status", "baseline-start": "Baseline start",
-  "baseline-finish": "Baseline finish", "predecessors": "Predecessors", "successors": "Successors",
+  "baseline-finish": "Baseline finish", "successors": "Successors",
 };
 // The sentences the chart writes while it runs (`messages.ts`): `{name}` holes, and for a count a form per plural category after a dot. A host's `texts` bundle replaces any of them.
 export const MESSAGES_EN: Readonly<Record<string, string>> = {
