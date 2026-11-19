@@ -2,7 +2,7 @@
 import { createApp, h, shallowRef } from "vue";
 import { Gantt } from "../src/vue.ts";
 
-const g = globalThis as { mounts?: { schedule?: { demo: number }; mustFinishBy?: string; locale?: string; texts?: Record<string, string>; capabilities?: object; save?: (changeSet: object) => Promise<unknown> }[]; destroyed?: unknown[]; listened?: string[]; switched?: boolean[]; profiled?: unknown[] };
+const g = globalThis as { mounts?: { schedule?: { demo: number }; mustFinishBy?: string; locale?: string; texts?: Record<string, string>; capabilities?: object; save?: Record<symbol, () => ((changeSet: object) => unknown) | undefined> }[]; destroyed?: unknown[]; listened?: string[]; switched?: boolean[]; profiled?: unknown[] };
 const seen = { change: 0, load: 0, ready: 0 };
 const schedule = shallowRef<{ demo: number; fail?: number }>({ demo: 1 });
 const locale = shallowRef<string | undefined>(undefined);
@@ -28,7 +28,7 @@ Object.assign(window, {
   flip: (on: boolean) => ((readOnly.value = on), report().then(() => ({ mounts: (g.mounts ?? []).length, switched: [...(g.switched ?? [])] }))),
   hold: () => { let release!: () => void; (globalThis as { gate?: Promise<void> }).gate = new Promise<void>((done) => (release = done)); const wait = (ms: number) => new Promise((done) => setTimeout(done, ms)); schedule.value = { demo: 2 }; return wait(100).then(() => ((readOnly.value = true), wait(100))).then(() => (release(), report())).then(() => [...(g.switched ?? [])]); },
   caps: (value?: object) => ((capabilities.value = value), report().then(() => ({ mounts: (g.mounts ?? []).map((o) => o.capabilities ?? null), profiled: [...(g.profiled ?? [])] }))),
-  later: (on: boolean) => ((save.value = on ? async () => "sent" : undefined), report().then(async () => ({ mounts: (g.mounts ?? []).length, answer: await g.mounts![0]!.save!({}) }))),
+  later: (on: boolean) => ((save.value = on ? async () => "sent" : undefined), report().then(async () => ({ mounts: (g.mounts ?? []).length, answer: (await g.mounts![0]!.save![Symbol.for("gantt.liveSave")]!()?.({})) ?? "none" }))),
   problems: () => ({ ...problems }),
   stop: () => (app.unmount(), report()),
 });

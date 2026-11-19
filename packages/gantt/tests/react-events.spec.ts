@@ -14,7 +14,7 @@ window.localeAt = async (locale) => (root.render(h(Gantt, { schedule, locale }))
 window.textsAt = async (texts) => (root.render(h(Gantt, { schedule, texts })), await new Promise((done) => setTimeout(done, 300)), mounts.map((options) => options.texts));
 window.readOnlyAt = async (readOnly) => (root.render(h(Gantt, { schedule, readOnly })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.map((options) => options.readOnly), switched: [...(globalThis.switched ?? [])] });
 window.capsAt = async (capabilities) => (root.render(h(Gantt, { schedule, capabilities })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.map((options) => options.capabilities), profiled: [...globalThis.profiled] });
-window.saveAt = async (on) => (root.render(h(Gantt, { schedule, save: on ? async () => "sent" : undefined })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.length, answer: await mounts[0].save({}) });
+window.saveAt = async (on) => (root.render(h(Gantt, { schedule, save: on ? async () => "sent" : undefined })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.length, answer: (await mounts[0].save[Symbol.for("gantt.liveSave")]()?.({})) ?? "none" });
 window.beforeEditAt = async (answer) => (root.render(h(Gantt, { schedule, beforeEdit: () => answer })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.length, answered: mounts[0].beforeEdit({ kind: "setDuration" }) });
 window.heldReadOnly = async () => { const held = { demo: 2 }, wait = (ms) => new Promise((done) => setTimeout(done, ms)); let release; globalThis.gate = new Promise((done) => (release = done)); root.render(h(Gantt, { schedule: held, readOnly: false })); await wait(100); root.render(h(Gantt, { schedule: held, readOnly: true })); await wait(100); release(); await wait(300); return [...globalThis.switched]; };`;
 const wasmHost = { name: "wasm-host", resolveId: (id: string) => (id === "/tests/wasm-host.ts" ? id : null), load: (id: string) => (id === "/tests/wasm-host.ts" ? WASM_HOST : null) };
@@ -121,8 +121,9 @@ test("a `save` removed or added after the mount is read when a change set is sen
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST.replace("react-events-host", "wasm-host") }));
   await page.goto(`${base}host.html`);
   await page.waitForFunction("window.saveAt");
-  expect.soft(await page.evaluate("saveAt(false)"), "no save at the mount: the change set is kept, nothing throws").toEqual({ mounts: 1, answer: { saved: false } });
+  expect.soft(await page.evaluate("saveAt(false)"), "no save at the mount: there is nothing to call and nothing throws").toEqual({ mounts: 1, answer: "none" });
   expect.soft(await page.evaluate("saveAt(true)"), "a save added later is called by the chart that is mounted").toEqual({ mounts: 1, answer: "sent" });
+  expect.soft(await page.evaluate("saveAt(false)"), "removed again, there is nothing to call and nothing throws").toEqual({ mounts: 1, answer: "none" });
 });
 
 test("a new `beforeEdit` reaches the chart that is mounted and mounts nothing", async ({ page }) => {

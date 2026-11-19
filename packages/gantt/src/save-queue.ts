@@ -1,7 +1,7 @@
 // The host's save queue (decision 0022, rule 3.3): each commit the person makes goes to the host's `save` function as a change set, one call at a time, in `seq`
 // order. A `SaveRefused` puts that commit and every commit behind it back through `App.rollback_to`; any other throw leaves the commit unsaved and stops the queue.
 import type { Commit } from "./events.js";
-import type { ChangeSet, Save, SaveError, SaveResult } from "./gantt-types.js";
+import type { ChangeSet, Save, SaveError } from "./gantt-types.js";
 
 /** Throw this from `save` when the server judged the change and said no; `message` is the line the person sees. */
 export class SaveRefused extends Error {
@@ -23,6 +23,13 @@ export interface SaveApp {
 
 /** How long a put-back waits when the app is busy (a cell or a bar is held), in milliseconds. */
 const BUSY_WAIT = 50;
+
+const LIVE = Symbol.for("gantt.liveSave");
+
+/** What a wrapper hands `mount` as `save`: the queue asks `get` for the host's current function when it sends a commit, and with none it writes no change set and acknowledges nothing. A symbol key, so the entry bundles agree on it. */
+export function liveSave(get: () => Save | undefined): Save {
+  return Object.assign((changeSet: ChangeSet) => get()!(changeSet), { [LIVE]: get });
+}
 
 /** A commit that is not saved yet, its change set (written at the first call) and how many times `save` has run for it. */
 interface Waiting { commit: Commit; set?: ChangeSet; calls: number }
@@ -77,11 +84,16 @@ export class SaveQueue {
     try {
       while (!this.stopped && !this.broken && this.waiting.length > 0) {
         const head = this.waiting[0]!;
+        const live = (this.save as { [LIVE]?: () => Save | undefined })[LIVE];
+        const save = live === undefined ? this.save : live();
+        if (save === undefined) {
+          this.waiting.shift();
+          continue;
+        }
         head.set ??= write(head.commit);
         head.calls++;
-        let kept = false;
         try {
-          kept = ((await this.save(head.set)) as SaveResult | undefined)?.saved === false;
+          await save(head.set);
         } catch (err) {
           if (this.stopped) return;
           if (!(err instanceof SaveRefused)) {
@@ -93,7 +105,7 @@ export class SaveQueue {
           continue;
         }
         if (this.stopped) return;
-        if (!kept) this.app.acknowledge(head.commit.seq);
+        this.app.acknowledge(head.commit.seq);
         this.waiting.shift();
       }
     } finally {

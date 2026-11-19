@@ -30,8 +30,8 @@ export type UpdateResult = { ok: true; updated: number; differs?: readonly HostD
 /** One undo step as a host's save function gets it (decision 0022, rule 2.1): `id` is a UUID that is new for each change set and the same on every call of it, `seq` and `source` are the commit's, and each change is the `edit` event's without the session slots, with `once`, its idempotency key `<id>:<n>` (`n` from 0). */
 export interface ChangeSet { id: string; seq: number; source: CommitSource; changes: readonly (Omit<Change, "task" | "link"> & { once: string })[] }
 
-/** What a save function may resolve with. A function that resolves has saved the change set, unless it resolves `{ saved: false }`: the chart then sends the next one and does not acknowledge this commit, so `rollbackTo` still takes it back. The React, Vue and Angular components answer so when they have no `save`. */
-export interface SaveResult { keys?: readonly { ref: string; key: string }[]; saved?: false }
+/** What a save function may resolve with. The chart does not read it yet: a function that resolves has saved the change set. */
+export interface SaveResult { keys?: readonly { ref: string; key: string }[] }
 
 /** The host's save function: it gets each change set the person's edits make, one at a time, in the order made, and resolves when the server has it. Throw a `SaveRefused` when the server judged the change and said no: the chart puts that edit and the ones made after it back and fires `error` with the source `save`. */
 export type Save = (changeSet: ChangeSet) => Promise<SaveResult | void>;

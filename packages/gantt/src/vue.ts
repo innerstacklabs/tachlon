@@ -2,6 +2,7 @@
 // mount options as props and emits the chart's events. It uses only what the entry exports, `mount` and its types, imported by relative path, so
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { camelize, defineComponent, getCurrentInstance, h, onBeforeUnmount, onMounted, onUpdated, shallowRef, toHandlerKey, watch, type PropType } from "vue";
+import { liveSave } from "./save-queue.js";
 import { mount, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
 
 /** The events of `Gantt.on`, each one an emit of the component: `@select`, `@move`, `@toggle-status` and the rest of `GanttEvents`. */
@@ -78,7 +79,7 @@ export const Gantt = defineComponent({
       queue = queue.then(async () => {
         if (stopped) return;
         try {
-          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, dateForm: props.dateForm, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: (changeSet) => props.save?.(changeSet) ?? Promise.resolve({ saved: false as const }) });
+          started = await mount(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, dateForm: props.dateForm, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: liveSave(() => props.save) });
         } catch (error) {
           return void (stopped || (failure.value = { error }));
         }

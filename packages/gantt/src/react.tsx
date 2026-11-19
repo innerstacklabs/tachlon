@@ -2,6 +2,7 @@
 // mount options as props and the chart's events as callbacks. It uses only what the entry exports, `mount` and its types, imported by relative path, so
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
+import { liveSave } from "./save-queue.js";
 import { mount, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
 export type { ChangeSet, Save, SaveError, SaveResult } from "./index.js";
 
@@ -79,7 +80,7 @@ export function Gantt(props: GanttProps): JSX.Element {
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: (changeSet) => latest.current.save?.(changeSet) ?? Promise.resolve({ saved: false as const }) });
+        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;

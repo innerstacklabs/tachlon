@@ -4,7 +4,7 @@ import { Gantt } from "../src/angular.ts";
 
 type Schedule = { demo?: number; fail?: number };
 type Emitter = { subscribe(handler: () => void): void };
-const g = globalThis as { mounts?: { schedule?: { demo: number }; locale?: string; texts?: Record<string, string>; fonts?: unknown; capabilities?: object; save?: (changeSet: object) => Promise<unknown> }[]; destroyed?: unknown[]; listened?: string[]; switched?: boolean[]; profiled?: unknown[]; declared?: Record<string, { inputs: object; outputs: object }> };
+const g = globalThis as { mounts?: { schedule?: { demo: number }; locale?: string; texts?: Record<string, string>; fonts?: unknown; capabilities?: object; save?: Record<symbol, () => ((changeSet: object) => unknown) | undefined> }[]; destroyed?: unknown[]; listened?: string[]; switched?: boolean[]; profiled?: unknown[]; declared?: Record<string, { inputs: object; outputs: object }> };
 const seen = { change: 0, load: 0, ready: 0 };
 const zone = { outside: 0, inside: 0, runOutsideAngular: <T>(f: () => T): T => (zone.outside++, f()), run: <T>(f: () => T): T => (zone.inside++, f()) };
 const errors: string[] = [];
@@ -21,7 +21,7 @@ Object.assign(window, {
   listen: () => (outputs.chartFind!.subscribe(() => {}), report()),
   flip: (on: boolean) => ((chart.readOnly = on), chart.ngOnChanges({ readOnly: on } as never), report().then(() => ({ mounts: (g.mounts ?? []).length, switched: [...(g.switched ?? [])] }))),
   caps: (value?: object) => ((chart.capabilities = value), chart.ngOnChanges({ capabilities: value } as never), report().then(() => ({ mounts: (g.mounts ?? []).map((o) => o.capabilities ?? null), profiled: [...(g.profiled ?? [])] }))),
-  later: (on: boolean) => ((chart.save = on ? (async () => "sent") as never : undefined), report().then(async () => ({ mounts: (g.mounts ?? []).length, answer: await g.mounts![0]!.save!({}) }))),
+  later: (on: boolean) => ((chart.save = on ? (async () => "sent") as never : undefined), chart.ngOnChanges({ save: chart.save } as never), report().then(async () => ({ mounts: (g.mounts ?? []).length, answer: (await g.mounts![0]!.save![Symbol.for("gantt.liveSave")]!()?.({})) ?? "none" }))),
   badCaps: () => { let release!: () => void; (globalThis as { gate?: Promise<void> }).gate = new Promise<void>((done) => (release = done)); const wait = (ms: number) => new Promise((done) => setTimeout(done, ms)); set({ demo: 2 }); return wait(100).then(() => ((chart.capabilities = { bad: 1 } as never), release(), report())).then(() => (set({ demo: 3 }), report())); },
   hold: () => { let release!: () => void; (globalThis as { gate?: Promise<void> }).gate = new Promise<void>((done) => (release = done)); const wait = (ms: number) => new Promise((done) => setTimeout(done, ms)); set({ demo: 2 }); return wait(100).then(() => ((chart.readOnly = true), chart.ngOnChanges({ readOnly: true } as never), wait(100))).then(() => (release(), report())).then(() => [...(g.switched ?? [])]); },
   fail: () => (set({ fail: 1 }), report()),
