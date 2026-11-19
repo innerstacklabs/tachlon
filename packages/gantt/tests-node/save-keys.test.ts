@@ -102,6 +102,29 @@ for (const [what, key, saved] of [["the same key", "t9", true], ["no key", undef
   }
 }
 
+for (const [what, answer] of [["a number", { id: 57 }], ["an empty key", { id: "" }], ["a Response whose JSON is a number key", new Response('{"id":57}')]] as const) {
+  test(`under keys: server, handlers form, a restored create answered with ${what} is put back with the reason "result"`, async () => {
+    const app = fakeApp();
+    const errors: SaveError[] = [];
+    const queue = new SaveQueue(app, { createTask: async () => answer }, (error) => errors.push(error), rules(app, "server"));
+    queue.add([{ seq: 1, source: "undo", changes: [create(5, {}, "t9")] }]);
+    await settle();
+    expect([errors[0]?.reason, errors[0]?.message, app.log]).toEqual(["result", expect.stringMatching(/the restored task under the key.*but the chart has it under "t9"/), ["rollback 1"]]);
+  });
+}
+
+test("under keys: server, handlers form, a restored create answered with another key stops the change set before the next handler runs", async () => {
+  const app = fakeApp();
+  const errors: SaveError[] = [];
+  const called: string[] = [];
+  const link: Change = { record: "link", op: "create", key: null, link: 0, set: { from: { task: 5 }, to: { task: 6 }, type: "FS" } };
+  const handlers: Handlers = { createTask: async () => (called.push("createTask"), { id: "t10" }), createLink: async () => void called.push("createLink") };
+  const queue = new SaveQueue(app, handlers, (error) => errors.push(error), rules(app, "server"));
+  queue.add([{ seq: 1, source: "undo", changes: [create(5, {}, "t9"), link] }]);
+  await settle();
+  expect([called, errors[0]?.reason, errors[0]?.message, app.log]).toEqual([["createTask"], "result", expect.stringMatching(/"t10".*"t9"/), ["rollback 1"]]);
+});
+
 test("a task and a link may hold the same key, as keys are unique for each kind of row", async () => {
   const app = fakeApp();
   const link: Change = { record: "link", op: "create", key: null, link: 0, set: { from: "a", to: "b" } };

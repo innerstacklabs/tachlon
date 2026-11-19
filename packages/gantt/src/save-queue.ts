@@ -3,7 +3,7 @@
 import type { Change, Commit } from "./events.js";
 import type { ChangeSet, Handlers, Save, SaveError, SaveResult } from "./gantt-types.js";
 import type { KeyNames } from "./save-handlers.js";
-import { BadResult, callSave } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
+import { BadResult, callSave, restoredMismatch } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
 
 /** Throw this from `save` when the server judged the change and said no; `message` is the line the person sees. */
 export class SaveRefused extends Error {
@@ -245,7 +245,7 @@ export class SaveQueue {
     for (const { ref, key } of answers) {
       const old = had.get(ref);
       if (old !== undefined) {
-        if (key !== old) return `the server holds the restored ${ref.split(":")[0]} under the key ${JSON.stringify(key)}, but the chart has it under ${JSON.stringify(old)}, and the chart cannot yet take a new key for a restored row: restore the row under its original key on the server, or read your data again with setData, which shows the row under its new key`;
+        if (key !== old) return restoredMismatch(ref.split(":")[0]!, key, old);
         continue;
       }
       const [record, slot] = ref.split(":");

@@ -35,12 +35,20 @@ export function callSave(save: Save | Handlers, changeSet: ChangeSet, stopped: (
   return typeof save === "function" ? save(changeSet) : runHandlers(save, changeSet, stopped, names);
 }
 
-/** The key a create's handler answered: the key itself, an object that holds it under the host's name for `key`, or a `Response` whose JSON is that row. */
-async function keyOf(result: unknown, field: string, name: Name, had: boolean): Promise<string | undefined> {
+/** What a restored row's answer says when the server holds it under a key other than the one the chart has. */
+export const restoredMismatch = (record: string, key: unknown, old: string): string =>
+  `the server holds the restored ${record} under the key ${JSON.stringify(key)}, but the chart has it under ${JSON.stringify(old)}, and the chart cannot yet take a new key for a restored row: restore the row under its original key on the server, or read your data again with setData, which shows the row under its new key`;
+
+/** The key a create's handler answered: the key itself, an object that holds it under the host's name for `key`, or a `Response` whose JSON is that row. A create that carries its key may answer none, but not another. */
+async function keyOf(result: unknown, field: string, name: Name, change: Change): Promise<string | undefined> {
   const row = result instanceof Response ? (await result.json().catch(() => undefined)) as unknown : result;
   const key = typeof row === "object" && row !== null ? (row as Record<string, unknown>)[field] : row;
+  if (change.key !== null) {
+    if (key === undefined || key === null) return undefined;
+    if (key !== change.key) throw new BadResult(restoredMismatch(change.record, key, change.key));
+    return change.key;
+  }
   if (typeof key === "string" && key !== "") return key;
-  if (had) return undefined; // a create that carries its key may answer none
   throw new BadResult(`the ${name} handler resolved with no key for the new row: with keys: "server" resolve with the key, an object that has it as "${field}", or a Response whose JSON body is the row`);
 }
 
@@ -64,7 +72,7 @@ async function runHandlers(handlers: Handlers, changeSet: ChangeSet, stopped: ()
     }
     if (result instanceof Response && !result.ok) throw result;
     warnIfRefused(name, result);
-    const answer = names !== undefined && change.ref !== undefined ? await keyOf(result, names[change.record as "task" | "link"], name, change.key !== null) : undefined;
+    const answer = names !== undefined && change.ref !== undefined ? await keyOf(result, names[change.record as "task" | "link"], name, change) : undefined;
     if (answer !== undefined) keys.set(change.ref!, answer);
     resolved.set(changeSet, n + 1);
   }
