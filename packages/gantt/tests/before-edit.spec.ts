@@ -183,3 +183,21 @@ test("a lag updated at a link made since the last commit, in the same tick, is m
   expect(linkOf((await page.evaluate(() => window.asked)).at(-1)!.changes), "3 days of the 7.5-hour successor, though the link is not in an edit event yet").toMatchObject(later);
   expect(linkOf((await page.evaluate(() => (window as unknown as { heard: { record: string }[][] }).heard))[1]!)).toMatchObject(later);
 });
+
+test("a chart mounted with a field map takes the host's names in its rows, update and setData, and tells them in the edit event, the before-edit call and the save", async ({ page }) => {
+  const tasks = [{ id: "a", title: "Dig", plannedStart: "2026-03-02", days: 2 }, { id: "b", title: "Pour", plannedStart: "2026-03-02", days: 3 }];
+  await mountHost(page, `() => undefined`, { schedule: undefined, tasks, fields: { tasks: { name: "title", start: "plannedStart", duration: "days", key: "id" } }, recordSaves: true });
+  const heard = () => page.evaluate(() => (window as unknown as { heard: unknown[] }).heard);
+  await page.evaluate(() => { const w = window as unknown as { heard: unknown[] }; w.heard = []; window.beChart.on("edit", (edit) => w.heard.push(edit.commits[0]!.changes[0])); });
+  await page.locator("#table-rows .row").nth(0).locator(".dur").dblclick();
+  await page.locator("#table-rows input.cell-edit").fill("17");
+  await page.keyboard.press("Enter");
+  await expect.poll(async () => (await heard()).length).toBe(1);
+  const change = { record: "task", key: "a", set: { days: 17 }, was: { days: 2 } };
+  expect((await asked(page, "setDuration"))[0]!.changes).toMatchObject([change]);
+  expect(await heard()).toMatchObject([change]);
+  await expect.poll(() => page.evaluate(() => window.sets)).toMatchObject([{ changes: [change] }]);
+  expect(await page.evaluate(() => window.beChart.update([{ id: "b", title: "Pour 2", days: 4 }] as never))).toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate(() => window.beChart.setData({ tasks: [{ id: "a", title: "Dig 2", plannedStart: "2026-03-02", days: 17 }, { id: "b", title: "Pour 2", plannedStart: "2026-03-02", days: 4 }] as never }))).toEqual({ ok: true, updated: 2 });
+  expect(await page.evaluate(() => window.beChart.snapshot().tasks.map(({ name, duration }) => [name, duration])), "snapshot keeps the chart's names").toEqual([["Dig 2", 17], ["Pour 2", 4]]);
+});

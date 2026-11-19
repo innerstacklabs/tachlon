@@ -27,6 +27,7 @@ const EVENTS = {
  * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
  * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `tasks`, `links`, `texts` and `fonts` stable between renders.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
+ * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `wasmUrl` is where the page serves the engine file, for an app that does not serve it next to the chart (a Next.js app serves it from `public/`).
  * `onReady(chart)` is called once each time the chart mounts, with the chart `mount` resolved to (to call `load` or `open` on it), and never
@@ -80,7 +81,7 @@ export function Gantt(props: GanttProps): JSX.Element {
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
+        started = await mount(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: latest.current.fields, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;

@@ -50,6 +50,9 @@ export interface HostCapabilities {
   dates?: "minute" | "day";
 }
 
+/** The host's names for the members of its rows (`MountOptions.fields`): each entry gives one chart field (the names `PlainTask` and `PlainLink` list, with `key`) the host's name for it, `{ name: "title", start: "plannedStart", duration: "days", key: "id" }`. A field with no entry keeps its own name. */
+export interface Fields { tasks?: { [chartField: string]: string }; links?: { [chartField: string]: string } }
+
 /** What `mount` takes: a `schedule`, a saved `document`, or `tasks` and `links` as `fromTasks` reads them; with none of the three the chart starts with no tasks and waits for `load`. */
 export interface MountOptions {
   /** A schedule file to read (XER or MS Project XML, every project of it, or a `.gantt` document), or the demo or the stress fixture at `n` tasks. */
@@ -89,6 +92,8 @@ export interface MountOptions {
   beforeEdit?: BeforeEdit;
   /** The host's save function (`Save`): the chart calls it with each commit's change set, one call at a time, in the order the commits were made, and puts an edit back when it throws a `SaveRefused`. Without it the chart saves nothing and the host reads the `edit` event. React, Vue and Angular ask the latest function when a change set is sent, never mount the chart again for a new one, and send nothing while there is none. */
   save?: Save;
+  /** The host's names for the members of its rows (`Fields`), given once: the chart reads `tasks`, `links`, `update` and `setData` in them and writes them in the `set` and `was` of every change it tells you of (an `edit` event, a `save` change set, a before-edit call), so the host writes no rename function. It renames members and converts no value (`durationUnit` and `dateForm` do that). `mount` rejects an entry for a field the chart does not have, one host name given to two fields, and a host name that is another field's own name with no entry (`key: "id"` is the exception). Read once, at start: a later change does nothing. */
+  fields?: Fields;
   /** Where to fetch the engine file (`app_bg.wasm`) from, a URL or an address read against the page's own. Without it the chart loads the file beside its script (`dist-lib/app_bg.wasm`). When `preloadEngine` already started the load, its `wasmUrl` is the one used. */
   wasmUrl?: string | URL;
   /** The language and region the chart runs in, a BCP 47 tag such as `"de"` or `"pt-BR"`: it is written as the root's `lang`, and the chart's numbers show in that region's style (`1.234,5` for `"de"`). Without it the numbers read as `"en-US"` and the root's `lang` stays the page's own. A tag that is not a language tag rejects `mount` with a `RangeError`, before it touches the root. */

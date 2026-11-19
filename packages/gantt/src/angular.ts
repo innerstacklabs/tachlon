@@ -17,6 +17,7 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
  * Give a listener for `chartFind` or `chartChooseFile` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
  * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
+ * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `(ready)` gets the chart `mount` resolved to, once each time the chart mounts (to call `load` or `open` on it), and never for a chart that was removed first.
  * The component's element is the chart's root, which has no size of its own, so give it one. The page imports the chart's stylesheet. The chart runs outside
@@ -39,6 +40,7 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
   @Input() readOnly?: boolean;
   @Input() capabilities?: MountOptions["capabilities"];
   @Input() beforeEdit?: MountOptions["beforeEdit"];
+  @Input() fields?: MountOptions["fields"];
   @Input() save?: MountOptions["save"];
   @Input() wasmUrl?: MountOptions["wasmUrl"];
   @Input() locale?: MountOptions["locale"];
@@ -92,7 +94,7 @@ export class Gantt implements OnChanges, AfterViewInit, OnDestroy {
       if (stopped) return;
       const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts } = this;
       try {
-        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
+        started = await this.zone.runOutsideAngular(() => mount(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: this.fields, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
       } catch (error) {
         return void (stopped || this.errors.handleError(error));
       }
