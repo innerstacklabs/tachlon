@@ -265,7 +265,8 @@ export const SCENARIOS: Scenario[] = [
     },
   },
   {
-    n: 15, name: "15 repeats off", props: "retry: false", script: { drop: (r) => (r.method === "POST" ? "response" : undefined) },
+    n: 15, name: "15 repeats off", props: "retry: false", // the latency keeps the failure from landing while insert() is still typing: the rename queues behind the create, and one put-back takes both (scenario 5)
+    script: { latency: (r) => (r.method === "POST" ? 1_500 : 0), drop: (r) => (r.method === "POST" ? "response" : undefined) },
     async run(page, server) {
       await ready(page);
       await insert(page, "Review");
