@@ -43,6 +43,9 @@ export const dryList = () => STILLS.map((s) => `${s.name}  ${s.scene ? `scene ${
 /** The pointer the drag leaves on a bar would show a hover card over the table in the insert still: park it on empty chart. */
 const park = { name: "park", caption: "park", run: async (c) => { const box = await c.canvasBox(); await c.page.mouse.move(box.x + box.width * 0.85, box.y + c.AXIS + c.ROW * 8); await c.hold(2); } };
 
+/** Resolves once the page's zoom level has held for 30 frames; site-shots.mjs waits the same way. */
+export const settled = (page) => page.waitForFunction(() => { const s = window.gantt.status(); if (window.settled?.level !== s.level) window.settled = { level: s.level, since: s.frames }; return s.frames - window.settled.since >= 30; }, null, { polling: "raf" });
+
 async function main() {
   const { values } = parseArgs({ args: process.argv.slice(2), options: { out: { type: "string" }, only: { type: "string" }, dist: { type: "string" }, dry: { type: "boolean" } } });
   if (values.dry) { console.log(dryList().join("\n")); return 0; }
@@ -73,7 +76,7 @@ async function main() {
       page.on("pageerror", (err) => { failure ??= err; });
       await page.goto(`http://127.0.0.1:${server.port}/${query}`);
       await waitUntilReady(page);
-      await page.waitForFunction(() => { const s = window.gantt.status(); if (window.settled?.level !== s.level) window.settled = { level: s.level, since: s.frames }; return s.frames - window.settled.since >= 30; }, null, { polling: "raf" });
+      await settled(page);
     };
     const keep = (name, png) => taken.push({ name, png });
     const shot = async (name, badges = []) => {

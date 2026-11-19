@@ -11,11 +11,14 @@ import { checkHostedDist, DEFAULT_DIST } from "./clip.mjs";
 import { chromePath, loadChromium, waitUntilReady } from "./record/browser.mjs";
 import { execFile, ffmpegPath, stopChildren } from "./record/media.mjs";
 import { serveDir } from "./serve.mjs";
+import { createContext, runScene } from "./ctx.mjs";
+import { settled } from "./stills.mjs";
 import { acceptOpenAsk } from "./steps/helpers.mjs";
+import { editLink } from "./steps/p6.mjs";
 const OUT = fileURLToPath(new URL("../../apps/site/shots", import.meta.url));
 const FIT_OUT = fileURLToPath(new URL("./fixtures/fit-out.xer", import.meta.url));
 const part = (name) => `[data-part=${name}]`;
-/** One group is one page state; each picture of it is a clip `[x, y, width, height]` in CSS px (the files are 2x). `moved` drags a bar first. */
+/** One group is one page state; each picture of it is a clip `[x, y, width, height]` in CSS px (the files are 2x). `scene` plays a screencast scene first. */
 export const GROUPS = [
   { size: [1440, 860], query: "?sample=office-fitout", progress: true, shots: [{ name: "hero-fitout" }] },
   { size: [1180, 700], query: "?sample=office-fitout", progress: true, critical: true, shots: [{ name: "critical" }] },
@@ -23,7 +26,7 @@ export const GROUPS = [
   { size: [1440, 860], query: "?sample=medium-5k", progress: true, shots: [{ name: "xer-5k" }] },
   { size: [1440, 900], file: FIT_OUT, progress: true, shots: [
     { name: "hero-light" }, { name: "hero-phone", clip: [700, 0, 740, 900] }, { name: "p6", clip: [0, 0, 730, 530] },
-    { name: "themes", halves: [[220, 0, 500, 650], [720, 0, 500, 650]] }, { name: "moved", clip: [720, 0, 720, 590], drag: "Fire sprinkler drops" },
+    { name: "themes", halves: [[220, 0, 500, 650], [720, 0, 500, 650]] }, { name: "moved", clip: [720, 0, 720, 590], scene: editLink },
   ] },
 ];
 /** The page's chart tokens per theme, from its own stylesheet: `{ light: [[name, value], ...], dark: [...] }`. */
@@ -49,38 +52,20 @@ async function openPage(browser, server, group, theme, colors) {
     await page.locator("#open-input").setInputFiles(group.file);
     await page.waitForFunction(() => window.gantt.opened?.name === "fit-out.xer" && window.gantt.status().n === window.gantt.opened.tasks, null, { timeout: 60_000 });
   }
-  // Settled: the zoom level has held for 30 frames and the open animation (360 ms a bar) is over. The Progress button is read after that: a file's opening turns it on by itself.
-  const settle = () => page.waitForFunction(() => { const s = window.gantt.status(); if (window.settled?.level !== s.level) window.settled = { level: s.level, since: s.frames }; return s.frames - window.settled.since >= 30; }, null, { polling: "raf" });
-  await settle();
+  const ctx = await createContext(page, { mode: "test" });
+  // The Progress button is read once the open has settled: a file's opening turns it on by itself.
+  await settled(page);
   const note = page.locator("#first-screen-line button");
   if (await note.isVisible()) await note.click();
   const progress = page.locator(part("progress-toggle"));
   if (group.progress && (await progress.getAttribute("aria-pressed")) !== "true") await progress.click();
-  if (group.critical) { await page.locator(part("filters-button")).click(); await page.locator(part("critical-toggle")).click(); await page.keyboard.press("Escape"); }
-  await settle();
+  if (group.critical) { await page.locator(part("filters-button")).click(); await page.locator(part("critical-toggle")).click(); await page.keyboard.press("Escape"); await page.locator(part("fit-button")).click(); }
+  await page.evaluate(() => document.activeElement?.blur());
+  await settled(page);
   await page.mouse.move(0, 0);
-  await page.evaluate(() => new Promise((done) => { let n = 20; const tick = () => (--n <= 0 ? done() : requestAnimationFrame(tick)); requestAnimationFrame(tick); }));
+  await ctx.frames(60);
   if (failures.length > 0) throw new Error(`page broke: ${failures[0].message}`);
-  return page;
-}
-
-/** Drag the named task's bar a week right and leave the pointer on it: the dashed old place, the Show moved bubble and the link dot are what the picture shows. */
-async function dragBar(page, name) {
-  const row = await page.locator("#table-body", { hasText: name }).locator(`text="${name}"`).first().boundingBox();
-  const y = row.y + row.height / 2;
-  for (let x = 720; x < 1440; x += 4) {
-    await page.mouse.move(x, y);
-    if (await page.evaluate(() => window.gantt.status().hover?.task != null)) {
-      await page.mouse.down();
-      await page.mouse.move(x + 20, y, { steps: 4 });
-      await page.mouse.move(x + 76, y, { steps: 8 });
-      await page.mouse.up();
-      await page.addStyleTag({ content: "[data-part=hover-card] { visibility: hidden !important; }" });
-      await page.waitForFunction(() => window.gantt.status().moved !== null && !window.gantt.status().drag?.active, null, { polling: "raf" });
-      return;
-    }
-  }
-  throw new Error(`no bar found at the row of ${name}`);
+  return ctx;
 }
 
 async function main() {
@@ -102,15 +87,15 @@ async function main() {
       const todo = group.shots.filter((s) => !values.only || values.only === s.name);
       if (todo.length === 0) continue;
       const [width, height] = group.size;
-      const page = await openPage(browser, server, group, "light", colors);
+      const ctx = await openPage(browser, server, group, "light", colors);
       for (const shot of todo) {
-        if (shot.drag) await dragBar(page, shot.drag);
+        if (shot.scene) { await runScene(ctx, shot.scene); await ctx.page.addStyleTag({ content: "[data-part=hover-card] { visibility: hidden !important; }" }); await ctx.frames(20); }
         const halves = shot.halves ?? [shot.clip ?? [0, 0, width, height]];
         const dark = shot.halves ? await openPage(browser, server, group, "dark", colors) : null;
         const pngs = [];
         for (const [i, [x, y, w, h]] of halves.entries()) {
           pngs.push(join(temp, `${shot.name}-${i}.png`));
-          await (i === 0 ? page : dark).screenshot({ path: pngs[i], clip: { x, y, width: w, height: h } });
+          await (i === 0 ? ctx : dark).page.screenshot({ path: pngs[i], clip: { x, y, width: w, height: h } });
         }
         const webp = join(out, `${shot.name}.webp`);
         const inputs = pngs.flatMap((p) => ["-i", p]);
