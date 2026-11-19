@@ -31,7 +31,7 @@ import { readFields, type FieldMap } from "./field-map.js";
 import type { Stamped } from "./change-set.js";
 import type { Change } from "./events.js";
 import { refused } from "./edit-result.js";
-import { SaveQueue } from "./save-queue.js";
+import { keyMistake, keyRules, SaveQueue } from "./save-queue.js";
 import { mountAssistantPanel } from "./assistant/panel.js";
 import { installCard } from "./card.js";
 import { installCellEdit } from "./cell-edit.js";
@@ -130,11 +130,14 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
   // (`webgl-switch.ts`), so a large list is not kept alive for it. No closure below holds `options`, only the fields it needs.
   let plain: StartSource = options.document === undefined ? { tasks: options.tasks && names.tasks.rows(options.tasks), links: options.links && names.links.rows(options.links), dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
   const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, dateForm, save } = options;
+  const { keys, newKey } = options;
+  const mistake = save === undefined || schedule !== undefined || options.document !== undefined ? undefined : keyMistake("task", options.tasks && names.tasks.rows(options.tasks)) ?? keyMistake("link", options.links && names.links.rows(options.links));
+  if (mistake !== undefined || (keys !== undefined && keys !== "chart" && keys !== "server")) throw new MountError("schedule", mistake ?? `keys is "chart" or "server", not ${JSON.stringify(keys)}.`);
   const start = (source: StartSource, run: Run): Promise<Started> => {
     const again = measured && schedule !== undefined && source !== undefined && "document" in source;
     const from = again ? schedule : (source ?? plain);
     if (from === undefined) return Promise.reject(new MountError("schedule", "The chart could not read its schedule to start again: the page's tasks and links were let go once it had started."));
-    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit, dateForm, save, names));
+    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit, dateForm, save, names, { keys, newKey }));
   };
   const gantt = await mountSwitching(root, { schedule, forceWebgl, readOnly: options.readOnly, capabilities: options.capabilities, beforeEdit: options.beforeEdit }, start, page?.fallback ?? null, restart);
   plain = undefined;
@@ -142,7 +145,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
 }
 
 /** One start of the chart in `root`, on `source`, as `run` says; `own` holds what `destroy` takes down, and its app once made. */
-async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], hostSave: MountOptions["save"], names: FieldMap): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
+async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], hostSave: MountOptions["save"], names: FieldMap, hostKeys: Pick<MountOptions, "keys" | "newKey">): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const { disposers } = own;
   root.innerHTML = chartHtml;
   applyTexts(root, texts);
@@ -242,10 +245,11 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   run.reads({ view: (s) => view.read(s), commits: () => app.take_commits(), ref: (task) => app.task_ref(task), form });
   const events = run.events;
   if (hostSave !== undefined) {
+    const keyName = (map: { toHost(members: Record<string, unknown>): Record<string, unknown> | undefined }): string => Object.keys(map.toHost({ key: "" })!)[0]!;
     const queue = new SaveQueue(app, hostSave, (error) => {
       rows.refuse(error.reload ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
       events.putBack(error);
-    });
+    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: keyName(names.tasks), link: keyName(names.links) }));
     disposers.push(events.on("edit", ({ commits }) => queue.add(commits)), () => queue.stop());
   }
   installKeys(shell, events.request, rows, cursor, () => card, split, links, save, taskDialog);

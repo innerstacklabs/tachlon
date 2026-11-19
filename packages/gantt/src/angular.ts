@@ -43,6 +43,8 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   @Input() capabilities?: MountOptions["capabilities"];
   @Input() beforeEdit?: MountOptions["beforeEdit"];
   @Input() fields?: F;
+  @Input() keys?: MountOptions["keys"];
+  @Input() newKey?: MountOptions["newKey"];
   @Input() records?: Parameters<Chart<F>["update"]>[0];
   @Input() save?: MountOptions["save"];
   @Input() wasmUrl?: MountOptions["wasmUrl"];
@@ -109,7 +111,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
       if (stopped) return;
       const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts } = this;
       try {
-        started = await this.zone.runOutsideAngular(() => mount<F>(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: this.fields, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
+        started = await this.zone.runOutsideAngular(() => mount<F>(this.host.nativeElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: this.fields, keys: this.keys, newKey: this.newKey, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
       } catch (error) {
         return void (stopped || this.errors.handleError(error));
       }

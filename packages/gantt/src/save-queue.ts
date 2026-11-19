@@ -1,8 +1,9 @@
 // The host's save queue (decision 0022, rule 3.3): each commit the person makes goes to the host's `save` function as a change set, one call at a time, in `seq`
 // order. A `SaveRefused` puts that commit and every commit behind it back through `App.rollback_to`; any other throw leaves the commit unsaved and stops the queue.
-import type { Commit } from "./events.js";
-import type { ChangeSet, Handlers, Save, SaveError } from "./gantt-types.js";
-import { callSave } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
+import type { Change, Commit } from "./events.js";
+import type { ChangeSet, Handlers, Save, SaveError, SaveResult } from "./gantt-types.js";
+import type { KeyNames } from "./save-handlers.js";
+import { BadResult, callSave } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
 
 /** Throw this from `save` when the server judged the change and said no; `message` is the line the person sees. */
 export class SaveRefused extends Error {
@@ -32,13 +33,44 @@ export function liveSave(get: () => Save | Handlers | undefined): Save {
   return Object.assign((changeSet: ChangeSet) => callSave(get()!, changeSet), { [LIVE]: get });
 }
 
-/** A commit that is not saved yet, its change set (written at the first call) and how many times `save` has run for it. */
-interface Waiting { commit: Commit; set?: ChangeSet; calls: number }
+/** A commit that is not saved yet, its change set (written at the first call), how many times `save` has run for it, and why it cannot be sent (a key the app refused). */
+interface Waiting { commit: Commit; set?: ChangeSet; calls: number; bad?: string }
+
+/** How the queue gives a new row its key (decision 0022, rule 5): `mode` and `make` are the mount's `keys` and `newKey`, `names` the host's names for `key`, `assign` gives a row its key in the app and says why it refused, if it did. */
+export interface KeyRules { mode: "chart" | "server"; make: () => string; names: KeyNames; assign(record: "task" | "link", slot: number, key: string): string | undefined }
+
+/** The rules of an app that has `assign_task_key` and `assign_link_key`. */
+export function keyRules(app: { assign_task_key(slot: number, key: string): string; assign_link_key(slot: number, key: string): string }, keys: "chart" | "server" | undefined, newKey: (() => string) | undefined, names: KeyNames): KeyRules {
+  const assign = (record: "task" | "link", slot: number, key: string): string | undefined => {
+    const answer = JSON.parse(record === "task" ? app.assign_task_key(slot, key) : app.assign_link_key(slot, key)) as { ok: boolean; message?: string };
+    return answer.ok ? undefined : answer.message;
+  };
+  return { mode: keys ?? "chart", make: newKey ?? uuid, names, assign };
+}
+
+/** With `save`, every row a host passes needs a key and no two rows of a kind share one (decision 0022, rule 5.2). The mistake in `rows` (in the chart's names), or undefined. */
+export function keyMistake(kind: "task" | "link", rows: readonly object[] | undefined): string | undefined {
+  const keys = (rows ?? []).map((row) => (row as { key?: unknown }).key);
+  const none = keys.findIndex((key) => typeof key !== "string" || key === "");
+  if (none >= 0) return `noKey: with save, every ${kind} needs a key, and ${kind} ${none} (from 0) has none.`;
+  const same = twice(keys);
+  return same === undefined ? undefined : `duplicateKey: two ${kind}s have the key ${JSON.stringify(same)}.`;
+}
+
+const CHART_KEYS: KeyRules = { mode: "chart", make: () => uuid(), names: { task: "key", link: "key" }, assign: () => "the queue was given no way to assign keys" };
+
+const slotOf = (c: Change): number | undefined => (c.record === "task" ? c.task : c.record === "link" ? c.link : undefined);
+/** The name a row has inside the queue, `task:3`: the `ref` of its create when the server makes the key. */
+const at = (c: Change): string => `${c.record}:${slotOf(c)}`;
+const twice = (list: readonly unknown[]): unknown => list.find((x, i) => list.indexOf(x) !== i);
 
 export class SaveQueue {
   private readonly app: SaveApp;
   private readonly save: Save | Handlers;
   private readonly failed: (error: SaveError) => void;
+  private readonly keys: KeyRules;
+  // The key each row the queue has met holds, by `at`: made here, or answered by the server. A later commit names the row by it.
+  private readonly made = new Map<string, string>();
   private readonly waiting: Waiting[] = [];
   // The seq of each host commit made while a commit waits: a put-back takes the ones after its commit back too.
   private hosted: number[] = [];
@@ -49,10 +81,11 @@ export class SaveQueue {
   private floor = 0;
 
   /** `failed` is told of each put-back once, after it. */
-  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError) => void) {
+  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError) => void, keys: KeyRules = CHART_KEYS) {
     this.app = app;
     this.save = save;
     this.failed = failed;
+    this.keys = keys;
   }
 
   /** Queue the commits an `edit` event carried and start sending. A rollback commit, a host commit (the host made that change itself) and a commit with no change are not sent. */
@@ -60,10 +93,22 @@ export class SaveQueue {
     if (this.stopped) return;
     for (const commit of commits) {
       if (commit.source === "host") this.hosted.push(commit.seq);
-      else if (commit.source !== "rollback" && commit.changes.length > 0 && commit.seq >= this.floor) this.waiting.push({ commit, calls: 0 });
+      else if (commit.source !== "rollback" && commit.changes.length > 0 && commit.seq >= this.floor) this.waiting.push(this.keyed({ commit, calls: 0 }));
     }
     if (this.waiting.length === 0) this.hosted = [];
     this.go();
+  }
+
+  /** With `keys: "chart"`, give each row the commit creates with no key one now (the app holds it from here on), before the commit's change set is written. */
+  private keyed(waiting: Waiting): Waiting {
+    for (const c of waiting.commit.changes) {
+      if (this.keys.mode !== "chart" || c.op !== "create" || c.key !== null || slotOf(c) === undefined) continue;
+      const key = this.keys.make();
+      const why = this.keys.assign(c.record as "task" | "link", slotOf(c)!, key);
+      if (why === undefined) this.made.set(at(c), key);
+      else waiting.bad ??= `the key ${JSON.stringify(key)} for a new ${c.record} was refused: ${why}`;
+    }
+    return waiting;
   }
 
   /** Call the commit a throw left unsaved again, with the same change set. */
@@ -97,13 +142,18 @@ export class SaveQueue {
           this.waiting.shift();
           continue;
         }
-        head.set ??= write(head.commit);
+        if (head.bad !== undefined) {
+          await this.putBack(new BadResult(head.bad), head);
+          continue;
+        }
+        head.set ??= this.write(head.commit);
         head.calls++;
+        let result: SaveResult | void;
         try {
-          await callSave(save, head.set, () => this.stopped);
+          result = await callSave(save, head.set, () => this.stopped, this.keys.mode === "server" ? this.keys.names : undefined);
         } catch (err) {
           if (this.stopped) return;
-          if (!(err instanceof SaveRefused)) {
+          if (!(err instanceof SaveRefused) && !(err instanceof BadResult)) {
             this.broken = true;
             console.error("a save threw, so the chart stopped saving", err);
             return;
@@ -112,6 +162,11 @@ export class SaveQueue {
           continue;
         }
         if (this.stopped) return;
+        const bad = this.take(head.set, result);
+        if (bad !== undefined) {
+          await this.putBack(new BadResult(bad), head);
+          continue;
+        }
         this.app.acknowledge(head.commit.seq);
         this.waiting.shift();
       }
@@ -121,7 +176,7 @@ export class SaveQueue {
   }
 
   /** Take `head` and every commit behind it back, then tell `failed`. A commit the app no longer holds sets `reload`. */
-  private async putBack(refusal: SaveRefused, head: Waiting): Promise<void> {
+  private async putBack(refusal: SaveRefused | BadResult, head: Waiting): Promise<void> {
     const rollback = (): { ok: boolean; reason?: string; seq: number } => JSON.parse(this.app.rollback_to(head.commit.seq)) as { ok: boolean; reason?: string; seq: number };
     let answer = rollback();
     while (!this.stopped && !answer.ok && answer.reason === "busy") {
@@ -133,19 +188,53 @@ export class SaveQueue {
     this.hosted = [];
     if (answer.ok) this.floor = answer.seq;
     this.waiting.length = 0;
+    const own = refusal instanceof SaveRefused ? refusal : undefined;
     this.failed({
-      source: "save", message: refusal.message, fatal: false, reason: "refused", calls: head.calls,
-      ...(refusal.key === undefined ? {} : { key: refusal.key }), ...(refusal.field === undefined ? {} : { field: refusal.field }),
+      source: "save", message: refusal.message, fatal: false, reason: own === undefined ? "result" : "refused", calls: head.calls,
+      ...(own?.key === undefined ? {} : { key: own.key }), ...(own?.field === undefined ? {} : { field: own.field }),
       seq: head.commit.seq, undone, reload: !answer.ok,
     });
   }
-}
 
-/** The change set of a commit: a new `id`, and `once` on each change. The session slots (`task`, `link`) mean nothing after a reload, so they stay out of what the host stores. */
-function write(commit: Commit): ChangeSet {
-  const id = uuid();
-  const changes = commit.changes.map(({ task, link, ...change }, n) => ({ ...change, once: `${id}:${n}` }));
-  return { id, seq: commit.seq, source: commit.source, changes };
+  /** The change set of a commit: a new `id`, and `once` on each change. The session slots (`task`, `link`) mean nothing after a reload, so they stay out of what the host stores.
+   * A row the commit names by its slot (`{ task: n }`, in `parent`, `after`, `from` or `to`) is named by its key, and a create carries its key in `key` and in `set`. With `keys: "server"` a create that has no key carries a `ref`, and every `{ task: n }` that names it is `{ ref }`. */
+  private write(commit: Commit): ChangeSet {
+    const id = uuid();
+    const asks = (c: Change): boolean => this.keys.mode === "server" && c.op === "create" && c.key === null && slotOf(c) !== undefined;
+    const asked = new Set(commit.changes.filter(asks).map(at));
+    const point = (v: unknown): unknown => {
+      const slot = typeof v === "object" && v !== null && Object.keys(v).length === 1 ? (v as { task?: unknown }).task : undefined;
+      return typeof slot === "number" ? this.made.get(`task:${slot}`) ?? (asked.has(`task:${slot}`) ? { ref: `task:${slot}` } : v) : v;
+    };
+    const named = (members: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(members).map(([m, v]) => [m, point(v)]));
+    const changes = commit.changes.map((c, n) => {
+      const { task, link, set, was, ...change } = c;
+      const key = c.key ?? this.made.get(at(c)) ?? null;
+      const row = set && (key !== null && c.op === "create" ? { ...named(set), [this.keys.names[c.record as "task" | "link"]]: key } : named(set));
+      return { ...change, key, ...(asks(c) ? { ref: at(c) } : {}), ...(row === undefined ? {} : { set: row }), ...(was === undefined ? {} : { was: named(was) }), once: `${id}:${n}` };
+    });
+    return { id, seq: commit.seq, source: commit.source, changes };
+  }
+
+  /** What `save` answered, set against what the change set asked: with `keys: "server"` one key for each `ref`, no other, no key twice, each one a key the app accepts, which the row now holds. The mistake, or undefined. */
+  private take(set: ChangeSet, result: SaveResult | void): string | undefined {
+    const given = (result as SaveResult | undefined)?.keys;
+    if (this.keys.mode === "chart") return given === undefined ? undefined : 'the save result has keys, but the chart made the keys of the new rows: mount with keys: "server" when the server makes them';
+    const answers = Array.isArray(given) ? given : [];
+    const refs = answers.map((a) => a.ref);
+    const asked = set.changes.flatMap((c) => (c.ref === undefined ? [] : [c.ref]));
+    const [missing, extra, again] = [asked.find((r) => !refs.includes(r)), refs.find((r) => !asked.includes(r)), twice(refs) ?? twice(answers.map((a) => a.key))];
+    if (missing !== undefined) return `the save result has no key for the new row ${missing}`;
+    if (extra !== undefined) return `the save result has a key for ${String(extra)}, which no create in the change set asked for`;
+    if (again !== undefined) return `the save result names ${JSON.stringify(again)} twice`;
+    for (const { ref, key } of answers) {
+      const [record, slot] = ref.split(":");
+      const why = this.keys.assign(record as "task" | "link", Number(slot), typeof key === "string" ? key : "");
+      if (why !== undefined) return `the key ${JSON.stringify(key)} the save result gives ${ref} was refused: ${why}`;
+      this.made.set(ref, key);
+    }
+    return undefined;
+  }
 }
 
 /** A v4 UUID. A page that is not a secure context has no `crypto.randomUUID`, so the id comes from `crypto.getRandomValues`. */
