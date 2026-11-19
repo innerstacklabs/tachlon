@@ -3,7 +3,8 @@ import { foldConstraint, toSeparate, toTyped } from "../src/constraint-form.ts";
 import { readFields } from "../src/field-map.ts";
 import { hostData } from "../src/host-data.ts";
 import type { Change } from "../src/events.js";
-import type { ConstraintType, TaskUpdate } from "../src/gantt-types.ts";
+import type { ConstraintType } from "../src/constraint-form.ts";
+import type { TaskUpdate } from "../src/gantt-types.ts";
 import { test } from "node:test";
 import { expect } from "@playwright/test";
 

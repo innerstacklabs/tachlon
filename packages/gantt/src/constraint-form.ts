@@ -1,7 +1,12 @@
 // The typed constraint at the boundary (decision 0022, rule 9): a task has one member, `constraint`, `{ type, date }` or `null`, and the engine holds the same limit as the six members `snet`, `snlt`,
 // `fnet`, `fnlt`, `mso` and `mfo`. These three functions turn one spelling into the other.
-import type { Change } from "./events.js";
-import type { Constraint, ConstraintType } from "./gantt-types.js";
+// It imports nothing: the plain-data reader, which the command-line tool builds without the page's types, uses it.
+
+/** The kind of a date limit (decision 0022, rule 9): `snet`, `snlt`, `fnet` and `fnlt` are the floors and ceilings of a start and a finish, `mso` and `mfo` the pins. */
+export type ConstraintType = "snet" | "snlt" | "fnet" | "fnlt" | "mso" | "mfo";
+
+/** A task's one date limit, `{ type, date }`, or `null` for none. */
+export type Constraint = { type: ConstraintType; date: string } | null;
 
 type Row = Record<string, unknown>;
 
@@ -48,7 +53,7 @@ const folded = (members: Row | undefined): Row | undefined => {
 };
 
 /** A task change whose `set` and `was` write the six limit members, written with one `constraint` instead (`typed` is `constraintForm`'s default); any other change as it is. */
-export function foldConstraint(change: Change): Change {
+export function foldConstraint<C extends { record: string; set?: Row; was?: Row }>(change: C): C {
   if (change.record !== "task") return change;
   return { ...change, ...(change.set ? { set: folded(change.set) } : {}), ...(change.was ? { was: folded(change.was) } : {}) };
 }

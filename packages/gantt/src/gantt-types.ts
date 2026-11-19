@@ -1,6 +1,7 @@
 // The chart's public types (gs#534): what `mount` takes and what it returns, moved out of `index.ts` so the entry stays under its line cap.
 // `index.ts` re-exports both; each is a row under "Page entry" in docs/WASM_API.md.
 import type { PlainCalendar, PlainLink, PlainTask } from "./adapters/plain.js";
+import type { Constraint } from "./constraint-form.js";
 import type { LinkField, TaskField } from "./field-map.js";
 import type { ScheduleOptions } from "./adapters/dhtmlx.js";
 import type { Send } from "./assistant/loop.js";
@@ -18,12 +19,6 @@ export interface BeforeEditChange { kind: string; source: CommitSource; tasks: r
 
 /** The answer: `undefined`, `null` or `true` allows the change; a string refuses it with that reason, which the chart shows; `false` refuses it with the chart's own sentence. Answer at once: a promise, a throw or any other value refuses the change and fires `error` with the source `beforeEdit`. Never call the chart from inside it. */
 export type BeforeEdit = (change: BeforeEditChange) => string | boolean | null | undefined;
-
-/** The kind of a date limit (decision 0022, rule 9): `snet`, `snlt`, `fnet` and `fnlt` are the floors and ceilings of a start and a finish, `mso` and `mfo` the pins. */
-export type ConstraintType = "snet" | "snlt" | "fnet" | "fnlt" | "mso" | "mfo";
-
-/** A task's one date limit, `{ type, date }`, or `null` for none. */
-export type Constraint = { type: ConstraintType; date: string } | null;
 
 /** What `update` sets on one task: its `key`, and any of `name`, `start` (a date, or `null` for none; held as `snet` unless the record has one), `duration` (in `durationUnit`), `snet`, `snlt` (start no later than), `fnet` and `fnlt` (finish no earlier and no later than; a date alone is the end of that day) (each a date, or `null` for none) and `progress` (a whole percent). `constraint` (`{ type, date }`, or `null` for none) sets the one date limit and clears the other three of `snet`, `snlt`, `fnet` and `fnlt`; a record that gives `constraint` and one of `snet`, `snlt`, `fnet`, `fnlt`, `mso` or `mfo` is refused, and a `start` beside `constraint` is ignored. A member left out keeps its value. `hostStart` and `hostFinish` set nothing: they are the early start and finish your own code computed (`YYYY-MM-DD`, or `YYYY-MM-DDTHH:mm`; a finish that is a date alone is the end of that day), and the answer's `differs` names each the chart computed otherwise. */
 export interface TaskUpdate { key: string; name?: string; start?: string | null; duration?: number; snet?: string | null; snlt?: string | null; fnet?: string | null; fnlt?: string | null; constraint?: Constraint; progress?: number; hostStart?: string; hostFinish?: string }

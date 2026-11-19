@@ -8,7 +8,7 @@ import { dateAt, readActuals } from "./plain-actuals.ts";
 import { exceptionsOf, lagCalendar, lagDay, readCalendars, toMinutes } from "./plain-calendars.ts";
 import { readLimits, shiftLimit } from "./plain-limits.ts";
 import { toSeparate } from "../constraint-form.ts";
-import type { Constraint } from "../gantt-types.js";
+import type { Constraint } from "../constraint-form.ts";
 import { PlainDataError, inspect } from "./validate.ts";
 
 /** A working calendar: its `key` (your own text, which a task's `calendar` and the data's `lagCalendar` name), and either `workDays` (ISO weekday numbers, 1 for Monday to 7, each worked from 08:00 for `hoursPerDay` hours) or `week` (seven lists of `[from, to]` minutes of the day, Monday first). `exceptions` are days that differ: `{ date, working }`, a holiday or an extra working day, which has the first worked weekday's hours. A calendar's day, the length a `days` duration counts, is `hoursPerDay`, or the average worked day of its `week`. */
