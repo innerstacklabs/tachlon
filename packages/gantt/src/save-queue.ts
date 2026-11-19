@@ -88,13 +88,27 @@ export class SaveQueue {
   private broken = false;
   // The seq of the last rollback commit: a commit before it that is read late was taken back with the rest.
   private floor = 0;
+  private readonly counted: (unsavedCommits: number) => void;
+  private told = 0;
 
-  /** `failed` is told of each put-back once, after it. */
-  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError) => void, keys: KeyRules = CHART_KEYS) {
+  /** `failed` is told of each put-back once, after it. `counted` is told the number of unsaved commits each time it changes (`unsavedCommits` reads it). */
+  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError) => void, keys: KeyRules = CHART_KEYS, counted: (unsavedCommits: number) => void = () => undefined) {
     this.app = app;
     this.save = save;
     this.failed = failed;
     this.keys = keys;
+    this.counted = counted;
+  }
+
+  /** The commits the queue holds that no `save` call has settled: one whose call is running counts; one put back, dropped below the put-back's floor, or dropped by `stop` does not. */
+  get unsavedCommits(): number {
+    return this.waiting.length;
+  }
+
+  private tell(): void {
+    if (this.told === this.waiting.length) return;
+    this.told = this.waiting.length;
+    this.counted(this.told);
   }
 
   /** Queue the commits an `edit` event carried and start sending. A rollback commit, a host commit (the host made that change itself) and a commit with no change are not sent. */
@@ -105,6 +119,7 @@ export class SaveQueue {
       else if (commit.source !== "rollback" && commit.changes.length > 0 && commit.seq >= this.floor) this.waiting.push(this.keyed({ commit, calls: 0 }));
     }
     if (this.waiting.length === 0) this.hosted = [];
+    this.tell();
     this.go();
   }
 
@@ -130,6 +145,7 @@ export class SaveQueue {
   stop(): void {
     this.stopped = true;
     this.waiting.length = 0;
+    this.tell();
   }
 
   private go(): void {
@@ -148,6 +164,7 @@ export class SaveQueue {
         const save = current(this.save);
         if (save === undefined) {
           this.waiting.shift();
+          this.tell();
           continue;
         }
         if (head.bad !== undefined) {
@@ -177,6 +194,7 @@ export class SaveQueue {
         }
         this.app.acknowledge(head.commit.seq);
         this.waiting.shift();
+        this.tell();
       }
     } finally {
       this.running = false;
@@ -196,6 +214,7 @@ export class SaveQueue {
     this.hosted = [];
     if (answer.ok) this.floor = answer.seq;
     this.waiting.length = 0;
+    this.tell();
     this.made.clear(); // the put-back frees the slots of its creates, and a later create may take one
     const own = refusal instanceof SaveRefused ? refusal : undefined;
     this.failed({

@@ -76,6 +76,8 @@ export interface ViewState {
   fileName: string | null;
   /** True after an edit, undo or redo since the last open or save: the mark beside the file name. */
   unsaved: boolean;
+  /** The commits your `save` has not settled yet, from the save queue: 0 with no `save`, and 0 again once a commit is saved, put back or dropped. A chart that stops its queue (`destroy()`, a switch to WebGL2) drops the commits still waiting: they are never sent, and after a switch `unsaved` stays on. */
+  unsavedCommits: number;
   /** The import notes the panel lists: always what it shows (after a mount, an open, a load and a restart on WebGL2), the reader's lines without the ones `expectedNotes` names. Frozen. */
   importNotes: readonly string[];
   /** The names of the members of your rows that the chart has no field for, for tasks and for links: the chart keeps them with the row and gives them back in a create's `set` and a delete's `was` (`fields` is the map of your own names). Frozen; the same object until a new name is seen. */
@@ -86,6 +88,7 @@ export interface ViewState {
 export interface OpenFacts {
   fileName: string | null;
   unsaved: boolean;
+  unsavedCommits: number;
   importNotes: readonly string[];
   customFields: Readonly<{ tasks: readonly string[]; links: readonly string[] }>;
 }
@@ -187,6 +190,7 @@ export function createViewState(app: PublicApp, open: (s: Status) => OpenFacts):
   const same = (v: ViewState, s: Status, o: OpenFacts): boolean =>
     v.fileName === o.fileName &&
     v.unsaved === o.unsaved &&
+    v.unsavedCommits === o.unsavedCommits &&
     v.importNotes === o.importNotes &&
     v.customFields === o.customFields &&
     v.dataDate === dataDate &&
@@ -242,6 +246,7 @@ export function createViewState(app: PublicApp, open: (s: Status) => OpenFacts):
         backend,
         fileName: o.fileName,
         unsaved: o.unsaved,
+        unsavedCommits: o.unsavedCommits,
         importNotes: o.importNotes,
         customFields: o.customFields,
       });

@@ -20,6 +20,7 @@ What changed in each npm release, newest first. Each entry says what you must ch
 - The task list shows a Predecessors column for a schedule whose tasks have `id`s. A person clicks a cell, types a list such as `3, 5SS+1d` and presses Enter, and the links into that task change as one undo step; a schedule with no `id`s shows no new column.
 - The React, Vue and Angular components take `capabilities` as a prop or input, as `mount` takes it as an option. A new value is set on the chart that is mounted with `setCapabilities` and does not mount it again; a chart that mounts again starts on the latest value.
 - The host profile (`mount`'s `capabilities`, `setCapabilities`) says what the host stores: `kinds` and `perTask` for date limits, `durationStep` and `lagStep` in `"minutes"`, `"hours"` or `"days"`, and `dates` as `"minute"` or `"day"`. A typed, dialog, keyboard or paste change outside them is refused with `"notAllowed"` and a sentence that says what the host stores; a bar drag that would make one is refused.
+- `chart.state().unsavedCommits` is the number of commits your `save` has not settled yet, and the `change` event fires when it moves, so a host never counts commits itself. The save queue owns the number: it is 0 again after a commit is saved, put back (with every commit behind it), dropped because it was made below a put-back, or dropped when the chart stops its queue (`destroy()` and the switch to WebGL2 send none of those commits), and 0 with no `save`. `unsaved` keeps its meaning, the file mark.
 
 ### Changed
 

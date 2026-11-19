@@ -18,7 +18,9 @@ const save = (name) => async (set) => {
 };
 const edit = (...days) => days.forEach((day) => window.chart.commands.setDataDate(day));
 const react = async (name) => { root ??= createRoot(document.getElementById("app")); root.render(h(Gantt, { schedule, forceWebgl: true, save: save(name), onReady: (chart) => ((window.chart = chart), run.mounts++) })); await wait(500); };
-Object.assign(window, { log, run, edit, react, plain: async () => (window.chart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, forceWebgl: true, save: save("f") })) });
+const counts = [], never = () => new Promise(() => undefined);
+const gpu = async () => ((window.chart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, save: never })), window.chart.on("change", (s) => counts.push(s.unsavedCommits)));
+Object.assign(window, { log, run, edit, react, counts, gpu, plain: async () => (window.chart = await mount(document.getElementById("app"), { schedule: { demo: 30 }, forceWebgl: true, save: save("f") })) });
 window.ready = true;`;
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">import "/tests/save-queue-host.ts";</script></body></html>`;
 const host = { name: "save-queue-host", resolveId: (id: string) => (id === "/tests/save-queue-host.ts" ? id : null), load: (id: string) => (id === "/tests/save-queue-host.ts" ? MODULE : null) };
@@ -52,6 +54,18 @@ test("a function `save` gets three quick edits in order, and a refusal of the se
   await expect(page.locator("#edit-error-text"), "the chart says why").toHaveText("locked by the planner (2 edits put back)");
   await expect.poll(() => dataDate(page), "the refused edit and the one behind it are put back").toBe("2024-02-08");
   expect((await sent(page)).slice(3), "the edit behind the refused one is never sent").toEqual(["f:2024-02-08", "f:2024-02-09"]);
+});
+
+test("a switch to WebGL2 with commits waiting drops them: unsavedCommits goes from 2 to 0 and `change` says so", async ({ page }) => {
+  await open(page);
+  test.skip(!(await page.evaluate(() => "gpu" in navigator)), "this browser has no WebGPU to lose");
+  await page.evaluate("gpu()");
+  await page.evaluate("edit('2024-02-05', '2024-02-06')");
+  await expect.poll(() => page.evaluate("chart.state().unsavedCommits"), "two commits wait behind a call that never settles").toBe(2);
+  await page.evaluate("window.gantt.failNextFrame(false)");
+  await expect.poll(() => page.evaluate("window.gantt.status().backend === 'WebGL2' && chart.state().backend === 'WebGL2'"), { timeout: 120_000 }).toBe(true);
+  expect(await page.evaluate("chart.state().unsavedCommits"), "the old chart's queue is stopped, and the new one starts empty").toBe(0);
+  expect(await page.evaluate("counts.at(-1)"), "the last `change` carried 0").toBe(0);
 });
 
 test("the React component calls the `save` it holds when the commit is sent, so a new function passed between two edits gets the second", async ({ page }) => {
