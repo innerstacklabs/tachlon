@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
 import { liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions } from "./index.js";
-export type { ChangeSet, Save, SaveError, SaveResult } from "./index.js";
+export type { ChangeSet, Handlers, Save, SaveContext, SaveError, SaveResult } from "./index.js";
 
 /** The prop that takes each event of `Gantt.on`. */
 const EVENTS = {

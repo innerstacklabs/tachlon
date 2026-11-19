@@ -1,4 +1,4 @@
-import { Gantt, type Handlers } from "./pending";
+import { Gantt, type Handlers } from "tachlon/react";
 import "tachlon/gantt.css";
 import { api, type Task, type Link } from "./api"; // your client: it sends c.once and c.signal, and throws on a non-2xx with a numeric `status`
 
