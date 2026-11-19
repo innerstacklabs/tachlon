@@ -1,11 +1,15 @@
 //! The host capability profile (gantt#2090, decision 0019, rule 5): the gestures and groups of fields
 //! the host's database cannot take, told once at mount. Nothing is off until the host says so.
 
+mod values;
+
+use self::values::Stores;
 use super::Plan;
 use crate::document::fields::fields_allowing;
 use crate::document::json_read::{Value, parse_streaming};
 use crate::press::{Before, Press};
 use crate::{Session, edit::Edit, edit::EditError};
+use engine::TaskId;
 
 /// One thing a host can turn off: a gesture, or a group of fields. Every [`Edit`] is in one group.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -46,16 +50,25 @@ const TABLE: [(Item, &str, &str); 11] = [
     (Item::Baseline, "editable.baseline", "changing the baseline"),
 ];
 
-/// The items a host turned off, one bit each; none is the whole chart.
+/// The items a host turned off, one bit each, and the values it stores; none is the whole chart.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(crate) struct Capabilities(u16);
+pub(crate) struct Capabilities {
+    off: u16,
+    stores: Stores,
+}
 
 impl Capabilities {
     /// The profile in `json`, `{"gestures":{"barMove":false},"editable":{"rows":false}}`: each
-    /// member is on unless it says `false`.
+    /// member is on unless it says `false`. `kinds`, `perTask`, `durationStep`, `lagStep` and
+    /// `dates` say what the host stores, and each is as unlimited as it can be when it is left out.
     fn read(json: &str) -> Result<Self, String> {
         let root = parse_streaming(json, &mut |_, _, _, _, _| {})?;
-        fields_allowing(&root, &[], &["gestures", "editable"])?;
+        let values = ["kinds", "perTask", "durationStep", "lagStep", "dates"];
+        fields_allowing(
+            &root,
+            &[],
+            &[&["gestures", "editable"][..], &values].concat(),
+        )?;
         let mut off = 0;
         for section in ["gestures", "editable"] {
             let members = match root.get(section) {
@@ -73,12 +86,13 @@ impl Capabilities {
                 off |= u16::from(!on) << *item as u16;
             }
         }
-        Ok(Self(off))
+        let stores = Stores::read(&root)?;
+        Ok(Self { off, stores })
     }
 
     /// The words for the first of `items` the profile turned off.
     fn refused(self, items: impl IntoIterator<Item = Item>) -> Option<&'static str> {
-        let off = |item: &Item| self.0 >> *item as u16 & 1 == 1;
+        let off = |item: &Item| self.off >> *item as u16 & 1 == 1;
         let item = items.into_iter().find(off)?;
         TABLE.iter().find(|row| row.0 == item).map(|row| row.2)
     }
@@ -137,6 +151,14 @@ impl Session {
             Plan::Replay(_, source) => self.replayed(source),
             Plan::Discard(depth) => self.discarded(depth),
             Plan::Dialog(task, text) => self.dialog_edits(task, text),
+            Plan::Paste([_, ..]) => {
+                let selected = self.selection.as_ref().map(|s| TaskId(s.task));
+                let place = self.place_below(selected);
+                vec![Edit::Insert {
+                    place,
+                    name: String::new(),
+                }]
+            }
             _ => Vec::new(),
         };
         let drawn =
@@ -147,8 +169,10 @@ impl Session {
             .chain(drawn)
             .chain(pasted)
             .chain(edits.iter().map(group));
-        capabilities
-            .refused(items)
-            .map_or(Ok(()), |what| Err(EditError::NotAllowed(what)))
+        if let Some(what) = capabilities.refused(items) {
+            return Err(EditError::NotAllowed(what));
+        }
+        let stored = self.unstorable(capabilities.stores, &edits);
+        stored.map_or(Ok(()), |what| Err(EditError::NotStored(what)))
     }
 }

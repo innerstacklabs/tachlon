@@ -4,11 +4,12 @@
 
 #![expect(clippy::unwrap_used, reason = "a test's unwrap is its assertion")]
 
-use crate::link_gesture::{link, on, session};
+use crate::link_gesture::{link, on, session, session_on};
 use crate::read_only::{longer, state};
+use app::Session;
 use app::dates::Origin;
-use app::{Session, edit::EditError};
-use engine::TaskId;
+use app::edit::{Edit, EditError, start::StartError};
+use engine::{DepId, Limit, Pin, TaskId};
 use std::{cell::Cell, rc::Rc};
 
 const NO_ROWS: &str = r#"{"editable":{"rows":false}}"#;
@@ -34,6 +35,135 @@ fn dragged(json: &str, edge: bool) -> (bool, Option<String>) {
     let note = s.drag_note().map(str::to_string);
     s.pointer_up();
     (state(&s) != before, note)
+}
+
+const HOURS: &str = r#"{"durationStep":"hours","lagStep":"hours"}"#;
+
+fn stores(what: &str) -> EditError {
+    EditError::NotStored(what.into())
+}
+
+/// A chart whose working day is `day` minutes from 08:00, under the profile `json`.
+fn host(day: u16, json: &str) -> Session {
+    let mut s = session_on(&[(480, 480 + day)]);
+    s.set_capabilities(json).unwrap();
+    s
+}
+
+/// A press on task 2's bar, or its finish edge, dragged `by` pixels: whether it changed the chart,
+/// and the note it left.
+fn dragged_by(s: &mut Session, edge: bool, by: f64) -> (bool, Option<String>) {
+    let (before, (x, y)) = (state(s), on(s, 2));
+    let x = if edge { x + 174.0 } else { x };
+    s.pointer_down(x, y, false);
+    s.pointer_move(x + by, y);
+    s.apply_drag();
+    let note = s.drag_note().map(str::to_string);
+    s.pointer_up();
+    (state(s) != before, note)
+}
+
+#[test]
+fn kinds_refuse_a_limit_of_another_kind_and_let_a_start_through() {
+    let mut s = host(450, r#"{"kinds":["snet"]}"#);
+    let before = state(&s);
+    let typed = s.set_task_fields(TaskId(0), &[("fnlt", "2026-01-09")]);
+    assert_eq!(typed, Err("The host stores no fnlt limit.".to_string()));
+    let pin = Limit {
+        pin: Some(Pin::Start(0)),
+        ..Limit::default()
+    };
+    let (task, limit) = (TaskId(0), pin);
+    assert_eq!(
+        s.edit(Edit::SetLimit { task, limit }),
+        Err(stores("no mso limit"))
+    );
+    assert_eq!(state(&s), before);
+    s.set_start_text(task, "2026-01-06").unwrap();
+}
+
+#[test]
+fn per_task_refuses_a_second_limit_and_a_bar_move_beside_one() {
+    let mut s = host(450, r#"{"perTask":1}"#);
+    assert_eq!(
+        dragged_by(&mut s, false, 1500.0),
+        (true, None),
+        "a first limit"
+    );
+    let mut s = host(450, r#"{"perTask":1}"#);
+    s.set_task_fields(TaskId(2), &[("fnlt", "2026-01-09")])
+        .unwrap();
+    let before = state(&s);
+    let said = "The host stores date limits: at most 1 for a task.";
+    let second = s.set_task_fields(TaskId(2), &[("snlt", "2026-01-08")]);
+    assert_eq!(second, Err(said.to_string()));
+    assert_eq!(
+        dragged_by(&mut s, false, 1500.0),
+        (false, Some(said.into()))
+    );
+    assert_eq!(state(&s), before);
+}
+
+#[test]
+fn hours_refuse_a_part_hour_duration_lag_and_resize_and_days_a_part_day() {
+    let mut s = host(450, HOURS);
+    let before = state(&s);
+    assert_eq!(s.edit(longer(90)), Err(stores("durations in whole hours")));
+    let lag = s.set_link_text(DepId(0), "FS+30m");
+    assert_eq!(lag, Err(stores("lags in whole hours")));
+    let said = "The host stores durations in whole hours.";
+    assert_eq!(dragged_by(&mut s, true, 100.0), (false, Some(said.into())));
+    assert_eq!(state(&s), before);
+    s.edit(longer(120)).unwrap();
+    s.set_link_text(DepId(0), "FS+2h").unwrap();
+    let mut s = host(450, r#"{"durationStep":"days"}"#);
+    assert_eq!(s.edit(longer(240)), Err(stores("durations in whole days")));
+    s.edit(longer(450)).unwrap();
+}
+
+#[test]
+fn a_paste_is_a_day_of_its_calendar_and_hours_refuse_a_day_that_is_not_whole() {
+    let refused = host(450, HOURS).insert_many(&["Footing"]).map(drop);
+    assert_eq!(refused, Err(stores("durations in whole hours")));
+    host(480, HOURS).insert_many(&["Footing"]).unwrap();
+}
+
+#[test]
+fn dates_by_the_day_refuse_a_time_of_day_and_a_bar_move() {
+    let mut s = host(450, r#"{"dates":"day"}"#);
+    let before = state(&s);
+    let typed = s.set_start_text(TaskId(0), "2026-01-06 08:30").map(drop);
+    assert_eq!(
+        typed,
+        Err(StartError::Edit(stores("dates without a time of day")))
+    );
+    let said = "The host stores dates without a time of day.";
+    assert_eq!(
+        dragged_by(&mut s, false, 1500.0),
+        (false, Some(said.into()))
+    );
+    assert_eq!(state(&s), before);
+    s.set_start_text(TaskId(0), "2026-01-06").unwrap();
+}
+
+#[test]
+fn every_value_member_at_its_default_allows_everything() {
+    let kinds = r#""kinds":["snet","snlt","fnet","fnlt","mso","mfo","alap"]"#;
+    let steps = r#""durationStep":"minutes","lagStep":"minutes","dates":"minute""#;
+    let mut s = host(450, &format!("{{{kinds},{steps}}}"));
+    s.edit(longer(90)).unwrap();
+    s.set_link_text(DepId(0), "FS+30m").unwrap();
+    s.set_start_text(TaskId(0), "2026-01-06 08:30").unwrap();
+    let limit = Limit {
+        pin: Some(Pin::Finish(900)),
+        ..Limit::default()
+    };
+    s.edit(Edit::SetLimit {
+        task: TaskId(1),
+        limit,
+    })
+    .unwrap();
+    s.insert_many(&["Footing"]).unwrap();
 }
 
 #[test]
@@ -200,6 +330,14 @@ fn a_profile_that_is_not_one_is_refused_by_name_and_changes_nothing() {
             "editable.dates: expected true or false",
         ),
         ("[]", "expected an object, found an array"),
+        (
+            r#"{"durationStep":"hour"}"#,
+            "durationStep: expected one of minutes, hours, days",
+        ),
+        (
+            r#"{"perTask":-1}"#,
+            "perTask: expected a whole number, 0 or more",
+        ),
     ] {
         assert_eq!(s.set_capabilities(json), Err(said.to_string()), "{json}");
     }

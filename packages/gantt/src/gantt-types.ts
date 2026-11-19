@@ -39,10 +39,15 @@ export type Save = (changeSet: ChangeSet) => Promise<SaveResult | void>;
 /** The `error` event of a put-back, fired once, after it. `calls`: how many times `save` ran for the change set; `key` and `field` are the refusal's; `seq`: the refused commit's; `undone`: how many commits the chart put back; `reload`: the chart could not put itself back (the commit had left its history), so the host reads its data again. */
 export interface SaveError { source: "save"; message: string; fatal: false; reason: "refused"; calls: number; key?: string; field?: string; seq: number; undone: number; reload: boolean }
 
-/** What a host's database can take, as the host tells the chart (`mount`'s `capabilities`, `Gantt.setCapabilities`). Each member is on unless it is `false`. A change a person makes that a member turned off is refused with `"notAllowed"` on every path, undo and redo included, and the chart says the host does not allow it; a bar, edge or link drag says it in the drag note. `gestures` turns off moving a bar, stretching it and drawing a link. `editable` turns off a group of fields: `rows` (adding and deleting rows), `outline` (indent, outdent and move), `paste`, `names`, `dates` (start, duration and the date limits), `links`, `progress` (actual dates, remaining, percent and the data date) and `baseline`. A member the chart does not have is an error. */
+/** What a host's database can take, as the host tells the chart (`mount`'s `capabilities`, `Gantt.setCapabilities`). Each member is on unless it is `false`. A change a person makes that a member turned off is refused with `"notAllowed"` on every path, undo and redo included, and the chart says the host does not allow it; a bar, edge or link drag says it in the drag note. `gestures` turns off moving a bar, stretching it and drawing a link. `editable` turns off a group of fields: `rows` (adding and deleting rows), `outline` (indent, outdent and move), `paste`, `names`, `dates` (start, duration and the date limits), `links`, `progress` (actual dates, remaining, percent and the data date) and `baseline`. What the database stores: `kinds` lists the date limits it takes (all seven when left out), `perTask` is the most it takes for one task (a start no earlier than counts), `durationStep` and `lagStep` say a duration or lag is a whole number of minutes, hours or days (a day is the length of that task's calendar day), and `dates: "day"` says a date has no time of day. A change outside them is refused with `"notAllowed"` and says what the host stores; a bar drag that would make one is refused. A member the chart does not have is an error. */
 export interface HostCapabilities {
   gestures?: { barMove?: boolean; resize?: boolean; link?: boolean };
   editable?: { rows?: boolean; outline?: boolean; paste?: boolean; names?: boolean; dates?: boolean; links?: boolean; progress?: boolean; baseline?: boolean };
+  kinds?: readonly ("snet" | "snlt" | "fnet" | "fnlt" | "mso" | "mfo" | "alap")[];
+  perTask?: number;
+  durationStep?: "minutes" | "hours" | "days";
+  lagStep?: "minutes" | "hours" | "days";
+  dates?: "minute" | "day";
 }
 
 /** What `mount` takes: a `schedule`, a saved `document`, or `tasks` and `links` as `fromTasks` reads them; with none of the three the chart starts with no tasks and waits for `load`. */

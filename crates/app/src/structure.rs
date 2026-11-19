@@ -211,6 +211,15 @@ impl Session {
         import::next_activity_id(preceding, live.iter().filter_map(code))
     }
 
+    /// The calendar a task inserted at `place` gets: that of `place.after`, else the shading calendar.
+    pub(crate) fn insert_calendar(&self, place: Place) -> CalendarId {
+        place
+            .after
+            .map(|after| self.schedule.tasks()[after.0 as usize].calendar)
+            .or(self.shading)
+            .unwrap_or(CalendarId(0))
+    }
+
     /// Add a leaf named `name` at `place`: a fresh id, 1 working day of the calendar of
     /// `place.after` (else the shading calendar), no constraint, and the next activity ID
     /// ([`import::next_activity_id`]). The new task is selected. A parent that is a leaf with a dependency is refused before anything changes.
@@ -222,11 +231,7 @@ impl Session {
         }
         self.refuse_grouped(EditError::InsertGrouped)?;
         let at = self.position(place)?;
-        let calendar = place
-            .after
-            .map(|after| self.schedule.tasks()[after.0 as usize].calendar)
-            .or(self.shading)
-            .unwrap_or(CalendarId(0));
+        let calendar = self.insert_calendar(place);
         let duration = day_minutes(&self.schedule.calendars()[calendar.0 as usize]);
         // A sibling placed `after` keeps that sibling's level, whatever gap lies between it and
         // the parent; the first child sits one level below its parent, a first root at level 1.
