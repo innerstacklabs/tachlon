@@ -8,11 +8,12 @@ import { expect } from "@playwright/test";
 
 const tasks = { name: "title", start: "plannedStart", duration: "days", parent: "parentId", key: "id" };
 const map = (fields: Fields, warnings: string[] = []) => readFields(fields, (text) => warnings.push(text));
+const bad = (fields: object) => map(fields as Fields); // a map that does not compile, to see mount refuse it as a page of plain JavaScript would send it
 const host = { id: "b", title: "Pour", plannedStart: "2026-03-02", days: 3, parentId: "a", owner: "sam" };
 
 test("an entry for a field the chart does not have, one host name for two fields and a host name that is another field's own are refused, each naming its fields", () => {
-  expect(() => map({ tasks: { titel: "title" } })).toThrow(/fields\.tasks.*"titel"/);
-  expect(() => map({ links: { name: "title" } })).toThrow(/fields\.links.*"name"/);
+  expect(() => bad({ tasks: { titel: "title" } })).toThrow(/fields\.tasks.*"titel"/);
+  expect(() => bad({ links: { name: "title" } })).toThrow(/fields\.links.*"name"/);
   expect(() => map({ tasks: { name: "label", progress: "label" } })).toThrow(/"label".*"name".*"progress"/);
   expect(() => map({ tasks: { name: "start" } })).toThrow(/fields\.tasks\.name is "start".*add one for "start"/);
   expect(() => map({ tasks: { name: "start", start: "name" } })).not.toThrow();
@@ -57,8 +58,8 @@ test("setData of host-named rows sets the changed members and nothing else", () 
   const names = map({ tasks });
   const rows = (title: string, days: number) => [{ id: "a", title: "Site", plannedStart: "2026-03-02", days: 1 }, { ...host, title, days }];
   const sent: unknown[] = [];
-  const setData = hostData(names.data({ tasks: rows("Pour", 3) }) as never, 0);
-  const answer = setData(names.data({ tasks: rows("Pour 2", 3) }) as never, 0, (records) => (sent.push(records), { ok: true, updated: records.length }));
+  const setData = hostData(names.data({ tasks: rows("Pour", 3) }), 0);
+  const answer = setData(names.data({ tasks: rows("Pour 2", 3) }), 0, (records) => (sent.push(records), { ok: true, updated: records.length }));
   expect(answer).toEqual({ ok: true, updated: 1 });
   expect(sent).toEqual([[{ key: "b", name: "Pour 2" }]]);
 });

@@ -14,7 +14,7 @@ const all = (text: string, re: RegExp): string[] => [...text.matchAll(re)].map((
 
 // What the declarations hold, read here and not from the model's own reader.
 const declared = {
-  options: all(body(read("src/gantt-types.ts"), "export interface MountOptions {"), /^ {2}(\w+)\??:/gm),
+  options: all(body(read("src/gantt-types.ts"), "export interface MountOptions<F extends Fields | undefined = undefined> {"), /^ {2}(\w+)\??:/gm),
   events: all(body(read("src/events.ts"), "export interface GanttEvents {"), /^ {2}"?([\w-]+)"?:/gm),
   commands: [...new Set([...all(body(read("src/commands.ts"), "export interface Commands {"), /^ {2}(\w+)\(/gm), ...all(body(read("src/host-commands.ts"), "export interface HostCommands {"), /^ {2}(\w+)\(/gm)])],
   tokens: all(body(read("src/styles/tokens.css").replace(/\/\*[\s\S]*?\*\//g, ""), ":where(.gantt) {"), /(--gantt-[a-z0-9-]+)\s*:/g),
@@ -41,7 +41,7 @@ for (const topic of Object.keys(declared) as (keyof typeof declared)[]) {
 }
 
 test("an option's meaning starts its doc comment, and its default is the declaration's @defaultValue", () => {
-  const source = body(read("src/gantt-types.ts"), "export interface MountOptions {");
+  const source = body(read("src/gantt-types.ts"), "export interface MountOptions<F extends Fields | undefined = undefined> {");
   const tagged = all(source, /@defaultValue\s+`([^`]+)`/g);
   assert.ok(tagged.length >= 4, "the declarations carry defaults");
   const { items } = JSON.parse(describe("options", "--json").out) as { items: Item[] };

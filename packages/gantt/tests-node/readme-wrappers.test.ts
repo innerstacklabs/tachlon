@@ -6,7 +6,7 @@ import { expect } from "@playwright/test";
 const pkg = (file: string): string => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
 test("the_readme_says_each_wrapper_takes_every_mount_option", () => {
-  const body = /export interface MountOptions \{(.*?)^\}/ms.exec(pkg("src/gantt-types.ts"))![1]!;
+  const body = /export interface MountOptions[^{]*\{(.*?)^\}/ms.exec(pkg("src/gantt-types.ts"))![1]!;
   const options = [...body.matchAll(/^ {2}(\w+)\??:/gm)].map((m) => m[1]!);
   expect(options, "MountOptions lists the options").toEqual(expect.arrayContaining(["texts", "fonts", "wasmUrl"]));
   const readme = pkg("README.md");

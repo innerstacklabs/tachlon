@@ -8,7 +8,7 @@ import { App } from "./wasm/app.js";
 import { engine, load, MountError, renderError, type StartSource } from "./mount-load.js";
 import { createGantt } from "./gantt-object.js";
 import { hostData } from "./host-data.js";
-import type { Gantt, MountOptions } from "./gantt-types.js";
+import type { Fields, Gantt, MountOptions } from "./gantt-types.js";
 import { Metrics } from "./measure.js";
 import { speedOf } from "./speed.js";
 import { type PageKnobs, type RunFacts, takePageKnobs } from "./page-knobs.js";
@@ -86,7 +86,7 @@ import "./styles/print.css";
 export { fromBryntum, fromDhtmlx, fromTasks, PlainDataError, toPlain, validate } from "./adapters/index.js";
 export type { BryntumResult, DhtmlxOptions, DhtmlxResult, PlainCalendar, PlainIssue, PlainLink, PlainOptions, PlainResult, PlainTask, PlainValidation, ScheduleDocument } from "./adapters/index.js";
 // The chart's own types (`gantt-types.ts`).
-export type { BeforeEdit, BeforeEditChange, ChangeSet, Fields, Gantt, HostCapabilities, HostDifference, MountOptions, Save, SaveError, SaveResult, TaskUpdate, UpdateResult } from "./gantt-types.js";
+export type { BeforeEdit, BeforeEditChange, ChangeSet, Fields, Gantt, HostCapabilities, HostDifference, MountOptions, Rows, Save, SaveError, SaveResult, TaskUpdate, UpdateResult } from "./gantt-types.js";
 export { SaveRefused } from "./save-queue.js";
 export type { Commands, ScrollTarget } from "./commands.js";
 export type { Change, Commit, CommitSource, GanttEvents } from "./events.js";
@@ -115,7 +115,8 @@ export { PRODUCT_NAME };
  * other failure is a bug and is thrown as it is. A WebGPU failure, at the start or in a later frame, starts the
  * chart again on WebGL2 in the same root with the same schedule (`webgl-switch.ts`); the page is never reloaded.
  */
-export async function mount(root: HTMLDivElement, options: MountOptions): Promise<Gantt> {
+export async function mount<F extends Fields | undefined = undefined>(root: HTMLDivElement, options: MountOptions<F>): Promise<Gantt<F>>;
+export async function mount(root: HTMLDivElement, options: MountOptions<Fields | undefined>): Promise<Gantt<Fields | undefined>> {
   numberFormat(options.locale); // a tag that is not a language tag throws here, before the chart touches the root
   // The developer page's knobs (`page-knobs.ts`, not an export of this entry); a host page sets none.
   let names: FieldMap;

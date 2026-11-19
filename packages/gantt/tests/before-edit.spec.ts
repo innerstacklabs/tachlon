@@ -1,12 +1,12 @@
 import { createServer, type ViteDevServer } from "vite";
 import { fileURLToPath } from "node:url";
 import { expect, test, type Page } from "@playwright/test";
-import type { BeforeEditChange, ChangeSet, Gantt, GanttEvents } from "../src/index";
+import type { BeforeEditChange, ChangeSet, Fields, Gantt, GanttEvents } from "../src/index";
 import { chromePath } from "./support/knobs";
 import { fromTasks } from "../src/adapters/plain";
 
 declare global {
-  interface Window { beChart: Gantt; asked: BeforeEditChange[]; sets: ChangeSet[]; answers: unknown[]; errors: GanttEvents["error"][]; mountBe(code: string, options?: Record<string, unknown>): Promise<unknown> }
+  interface Window { beChart: Gantt<Fields>; asked: BeforeEditChange[]; sets: ChangeSet[]; answers: unknown[]; errors: GanttEvents["error"][]; mountBe(code: string, options?: Record<string, unknown>): Promise<unknown> }
 }
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">
   import { mount } from "/src/index.ts";
@@ -197,7 +197,7 @@ test("a chart mounted with a field map takes the host's names in its rows, updat
   expect((await asked(page, "setDuration"))[0]!.changes).toMatchObject([change]);
   expect(await heard()).toMatchObject([change]);
   await expect.poll(() => page.evaluate(() => window.sets)).toMatchObject([{ changes: [change] }]);
-  expect(await page.evaluate(() => window.beChart.update([{ id: "b", title: "Pour 2", days: 4 }] as never))).toEqual({ ok: true, updated: 1 });
-  expect(await page.evaluate(() => window.beChart.setData({ tasks: [{ id: "a", title: "Dig 2", plannedStart: "2026-03-02", days: 17 }, { id: "b", title: "Pour 2", plannedStart: "2026-03-02", days: 4 }] as never }))).toEqual({ ok: true, updated: 2 });
+  expect(await page.evaluate(() => window.beChart.update([{ id: "b", title: "Pour 2", days: 4 }]))).toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate(() => window.beChart.setData({ tasks: [{ id: "a", title: "Dig 2", plannedStart: "2026-03-02", days: 17 }, { id: "b", title: "Pour 2", plannedStart: "2026-03-02", days: 4 }] }))).toEqual({ ok: true, updated: 2 });
   expect(await page.evaluate(() => window.beChart.snapshot().tasks.map(({ name, duration }) => [name, duration])), "snapshot keeps the chart's names").toEqual([["Dig 2", 17], ["Pour 2", 4]]);
 });

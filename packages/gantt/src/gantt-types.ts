@@ -1,6 +1,7 @@
 // The chart's public types (gs#534): what `mount` takes and what it returns, moved out of `index.ts` so the entry stays under its line cap.
 // `index.ts` re-exports both; each is a row under "Page entry" in docs/WASM_API.md.
 import type { PlainCalendar, PlainLink, PlainTask } from "./adapters/plain.js";
+import type { LinkField, TaskField } from "./field-map.js";
 import type { ScheduleOptions } from "./adapters/dhtmlx.js";
 import type { Send } from "./assistant/loop.js";
 import type { PageSize } from "./api.js";
@@ -50,19 +51,22 @@ export interface HostCapabilities {
   dates?: "minute" | "day";
 }
 
-/** The host's names for the members of its rows (`MountOptions.fields`): each entry gives one chart field (the names `PlainTask` and `PlainLink` list, with `key`) the host's name for it, `{ name: "title", start: "plannedStart", duration: "days", key: "id" }`. A field with no entry keeps its own name. */
-export interface Fields { tasks?: { [chartField: string]: string }; links?: { [chartField: string]: string } }
+/** The host's names for the members of its rows (`MountOptions.fields`): each entry gives one chart field (the names `PlainTask` and `PlainLink` list, with `key`) the host's name for it, `{ name: "title", start: "plannedStart", duration: "days", key: "id" }`. A field with no entry keeps its own name, and a name that is not a chart field does not compile. */
+export interface Fields { tasks?: Partial<Record<TaskField, string>>; links?: Partial<Record<LinkField, string>> }
 
-/** What `mount` takes: a `schedule`, a saved `document`, or `tasks` and `links` as `fromTasks` reads them; with none of the three the chart starts with no tasks and waits for `load`. */
-export interface MountOptions {
+/** The rows a call takes: with no map (`F` is `undefined`, the default) the type `Plain`, as before `fields`; with a map, the host's own rows, which the chart reads by the names the map gives (`readonly object[]`: the host's row type is its own and needs no cast). */
+export type Rows<Plain, F extends Fields | undefined> = [F] extends [undefined] ? Plain : readonly object[];
+
+/** What `mount` takes: a `schedule`, a saved `document`, or `tasks` and `links` as `fromTasks` reads them; with none of the three the chart starts with no tasks and waits for `load`. `F` is the type of `fields`: leave it out (no map) and every member is as it was, give a map and `tasks`, `links`, `update` and `setData` take the host's own rows. */
+export interface MountOptions<F extends Fields | undefined = undefined> {
   /** A schedule file to read (XER or MS Project XML, every project of it, or a `.gantt` document), or the demo or the stress fixture at `n` tasks. */
   schedule?: File | { demo: number } | { stress: number };
   /** A saved schedule document, the JSON another chart's `toDocument()` returned, to start on in one call instead of `load({ document })` after an empty start. Read when there is no `schedule`, and it wins over `tasks`. A document that cannot be read rejects `mount` with a `MountError`. The chart keeps it no longer than it keeps `tasks`. */
   document?: unknown;
   /** Plain tasks to draw when there is no `schedule` and no `document`, and the links between them (`fromTasks`). The chart keeps neither list once it has started; it holds the schedule they made. With no `schedule`, `document` or `tasks` the chart opens with no tasks and waits for `load` or `open`. */
-  tasks?: PlainTask[];
+  tasks?: Rows<PlainTask[], F>;
   /** The links between the plain `tasks` (`fromTasks`). */
-  links?: PlainLink[];
+  links?: Rows<PlainLink[], F>;
   /** The day the plain `tasks` are as of (`YYYY-MM-DD[THH:mm]`, 00:00 of the day when it is a date alone): work that has not started cannot start before it. Read with `tasks`, and kept no longer than they are. */
   dataDate?: string;
   /** The date the project must finish by, for the plain `tasks` (`YYYY-MM-DD[THH:mm]`, the end of that day when it is a date alone), as `fromTasks` reads it: float is measured against the earlier of it and the computed finish, as in the headless results. Read with `tasks`, and kept no longer than they are. */
@@ -92,8 +96,8 @@ export interface MountOptions {
   beforeEdit?: BeforeEdit;
   /** The host's save function (`Save`): the chart calls it with each commit's change set, one call at a time, in the order the commits were made, and puts an edit back when it throws a `SaveRefused`. Without it the chart saves nothing and the host reads the `edit` event. React, Vue and Angular ask the latest function when a change set is sent, never mount the chart again for a new one, and send nothing while there is none. */
   save?: Save;
-  /** The host's names for the members of its rows (`Fields`), given once: the chart reads `tasks`, `links`, `update` and `setData` in them and writes them in the `set` and `was` of every change it tells you of (an `edit` event, a `save` change set, a before-edit call), so the host writes no rename function. It renames members and converts no value (`durationUnit` and `dateForm` do that). `mount` rejects an entry for a field the chart does not have, one host name given to two fields, and a host name that is another field's own name with no entry (`key: "id"` is the exception). Read once, at start: a later change does nothing. */
-  fields?: Fields;
+  /** The host's names for the members of its rows (`Fields`), given once: the chart reads `tasks`, `links`, `update` and `setData` in them and writes them in the `set` and `was` of every change it tells you of (an `edit` event, a `save` change set, a before-edit call), so the host writes no rename function. It renames members and converts no value (`durationUnit` and `dateForm` do that). `mount` rejects an entry for a field the chart does not have, one host name given to two fields, and a host name that is another field's own name with no entry (`key: "id"` is the exception). When both `key` and `id` have an entry, the member you name for `id` is the row's id, and the member for `key` fills it only for a row that has none. Its type `F` is inferred from the map you give: with none, `tasks`, `links`, `update` and `setData` are typed as before; with one, they take `readonly object[]`, your own row type, and only the names in the map are checked. Read once, at start: a later change does nothing. */
+  fields?: F;
   /** Where to fetch the engine file (`app_bg.wasm`) from, a URL or an address read against the page's own. Without it the chart loads the file beside its script (`dist-lib/app_bg.wasm`). When `preloadEngine` already started the load, its `wasmUrl` is the one used. */
   wasmUrl?: string | URL;
   /** The language and region the chart runs in, a BCP 47 tag such as `"de"` or `"pt-BR"`: it is written as the root's `lang`, and the chart's numbers show in that region's style (`1.234,5` for `"de"`). Without it the numbers read as `"en-US"` and the root's `lang` stays the page's own. A tag that is not a language tag rejects `mount` with a `RangeError`, before it touches the root. */
@@ -107,7 +111,7 @@ export interface MountOptions {
 }
 
 /** What `mount` returns: the chart, as a host page may drive it. */
-export interface Gantt extends HasOn {
+export interface Gantt<F extends Fields | undefined = undefined> extends HasOn {
   /**
    * Replace the schedule with `file`. Resolves when the attempt has ended; a file that cannot be opened is an `error` event (source `"open"`), not a throw.
    * `expectedNotes` are the beginnings of import notes the host knows its own file will report (a generated sample): a line that
@@ -171,9 +175,9 @@ export interface Gantt extends HasOn {
   /** Mark the rows with these keys as waiting for the host's own recalculation, in place of the ones marked before: the chart dims them and tells a screen reader they are busy until the host calls `setPending` again without them (`[]` clears every mark). A hint, not a lock: the rows stay selectable and editable. Answers the keys that name no live task (a deleted task's counts), which it leaves out. The marks go when `open`, `load` or `newSchedule` replaces the schedule, and when a switch to WebGL2 restarts the chart (its `error` event, source `backend`, says so: mark the rows again). */
   setPending(keys: readonly string[]): string[];
   /** Give the chart new values for many tasks, each named by its `key`, in place: the selection, the scroll position and the person's undo list stay as they were, and the call is not an edit (no `edit` event, no undo step, no `beforeEdit` call; decision 0019, rule 13). It is one recompute, or two when a record mixes `progress` with `duration`, `start`, `snet` or a limit. `duration` is in `durationUnit`. A refusal changes nothing: `"badRecords"` (not an array), `"busy"` (a cell is being edited, a bar or link is being dragged, or the chart is switching to WebGL2), or the reason of a record (`EditRefusal`: `unknownKey`, `duplicateKey`, `notUpdatable` for a limit or pin it does not set and for a summary, `badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`). */
-  update(records: readonly TaskUpdate[]): UpdateResult;
+  update(records: Rows<readonly TaskUpdate[], F>): UpdateResult;
   /** Hand the chart the rows your page holds now, `{ tasks, links }` as `mount` takes them, and it sets in place only what differs from the rows it was last given (`mount`'s, or the last accepted call's): for each task by `key`, the `name`, `start`, `snet`, `duration` and `progress` that changed, as `update` sets them. The selection, the scroll position and the undo list stay, the call is not an edit, and the same arrays again do nothing; every other member of a task (`color`, `label`, `end`, `calendar`, `milestone`, the limits, the actuals, your own) is ignored, a member left out keeps what the chart last had for it, so rows that are old do not undo a saved edit. It answers as `update` answers, all or nothing, or `"rowsChanged"` (nothing changed) when a task or a link was added, removed or changed, a task moved in the list or has another `id` or `parent`, when a task has no text `key`, or when the chart holds no rows of yours to compare with (mounted with a `document`, switched to WebGL2, or opened, loaded or cleared since): start the chart again with the rows. */
-  setData(data: { tasks?: PlainTask[]; links?: PlainLink[] }): UpdateResult;
+  setData(data: { tasks?: Rows<PlainTask[], F>; links?: Rows<PlainLink[], F> }): UpdateResult;
   /** The last open's phases and the last 120 frames' numbers. It calls no app method, so polling it never wakes a sleeping loop. */
   speed(): Speed;
   /**

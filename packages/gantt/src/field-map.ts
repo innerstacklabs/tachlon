@@ -2,37 +2,41 @@
 // It renames members and converts no value. A change's own members, a `schedule` change, the document and `snapshot()` keep the chart's names.
 import type { Change } from "./events.js";
 import type { Fields } from "./gantt-types.js";
+import type { PlainLink, PlainTask } from "./adapters/plain.js";
 
 type Row = Record<string, unknown>;
 
-const TASK_FIELDS = ["id", "name", "start", "end", "duration", "parent", "progress", "color", "label", "key", "calendar", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", "milestone", "actualStart", "actualFinish", "remaining", "resume"];
-const LINK_FIELDS = ["id", "from", "to", "type", "lag", "key"];
+const TASK_FIELDS = ["id", "name", "start", "end", "duration", "parent", "progress", "color", "label", "key", "calendar", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", "milestone", "actualStart", "actualFinish", "remaining", "resume"] as const satisfies readonly (keyof PlainTask)[];
+const LINK_FIELDS = ["id", "from", "to", "type", "lag", "key"] as const satisfies readonly (keyof PlainLink)[];
+/** The chart's names for the members of a task and of a link: the keys a `Fields` map may have. */
+export type TaskField = (typeof TASK_FIELDS)[number];
+export type LinkField = (typeof LINK_FIELDS)[number];
 
 /** One kind of record's names: the rows a host gives in the chart's names, and the members of a change in the host's. */
-export interface Names {
+export interface Names<T extends object> {
   /** One record of the host's, as `update` takes it; a value that is not an object passes through for the chart to refuse. */
   toChart(record: unknown): unknown;
   /** The host's rows, as the chart starts or compares them; the list itself when there is no map. */
-  rows<T>(list: T[]): T[];
+  rows(list: readonly object[]): T[];
   /** The members of a change's `set` or `was`. */
   toHost(members: Row | undefined): Row | undefined;
 }
 
 export interface FieldMap {
-  tasks: Names;
-  links: Names;
+  tasks: Names<PlainTask>;
+  links: Names<PlainLink>;
   /** The rows of a `setData` call, in the chart's names. */
-  data<T extends { tasks?: unknown[]; links?: unknown[] }>(rows: T): T;
+  data(rows: { tasks?: readonly object[]; links?: readonly object[] }): { tasks?: PlainTask[]; links?: PlainLink[] };
   /** A commit's changes with the members of each `set` and `was` in the host's names; a change's own members and a `schedule` change are not renamed. */
   changes(changes: readonly Change[]): Change[];
 }
 
 const isRow = (value: unknown): value is Row => typeof value === "object" && value !== null && !Array.isArray(value);
 
-const same: Names = { toChart: (record) => record, rows: (list) => list, toHost: (members) => members };
+const same: Names<never> = { toChart: (record) => record, rows: (list) => list as never[], toHost: (members) => members };
 
-function namesOf(kind: "tasks" | "links", chartFields: readonly string[], entries: Record<string, string> | undefined, warn: (message: string) => void): Names {
-  const pairs = Object.entries(entries ?? {});
+function namesOf<T extends object>(kind: "tasks" | "links", chartFields: readonly string[], entries: Record<string, string | undefined> | undefined, warn: (message: string) => void): Names<T> {
+  const pairs = Object.entries(entries ?? {}) as [string, string][]; // a value that is not a text is refused below
   if (pairs.length === 0) return same;
   const toHostName = new Map<string, string>();
   const toChartName = new Map<string, string>();
@@ -63,7 +67,7 @@ function namesOf(kind: "tasks" | "links", chartFields: readonly string[], entrie
       return list.map((row) => {
         const out = toChart(row);
         return fillId && isRow(out) && out.key !== undefined && out.id === undefined ? { ...out, id: out.key } : out;
-      }) as typeof list;
+      }) as T[];
     },
     toHost: (members) => members && Object.fromEntries(Object.entries(members).flatMap(([name, value]) => (toHostName.has(name) ? [[toHostName.get(name)!, value]] : toChartName.has(name) ? [] : [[name, value]]))),
   };
@@ -71,12 +75,12 @@ function namesOf(kind: "tasks" | "links", chartFields: readonly string[], entrie
 
 /** Check `map` and read it. Throws an `Error` that names the fields for each of the three mistakes of rule 8.4: an entry for a field the chart does not have, one host name given to two fields, and a host name that is another field's own name with no entry (`key: "id"` is the one exception). */
 export function readFields(map: Fields | undefined, warn: (message: string) => void = console.warn): FieldMap {
-  const tasks = namesOf("tasks", TASK_FIELDS, map?.tasks, warn);
-  const links = namesOf("links", LINK_FIELDS, map?.links, warn);
+  const tasks = namesOf<PlainTask>("tasks", TASK_FIELDS, map?.tasks, warn);
+  const links = namesOf<PlainLink>("links", LINK_FIELDS, map?.links, warn);
   const named = (change: Change): Change => {
     const names = change.record === "task" ? tasks : change.record === "link" ? links : same;
     return names === same ? change : { ...change, ...(change.set ? { set: names.toHost(change.set) } : {}), ...(change.was ? { was: names.toHost(change.was) } : {}) };
   };
-  const data = <T extends { tasks?: unknown[]; links?: unknown[] }>(rows: T): T => ({ ...rows, ...(rows.tasks && { tasks: tasks.rows(rows.tasks) }), ...(rows.links && { links: links.rows(rows.links) }) });
+  const data: FieldMap["data"] = (rows) => ({ ...(rows.tasks && { tasks: tasks.rows(rows.tasks) }), ...(rows.links && { links: links.rows(rows.links) }) });
   return { tasks, links, data, changes: (changes) => changes.map(named) };
 }
