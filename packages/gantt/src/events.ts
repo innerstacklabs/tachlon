@@ -117,14 +117,15 @@ export interface EventReads {
   commits(): string;
   /** `App.task_ref`: a task's key and early start, as JSON; undefined for a slot the app does not hold. */
   ref(task: number): string | undefined;
-  /** Put the changes of a commit in the unit and date form the host mounted with (`changeForm`); this read of the commits may read the saved document again. */
-  form(changes: readonly Change[]): Change[];
+  /** Put the changes of each commit read in the unit and date form the host mounted with (`changeForm`); it may ask the app for its day lengths again, once. */
+  form(lists: readonly (readonly Change[])[]): Change[][];
 }
 
 /** `App.take_commits` read as an `edit` carries it: each commit's changes folded to one per record, in the host's unit and date form. */
 function parseCommits(json: string, form: EventReads["form"]): Omit<GanttEvents["edit"], "revision"> {
   const read = JSON.parse(json) as { commits: (Omit<Commit, "changes"> & { changes: FieldChange[] })[]; snapshot: boolean; seq: number };
-  return { ...read, commits: read.commits.map((commit) => ({ ...commit, changes: form(foldChanges(commit.changes)) })) };
+  const formed = form(read.commits.map((commit) => foldChanges(commit.changes)));
+  return { ...read, commits: read.commits.map((commit, at) => ({ ...commit, changes: formed[at]! })) };
 }
 
 /** `reads` is the current start's: the events outlive a switch to WebGL2, which gives them a new app. */

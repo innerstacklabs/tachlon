@@ -1,8 +1,8 @@
 //! A host's values as the session keeps them (decision 0017): a date is read by the kind of its
 //! field, a duration as whole working minutes, the engine's own unit.
 
-use crate::{Session, document::json_read::Value};
-use engine::{DAY, Instant, Minutes};
+use crate::{Session, document::json_read::Value, edit::day_minutes};
+use engine::{DAY, DepId, Instant, Minutes, TaskId};
 
 impl Session {
     /// The start-kind date `value` holds, `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm`, or `None` for anything else.
@@ -19,6 +19,24 @@ impl Session {
         } else {
             at + DAY
         })
+    }
+}
+
+impl Session {
+    /// The working day in minutes of every task's calendar and of every link's lag calendar, by slot, as `{"tasks":[..],"links":[..]}`: what a duration or a lag in days is a multiple of.
+    #[must_use]
+    pub fn day_lengths(&self) -> String {
+        let schedule = self.schedule();
+        let days = |task: u32| day_minutes(schedule.calendar_of(TaskId(task)));
+        let tasks: Vec<Minutes> = (0..)
+            .zip(schedule.tasks())
+            .map(|(at, _)| days(at))
+            .collect();
+        let links: Vec<Minutes> = (0..)
+            .zip(schedule.dependencies())
+            .map(|(at, _)| self.lag_day_minutes(DepId(at)))
+            .collect();
+        format!(r#"{{"tasks":{tasks:?},"links":{links:?}}}"#)
     }
 }
 

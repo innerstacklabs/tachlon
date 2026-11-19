@@ -1,8 +1,7 @@
 // `Gantt.update` (gantt#2087, decision 0019 rule 13): the host gives the chart new values for many tasks by key, applied in place as one call.
 // A `duration` is in the unit the host mounted with (decision 0017 rule 5); this is the one place it becomes the app's working minutes.
-import { toMinutes } from "./adapters/plain-calendars.js";
+import { readCalendars, toMinutes } from "./adapters/plain-calendars.js";
 import type { PublicApp } from "./api.js";
-import { readDays } from "./change-form.js";
 import { readAnswer, refused } from "./edit-result.js";
 import type { HostDifference, MountOptions, UpdateResult } from "./gantt-types.js";
 
@@ -11,8 +10,10 @@ const hasDuration = (record: unknown): record is { duration: number } => typeof 
 
 /** The working day in minutes of the task with each key, from the saved document: its own calendar's, as the plain-data reader counts a day. */
 function dayOfKey(app: PublicApp): (key: unknown) => number {
-  const days = readDays(app);
-  return (key) => days({ record: "task", op: "update", key: key as string });
+  const saved = JSON.parse(app.save("update")) as { calendars: Parameters<typeof readCalendars>[0]; tasks: { key?: string; calendar: number }[] };
+  const { list } = readCalendars(saved.calendars);
+  const days = new Map(saved.tasks.flatMap((task) => (task.key === undefined ? [] : [[task.key, list[task.calendar]!.day] as const])));
+  return (key) => days.get(key as string) ?? list[0]!.day;
 }
 
 /** Answer what `app.update_tasks` answers for `records`; `busy` is `Gantt.busy()`, `unit` the unit of the host's durations, and `wrote` is told the slots of the tasks written (the table's). */

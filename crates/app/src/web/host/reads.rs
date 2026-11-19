@@ -49,6 +49,13 @@ impl App {
         self.session.baseline_data_day().unwrap_or_default()
     }
 
+    /// The working day in minutes of every task's calendar and of every link's lag calendar, by slot, as JSON
+    /// `{"tasks":[..],"links":[..]}`; a duration or a lag in days is a multiple of it. The slots last until the next load,
+    /// open or remount. Reads only.
+    pub fn day_lengths(&self) -> String {
+        self.session.day_lengths()
+    }
+
     /// Task `task` as an event names it, as JSON: `{"key":k,"start":s}`, with `k` the key the host
     /// gave the task or `null`, and `s` its early start as `YYYY-MM-DDTHH:mm`. `undefined` for a slot
     /// the session does not hold. The slot lasts until the next load, open or remount. Reads only.

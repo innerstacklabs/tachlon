@@ -306,6 +306,14 @@ fn a_lag_on_the_24_hour_lag_calendar_counts_1440_minutes_a_day() {
     assert_eq!(raw(&mut s), [want]);
 }
 
+#[test]
+fn the_working_day_of_each_task_and_link_is_read_by_slot() {
+    let days = |lag| serde_json::from_str::<Value>(&keyed(lag).day_lengths()).unwrap();
+    let own = days(LagCalendar::Successor);
+    assert_eq!(own["links"][0], own["tasks"][1], "the successor's day");
+    assert_eq!(days(LagCalendar::TwentyFourHour)["links"][0], 1440);
+}
+
 /// The create the undo of a link's removal writes, the link having its own lag calendar `own`.
 fn restored(own: LagCalendar, lag: i64) -> Value {
     let mut schedule = chain();

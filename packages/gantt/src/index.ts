@@ -177,7 +177,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   app.set_read_only(run.readOnly());
   app.set_capabilities(JSON.stringify(run.capabilities() ?? {}));
   const form = changeForm(app, unit, dateForm, run.beforeEdit !== undefined);
-  if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message), (changes) => form(changes, false)));
+  if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message), (changes) => form.lists([changes], false)[0]!));
   const themeTokens = JSON.parse(App.theme_tokens()) as string[];
   const { sync: syncTheme, stop: stopTheme } = installTheme(root, app, themeTokens);
   disposers.push(stopTheme);
@@ -233,8 +233,9 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   const view = createViewState(app, openFacts);
   const hostView = createViewState(app, openFacts);
   // The events outlive this start (the switch to WebGL2 starts another): they read this start's view state, commits and task keys from now on.
-  run.reads({ view: (s) => view.read(s), commits: () => app.take_commits(), ref: (task) => app.task_ref(task), form: (changes) => form(changes, true) });
+  run.reads({ view: (s) => view.read(s), commits: () => app.take_commits(), ref: (task) => app.task_ref(task), form: (lists) => form.lists(lists, true) });
   const events = run.events;
+  disposers.push(events.on("open", () => form.reread()));
   if (hostSave !== undefined) {
     const queue = new SaveQueue(app, hostSave, (error) => {
       rows.refuse(error.reload ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
