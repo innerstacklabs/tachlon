@@ -6,7 +6,6 @@
 // the baseline (its slipped and added counts taken from the status, its day text from the app) are read only when `Status.epoch` or `Status.stamp` moved (each change
 // of them moves the stamp) and no bar is being dragged.
 import type { PublicApp, Status } from "./api.js";
-import type { CustomNames } from "./custom-fields.js";
 import { publicFilterName, type RowFilterName } from "./filter-names.js";
 
 export type { RowFilterName } from "./filter-names.js";
@@ -80,7 +79,7 @@ export interface ViewState {
   /** The import notes the panel lists: always what it shows (after a mount, an open, a load and a restart on WebGL2), the reader's lines without the ones `expectedNotes` names. Frozen. */
   importNotes: readonly string[];
   /** The names of the members of your rows that the chart has no field for, for tasks and for links: the chart keeps them with the row and gives them back in a create's `set` and a delete's `was` (`fields` is the map of your own names). Frozen; the same object until a new name is seen. */
-  customFields: CustomNames;
+  customFields: Readonly<{ tasks: readonly string[]; links: readonly string[] }>;
 }
 
 /** What the chart knows of the open file; the reader compares these with the last state it built. */
@@ -88,7 +87,7 @@ export interface OpenFacts {
   fileName: string | null;
   unsaved: boolean;
   importNotes: readonly string[];
-  customFields: CustomNames;
+  customFields: Readonly<{ tasks: readonly string[]; links: readonly string[] }>;
 }
 
 /** What `Gantt.filterInputs()` returns: what the filter controls offer. It changes with an open (`open`), an edit (`edit`) and a baseline set, cleared or added to, which fires no `edit`: a `change` whose `baseline` is a new object. */

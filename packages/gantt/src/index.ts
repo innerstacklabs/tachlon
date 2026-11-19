@@ -104,7 +104,6 @@ export type { ProposedChange, ProposedKey, ProposeResult } from "./propose.js";
 export { callTool, toolDefinitions } from "./ai-tools.js";
 export type { ToolDefinition, ToolResult } from "./ai-tools.js";
 export type { CheckKind, CodeValue, FilterInputs, RowFilterName, StatusKind, ViewState, ZoomLevel } from "./view-state.js";
-export type { CustomNames } from "./custom-fields.js";
 export { MountError, preloadEngine } from "./mount-load.js";
 // The product's name (packages/gantt/src/product.ts), for a host page that shows it.
 export { PRODUCT_NAME };

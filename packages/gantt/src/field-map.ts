@@ -1,6 +1,7 @@
 // The field map (decision 0022, rule 8.4): a host names the members of its rows once, at mount, and the chart renames them where a task or link crosses the boundary.
 // It renames members and converts no value. A change's own members, a `schedule` change, the document and `snapshot()` keep the chart's names.
-import { customFields, type CustomFields } from "./custom-fields.ts";
+import { customFields } from "./custom-fields.ts"; // `.ts`, so the Node tier can load this file; the type comes from the `.js` name, which the declarations follow
+import type { CustomFields } from "./custom-fields.js";
 import type { Change } from "./events.js";
 import type { Fields } from "./gantt-types.js";
 import type { PlainLink, PlainTask } from "./adapters/plain.js";
