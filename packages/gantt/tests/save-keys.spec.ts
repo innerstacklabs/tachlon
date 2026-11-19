@@ -4,12 +4,14 @@ import { expect, test, type Page } from "@playwright/test";
 import { chromePath } from "./support/knobs";
 
 // The rows a host passes and the key of a row the person makes (decision 0022, rule 5): with `save` every row needs a key, and the chart gives a new row one.
-const MODULE = `import { mount } from "/src/index.ts";
+const MODULE = `import { mount } from "/src/index.ts"; import { liveSave } from "/src/save-queue.ts";
+import { createElement as h } from "react"; import { createRoot } from "react-dom/client"; import { Gantt } from "/src/react.tsx";
+const react = async (props) => { let ready = 0; createRoot(document.getElementById("app")).render(h(Gantt, { forceWebgl: true, onReady: (chart) => ((window.chart = chart), ready++), onEdit: (e) => slots.push(e.commits[0].changes[0].task), ...props })); await new Promise((done) => setTimeout(done, 2000)); return ready; };
 const sets = [], slots = [];
 const rows = (...keys) => ({ tasks: keys.map((key, i) => ({ key, id: String(i + 1), name: "Task " + i, start: "2026-11-02", duration: 2 })) });
 const tryMount = async (options) => { try { return (window.chart = await mount(document.getElementById("app"), { forceWebgl: true, ...options })), "mounted"; } catch (e) { return e.message; } };
 const save = async (set) => void sets.push(set);
-Object.assign(window, { sets, slots, rows, save, tryMount });
+Object.assign(window, { sets, slots, rows, save, tryMount, liveSave, react });
 window.ready = true;`;
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">import "/tests/save-keys-host.ts";</script></body></html>`;
 const host = { name: "save-keys-host", resolveId: (id: string) => (id === "/tests/save-keys-host.ts" ? id : null), load: (id: string) => (id === "/tests/save-keys-host.ts" ? MODULE : null) };
@@ -36,6 +38,7 @@ test("with save, mount refuses a task with no key and two with one key (noKey, d
   expect(await mounted("tryMount({ ...rows('a', 'a'), save })"), "two rows with one key").toMatch(/^duplicateKey: .*"a"/);
   expect(await mounted("tryMount({ ...rows('a', 'b'), save, keys: 'servers' })"), "a keys setting that is neither").toMatch(/keys is "chart" or "server"/);
   expect(await mounted("tryMount({ ...rows('a', undefined) })"), "no save: keyless rows as before").toBe("mounted");
+  expect(await mounted("tryMount({ ...rows('a', undefined), save: liveSave(() => undefined) })"), "a wrapper that holds no save yet: the same").toBe("mounted");
 });
 
 test("with save, a row the person makes gets a key from newKey before its change set is written, and the chart holds it", async ({ page }) => {
@@ -45,4 +48,12 @@ test("with save, a row the person makes gets a key from newKey before its change
   await expect.poll(() => page.evaluate("sets.length"), "the create reaches save").toBe(1);
   expect(await page.evaluate("sets[0].changes[0]"), "the create carries its key in key and in set").toMatchObject({ record: "task", op: "create", key: "made-1", set: { key: "made-1" } });
   expect(await page.evaluate("chart.commands.assignKey({ task: slots[0] }, 'other')"), "the row already holds the key").toMatchObject({ ok: false, reason: "hasKey" });
+});
+
+test("the React component with no save prop mounts keyless rows and gives a new row no key, so the host can assign its own", async ({ page }) => {
+  await open(page);
+  expect(await page.evaluate("react({ ...rows(undefined, undefined) })"), "keyless tasks and no save: the chart starts").toBe(1);
+  await page.evaluate("chart.commands.select(0), chart.commands.insertRow()");
+  await expect.poll(() => page.evaluate("slots.length")).toBe(1);
+  expect(await page.evaluate("chart.commands.assignKey({ task: slots[0] }, \"mine\")"), "the chart left the new row without a key").toMatchObject({ ok: true });
 });

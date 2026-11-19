@@ -31,7 +31,7 @@ import { readFields, type FieldMap } from "./field-map.js";
 import type { Stamped } from "./change-set.js";
 import type { Change } from "./events.js";
 import { refused } from "./edit-result.js";
-import { keyMistake, keyRules, SaveQueue } from "./save-queue.js";
+import { hasSave, keyMistake, keyRules, SaveQueue } from "./save-queue.js";
 import { mountAssistantPanel } from "./assistant/panel.js";
 import { installCard } from "./card.js";
 import { installCellEdit } from "./cell-edit.js";
@@ -131,7 +131,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
   let plain: StartSource = options.document === undefined ? { tasks: options.tasks && names.tasks.rows(options.tasks), links: options.links && names.links.rows(options.links), dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
   const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, dateForm, save } = options;
   const { keys, newKey } = options;
-  const mistake = save === undefined || schedule !== undefined || options.document !== undefined ? undefined : keyMistake("task", options.tasks && names.tasks.rows(options.tasks)) ?? keyMistake("link", options.links && names.links.rows(options.links));
+  const mistake = !hasSave(save) || schedule !== undefined || options.document !== undefined ? undefined : keyMistake("task", options.tasks && names.tasks.rows(options.tasks)) ?? keyMistake("link", options.links && names.links.rows(options.links));
   if (mistake !== undefined || (keys !== undefined && keys !== "chart" && keys !== "server")) throw new MountError("schedule", mistake ?? `keys is "chart" or "server", not ${JSON.stringify(keys)}.`);
   const start = (source: StartSource, run: Run): Promise<Started> => {
     const again = measured && schedule !== undefined && source !== undefined && "document" in source;

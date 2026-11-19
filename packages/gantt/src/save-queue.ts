@@ -33,6 +33,15 @@ export function liveSave(get: () => Save | Handlers | undefined): Save {
   return Object.assign((changeSet: ChangeSet) => callSave(get()!, changeSet), { [LIVE]: get });
 }
 
+/** The function or object the host holds now: what `save` is, or what a wrapper's `liveSave` asks for. */
+const current = (save: Save | Handlers): Save | Handlers | undefined => {
+  const live = (save as { [LIVE]?: () => Save | Handlers | undefined })[LIVE];
+  return live === undefined ? save : live();
+};
+
+/** Whether a host has a save now, for what only a host that saves has to keep (every row has a key). A wrapper with no `save` yet answers no. */
+export const hasSave = (save: Save | Handlers | undefined): boolean => save !== undefined && current(save) !== undefined;
+
 /** A commit that is not saved yet, its change set (written at the first call), how many times `save` has run for it, and why it cannot be sent (a key the app refused). */
 interface Waiting { commit: Commit; set?: ChangeSet; calls: number; bad?: string }
 
@@ -99,10 +108,10 @@ export class SaveQueue {
     this.go();
   }
 
-  /** With `keys: "chart"`, give each row the commit creates with no key one now (the app holds it from here on), before the commit's change set is written. */
+  /** With `keys: "chart"`, give each row the commit creates with no key one now (the app holds it from here on), before the commit's change set is written. A host with no save keeps the keys it gives the rows itself (`assignKey`). */
   private keyed(waiting: Waiting): Waiting {
     for (const c of waiting.commit.changes) {
-      if (this.keys.mode !== "chart" || c.op !== "create" || c.key !== null || slotOf(c) === undefined) continue;
+      if (this.keys.mode !== "chart" || !hasSave(this.save) || c.op !== "create" || c.key !== null || slotOf(c) === undefined) continue;
       const key = this.keys.make();
       const why = this.keys.assign(c.record as "task" | "link", slotOf(c)!, key);
       if (why === undefined) this.made.set(at(c), key);
@@ -136,8 +145,7 @@ export class SaveQueue {
     try {
       while (!this.stopped && !this.broken && this.waiting.length > 0) {
         const head = this.waiting[0]!;
-        const live = (this.save as { [LIVE]?: () => Save | Handlers | undefined })[LIVE];
-        const save = live === undefined ? this.save : live();
+        const save = current(this.save);
         if (save === undefined) {
           this.waiting.shift();
           continue;
@@ -188,6 +196,7 @@ export class SaveQueue {
     this.hosted = [];
     if (answer.ok) this.floor = answer.seq;
     this.waiting.length = 0;
+    this.made.clear(); // the put-back frees the slots of its creates, and a later create may take one
     const own = refusal instanceof SaveRefused ? refusal : undefined;
     this.failed({
       source: "save", message: refusal.message, fatal: false, reason: own === undefined ? "result" : "refused", calls: head.calls,
@@ -197,11 +206,11 @@ export class SaveQueue {
   }
 
   /** The change set of a commit: a new `id`, and `once` on each change. The session slots (`task`, `link`) mean nothing after a reload, so they stay out of what the host stores.
-   * A row the commit names by its slot (`{ task: n }`, in `parent`, `after`, `from` or `to`) is named by its key, and a create carries its key in `key` and in `set`. With `keys: "server"` a create that has no key carries a `ref`, and every `{ task: n }` that names it is `{ ref }`. */
+   * A row the commit names by its slot (`{ task: n }`, in `parent`, `after`, `from` or `to`) is named by its key, and a create carries its key in `key` and in `set`. With `keys: "server"` a create carries a `ref`, and every `{ task: n }` that names a row with no key yet is `{ ref }`. */
   private write(commit: Commit): ChangeSet {
     const id = uuid();
-    const asks = (c: Change): boolean => this.keys.mode === "server" && c.op === "create" && c.key === null && slotOf(c) !== undefined;
-    const asked = new Set(commit.changes.filter(asks).map(at));
+    const asks = (c: Change): boolean => this.keys.mode === "server" && c.op === "create" && slotOf(c) !== undefined;
+    const asked = new Set(commit.changes.filter((c) => asks(c) && c.key === null).map(at)); // the rows with no key yet: a row that has one is named by it
     const point = (v: unknown): unknown => {
       const slot = typeof v === "object" && v !== null && Object.keys(v).length === 1 ? (v as { task?: unknown }).task : undefined;
       return typeof slot === "number" ? this.made.get(`task:${slot}`) ?? (asked.has(`task:${slot}`) ? { ref: `task:${slot}` } : v) : v;
@@ -220,18 +229,29 @@ export class SaveQueue {
   private take(set: ChangeSet, result: SaveResult | void): string | undefined {
     const given = (result as SaveResult | undefined)?.keys;
     if (this.keys.mode === "chart") return given === undefined ? undefined : 'the save result has keys, but the chart made the keys of the new rows: mount with keys: "server" when the server makes them';
-    const answers = Array.isArray(given) ? given : [];
+    if (given !== undefined && !Array.isArray(given)) return "the save result's keys is not a list of { ref, key }";
+    const answers = (given ?? []) as { ref: string; key: unknown }[];
+    const malformed = (answers as unknown[]).findIndex((a) => typeof (a as { ref?: unknown } | null)?.ref !== "string");
+    if (malformed >= 0) return `keys[${malformed}] of the save result is not an object with a text ref`;
     const refs = answers.map((a) => a.ref);
     const asked = set.changes.flatMap((c) => (c.ref === undefined ? [] : [c.ref]));
-    const [missing, extra, again] = [asked.find((r) => !refs.includes(r)), refs.find((r) => !asked.includes(r)), twice(refs) ?? twice(answers.map((a) => a.key))];
+    // A create that carries its key (the undo of a delete, the redo of a create) may be answered with that key, or not at all.
+    const had = new Map(set.changes.flatMap((c) => (c.ref !== undefined && c.key !== null ? [[c.ref, c.key] as const] : [])));
+    // Keys are unique for each kind of row (rule 5.2): a task and a link may hold the same one.
+    const [missing, extra, again] = [asked.find((r) => !refs.includes(r) && !had.has(r)), refs.find((r) => !asked.includes(r)), twice(refs) !== undefined ? JSON.stringify(twice(refs)) : twice(answers.map((a) => `${a.ref.split(":")[0]} ${JSON.stringify(a.key)}`))];
     if (missing !== undefined) return `the save result has no key for the new row ${missing}`;
-    if (extra !== undefined) return `the save result has a key for ${String(extra)}, which no create in the change set asked for`;
-    if (again !== undefined) return `the save result names ${JSON.stringify(again)} twice`;
+    if (extra !== undefined) return `the save result has a key for ${extra}, which no create in the change set asked for`;
+    if (again !== undefined) return `the save result names ${String(again)} twice`;
     for (const { ref, key } of answers) {
+      const old = had.get(ref);
+      if (old !== undefined) {
+        if (key !== old) return `the server holds the restored ${ref.split(":")[0]} under the key ${JSON.stringify(key)}, but the chart has it under ${JSON.stringify(old)}, and the chart cannot yet take a new key for a restored row: restore the row under its original key on the server, or read your data again with setData, which shows the row under its new key`;
+        continue;
+      }
       const [record, slot] = ref.split(":");
       const why = this.keys.assign(record as "task" | "link", Number(slot), typeof key === "string" ? key : "");
       if (why !== undefined) return `the key ${JSON.stringify(key)} the save result gives ${ref} was refused: ${why}`;
-      this.made.set(ref, key);
+      this.made.set(ref, key as string);
     }
     return undefined;
   }

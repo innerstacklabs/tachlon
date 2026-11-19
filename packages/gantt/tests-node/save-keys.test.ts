@@ -2,7 +2,7 @@
 // holds keys as `App.assign_task_key` does; the browser cases are the scenarios of `examples/save/spec.ts`.
 import type { Change, Commit } from "../src/events.ts";
 import type { ChangeSet, Handlers, Save, SaveError } from "../src/gantt-types.ts";
-import { keyMistake, keyRules, SaveQueue } from "../src/save-queue.ts";
+import { keyMistake, keyRules, liveSave, SaveQueue } from "../src/save-queue.ts";
 import { test } from "node:test";
 import { expect } from "@playwright/test";
 
@@ -17,7 +17,7 @@ function fakeApp(): { log: string[]; held: Map<string, string>; acknowledge(seq:
   const log: string[] = [];
   const held = new Map<string, string>();
   const assign = (record: string, slot: number, key: string): string => {
-    const taken = [...held].some(([at, k]) => k === key && at !== `${record}:${slot}`);
+    const taken = [...held].some(([at, k]) => k === key && at !== `${record}:${slot}` && at.startsWith(`${record}:`)); // keys are unique for each kind of row
     if (key === "" || taken) return JSON.stringify({ ok: false, reason: key === "" ? "emptyKey" : "keyTaken", message: key === "" ? "A key has at least one character." : `Another row holds the key ${key}.` });
     held.set(`${record}:${slot}`, key);
     log.push(`assign ${record}:${slot}=${key}`);
@@ -82,9 +82,46 @@ test("the undo of a delete creates the row under the key it had, whichever side 
     queue.add([{ seq: 1, source: "undo", changes: [create(5, {}, "t9")] }]);
     await settle();
     expect(seen[0]!.changes[0], mode).toMatchObject({ key: "t9", set: { id: "t9" } });
-    expect(seen[0]!.changes[0], mode).not.toHaveProperty("ref");
+    expect("ref" in seen[0]!.changes[0]!, mode).toBe(mode === "server"); // the server may answer it
     expect(app.log, mode).toEqual(["ack 1"]);
   }
+});
+
+for (const [what, key, saved] of [["the same key", "t9", true], ["no key", undefined, true], ["a different key", "t10", false]] as const) {
+  for (const form of ["function", "handlers"] as const) {
+    test(`under keys: server, ${form} form, a create that carries its key answered with ${what} is ${saved ? "saved" : "put back with a message that names both keys"}`, async () => {
+      const app = fakeApp();
+      const errors: SaveError[] = [];
+      const save: Save | Handlers = form === "function" ? async () => (key === undefined ? undefined : { keys: [{ ref: "task:5", key }] }) : { createTask: async () => (key === undefined ? {} : { id: key }) };
+      const queue = new SaveQueue(app, save, (error) => errors.push(error), rules(app, "server"));
+      queue.add([{ seq: 1, source: "undo", changes: [create(5, {}, "t9")] }]);
+      await settle();
+      if (saved) expect([errors, app.log]).toEqual([[], ["ack 1"]]);
+      else expect([errors[0]?.reason, errors[0]?.message, app.log]).toEqual(["result", expect.stringMatching(/"t10".*"t9".*cannot yet take a new key.*setData/), ["rollback 1"]]);
+    });
+  }
+}
+
+test("a task and a link may hold the same key, as keys are unique for each kind of row", async () => {
+  const app = fakeApp();
+  const link: Change = { record: "link", op: "create", key: null, link: 0, set: { from: "a", to: "b" } };
+  const queue = new SaveQueue(app, async () => ({ keys: [{ ref: "task:5", key: "1" }, { ref: "link:0", key: "1" }] }), () => undefined, rules(app, "server"));
+  queue.add([commit(1, create(5), link)]);
+  await settle();
+  expect(app.log).toEqual(["assign task:5=1", "assign link:0=1", "ack 1"]);
+});
+
+test("a put-back forgets the keys it had assigned, so a create at a freed slot is asked for again", async () => {
+  const app = fakeApp();
+  app.held.set("task:1", "t1");
+  const seen: ChangeSet[] = [];
+  const save: Save = async (cs) => (seen.push(cs), cs.seq === 1 ? { keys: [{ ref: "task:5", key: "s1" }, { ref: "task:6", key: "t1" }] } : undefined);
+  const queue = new SaveQueue(app, save, () => undefined, rules(app, "server"));
+  queue.add([commit(1, create(5), create(6))]); // the second key is taken: both creates go back
+  await settle();
+  queue.add([commit(11, create(5), create(6, { parent: { task: 5 } }))]);
+  await settle();
+  expect(seen[1]!.changes).toMatchObject([{ key: null, ref: "task:5" }, { key: null, ref: "task:6", set: { parent: { ref: "task:5" } } }]);
 });
 
 const BAD: [string, "chart" | "server", (cs: ChangeSet) => unknown, RegExp][] = [
@@ -94,6 +131,10 @@ const BAD: [string, "chart" | "server", (cs: ChangeSet) => unknown, RegExp][] = 
   ["a ref is answered twice", "server", () => ({ keys: [{ ref: "task:5", key: "s1" }, { ref: "task:6", key: "s3" }, { ref: "task:5", key: "s2" }] }), /"task:5" twice/],
   ["a key is given to two rows", "server", () => ({ keys: [{ ref: "task:5", key: "s1" }, { ref: "task:6", key: "s1" }] }), /"s1" twice/],
   ["a key is taken by another row", "server", () => ({ keys: [{ ref: "task:5", key: "t1" }, { ref: "task:6", key: "s2" }] }), /Another row holds the key t1/],
+  ["a keys entry is null", "server", () => ({ keys: [null] }), /keys\[0\] of the save result is not an object with a text ref/],
+  ["a keys entry has no ref", "server", () => ({ keys: [{ key: "s1" }] }), /keys\[0\] .* text ref/],
+  ["keys is not a list", "server", () => ({ keys: {} }), /not a list of \{ ref, key \}/],
+  ["keys is null", "server", () => ({ keys: null }), /not a list of \{ ref, key \}/],
   ["a key is not text", "server", () => ({ keys: [{ ref: "task:5", key: 7 }, { ref: "task:6", key: "s2" }] }), /at least one character/],
   ["keys come back under keys: chart", "chart", () => ({ keys: [{ ref: "task:5", key: "s1" }] }), /mount with keys: "server"/],
 ];
@@ -122,6 +163,17 @@ test("a createTask handler that answers no key is a result the chart cannot use,
   chart.add([commit(2, create(6))]);
   await settle();
   expect(errors).toMatchObject([{ reason: "result", message: /resolved with no key for the new row.*as "id"/ }, { reason: "result", message: /"t1" for a new task was refused/, calls: 0 }]);
+});
+
+test("a wrapper that holds no save leaves the keys of the rows to the host, which gives them with assignKey", async () => {
+  const app = fakeApp();
+  let held: Save | undefined;
+  const queue = new SaveQueue(app, liveSave(() => held), () => undefined, rules(app, "chart"));
+  queue.add([commit(1, create(5))]);
+  held = async () => undefined;
+  queue.add([commit(2, create(6))]);
+  await settle();
+  expect(app.log).toEqual(["assign task:6=" + app.held.get("task:6"), "ack 2"]);
 });
 
 test("with save, a row with no key or the key another row of its kind holds is refused by name", () => {

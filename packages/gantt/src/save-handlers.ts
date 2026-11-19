@@ -36,10 +36,11 @@ export function callSave(save: Save | Handlers, changeSet: ChangeSet, stopped: (
 }
 
 /** The key a create's handler answered: the key itself, an object that holds it under the host's name for `key`, or a `Response` whose JSON is that row. */
-async function keyOf(result: unknown, field: string, name: Name): Promise<string> {
+async function keyOf(result: unknown, field: string, name: Name, had: boolean): Promise<string | undefined> {
   const row = result instanceof Response ? (await result.json().catch(() => undefined)) as unknown : result;
   const key = typeof row === "object" && row !== null ? (row as Record<string, unknown>)[field] : row;
   if (typeof key === "string" && key !== "") return key;
+  if (had) return undefined; // a create that carries its key may answer none
   throw new BadResult(`the ${name} handler resolved with no key for the new row: with keys: "server" resolve with the key, an object that has it as "${field}", or a Response whose JSON body is the row`);
 }
 
@@ -63,7 +64,8 @@ async function runHandlers(handlers: Handlers, changeSet: ChangeSet, stopped: ()
     }
     if (result instanceof Response && !result.ok) throw result;
     warnIfRefused(name, result);
-    if (names !== undefined && change.ref !== undefined) keys.set(change.ref, await keyOf(result, names[change.record as "task" | "link"], name));
+    const answer = names !== undefined && change.ref !== undefined ? await keyOf(result, names[change.record as "task" | "link"], name, change.key !== null) : undefined;
+    if (answer !== undefined) keys.set(change.ref!, answer);
     resolved.set(changeSet, n + 1);
   }
   if (keys.size > 0) return { keys: [...keys].map(([ref, key]) => ({ ref, key })) };
