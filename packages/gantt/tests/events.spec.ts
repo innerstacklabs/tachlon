@@ -216,8 +216,8 @@ test.describe("the edit event carries commits, select and move name the key", ()
     const after = (await g.page.evaluate(() => window.gantt!.api!.snapshot().tasks))[0]!;
     expect([name!.key, name!.set]).toEqual(["k-dig", { name: after.name }]);
     expect(duration!.set).toEqual({ duration: after.duration });
-    expect(Object.keys(snet!.set)).toEqual(["snet"]);
-    expect(String(snet!.set.snet).slice(0, 10)).toBe(after.start!.slice(0, 10));
+    expect(Object.keys(snet!.set), "a limit is the one member constraint, the default constraintForm").toEqual(["constraint"]);
+    expect(snet!.set.constraint).toEqual({ type: "snet", date: expect.stringMatching(new RegExp(`^${after.start!.slice(0, 10)}`)) });
   });
 
   test("an undo's event carries one undo commit with old and new swapped", async ({ g }) => {

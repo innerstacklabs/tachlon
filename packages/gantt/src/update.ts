@@ -2,6 +2,7 @@
 // A `duration` is in the unit the host mounted with (decision 0017 rule 5); this is the one place it becomes the app's working minutes.
 import { readCalendars, toMinutes } from "./adapters/plain-calendars.js";
 import type { PublicApp } from "./api.js";
+import { toSeparate } from "./constraint-form.js";
 import { readAnswer, refused, type Refusal } from "./edit-result.js";
 import type { HostDifference, MountOptions, UpdateResult } from "./gantt-types.js";
 
@@ -23,8 +24,10 @@ function dayOfKey(app: PublicApp): (key: unknown) => number {
 export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["durationUnit"], records: unknown, wrote: (slots: readonly number[]) => void, call: "update_tasks" | "host_edit" = "update_tasks"): UpdateResult {
   if (!Array.isArray(records)) return Object.freeze({ ok: false, reason: "badRecords", message: "update takes an array of records." });
   if (busy()) return refused("busy");
+  let separate: unknown[];
+  try { separate = records.map((record) => (typeof record === "object" && record !== null && !Array.isArray(record) ? toSeparate(record as Record<string, unknown>, true) : record)); } catch (err) { return Object.freeze({ ok: false, reason: "badRecords", message: `Nothing changed: ${(err as Error).message}` }); }
   const day = unit === "hours" || unit === "minutes" || !records.some(hasDuration) ? () => 0 : dayOfKey(app);
-  const answer = readAnswer(app[call](JSON.stringify(records.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
+  const answer = readAnswer(app[call](JSON.stringify(separate.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
   if (answer.ok) {
     wrote(JSON.parse(app.task_slots(records.map((record) => (record as { key: string }).key))) as number[]); // an accepted record names a live task by its key
     const { differs } = answer as { differs?: readonly HostDifference[] };

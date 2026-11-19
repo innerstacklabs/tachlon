@@ -1,9 +1,12 @@
 // `Gantt.setData` (decision 0022, rules 4.1 and 4.2): the host hands the chart its rows again, and the chart sets only the members that differ from the rows it was last given.
 import type { PlainLink, PlainTask } from "./adapters/plain.js";
+import { spelledTwice } from "./constraint-form.ts";
 import type { TaskUpdate, UpdateResult } from "./gantt-types.js";
 
 /** The members of a task that `update` takes: the only ones `setData` compares. */
-const MEMBERS = ["name", "start", "snet", "duration", "progress"] as const;
+const MEMBERS = ["name", "start", "snet", "constraint", "duration", "progress"] as const;
+/** A member that differs from the one held; a `constraint` is an object, so it is compared by value. */
+const differs = (given: unknown, held: unknown): boolean => given !== held && JSON.stringify(given) !== JSON.stringify(held);
 
 /** The rows a host gives: either list may be left out. */
 export interface HostRows { tasks?: PlainTask[]; links?: PlainLink[] }
@@ -41,10 +44,14 @@ export function hostData(first: HostRows, epoch: number): SetData {
     if (next.tasks !== undefined && next.tasks !== kept.tasks?.deref()) {
       const given = membersByKey(next.tasks);
       if (given === undefined) return rowsChanged("every task needs its own text key.");
+      for (const task of next.tasks) {
+        const twice = spelledTwice(task);
+        if (twice !== undefined) return Object.freeze({ ok: false, reason: "badRecords", message: `Nothing changed: task ${task.key} gives both "constraint" and "${twice}", two spellings of one date limit; give one.` });
+      }
       if (!same(shapeOf(next.tasks), kept.shape)) return rowsChanged("a task was added, removed or moved, or its id or parent changed.");
       for (const [key, values] of given) {
         const was = old.get(key)!;
-        const set = MEMBERS.flatMap((member, i) => (values[i] !== undefined && values[i] !== was[i] ? [[member, values[i]] as const] : []));
+        const set = MEMBERS.flatMap((member, i) => (values[i] !== undefined && differs(values[i], was[i]) ? [[member, values[i]] as const] : []));
         if (set.length > 0) records.push({ key, ...Object.fromEntries(set) });
         byKey.set(key, values.map((value, i) => (value === undefined ? was[i] : value)));
       }

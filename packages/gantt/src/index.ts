@@ -86,6 +86,7 @@ import "./styles/print.css";
 export { fromBryntum, fromDhtmlx, fromTasks, PlainDataError, toPlain, validate } from "./adapters/index.js";
 export type { BryntumResult, DhtmlxOptions, DhtmlxResult, PlainCalendar, PlainIssue, PlainLink, PlainOptions, PlainResult, PlainTask, PlainValidation, ScheduleDocument } from "./adapters/index.js";
 // The chart's own types (`gantt-types.ts`).
+export type { Constraint, ConstraintType } from "./constraint-form.js";
 export type { BeforeEdit, BeforeEditChange, ChangeSet, Fields, Gantt, Handlers, HostCapabilities, HostDifference, MountOptions, Rows, Save, SaveContext, SaveError, SaveResult, TaskUpdate, UpdateResult } from "./gantt-types.js";
 export { SaveRefused } from "./save-queue.js";
 export type { Commands, ScrollTarget } from "./commands.js";
@@ -120,7 +121,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
   numberFormat(options.locale); // a tag that is not a language tag throws here, before the chart touches the root
   // The developer page's knobs (`page-knobs.ts`, not an export of this entry); a host page sets none.
   let names: FieldMap;
-  try { names = readFields(options.fields); } catch (err) { throw new MountError("schedule", (err as Error).message); }
+  try { names = readFields(options.fields, undefined, options.constraintForm); } catch (err) { throw new MountError("schedule", (err as Error).message); }
   const page = takePageKnobs();
   const restart = page === undefined ? undefined : (why: string) => page.restart(why);
   // A measured run starts its script again on the WebGL2 start, as the reload it replaces did, so it starts on the page's own schedule:

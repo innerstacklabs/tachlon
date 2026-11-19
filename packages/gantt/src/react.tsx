@@ -24,7 +24,7 @@ const EVENTS = {
 /**
  * The mount options, one prop each, and a callback for each event: `onSelect({ task, key })`, `onMove({ task, key, start })` and the rest of `GanttEvents`.
  * A handler is called with the latest function the component was given. A handler for `find` or `choose-file` takes that key from the browser,
- * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
+ * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
  * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `tasks`, `links`, `texts` and `fonts` stable between renders.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
@@ -48,7 +48,7 @@ function sendRecords<F extends Fields | undefined>(chart: Chart<F> | undefined, 
 }
 
 export function Gantt<F extends Fields | undefined = undefined>(props: GanttProps<F>): JSX.Element {
-  const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly, capabilities, records, className, style } = props;
+  const { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly, capabilities, records, className, style } = props;
   const root = useRef<HTMLDivElement>(null);
   const latest = useRef(props), applied = useRef<GanttProps<F>["records"]>(undefined); // `applied`: the `records` the chart started with or was last sent
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -88,7 +88,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount<F>(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: latest.current.fields, keys: latest.current.keys, newKey: latest.current.newKey, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
+        started = await mount<F>(root.current as HTMLDivElement, { schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: latest.current.fields, keys: latest.current.keys, newKey: latest.current.newKey, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;
@@ -107,7 +107,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
       live.current = null;
       started?.destroy();
     };
-  }, [schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts]);
+  }, [schedule, document, tasks, links, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts]);
 
   // `readOnly` switches the chart that is mounted and never mounts it again; a chart that mounts later starts on the latest value.
   useEffect(() => live.current?.chart.setReadOnly(readOnly === true), [readOnly]);

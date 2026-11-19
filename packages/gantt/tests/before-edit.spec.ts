@@ -134,7 +134,7 @@ test("a chart mounted with hours and dateForm day tells the edit event and the b
   await page.keyboard.press("Enter");
   await expect.poll(async () => (await heard()).length).toBe(2);
   const duration = { record: "task", key: "k-a", set: { duration: 136 }, was: { duration: 2 } };
-  const start = { record: "task", key: "k-b", set: { snet: "2026-03-04" } };
+  const start = { record: "task", key: "k-b", set: { constraint: { type: "snet", date: "2026-03-04" } } };
   expect((await asked(page, "setDuration"))[0]!.changes, "17 days of an 8-hour calendar is 136 hours; the 2 the host gave comes back as 2").toMatchObject([duration]);
   expect((await asked(page, "move"))[0]!.changes).toMatchObject([start]);
   expect(await heard()).toMatchObject([duration, start]);

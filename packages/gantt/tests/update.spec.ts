@@ -118,6 +118,39 @@ test("a null start clears the floor a record gave: the type takes it and the cha
   expect(await start(), "start: null takes the floor away").not.toBe(floored);
 });
 
+test("a constraint is the one date limit: it replaces the other bounds, null clears them, a record with two spellings is refused, and a host edit tells the edit event in the same form", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(2).map((t, i) => (i === 0 ? { ...t, constraint: { type: "snlt", date: "2026-03-20" } } : t)) });
+  const limits = () => page.evaluate(() => { const { snet, snlt, fnet, fnlt } = window.upChart.snapshot().tasks[0] as Record<string, unknown>; return { snet, snlt, fnet, fnlt }; });
+  expect(await limits(), "a constraint in the rows at mount is the limit its type names").toMatchObject({ snlt: expect.stringMatching(/^2026-03-20/) });
+  expect(await page.evaluate(() => (window.upChart.toDocument() as { tasks: { snet: number | null }[] }).tasks[0]!.snet), "the start of a row with a constraint is no floor").toBeNull();
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: { type: "fnlt", date: "2026-03-27" } }]))).toEqual({ ok: true, updated: 1 });
+  expect(await limits(), "the new limit replaces the old one").toMatchObject({ fnlt: "2026-03-28T00:00", snlt: undefined });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: null }]))).toEqual({ ok: true, updated: 1 });
+  expect(await limits(), "null clears every bound").toEqual({ snet: undefined, snlt: undefined, fnet: undefined, fnlt: undefined });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: { type: "snet", date: "2026-03-09" }, snlt: "2026-03-20" }]))).toMatchObject({ ok: false, reason: "badRecords", message: expect.stringContaining('both "constraint" and "snlt"') });
+  expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k1", constraint: { type: "fnet", date: "2026-03-30" } }]))).toEqual({ ok: true, updated: 1 });
+  await expect.poll(() => page.evaluate(() => window.edits.length)).toBe(1);
+  const [edit] = await page.evaluate(() => window.edits as { commits: { changes: { key: string; set: unknown; was: unknown }[] }[] }[]);
+  expect(edit!.commits[0]!.changes, "the edit event carries the one member in both set and was").toMatchObject([{ key: "k1", set: { constraint: { type: "fnet", date: "2026-03-31T00:00" } }, was: { constraint: null } }]);
+});
+
+test("rows with a constraint, an object and null, are no floor at mount and setData with the same rows changes nothing; the separate form still floors a start and writes six members", async ({ page }) => {
+  const rows = () => tasks(3).map((t, i) => (i === 0 ? { ...t, constraint: { type: "fnet", date: "2026-03-20" } } : i === 1 ? { ...t, constraint: null } : t));
+  await mountHost(page, { tasks: rows() });
+  const floors = () => page.evaluate(() => (window.upChart.toDocument() as { tasks: { snet: number | null }[] }).tasks.map((t) => t.snet));
+  expect(await floors(), "the two rows with a constraint have no floor from their start; the third keeps its start as a floor").toEqual([null, null, expect.any(Number)]);
+  expect(await page.evaluate((r) => window.upChart.setData({ tasks: r } as never), rows()), "the same rows again").toEqual({ ok: true, updated: 0 });
+  expect(await page.evaluate((r) => window.upChart.setData({ tasks: r.map((t, i) => (i === 0 ? { ...t, constraint: null } : t)) } as never), rows())).toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate(() => window.edits.length), "setData is not an edit").toBe(0);
+
+  await mountHost(page, { tasks: tasks(2).map((t, i) => (i === 0 ? { ...t, snlt: "2026-03-20" } : t)), constraintForm: "separate" });
+  expect(await floors(), "separate spelling: the start is a floor, as before").toEqual([expect.any(Number), expect.any(Number)]);
+  expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k1", snlt: "2026-03-30" }]))).toEqual({ ok: true, updated: 1 });
+  await expect.poll(() => page.evaluate(() => window.edits.length)).toBe(1);
+  const [edit] = await page.evaluate(() => window.edits as { commits: { changes: { set: Record<string, unknown> }[] }[] }[]);
+  expect(Object.keys(edit!.commits[0]!.changes[0]!.set), "under separate a limit is its own member, not constraint").toEqual(["snlt"]);
+});
+
 const shown = (page: Page) => page.evaluate(() => [...document.querySelectorAll<HTMLElement>("#table-rows .row[data-task] > span")].map((c) => ({ text: c.textContent, marked: c.dataset.changed === "true", motion: getComputedStyle(c).animationName })));
 
 test("an update highlights the cells in view whose shown value changed and no others, and the mark goes after its timer", async ({ page }) => {
