@@ -31,7 +31,8 @@ import { readFields, type FieldMap } from "./field-map.js";
 import type { Stamped } from "./change-set.js";
 import type { Change } from "./events.js";
 import { refused } from "./edit-result.js";
-import { hasSave, keyMistake, keyRules, SaveQueue } from "./save-queue.js";
+import { handlersOf, hasSave, keyMistake, keyRules, SaveQueue } from "./save-queue.js";
+import { profileFor, refuseMissing, warnMissing } from "./save-handlers.js";
 import { mountAssistantPanel } from "./assistant/panel.js";
 import { installCard } from "./card.js";
 import { installCellEdit } from "./cell-edit.js";
@@ -191,9 +192,15 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   }
   own.app = app;
   app.set_read_only(run.readOnly());
-  app.set_capabilities(JSON.stringify(run.capabilities() ?? {}));
+  // A host's handlers object with no handler for a kind of change: one warning now, link drawing off with no `createLink`, and the edits that need a missing one refused ahead of `beforeEdit`.
+  const handlers = (): ReturnType<typeof handlersOf> => handlersOf(hostSave);
+  const profile = (host: MountOptions["capabilities"]): MountOptions["capabilities"] => profileFor(host, handlers());
+  warnMissing(handlers());
+  app.set_capabilities(JSON.stringify(profile(run.capabilities()) ?? {}));
   const form = (changes: readonly Stamped[]): Change[] => names.custom.add(names.changes(formChanges(changes, unit, dateForm), run.capabilities()?.kinds));
-  if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message), form));
+  const asked = run.beforeEdit === undefined ? undefined : guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message), form);
+  const gated = handlers() === undefined ? asked : refuseMissing(asked, handlers, (what, handler) => say(root, "cannot-save", { what, handler }));
+  if (gated !== undefined) app.set_before_edit(gated);
   const themeTokens = JSON.parse(App.theme_tokens()) as string[];
   const { sync: syncTheme, stop: stopTheme } = installTheme(root, app, themeTokens);
   disposers.push(stopTheme);
@@ -366,7 +373,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
 
   const gantt = createGantt({
     shell, reason, name: () => name, setName: (n) => { name = n; }, save, note, printOn, openFile: (f, options) => opener.openFile(f, options),
-    adopt, busy, guard, hostView, events, setData: hostData("tasks" in source ? source : {}, s0.epoch), setPending: table.setPending, wrote: table.wrote, speed: () => speedOf(info.open, metrics.view()), unit, dateForm, fields: names,
+    adopt, busy, guard, hostView, events, setData: hostData("tasks" in source ? source : {}, s0.epoch), setPending: table.setPending, wrote: table.wrote, speed: () => speedOf(info.open, metrics.view()), unit, dateForm, fields: names, profile,
   });
   // The panel is written beside the chart, not in its root; the switch to WebGL2 takes it down with this start and writes a new one with no history.
   if (assistant !== undefined) disposers.push(mountAssistantPanel(assistant.into, assistant.send, gantt.commands, texts).destroy);

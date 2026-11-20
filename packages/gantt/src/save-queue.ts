@@ -44,6 +44,12 @@ const current = (save: Save | Handlers): Save | Handlers | undefined => {
 /** Whether a host has a save now, for what only a host that saves has to keep (every row has a key). A wrapper with no `save` yet answers no. */
 export const hasSave = (save: Save | Handlers | undefined): boolean => save !== undefined && current(save) !== undefined;
 
+/** The handlers object the host holds now (`save` as an object, or what a wrapper's `liveSave` asks for), or `undefined` when it holds a function or nothing. */
+export const handlersOf = (save: Save | Handlers | undefined): Handlers | undefined => {
+  const held = save === undefined ? undefined : current(save);
+  return typeof held === "object" ? held : undefined;
+};
+
 /** A commit that is not saved yet, its change set (written at the first call), how many times `save` has run for it, and why it cannot be sent (a key the app refused). */
 interface Waiting { commit: Commit; set?: ChangeSet; calls: number; bad?: string }
 

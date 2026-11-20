@@ -1,5 +1,6 @@
 // The handlers form of `save` (decision 0022, rule 3.1): the queue hands a change set to `callSave`, and an object runs here, one handler per change, in order.
-import type { ChangeSet, Handlers, Save, SaveContext, SaveResult } from "./gantt-types.js";
+import { type FieldChange, foldChanges } from "./change-set.ts"; // `.ts`, so the Node tier can load this file
+import type { ChangeSet, Handlers, HostCapabilities, Save, SaveContext, SaveResult } from "./gantt-types.js";
 
 /** How long a handler runs before its `signal` aborts, in milliseconds; the chart goes on waiting for the handler to settle. */
 const SIGNAL_AFTER = 10_000;
@@ -22,7 +23,7 @@ const warned = new Set<string>();
 type Name = Exclude<keyof Handlers, "classify">;
 type Change = ChangeSet["changes"][number];
 
-const nameOf = ({ record, op }: Change): Name => (record === "schedule" ? "updateSchedule" : `${op}${record === "task" ? "Task" : "Link"}`) as Name;
+const nameOf = ({ record, op }: Pick<Change, "record" | "op">): Name => (record === "schedule" ? "updateSchedule" : `${op}${record === "task" ? "Task" : "Link"}`) as Name;
 
 /** What a handler takes before its context: a create the row, an update the key and `set`, a delete the key, the schedule `set`. Each `{ ref }` in a row is the key its create answered. */
 const argsOf = ({ record, op, key, set }: Change, keys: Map<string, string>): unknown[] => {
@@ -81,4 +82,29 @@ function warnIfRefused(name: Name, result: unknown): void {
   if (member === undefined) return;
   warned.add(name);
   console.warn(`the ${name} handler resolved with an object that has "${member}"; the chart reads that as saved. Throw when the server refuses the change.`);
+}
+
+/** What each handler's absence turns off, in the words of the refusal (`This page cannot save new links: it gave no createLink.`). */
+const WHAT: Record<Name, string> = {
+  createTask: "new tasks", updateTask: "changes to tasks", deleteTask: "deleted tasks",
+  createLink: "new links", updateLink: "changes to links", deleteLink: "deleted links", updateSchedule: "changes to the schedule",
+};
+
+/** The one console warning at mount: each handler the object lacks, with the edits that turns off. */
+export function warnMissing(handlers: Handlers | undefined): void {
+  const gone = (Object.keys(WHAT) as Name[]).filter((n) => handlers !== undefined && handlers[n] === undefined);
+  if (gone.length > 0) console.warn(`the save handlers have no ${gone.map((n) => `${n} (${WHAT[n]})`).join(", ")}; the chart refuses those edits.`);
+}
+
+/** The host's profile with link drawing off when it gave no `createLink`, which would refuse the link only after it showed; the host's other members stay. */
+export const profileFor = (profile: HostCapabilities | undefined, handlers: Handlers | undefined): HostCapabilities | undefined =>
+  handlers === undefined || handlers.createLink !== undefined ? profile : { ...profile, gestures: { ...profile?.gestures, link: false } };
+
+/** `before` behind a check that refuses, with `say(what, handler)`, an edit whose handler the host did not give (`handlers()` is the object now); `before` is not asked about it. */
+export function refuseMissing<A extends { changes: readonly FieldChange[] }>(before: ((change: A) => unknown) | undefined, handlers: () => Handlers | undefined, say: (what: string, handler: string) => string): (change: A) => unknown {
+  return (change) => {
+    const h = handlers();
+    const name = h === undefined ? undefined : foldChanges(change.changes).map(nameOf).find((n) => h[n] === undefined);
+    return name === undefined ? before?.(change) : say(WHAT[name], name);
+  };
 }

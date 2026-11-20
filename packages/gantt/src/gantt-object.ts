@@ -53,6 +53,8 @@ export interface GanttParts {
   fields: FieldMap;
   /** `setData` against the rows this start was given (`host-data.ts`). */
   setData: SetData;
+  /** The host's capability profile as the chart holds it: what a missing save handler turns off is merged in (`save-handlers.ts`). */
+  profile: (host: MountOptions["capabilities"]) => MountOptions["capabilities"];
 }
 
 /** The `Gantt` of one start; `destroy` takes down what `shell.disposers` holds, then frees the app and empties the root. */
@@ -183,7 +185,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     },
     setCapabilities: (capabilities) => {
       alive();
-      app.set_capabilities(JSON.stringify(capabilities ?? {}));
+      app.set_capabilities(JSON.stringify(p.profile(capabilities) ?? {}));
     },
     setPending: (keys) => {
       alive();
