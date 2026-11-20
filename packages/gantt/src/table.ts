@@ -9,7 +9,7 @@ import { frozenEdge } from "./frozen-edge.js";
 import { installRowPosition } from "./row-position.js";
 import { type Shell, watching } from "./shell.js";
 import { trackChanged } from "./table-changed.js";
-import { buildRow } from "./table-row.js";
+import { buildRow, placeRefusal, type Refusal } from "./table-row.js";
 import { fitTaskWidth, measureTaskNeed } from "./task-width.js";
 
 /** Rows kept in the DOM above and below the visible ones. */
@@ -28,6 +28,10 @@ export interface Table {
   setPending: (slots: readonly number[]) => void;
   /** An `update` wrote these task slots: they stop being pending, and the next redraw highlights the cells whose text changed. */
   wrote: (slots: readonly number[]) => void;
+  /** The task slots whose commit the host's `save` has not saved, dimmed as `setPending` dims, in place of the ones given before; the host's own marks are not touched. */
+  setUnsaved: (slots: readonly number[]) => void;
+  /** Show a refused change's message at its cell until the next call; `null` clears it. */
+  refuse: (refusal: Refusal | null) => void;
 }
 
 /**
@@ -201,6 +205,8 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   // so marks made right after a `load` (before that frame) stay.
   let pending: ReadonlySet<number> = new Set();
   let pendingEpoch = s0.epoch;
+  // The slots of unsaved commits and a refused change's message are the chart's own, kept apart from `pending` so a host's marks survive a save.
+  let [unsaved, refusal]: [readonly number[], Refusal | null] = [[], null];
   // After `wrote` the next redraw marks each cell whose text differs from the one shown (data-changed, table-changed.ts).
   const changed = trackChanged(tableRows, (undo) => shell.disposers.push(undo));
   let extentRow: number | null = null; // the range's moving end at the last frame
@@ -278,6 +284,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     canvasScrollY = s.scrollY;
     if (s.epoch !== pendingEpoch) {
       pending = new Set();
+      [unsaved, refusal] = [[], null];
       changed.drop();
       pendingEpoch = s.epoch;
     }
@@ -336,8 +343,9 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const focusWasInRows = tableRows.contains(document.activeElement);
     changed.before();
     tableRows.replaceChildren(
-      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending })),
+      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending: new Set([...pending, ...unsaved]), refusal })),
     );
+    placeRefusal(tableRows);
     changed.after();
     if (focusWasInRows) root.focus({ preventScroll: true });
     markRows(s, true);
@@ -358,6 +366,8 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
       pendingEpoch = shell.status().epoch;
       drawn = { first: -1, last: -1, stamp: -1, variance: "off" };
     },
+    setUnsaved: (slots) => { unsaved = slots; drawn = { first: -1, last: -1, stamp: -1, variance: "off" }; },
+    refuse: (next) => { refusal = next; drawn = { first: -1, last: -1, stamp: -1, variance: "off" }; },
     wrote: (slots) => {
       const written = new Set(slots);
       pending = new Set([...pending].filter((slot) => !written.has(slot)));

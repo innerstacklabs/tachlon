@@ -1,9 +1,11 @@
 // The host's save queue (decision 0022, rule 3.3): each commit the person makes goes to the host's `save` function as a change set, one call at a time, in `seq`
-// order. A `SaveRefused` puts that commit and every commit behind it back through `App.rollback_to`; any other throw leaves the commit unsaved and stops the queue.
+// order. An answer that `judge` (save-status.ts) reads as a refusal puts that commit and every commit behind it back through `App.rollback_to`; any other failure leaves the commit unsaved and stops the queue.
 import type { Change, Commit } from "./events.js";
 import type { ChangeSet, Handlers, Save, SaveError, SaveResult } from "./gantt-types.js";
 import type { KeyNames } from "./save-handlers.js";
-import { BadResult, callSave, restoredMismatch } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
+import { BadResult, callSave, failedChange, restoredMismatch } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
+import { judge } from "./save-status.ts";
+import type { Verdict } from "./save-status.js";
 
 /** Throw this from `save` when the server judged the change and said no; `message` is the line the person sees. */
 export class SaveRefused extends Error {
@@ -89,15 +91,17 @@ export class SaveQueue {
   // The seq of the last rollback commit: a commit before it that is read late was taken back with the rest.
   private floor = 0;
   private readonly counted: (unsavedCommits: number) => void;
+  private readonly dim: (tasks: readonly number[]) => void;
   private told = 0;
 
-  /** `failed` is told of each put-back once, after it. `counted` is told the number of unsaved commits each time it changes (`unsavedCommits` reads it). */
-  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError) => void, keys: KeyRules = CHART_KEYS, counted: (unsavedCommits: number) => void = () => undefined) {
+  /** `failed` is told of each put-back once, after it. `counted` is told the number of unsaved commits each time it changes (`unsavedCommits` reads it), and `dim` the slots of the tasks those commits change, to show as unsaved. */
+  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError) => void, keys: KeyRules = CHART_KEYS, counted: (unsavedCommits: number) => void = () => undefined, dim: (tasks: readonly number[]) => void = () => undefined) {
     this.app = app;
     this.save = save;
     this.failed = failed;
     this.keys = keys;
     this.counted = counted;
+    this.dim = dim;
   }
 
   /** The commits the queue holds that no `save` call has settled: one whose call is running counts; one put back, dropped below the put-back's floor, or dropped by `stop` does not. */
@@ -109,6 +113,7 @@ export class SaveQueue {
     if (this.told === this.waiting.length) return;
     this.told = this.waiting.length;
     this.counted(this.told);
+    this.dim(this.waiting.flatMap(({ commit }) => commit.changes.flatMap((c) => (c.record === "task" && c.task !== undefined ? [c.task] : []))));
   }
 
   /** Queue the commits an `edit` event carried and start sending. A rollback commit, a host commit (the host made that change itself) and a commit with no change are not sent. */
@@ -173,27 +178,40 @@ export class SaveQueue {
           continue;
         }
         if (head.bad !== undefined) {
-          await this.putBack(new BadResult(head.bad), head);
+          await this.putBack({ message: head.bad }, head, "result");
           continue;
         }
         head.set ??= this.write(head.commit);
         head.calls++;
-        let result: SaveResult | void;
+        let result: SaveResult | Response | void = undefined;
+        let thrown: { error: unknown } | undefined;
         try {
           result = await callSave(save, head.set, () => this.stopped, this.keys.mode === "server" ? this.keys.names : undefined);
         } catch (err) {
           if (this.stopped) return;
-          if (!(err instanceof SaveRefused) && !(err instanceof BadResult)) {
-            this.halt("a save threw, so the chart stopped saving", err);
-            return;
+          if (err instanceof BadResult) {
+            await this.putBack({ message: err.message }, head, "result");
+            continue;
           }
-          await this.putBack(err, head);
-          continue;
+          thrown = { error: err };
         }
         if (this.stopped) return;
-        const bad = this.take(head.set, result);
+        // Each throw and each resolved `Response` is judged (rule 3.5); only a refusal puts the edit back.
+        const given = thrown === undefined ? result : thrown.error;
+        const verdict: Verdict | undefined = thrown !== undefined || result instanceof Response ? await judge(given, thrown !== undefined, typeof save === "object" ? save.classify?.bind(save) : undefined) : undefined;
+        if (this.stopped) return;
+        if (verdict?.is === "refused") {
+          const key = verdict.key ?? (typeof save === "object" ? failedChange(head.set)?.key ?? undefined : undefined); // the handlers form knows which change its handler refused
+          await this.putBack({ ...verdict, ...(key === undefined ? {} : { key }) }, head);
+          continue;
+        }
+        if (verdict !== undefined && verdict.is !== "saved") {
+          this.halt("a save threw, so the chart stopped saving", given);
+          return;
+        }
+        const bad = this.take(head.set, result instanceof Response ? undefined : (result as SaveResult | undefined));
         if (bad !== undefined) {
-          await this.putBack(new BadResult(bad), head);
+          await this.putBack({ message: bad }, head, "result");
           continue;
         }
         this.app.acknowledge(head.commit.seq);
@@ -206,7 +224,7 @@ export class SaveQueue {
   }
 
   /** Take `head` and every commit behind it back, then tell `failed`. A commit the app no longer holds sets `reload`. */
-  private async putBack(refusal: SaveRefused | BadResult, head: Waiting): Promise<void> {
+  private async putBack(refusal: { message: string; key?: string; field?: string }, head: Waiting, reason: "refused" | "result" = "refused"): Promise<void> {
     const rollback = (): { ok: boolean; reason?: string; seq: number } => JSON.parse(this.app.rollback_to(head.commit.seq)) as { ok: boolean; reason?: string; seq: number };
     let answer = rollback();
     while (!this.stopped && !answer.ok && answer.reason === "busy") {
@@ -220,10 +238,9 @@ export class SaveQueue {
     this.waiting.length = 0;
     this.tell();
     this.made.clear(); // the put-back frees the slots of its creates, and a later create may take one
-    const own = refusal instanceof SaveRefused ? refusal : undefined;
     this.failed({
-      source: "save", message: refusal.message, fatal: false, reason: own === undefined ? "result" : "refused", calls: head.calls,
-      ...(own?.key === undefined ? {} : { key: own.key }), ...(own?.field === undefined ? {} : { field: own.field }),
+      source: "save", message: refusal.message, fatal: false, reason, calls: head.calls,
+      ...(refusal.key === undefined ? {} : { key: refusal.key }), ...(refusal.field === undefined ? {} : { field: refusal.field }),
       seq: head.commit.seq, undone, reload: !answer.ok,
     });
   }

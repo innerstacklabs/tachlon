@@ -76,7 +76,7 @@ export interface ViewState {
   fileName: string | null;
   /** True after an edit, undo or redo since the last open or save: the mark beside the file name. */
   unsaved: boolean;
-  /** The commits your `save` has not saved, from the save queue: 0 with no `save`, and 0 again once a commit is saved, put back or dropped. A `change` follows every move of it, a 0 to N to 0 between two frames included. `destroy()` and a switch to WebGL2 drop the commits still waiting, never sent (after a switch `unsaved` stays on). A `save` that throws anything but a `SaveRefused` stops the queue: no later call is made, the commit and every later one stay unsaved and counted until `destroy()`, and one `error` event (`reason: "stopped"`) says so. A call that never settles holds the count too. */
+  /** The commits your `save` has not saved, from the save queue: 0 with no `save`, and 0 again once a commit is saved, put back or dropped. A `change` follows every move of it, a 0 to N to 0 between two frames included. `destroy()` and a switch to WebGL2 drop the commits still waiting, never sent (after a switch `unsaved` stays on). A `save` whose answer is neither a success nor a refusal (a 5xx, a 401, a throw with no status) stops the queue: no later call is made, the commit and every later one stay unsaved and counted until `destroy()`, and one `error` event (`reason: "stopped"`) says so. A call that never settles holds the count too. */
   unsavedCommits: number;
   /** The import notes the panel lists: always what it shows (after a mount, an open, a load and a restart on WebGL2), the reader's lines without the ones `expectedNotes` names. Frozen. */
   importNotes: readonly string[];

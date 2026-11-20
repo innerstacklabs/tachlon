@@ -69,6 +69,8 @@ async function away(page: Page, server: FakeServer): Promise<number[]> {
   assert.deepEqual(await errors(page), [], "nothing is put back");
   return was;
 }
+// The PATCH is held, and so is the read the host makes after a put-back: the example page starts the chart again with the rows it reads, so what the put-back shows stays on screen long enough to be read.
+const HELD: Script["latency"] = (r) => (r.method === "PATCH" ? 800 : r.n > 1 && r.method === "GET" ? 1_500 : 0);
 // A create whose response is lost: the server stores it and the connection closes.
 const LOST: Script = { drop: (r) => (r.method === "POST" && !r.repeat ? "response" : undefined) };
 
@@ -85,11 +87,12 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     n: 2, name: "2 a field refusal",
-    script: { refuse: (r) => (r.method === "PATCH" && Number(r.body?.days) > 100 ? { status: 422, body: { message: "A task cannot take more than 100 days", key: r.key, field: "days" } } : undefined) },
+    script: { latency: HELD, refuse: (r) => (r.method === "PATCH" && Number(r.body?.days) > 100 ? { status: 422, body: { message: "A task cannot take more than 100 days", key: r.key, field: "days" } } : undefined) },
     async run(page, server) {
       await ready(page);
       const was = await days(page, 1);
       await edit(page, 1, "dur", "120");
+      await row(page, 0).click({ position: { x: 4, y: 4 } }); // another row is selected while the PATCH is held, so a selected row 1 afterwards is the chart's doing
       await until("the refusal", () => server.seen.length > 1, 8_000);
       assert.deepEqual(writes(server).map((r) => [r.key, r.body]), [["t2", { days: 120 }]], "the server got its own name for the field");
       await until("the cell goes back", async () => (await days(page, 1)) === was, 8_000);
@@ -350,7 +353,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     n: 23, name: "23 a refusal that carries a status", // the body is not JSON; the handlers form's client throws an error with `status: 422` and its status line as the message
-    script: { latency: (r) => (r.method === "PATCH" ? 800 : 0), refuse: (r) => (r.method === "PATCH" ? { status: 422, body: "That change is not allowed" } : undefined) },
+    script: { latency: HELD, refuse: (r) => (r.method === "PATCH" ? { status: 422, body: "That change is not allowed" } : undefined) },
     async run(page, server, _keys, form) {
       await ready(page);
       const was = await days(page, 1);

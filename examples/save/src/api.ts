@@ -1,3 +1,4 @@
+import { SaveRefused } from "tachlon";
 import type { SaveContext } from "tachlon/react";
 
 export type Task = { id: string; title: string; plannedStart: string; days: number; parentId?: string };
@@ -7,7 +8,10 @@ type Row = Record<string, unknown>;
 async function send(method: string, path: string, body?: Row, c?: SaveContext) {
   const headers: Record<string, string> = { ...(body && { "content-type": "application/json" }), ...(c && { "idempotency-key": c.once }) };
   const res = await fetch(`/api${path}`, { method, headers, signal: c?.signal, body: body && JSON.stringify(body) });
-  if (!res.ok) throw Object.assign(new Error((await res.json().catch(() => ({}))).message ?? res.statusText), { status: res.status });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw body.field ? new SaveRefused(body) : Object.assign(new Error(body.message ?? res.statusText), { status: res.status }); // a refusal that names a field shows at that cell
+  }
   return res.status === 204 ? undefined : res.json();
 }
 const at = (key: string) => encodeURIComponent(key);
