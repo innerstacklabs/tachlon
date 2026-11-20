@@ -201,7 +201,8 @@ export class SaveQueue {
         const verdict: Verdict | undefined = thrown !== undefined || result instanceof Response ? await judge(given, thrown !== undefined, typeof save === "object" ? save.classify?.bind(save) : undefined) : undefined;
         if (this.stopped) return;
         if (verdict?.is === "refused") {
-          const key = verdict.key ?? (typeof save === "object" ? failedChange(head.set)?.key ?? undefined : undefined); // the handlers form knows which change its handler refused
+          const change = typeof save === "object" ? failedChange(head.set) : undefined; // the handlers form knows which change its handler refused; only a task's key names a row to select
+          const key = verdict.key ?? (change?.record === "task" ? change.key ?? undefined : undefined);
           await this.putBack({ ...verdict, ...(key === undefined ? {} : { key }) }, head);
           continue;
         }

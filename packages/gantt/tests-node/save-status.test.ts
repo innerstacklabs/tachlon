@@ -43,6 +43,7 @@ test("classify says what a throw means: a word is that outcome, a number is a st
   expect(await says(404)).toBe("refused");
   for (const number of [0, 99, 600]) expect(await says(number), `${number}: no status, so the chart goes to the last step, though the error says 422`).toBe("failed");
   expect(await says(undefined), "the error's own status is read").toBe("refused");
+  for (const stray of ["saved", "yes", "", {}, true, null] as unknown as ReturnType<Classify>[]) expect(await says(stray), `${JSON.stringify(stray)} is none of the three words`).toBe("failed");
   expect(await is(answer(422), false, () => "failed"), "classify is asked of a throw, not of a resolved Response").toBe("refused");
 });
 
@@ -60,17 +61,18 @@ test("a refusal's message is the SaveRefused's, the error's, or the message of t
   expect(await judge(answer(422, "That change is not allowed"), false)).toEqual({ is: "refused", message: "The server refused the change (422)" });
   expect(await judge(new Error("x"), true, () => "refused")).toEqual({ is: "refused", message: "x" });
   expect(await judge({}, true, () => "refused"), "no status: the line says no more").toEqual({ is: "refused", message: "The server refused the change" });
+  expect(await judge(new SaveRefused({ message: "" }), true), "an empty message falls back").toEqual({ is: "refused", message: "The server refused the change" });
 });
 
 // The queue, over a fake app whose rollback commit is seq 10.
 const commit = (seq: number): Commit => ({ seq, source: "typed", changes: [{ record: "task", op: "update", key: `t${seq}`, task: seq, set: { name: "new" }, was: { name: "old" } }] });
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
-async function run(save: Save | Handlers, dim: number[][] = []): Promise<{ errors: SaveError[]; rolled: number[]; acked: number[]; queue: SaveQueue }> {
+async function run(save: Save | Handlers, dim: number[][] = [], commits: Commit[] = [commit(1), commit(2)]): Promise<{ errors: SaveError[]; rolled: number[]; acked: number[]; queue: SaveQueue }> {
   const [errors, rolled, acked]: [SaveError[], number[], number[]] = [[], [], []];
   const app = { acknowledge: (seq: number) => void acked.push(seq), rollback_to: (seq: number) => (rolled.push(seq), JSON.stringify({ ok: true, seq: 10 })) };
   const queue = new SaveQueue(app, save, (e) => errors.push(e), undefined, undefined, (tasks) => dim.push([...tasks]));
   mock.method(console, "error", () => undefined);
-  queue.add([commit(1), commit(2)]);
+  queue.add(commits);
   await settle();
   return { errors, rolled, acked, queue };
 }
@@ -92,6 +94,9 @@ test("a refusal in the handlers form that names no key takes the key of the chan
   const named: Handlers = { updateTask: async () => { throw new SaveRefused({ message: "No", key: "other" }); } };
   expect((await run(named)).errors.map((e) => e.key), "a key the refusal names is kept").toEqual(["other"]);
   expect((await run(async () => { throw new SaveRefused({ message: "No" }); })).errors.map((e) => e.key)).toEqual([undefined]);
+  const link = { seq: 1, source: "typed", changes: [{ record: "link", op: "delete", key: "t1", link: 4, was: { from: "a", to: "b" } }] } as Commit; // a link whose key is also a task's
+  const refusedLink: Handlers = { deleteLink: async () => { throw Object.assign(new Error("No"), { status: 409 }); } };
+  expect((await run(refusedLink, [], [link])).errors.map((e) => [e.reason, e.key]), "a link's key names no task to select").toEqual([["refused", undefined]]);
 });
 
 test("a handlers object's classify is asked for each throw, and a handler's non-2xx Response is judged by its status", async () => {

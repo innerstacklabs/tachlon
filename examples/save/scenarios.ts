@@ -69,7 +69,7 @@ async function away(page: Page, server: FakeServer): Promise<number[]> {
   assert.deepEqual(await errors(page), [], "nothing is put back");
   return was;
 }
-// The PATCH is held, and so is the read the host makes after a put-back: the example page starts the chart again with the rows it reads, so what the put-back shows stays on screen long enough to be read.
+// The PATCH is held, and so is the read the host makes after a put-back: the example page starts the chart again with the rows it reads, so what the put-back shows stays on screen long enough to be read. Temporary: it goes when a changed `tasks` prop no longer starts the chart again (build step 2).
 const HELD = (r: Seen): number => (r.method === "PATCH" ? 800 : r.n > 1 && r.method === "GET" ? 1_500 : 0);
 // A create whose response is lost: the server stores it and the connection closes.
 const LOST: Script = { drop: (r) => (r.method === "POST" && !r.repeat ? "response" : undefined) };

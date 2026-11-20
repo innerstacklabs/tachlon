@@ -27,10 +27,13 @@ function byStatus(status: number | undefined, thrown: boolean): "saved" | "faile
   return status === 401 ? "stopped" : status === 408 || status === 429 || status >= 500 ? "failed" : "refused";
 }
 
+const refusedText = (status: number | undefined): string => (status === undefined ? "The server refused the change" : `The server refused the change (${status})`);
+const WORDS = ["refused", "stopped", "failed"] as const;
+
 /** A refusal's line, from the thrown error's `message` or the `message` of a `Response`'s JSON body, else the chart's own with the status; `key` and `field` from the body. */
 async function refusal(value: unknown, status: number | undefined): Promise<Verdict> {
   const body = value instanceof Response && !value.bodyUsed ? record(await value.clone().json().catch(() => undefined)) : undefined;
-  const message = text(record(value)?.message) ?? text(body?.message) ?? (status === undefined ? "The server refused the change" : `The server refused the change (${status})`);
+  const message = text(record(value)?.message) ?? text(body?.message) ?? refusedText(status);
   return { is: "refused", message, ...keyed(body) };
 }
 
@@ -43,9 +46,10 @@ function keyed(from: Record<string, unknown> | undefined): { key?: string; field
 /** Judge one throw (`thrown`) or one resolved `Response`. */
 export async function judge(value: unknown, thrown: boolean, classify?: Classify): Promise<Verdict> {
   // A `SaveRefused` (save-queue.ts) is found by its name, so two copies of the class agree.
-  if (value instanceof Error && value.name === "SaveRefused") return { is: "refused", message: value.message, ...keyed(record(value)) };
+  if (value instanceof Error && value.name === "SaveRefused") return { is: "refused", message: text(value.message) ?? refusedText(undefined), ...keyed(record(value)) };
   const named = thrown ? classify?.(value) : undefined;
   const status = typeof named === "number" ? (inRange(named) ? named : undefined) : statusOf(value);
-  const is = typeof named === "string" ? named : byStatus(status, thrown);
+  // Anything `classify` returns that is not one of the three words or a number is a failure, so a stray answer never reads as saved.
+  const is = WORDS.find((word) => word === named) ?? (named === undefined || typeof named === "number" ? byStatus(status, thrown) : "failed");
   return is === "refused" ? refusal(value, status) : { is };
 }

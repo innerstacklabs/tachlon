@@ -5,10 +5,12 @@ import { chromePath } from "./support/knobs";
 
 // A save the host refuses (decision 0022, rule 3.5): the chart selects the row the refusal names, shows its message at the cell the refusal's field names, and dims every row whose commit is unsaved until its call settles.
 const MODULE = `import { mount, SaveRefused } from "/src/index.ts";
-const calls = [];
+const calls = [], errs = [];
 const save = (set) => new Promise((resolve, reject) => calls.push({ set, resolve, reject }));
 const tasks = ["a", "b", "c"].map((key, i) => ({ key, id: String(i + 1), name: "Task " + i, start: "2026-11-02", days: 2 }));
-Object.assign(window, { calls, SaveRefused, start: async () => (window.chart = await mount(document.getElementById("app"), { forceWebgl: true, tasks, fields: { tasks: { duration: "days" } }, save })) });
+const chart = async (more) => ((window.chart = await mount(document.getElementById("app"), { forceWebgl: true, tasks, ...more })), window.chart.on("error", (e) => errs.push(e)));
+const refuseLinks = { createLink: async () => { throw Object.assign(new Error("No such link"), { status: 409 }); } };
+Object.assign(window, { calls, errs, SaveRefused, start: () => chart({ fields: { tasks: { duration: "days" } }, save }), startLinks: () => chart({ newKey: () => "b", save: refuseLinks }) });
 window.ready = true;`;
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">import "/tests/save-refusal-host.ts";</script></body></html>`;
 const host = { name: "save-refusal-host", resolveId: (id: string) => (id === "/tests/save-refusal-host.ts" ? id : null), load: (id: string) => (id === "/tests/save-refusal-host.ts" ? MODULE : null) };
@@ -22,12 +24,12 @@ test.afterAll(() => server.close());
 test.use({ launchOptions: { executablePath: chromePath(), args: ["--ignore-gpu-blocklist", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--enable-unsafe-webgpu"] } });
 
 const row = (page: Page, n: number) => page.locator(`#table-rows .row[data-row="${n}"]`);
-async function open(page: Page): Promise<void> {
+async function open(page: Page, start = "start()"): Promise<void> {
   const base = server.resolvedUrls!.local[0]!;
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
   await page.goto(`${base}host.html`);
   await page.waitForFunction("window.ready === true", undefined, { timeout: 120_000 });
-  await page.evaluate("start()");
+  await page.evaluate(start);
   await row(page, 2).waitFor({ timeout: 60_000 });
 }
 const edit = async (page: Page, n: number, value: string): Promise<void> => {
@@ -68,4 +70,24 @@ test("the dimming comes off when a call saves, and a row the host marked with se
   await expect.poll(() => dim(page), "the host's mark and the chart's together").toEqual([null, "true", "true"]);
   await page.evaluate("calls[0].resolve()");
   await expect.poll(() => dim(page), "only the chart's mark goes").toEqual([null, null, "true"]);
+});
+
+test("a refusal whose field is an Object.prototype name draws no note and breaks no frame, and the row is still selected", async ({ page }) => {
+  await open(page);
+  await edit(page, 1, "9");
+  await page.evaluate("calls[0].reject(new SaveRefused({ message: 'Odd field', key: 'b', field: 'constructor' }))");
+  await expect(page.locator("#edit-error-text")).toContainText("Odd field");
+  await expect(row(page, 1)).toHaveAttribute("data-selected", "true");
+  await expect(page.locator("#table-rows .cell-error"), "no cell is named, so no note").toHaveCount(0);
+  await page.waitForTimeout(500);
+  expect(await page.evaluate("errs.map((e) => e.source)"), "no frame failed on the field").toEqual(["save"]);
+});
+
+test("a refused link change selects no task, though the link's key is a task's key", async ({ page }) => {
+  await open(page, "startLinks()");
+  await row(page, 0).click({ position: { x: 4, y: 4 } });
+  await page.evaluate("window.gantt.app.set_predecessors_text(2, '2')"); // a link into task c from task b, made with the key 'b', which task b also holds
+  await expect.poll(() => page.evaluate("errs.map((e) => [e.source, e.reason, e.key])"), "the refusal arrives").toEqual([["save", "refused", undefined]]);
+  await expect(row(page, 0), "the selection stays where the person put it").toHaveAttribute("data-selected", "true");
+  await expect(row(page, 1)).not.toHaveAttribute("data-selected", "true");
 });

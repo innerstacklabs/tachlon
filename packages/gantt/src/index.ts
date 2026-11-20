@@ -259,7 +259,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
       if (slot === null || slot === undefined) return;
       app.select_task(slot);
       const chartField = field === undefined ? undefined : Object.keys((names.tasks.toChart({ [field]: null }) ?? {}) as object)[0];
-      const cell = chartField === undefined ? undefined : CELL_OF[chartField];
+      const cell = chartField !== undefined && Object.hasOwn(CELL_OF, chartField) ? CELL_OF[chartField] : undefined;
       if (cell !== undefined) table.refuse({ task: slot, cell, message });
     };
     const queue = new SaveQueue(app, hostSave, (error) => {
