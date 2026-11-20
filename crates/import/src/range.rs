@@ -9,7 +9,7 @@ use crate::notes::{Notes, Section};
 pub(crate) fn date(value: Instant, id: &str, notes: &mut Notes) -> Option<Instant> {
     let kept = (MIN_DATE..=MAX_DATE).contains(&value).then_some(value);
     if kept.is_none() {
-        notes.add(Section::Activity, "Tasks with a date more than 1,000 years from the schedule start: the date was not read, so their dates can differ from the file's", Some(id));
+        notes.add_once(Section::Activity, "Tasks with a date more than 1,000 years from the schedule start: the date was not read, so their dates can differ from the file's", id);
     }
     kept
 }

@@ -43,6 +43,8 @@ pub(crate) struct Notes {
     positions: [HashMap<String, usize>; 5],
     lines: Vec<String>,
     seen: HashSet<String>,
+    /// The kind and id of each count made by [`Notes::add_once`].
+    once: HashSet<(String, String)>,
 }
 
 impl Notes {
@@ -52,6 +54,7 @@ impl Notes {
             positions: std::array::from_fn(|_| HashMap::new()),
             lines: Vec::new(),
             seen: HashSet::new(),
+            once: HashSet::new(),
         }
     }
 
@@ -141,6 +144,13 @@ impl Notes {
             && entry.ids.len() < 5
         {
             entry.ids.push(id.to_owned());
+        }
+    }
+
+    /// [`Notes::add`] for a task, counted once per `kind` however many of its values are noted.
+    pub(crate) fn add_once(&mut self, section: Section, kind: &str, id: &str) {
+        if self.once.insert((kind.to_owned(), id.to_owned())) {
+            self.add(section, kind, Some(id));
         }
     }
 
