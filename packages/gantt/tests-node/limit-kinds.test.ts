@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import { expect } from "@playwright/test";
 import { foldConstraint, toSeparate, toTyped } from "../src/constraint-form.ts";
+import { readFields } from "../src/field-map.ts";
 import { openHeadless } from "../src/headless.ts";
 import type { PlainTask } from "../src/adapters/plain.ts";
 import type { Change } from "../src/events.js";
@@ -66,4 +67,24 @@ test("two bounds on one date are one constraint and two on different dates are n
   expect(toTyped({ snet: "2026-01-07T08:00", snlt: "2026-01-08T08:00" })).toEqual({ constraint: { type: "snlt", date: "2026-01-08T08:00" }, leftOut: 1 });
   expect(toTyped({ snet: "2026-01-07T08:00", snlt: "2026-01-07T08:00", fnlt: "2026-01-09T16:00" })).toEqual({ constraint: { type: "so", date: "2026-01-07T08:00" }, leftOut: 1 });
   expect(toTyped({ mso: "2026-01-07T08:00", snet: "2026-01-07T08:00", snlt: "2026-01-07T08:00" })).toEqual({ constraint: { type: "mso", date: "2026-01-07T08:00" }, leftOut: 2 });
+});
+
+// A typed host reads a floor and a ceiling on one date as `so` or `fo` only when its `capabilities.kinds` is left out or lists the kind (the engine's profile counts them the same way).
+const OLD = ["snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap"];
+const both = (members: Row): Change => ({ record: "task", op: "update", key: "k", task: 0, set: members, was: {} });
+const START = { snet: "2026-01-07T08:00", snlt: "2026-01-07T08:00" };
+const FINISH = { fnet: "2026-01-07T16:00", fnlt: "2026-01-07T16:00" };
+const typed = (members: Row, kinds?: readonly string[]) => readFields(undefined, () => undefined).changes([both(members)], kinds)[0]!.set;
+
+test("a typed host whose kinds omit so and fo gets the single constraint it got before for both halves set in one commit", () => {
+  expect(typed(START, OLD)).toEqual({ constraint: { type: "snlt", date: "2026-01-07T08:00" } });
+  expect(typed(FINISH, OLD)).toEqual({ constraint: { type: "fnlt", date: "2026-01-07T16:00" } });
+  expect(typed({ ...START, ...FINISH }, [...OLD, "fo"]), "so left out, fo listed: the reading order takes fo").toEqual({ constraint: { type: "fo", date: "2026-01-07T16:00" } });
+});
+
+test("a typed host whose kinds list so and fo, or leave kinds out, gets so and fo", () => {
+  for (const kinds of [undefined, [...OLD, "so", "fo"], ["so", "fo"]]) {
+    expect(typed(START, kinds), JSON.stringify(kinds)).toEqual({ constraint: { type: "so", date: "2026-01-07T08:00" } });
+    expect(typed(FINISH, kinds), JSON.stringify(kinds)).toEqual({ constraint: { type: "fo", date: "2026-01-07T16:00" } });
+  }
 });

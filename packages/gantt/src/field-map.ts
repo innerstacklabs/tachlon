@@ -31,7 +31,7 @@ export interface FieldMap {
   /** The rows of a `setData` call, in the chart's names. */
   data(rows: { tasks?: readonly object[]; links?: readonly object[] }): { tasks?: PlainTask[]; links?: PlainLink[] };
   /** A commit's changes with the members of each `set` and `was` in the host's names; a change's own members and a `schedule` change are not renamed. */
-  changes(changes: readonly Change[]): Change[];
+  changes(changes: readonly Change[], kinds?: readonly string[]): Change[];
   /** The members of a row that are not a chart field, kept by key (`custom-fields.ts`). */
   custom: CustomFields;
 }
@@ -109,13 +109,13 @@ export function readFields(map: Fields | undefined, warn: (message: string) => v
   if (constraintForm === "separate" && map?.tasks?.constraint !== undefined) throw new Error('fields.tasks has an entry for "constraint", which needs constraintForm "typed" (the default): under "separate" a change has the six limit members and no constraint.');
   const tasks = namesOf<PlainTask>("tasks", TASK_FIELDS, map?.tasks, warn);
   const links = namesOf<PlainLink>("links", LINK_FIELDS, map?.links, warn);
-  const named = (given: Change): Change => {
-    const change = constraintForm === "separate" ? given : foldConstraint(given); // after `formChanges` wrote the dates in the host's form
+  const named = (given: Change, kinds?: readonly string[]): Change => {
+    const change = constraintForm === "separate" ? given : foldConstraint(given, kinds); // after `formChanges` wrote the dates in the host's form
     const names = change.record === "task" ? tasks : change.record === "link" ? links : same;
     return names === same ? change : { ...change, ...(change.set ? { set: names.toHost(change.set) } : {}), ...(change.was ? { was: names.toHost(change.was) } : {}) };
   };
   const data: FieldMap["data"] = (rows) => ({ ...(rows.tasks && { tasks: tasks.rows(rows.tasks) }), ...(rows.links && { links: links.rows(rows.links) }) });
   // `customFields` asks only whether a host member becomes a member the chart reads. `constraint` does (it is read as the limit its type names) but is no key of `KNOWN_TASK`, so it answers as `snet`.
   const known = { toChart: (record: unknown): unknown => { const out = tasks.toChart(record); return isRow(out) && "constraint" in out ? { snet: out.constraint, ...Object.fromEntries(Object.entries(out).filter(([name]) => name !== "constraint")) } : out; } };
-  return { tasks, links, data, changes: (changes) => changes.map(named), custom: customFields({ tasks: known, links }) };
+  return { tasks, links, data, changes: (changes, kinds) => changes.map((change) => named(change, kinds)), custom: customFields({ tasks: known, links }) };
 }

@@ -40,7 +40,7 @@ export interface PlainTask {
   fnlt?: string;
   mso?: string;
   mfo?: string;
-  /** The one date limit, `{ type, date }` with a `type` of `snet`, `snlt`, `fnet`, `fnlt`, `mso`, `mfo`, `so` or `fo`, or `null` for none: it is the limit its type names (`so` is `snet` and `snlt` on one date, `fo` is `fnet` and `fnlt` on one date), and it wins over `start`, which is then not a start-no-earlier-than (and may be left out). A task that gives it with one of those six members is refused. */
+  /** The one date limit, `{ type, date }` with a `type` of `snet`, `snlt`, `fnet`, `fnlt`, `mso`, `mfo`, `so` or `fo`, or `null` for none: it is the limit its type names (`so` is `snet` and `snlt` on one date, `fo` is `fnet` and `fnlt` on one date), and it wins over `start`, which is then not a start-no-earlier-than (and may be left out). A task that gives it with one of the six members `snet`, `snlt`, `fnet`, `fnlt`, `mso` or `mfo` is refused. */
   constraint?: Constraint;
   alap?: boolean;
   milestone?: "start" | "finish";

@@ -44,26 +44,27 @@ export function toSeparate(task: Row, forUpdate = false): Row {
 /** The members a constraint is: the one its type names, or for `so` and `fo` the floor and the ceiling on its date. */
 const membersOf = ({ type, date }: NonNullable<Constraint>): Row => (type === "so" ? { snet: date, snlt: date } : type === "fo" ? { fnet: date, fnlt: date } : { [type]: date });
 
-/** The one constraint a set of members reads as, and how many bounds it left out: the first of `mso`, `mfo`, `so` (`snet` and `snlt` on one date), `fo` (`fnet` and `fnlt` on one date), `snlt`, `fnlt`, `snet`, `fnet` that is a date, the rest counted in `leftOut`; `null` when members name limits and none is a date; `undefined` when `members` names none. */
-export function toTyped(members: Row): { constraint: Constraint | undefined; leftOut: number } {
+/** The one constraint a set of members reads as, and how many bounds it left out: the first of `mso`, `mfo`, `so` (`snet` and `snlt` on one date), `fo` (`fnet` and `fnlt` on one date), `snlt`, `fnlt`, `snet`, `fnet` that is a date, the rest counted in `leftOut`; `null` when members name limits and none is a date; `undefined` when `members` names none. `kinds` is the host's `capabilities.kinds`: `so` and `fo` are read only when it is left out or lists them, as the engine's profile counts a floor and a ceiling on one instant as one kind only then. */
+export function toTyped(members: Row, kinds?: readonly string[]): { constraint: Constraint | undefined; leftOut: number } {
   if (!MEMBERS.some((type) => type in members)) return { constraint: undefined, leftOut: 0 };
   const dated = (type: string): boolean => typeof members[type] === "string";
   const pair = (floor: string, ceiling: string): boolean => dated(floor) && members[floor] === members[ceiling];
-  const first = READING.find((type) => (type === "so" ? pair("snet", "snlt") : type === "fo" ? pair("fnet", "fnlt") : dated(type)));
+  const allowed = (type: string): boolean => kinds === undefined || kinds.includes(type);
+  const first = READING.find((type) => (type === "so" ? allowed(type) && pair("snet", "snlt") : type === "fo" ? allowed(type) && pair("fnet", "fnlt") : dated(type)));
   if (first === undefined) return { constraint: null, leftOut: 0 };
   const used = first === "so" || first === "fo" ? 2 : 1;
   const date = members[first === "so" ? "snet" : first === "fo" ? "fnet" : first] as string;
   return { constraint: { type: first, date }, leftOut: MEMBERS.filter(dated).length - used };
 }
 
-const folded = (members: Row | undefined): Row | undefined => {
+const folded = (members: Row | undefined, kinds?: readonly string[]): Row | undefined => {
   if (members === undefined) return undefined;
-  const { constraint } = toTyped(members);
+  const { constraint } = toTyped(members, kinds);
   return constraint === undefined ? members : { ...Object.fromEntries(Object.entries(members).filter(([name]) => !(MEMBERS as readonly string[]).includes(name))), constraint };
 };
 
-/** A task change whose `set` and `was` write the six limit members, written with one `constraint` instead (`typed` is `constraintForm`'s default); any other change as it is. */
-export function foldConstraint<C extends { record: string; set?: Row; was?: Row }>(change: C): C {
+/** A task change whose `set` and `was` write the six limit members, written with one `constraint` instead (`typed` is `constraintForm`'s default); any other change as it is. `kinds` is as for `toTyped`. */
+export function foldConstraint<C extends { record: string; set?: Row; was?: Row }>(change: C, kinds?: readonly string[]): C {
   if (change.record !== "task") return change;
-  return { ...change, ...(change.set ? { set: folded(change.set) } : {}), ...(change.was ? { was: folded(change.was) } : {}) };
+  return { ...change, ...(change.set ? { set: folded(change.set, kinds) } : {}), ...(change.was ? { was: folded(change.was, kinds) } : {}) };
 }

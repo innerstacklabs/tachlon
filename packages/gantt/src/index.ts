@@ -189,7 +189,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   own.app = app;
   app.set_read_only(run.readOnly());
   app.set_capabilities(JSON.stringify(run.capabilities() ?? {}));
-  const form = (changes: readonly Stamped[]): Change[] => names.custom.add(names.changes(formChanges(changes, unit, dateForm)));
+  const form = (changes: readonly Stamped[]): Change[] => names.custom.add(names.changes(formChanges(changes, unit, dateForm), run.capabilities()?.kinds));
   if (run.beforeEdit !== undefined) app.set_before_edit(guardBeforeEdit(run.beforeEdit, (message) => run.events.fail("beforeEdit", message), form));
   const themeTokens = JSON.parse(App.theme_tokens()) as string[];
   const { sync: syncTheme, stop: stopTheme } = installTheme(root, app, themeTokens);
