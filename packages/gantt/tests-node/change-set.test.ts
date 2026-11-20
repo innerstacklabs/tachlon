@@ -45,6 +45,14 @@ test("a link delete beside the delete of one of its tasks is cascade, by key or 
   expect("cascade" in foldChanges([link(0, "create", "a1", "b2"), gone(1, "b2", "B")])[0]!).toBe(false);
 });
 
+test("a delete's cascaded links name the deleted task by its key, not by the id the host's links gave it", () => {
+  // The host's task has id "A10" (what its links used when it mounted) and key "k-77"; the engine writes every link end as a task's key.
+  const folded = foldChanges([link(0, "delete", "a1", "k-77"), link(1, "delete", "k-77", "c3"), link(2, "delete", "a1", "c3"), gone(5, "k-77", "Dig")]);
+  expect(folded[0]).toMatchObject({ record: "link", op: "delete", cascade: true, was: { from: "a1", to: "k-77" } });
+  expect(folded[1]).toMatchObject({ record: "link", op: "delete", cascade: true, was: { from: "k-77", to: "c3" } });
+  expect("cascade" in folded[2]!).toBe(false);
+});
+
 test("a child's delete stays before its parent's and the link between them is cascade", () => {
   const folded = foldChanges([gone(1, "b2", "Child"), gone(0, "a1", "Parent"), link(0, "delete", "a1", "b2")]);
   expect(folded.map((c) => c.key ?? c.link)).toEqual(["b2", "a1", 0]);
