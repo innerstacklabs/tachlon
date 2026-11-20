@@ -262,9 +262,9 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
       const cell = chartField !== undefined && Object.hasOwn(CELL_OF, chartField) ? CELL_OF[chartField] : undefined;
       if (cell !== undefined) table.refuse({ task: slot, cell, message });
     };
-    const queue = new SaveQueue(app, hostSave, (error) => {
+    const queue = new SaveQueue(app, hostSave, (error, names = true) => {
       rows.refuse(error.reload || error.reason === "stopped" ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
-      if (!error.reload && error.reason === "refused") showRefusal(error);
+      if (!error.reload && error.reason === "refused" && names) showRefusal(error);
       events.putBack(error);
     }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: keyName(names.tasks), link: keyName(names.links) }), (count) => ((open.unsavedCommits = count), open.countMoves++), (tasks) => table.setUnsaved(tasks));
     // The next edit of the person's clears a refusal's message; the put-back's own rollback commit does not.

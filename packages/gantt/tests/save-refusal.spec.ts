@@ -10,7 +10,8 @@ const save = (set) => new Promise((resolve, reject) => calls.push({ set, resolve
 const tasks = ["a", "b", "c"].map((key, i) => ({ key, id: String(i + 1), name: "Task " + i, start: "2026-11-02", days: 2 }));
 const chart = async (more) => ((window.chart = await mount(document.getElementById("app"), { forceWebgl: true, tasks, ...more })), window.chart.on("error", (e) => errs.push(e)));
 const refuseLinks = { createLink: async () => { throw Object.assign(new Error("No such link"), { status: 409 }); } };
-Object.assign(window, { calls, errs, SaveRefused, start: () => chart({ fields: { tasks: { duration: "days" } }, save }), startLinks: () => chart({ newKey: () => "b", save: refuseLinks }) });
+const namedLinks = { thrown: { createLink: async () => { throw new SaveRefused({ message: "No such link", key: "b" }); } }, body: { createLink: async () => new Response(JSON.stringify({ message: "No such link", key: "b" }), { status: 409 }) } };
+Object.assign(window, { calls, errs, SaveRefused, start: () => chart({ fields: { tasks: { duration: "days" } }, save }), startLinks: (how) => chart({ newKey: () => "b", save: how ? namedLinks[how] : refuseLinks }) });
 window.ready = true;`;
 const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="gantt" tabindex="0" style="width: 1000px; height: 500px"></div><script type="module">import "/tests/save-refusal-host.ts";</script></body></html>`;
 const host = { name: "save-refusal-host", resolveId: (id: string) => (id === "/tests/save-refusal-host.ts" ? id : null), load: (id: string) => (id === "/tests/save-refusal-host.ts" ? MODULE : null) };
@@ -83,11 +84,11 @@ test("a refusal whose field is an Object.prototype name draws no note and breaks
   expect(await page.evaluate("errs.map((e) => e.source)"), "no frame failed on the field").toEqual(["save"]);
 });
 
-test("a refused link change selects no task, though the link's key is a task's key", async ({ page }) => {
-  await open(page, "startLinks()");
+for (const [how, key] of [["", undefined], ["thrown", "b"], ["body", "b"]] as const) test(`a refused link change selects no task, though the link's key is a task's key (${how || "no key named"})`, async ({ page }) => {
+  await open(page, `startLinks(${how && JSON.stringify(how)})`);
   await row(page, 0).click({ position: { x: 4, y: 4 } });
   await page.evaluate("window.gantt.app.set_predecessors_text(2, '2')"); // a link into task c from task b, made with the key 'b', which task b also holds
-  await expect.poll(() => page.evaluate("errs.map((e) => [e.source, e.reason, e.key])"), "the refusal arrives").toEqual([["save", "refused", undefined]]);
+  await expect.poll(() => page.evaluate("errs.map((e) => [e.source, e.reason, e.key])"), "the refusal arrives").toEqual([["save", "refused", key]]);
   await expect(row(page, 0), "the selection stays where the person put it").toHaveAttribute("data-selected", "true");
   await expect(row(page, 1)).not.toHaveAttribute("data-selected", "true");
 });

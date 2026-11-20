@@ -78,7 +78,7 @@ const twice = (list: readonly unknown[]): unknown => list.find((x, i) => list.in
 export class SaveQueue {
   private readonly app: SaveApp;
   private readonly save: Save | Handlers;
-  private readonly failed: (error: SaveError) => void;
+  private readonly failed: (error: SaveError, names?: boolean) => void;
   private readonly keys: KeyRules;
   // The key each row the queue has met holds, by `at`: made here, or answered by the server. A later commit names the row by it.
   private readonly made = new Map<string, string>();
@@ -95,7 +95,7 @@ export class SaveQueue {
   private told = 0;
 
   /** `failed` is told of each put-back once, after it. `counted` is told the number of unsaved commits each time it changes (`unsavedCommits` reads it), and `dim` the slots of the tasks those commits change, to show as unsaved. */
-  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError) => void, keys: KeyRules = CHART_KEYS, counted: (unsavedCommits: number) => void = () => undefined, dim: (tasks: readonly number[]) => void = () => undefined) {
+  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError, names?: boolean) => void, keys: KeyRules = CHART_KEYS, counted: (unsavedCommits: number) => void = () => undefined, dim: (tasks: readonly number[]) => void = () => undefined) {
     this.app = app;
     this.save = save;
     this.failed = failed;
@@ -203,7 +203,7 @@ export class SaveQueue {
         if (verdict?.is === "refused") {
           const change = typeof save === "object" ? failedChange(head.set) : undefined; // the handlers form knows which change its handler refused; only a task's key names a row to select
           const key = verdict.key ?? (change?.record === "task" ? change.key ?? undefined : undefined);
-          await this.putBack({ ...verdict, ...(key === undefined ? {} : { key }) }, head);
+          await this.putBack({ ...verdict, ...(key === undefined ? {} : { key }) }, head, "refused", change === undefined || change.record === "task");
           continue;
         }
         if (verdict !== undefined && verdict.is !== "saved") {
@@ -225,7 +225,7 @@ export class SaveQueue {
   }
 
   /** Take `head` and every commit behind it back, then tell `failed`. A commit the app no longer holds sets `reload`. */
-  private async putBack(refusal: { message: string; key?: string; field?: string }, head: Waiting, reason: "refused" | "result" = "refused"): Promise<void> {
+  private async putBack(refusal: { message: string; key?: string; field?: string }, head: Waiting, reason: "refused" | "result" = "refused", names = true): Promise<void> {
     const rollback = (): { ok: boolean; reason?: string; seq: number } => JSON.parse(this.app.rollback_to(head.commit.seq)) as { ok: boolean; reason?: string; seq: number };
     let answer = rollback();
     while (!this.stopped && !answer.ok && answer.reason === "busy") {
@@ -243,7 +243,7 @@ export class SaveQueue {
       source: "save", message: refusal.message, fatal: false, reason, calls: head.calls,
       ...(refusal.key === undefined ? {} : { key: refusal.key }), ...(refusal.field === undefined ? {} : { field: refusal.field }),
       seq: head.commit.seq, undone, reload: !answer.ok,
-    });
+    }, names);
   }
 
   /** The change set of a commit: a new `id`, and `once` on each change. The session slots (`task`, `link`) mean nothing after a reload, so they stay out of what the host stores.

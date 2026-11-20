@@ -67,10 +67,10 @@ test("a refusal's message is the SaveRefused's, the error's, or the message of t
 // The queue, over a fake app whose rollback commit is seq 10.
 const commit = (seq: number): Commit => ({ seq, source: "typed", changes: [{ record: "task", op: "update", key: `t${seq}`, task: seq, set: { name: "new" }, was: { name: "old" } }] });
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 5));
-async function run(save: Save | Handlers, dim: number[][] = [], commits: Commit[] = [commit(1), commit(2)]): Promise<{ errors: SaveError[]; rolled: number[]; acked: number[]; queue: SaveQueue }> {
+async function run(save: Save | Handlers, dim: number[][] = [], commits: Commit[] = [commit(1), commit(2)], names: (boolean | undefined)[] = []): Promise<{ errors: SaveError[]; rolled: number[]; acked: number[]; queue: SaveQueue }> {
   const [errors, rolled, acked]: [SaveError[], number[], number[]] = [[], [], []];
   const app = { acknowledge: (seq: number) => void acked.push(seq), rollback_to: (seq: number) => (rolled.push(seq), JSON.stringify({ ok: true, seq: 10 })) };
-  const queue = new SaveQueue(app, save, (e) => errors.push(e), undefined, undefined, (tasks) => dim.push([...tasks]));
+  const queue = new SaveQueue(app, save, (e, n) => (errors.push(e), names.push(n)), undefined, undefined, (tasks) => dim.push([...tasks]));
   mock.method(console, "error", () => undefined);
   queue.add(commits);
   await settle();
@@ -97,6 +97,20 @@ test("a refusal in the handlers form that names no key takes the key of the chan
   const link = { seq: 1, source: "typed", changes: [{ record: "link", op: "delete", key: "t1", link: 4, was: { from: "a", to: "b" } }] } as Commit; // a link whose key is also a task's
   const refusedLink: Handlers = { deleteLink: async () => { throw Object.assign(new Error("No"), { status: 409 }); } };
   expect((await run(refusedLink, [], [link])).errors.map((e) => [e.reason, e.key]), "a link's key names no task to select").toEqual([["refused", undefined]]);
+});
+
+test("a refused link names no task to select, also when its refusal names a key; a task's refusal and a save function's do", async () => {
+  const link = { seq: 1, source: "typed", changes: [{ record: "link", op: "delete", key: "t1", link: 4, was: { from: "a", to: "b" } }] } as Commit;
+  const refusals: [string, Handlers][] = [["a thrown SaveRefused", { deleteLink: async () => { throw new SaveRefused({ message: "Locked", key: "t1" }); } }], ["a 409 body", { deleteLink: async () => answer(409, { message: "Locked", key: "t1" }) }]];
+  for (const [how, handlers] of refusals) {
+    const names: (boolean | undefined)[] = [];
+    expect((await run(handlers, [], [link], names)).errors.map((e) => [e.reason, e.key]), `${how} names the key`).toEqual([["refused", "t1"]]);
+    expect(names, `${how} selects no task`).toEqual([false]);
+  }
+  const [task, fn]: (boolean | undefined)[][] = [[], []];
+  await run({ updateTask: async () => { throw new SaveRefused({ message: "No", key: "t1" }); } }, [], undefined, task);
+  await run(async () => { throw new SaveRefused({ message: "No", key: "t1" }); }, [], undefined, fn);
+  expect([task, fn]).toEqual([[true], [true]]);
 });
 
 test("a handlers object's classify is asked for each throw, and a handler's non-2xx Response is judged by its status", async () => {
