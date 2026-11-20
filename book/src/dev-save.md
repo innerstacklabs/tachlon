@@ -32,6 +32,9 @@ where the step came from, and its `changes`. A change names the task or link by 
 - When the event's `snapshot` is true, commits were lost. Save `chart.snapshot()`, which returns the
   schedule as plain `tasks` and `links`, then read on from the event's `seq`.
 - A task added in the chart has `key: null` in its change. Save it, then give it its key with `assignKey`.
+- Mounted with `dateForm: "day"`, every date in a change is `YYYY-MM-DD`, and `update`, `hostEdit` and `setData`
+  take dates in that form too, so you can write back what you stored. They refuse a date with a time of day
+  as `badValue`, and change nothing.
 
 `npx tachlon describe events` prints what every event carries, for the version you installed. Run
 `npx tachlon describe fit` before you wire saves: it prints the steps.
