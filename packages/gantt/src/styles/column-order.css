@@ -5,7 +5,7 @@
    table's own order. */
 .gantt [data-part=table] {
   --order-base: 0;
-  --movable-tracks: var(--track-1, 60px) var(--track-2, var(--start-track, var(--gantt-date-col))) var(--track-3, var(--finish-track, var(--gantt-date-col))) var(--track-4, var(--float-track, 46px)) var(--track-5, var(--free-float-track, 64px));
+  --movable-tracks: var(--track-1, 60px) var(--track-2, var(--start-track, var(--gantt-date-col))) var(--track-3, var(--finish-track, var(--gantt-date-col))) var(--track-4, var(--float-track, 46px)) var(--track-5, var(--free-float-track, 76px));
 }
 .gantt [data-part=table][data-progress="true"] { --order-base: 4; }
 .gantt .cols > .dur { order: calc(var(--order-base) + var(--order-dur, 1)); }

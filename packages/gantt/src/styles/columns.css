@@ -17,7 +17,7 @@
   --free-float-track: ;
 }
 .gantt [data-part=table]:not([data-hide-free-float]) {
-  --free-float-w: 70px;
+  --free-float-w: 82px;
 }
 .gantt [data-part=table]:is([data-hide-start], [data-hide-finish], [data-hide-float], [data-column-order], :not([data-hide-free-float])) {
   --gantt-cols: minmax(var(--gantt-task-fit, var(--gantt-task-min)), 1fr) var(--movable-tracks);

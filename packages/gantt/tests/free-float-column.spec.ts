@@ -56,14 +56,15 @@ test("Free float opens hidden, the menu shows it with the values beside Float, a
   await expect(page.locator("#table")).not.toHaveAttribute("data-hide-free-float", /.*/);
   const head = page.locator("#table-head .cols > .free-float");
   await expect(head).toHaveText("Free float");
-  expect(await head.evaluate((el) => el.scrollWidth <= el.clientWidth), "the whole heading fits its track").toBe(true);
+  const [need, have] = await head.evaluate((el) => [el.scrollWidth, el.clientWidth]);
+  expect(need, "the whole heading fits its track").toBeLessThanOrEqual(have);
   await expect(head).toHaveAttribute("title", "Free float, in working days of each task's own calendar");
   expect(await cells(page, "free-float"), "the summary's cell is empty; the leaves read their free float").toEqual(["", "0d", "1d", "1d", "0d", "0d"]);
   expect(await cells(page, "float"), "Float beside it reads the total float").toEqual(["", "2d", "2d", "1d", "1d", "0d"]);
   const seen = await lefts(page, "free-float");
   expect(seen.head, "Free float has a box").not.toBeNull();
   expect(seen.cell, "its cells sit under its head").toBe(seen.head);
-  expect(await width(page), "Task gives up the track and a gap").toBe(before - 70);
+  expect(await width(page), "Task gives up the track and a gap").toBe(before - 82);
 
   await toggle(g);
   expect(await lefts(page, "free-float"), "hidden again: no box").toEqual({ head: null, cell: null });
