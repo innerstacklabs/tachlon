@@ -18,7 +18,7 @@ work, start no later than, finish no earlier than and finish no later than toget
    than**, **Finish no later than** and, when tasks have IDs, **Predecessors**. Double-clicking a name, duration, start,
    finish or progress cell still opens that cell's own editor, and `F2` still does too. The dialog
    does not open while a drag is under way.
-2. **Change the fields.** Type in any of them. A date is written `YYYY-MM-DD`.
+2. **Change the fields.** Type in any of them. A date is written `YYYY-MM-DD`. A date alone in **Start no later than** is the first working minute of that day on the task's calendar, and in the two finish fields it is the end of that day's last working minute.
 3. **Save.** Click **Save**, or press `Enter` in a field. The fields you changed are applied
    together as one edit, and a single `Ctrl+Z` puts all of them back. A field you did not touch
    is not sent.

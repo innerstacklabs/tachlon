@@ -21,7 +21,7 @@ export interface PlainCalendar {
   [field: string]: unknown;
 }
 
-/** A task: `start` and `end` are `YYYY-MM-DD[THH:mm]`, `duration` is in the data's `durationUnit` (working days of the task's `calendar`, by default), `progress` 0 to 100, `color` the bar's `#rrggbb`, `label` the text the bar shows in place of the name, `key` your own text id, kept through edits and saves. `snet` (start no earlier than, in place of `start`), `snlt`, `fnet`, `fnlt` (each a date), `mso` and `mfo` (a date each; one pin per task) and `alap: true` are the task's limits; a date alone on a finish limit is the end of that day. `milestone` (`"start"` or `"finish"`) on a task with no duration puts it at the start of a working period or at the end of one (for example, after a task that ends at 17:00, `"start"` is 08:00 the next working day and `"finish"` is 17:00 that day). `actualStart` and `actualFinish` (dates; a date alone is the first working minute of the day, and the end of its last), `remaining` (as `duration` is) and `resume` (a date) say what happened; the last three need an `actualStart`, and `remaining` is not given with `progress`. `calendar` is the `key` of one of the data's `calendars`, the first when it is left out. A task with children is a summary that takes its dates from them. */
+/** A task: `start` and `end` are `YYYY-MM-DD[THH:mm]`, `duration` is in the data's `durationUnit` (working days of the task's `calendar`, by default), `progress` 0 to 100, `color` the bar's `#rrggbb`, `label` the text the bar shows in place of the name, `key` your own text id, kept through edits and saves. `snet` (start no earlier than, in place of `start`), `snlt`, `fnet`, `fnlt` (each a date), `mso` and `mfo` (a date each; one pin per task) and `alap: true` are the task's limits; a date alone on a finish limit is the end of the last working minute of that day on the task's calendar, and on a start limit the first working minute. `milestone` (`"start"` or `"finish"`) on a task with no duration puts it at the start of a working period or at the end of one (for example, after a task that ends at 17:00, `"start"` is 08:00 the next working day and `"finish"` is 17:00 that day). `actualStart` and `actualFinish` (dates; a date alone is the first working minute of the day, and the end of its last), `remaining` (as `duration` is) and `resume` (a date) say what happened; the last three need an `actualStart`, and `remaining` is not given with `progress`. `calendar` is the `key` of one of the data's `calendars`, the first when it is left out. A task with children is a summary that takes its dates from them. */
 export interface PlainTask {
   id: string | number;
   calendar?: string;
@@ -40,7 +40,7 @@ export interface PlainTask {
   fnlt?: string;
   mso?: string;
   mfo?: string;
-  /** The one date limit, `{ type, date }` with a `type` of `snet`, `snlt`, `fnet`, `fnlt`, `mso` or `mfo`, or `null` for none: it is the limit its type names, and it wins over `start`, which is then not a start-no-earlier-than (and may be left out). A task that gives it with one of those six members is refused. */
+  /** The one date limit, `{ type, date }` with a `type` of `snet`, `snlt`, `fnet`, `fnlt`, `mso`, `mfo`, `so` or `fo`, or `null` for none: it is the limit its type names (`so` is `snet` and `snlt` on one date, `fo` is `fnet` and `fnlt` on one date), and it wins over `start`, which is then not a start-no-earlier-than (and may be left out). A task that gives it with one of those six members is refused. */
   constraint?: Constraint;
   alap?: boolean;
   milestone?: "start" | "finish";
@@ -144,7 +144,7 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
     const base = { ...barLook(task, unreadTask, true), ...(task.key === undefined ? {} : { key: task.key }), calendar: own, actual_start: null, actual_finish: null, remaining: null, name, parent: parentAt, outline_level: level[i]!, code: id, wbs_code: null, activity_codes: [] } satisfies Omit<DocumentTask, "duration" | "snet" | "progress">;
     const start = date(task.start, "start_date", id);
     const end = date(task.end, "end_date", id);
-    const lim = readLimits(task);
+    const lim = readLimits(task, calendars.list[own]!);
     const fraction = task.progress === undefined ? 0 : task.progress / 100;
     if (children[i]!.length > 0) {
       if (start !== null || end !== null || (task.duration ?? 0) !== 0 || fraction !== 0 || ACTUAL_KEYS.some((key) => task[key] !== undefined)) summaryValues += 1;

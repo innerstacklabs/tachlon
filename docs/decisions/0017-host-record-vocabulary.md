@@ -14,8 +14,9 @@ A host page talks to the component through plain records: tasks, links, calendar
 4. **A value has a JSON type, not a text form.** A date is text, a duration is a number, a flag is a boolean, and "none" is `null`. No surface writes a number as text or an absent value as an empty string.
 5. **Durations and lags carry one explicit unit per payload.** The top-level member `durationUnit` is `"days"` (default), `"hours"` or `"minutes"`, and it applies to every field marked *duration* below, in and out. A host that stores whole days sends them with the default; a host that stores integer hours sets `"hours"` and sends them unchanged. An hour is 60 working minutes. A day is the working day of the calendar that measures the value (the task's calendar for `duration`, `remaining`, `float` and `freeFloat`; the link's lag calendar for `lag`): `hoursPerDay` for a simple calendar, else the average working day the app already uses (`day_minutes` in `crates/app/src/edit/duration.rs`). After conversion a value that is not a whole minute is rounded to the nearest minute, as plain data does today (`fromTasks` in `plain.ts`). Output is the exact quotient, so it can be a fraction. `Decided here:` one unit member per payload and not unit-suffixed field names, because a suffix would give each duration three names. `Decided here:` computed floats follow `durationUnit` too; this replaces "floats in working minutes" in A devteam-1-1496 item 3, because one field has one unit.
 6. **Dates are wall-clock text with no zone: `YYYY-MM-DD` or `YYYY-MM-DDTHH:mm`.** Input takes either form on every date field. A date-only value is read by the kind of its field:
-   - *start kind* (`projectStart`, `dataDate`, `start`, `snet`, `snlt`, `mso`, `resume`): 00:00 of that day.
-   - *finish kind* (`mustFinishBy`, `fnet`, `fnlt`, `mfo`): the end of that day, 24:00, which is 00:00 of the next day. The limit editor already reads a finish this way (`day_end` in `crates/app/src/edit/limit.rs`), and so does PR #2109.
+   - *start kind* (`projectStart`, `dataDate`, `start`, `resume`): 00:00 of that day.
+   - *finish kind* (`mustFinishBy`): the end of that day, 24:00, which is 00:00 of the next day.
+   - *a date limit* (`snet`, `snlt`, `mso`, `fnet`, `fnlt`, `mfo`, and the two halves of the typed kinds `so` and `fo`) is a bound on a working minute, so a date alone is read on the task's calendar and never as midnight. `Decided here:` a start limit (`snet`, `snlt`, `mso`, `so`) is the first working minute of that day, and a finish limit (`fnet`, `fnlt`, `mfo`, `fo`) is the end of that day's last working minute: 16:00 on an 08:00 to 16:00 calendar, where the end of the day, 00:00 of the next, falls a working day late. A day with no working time reads as an actual does: 00:00 for a start limit and 24:00 for a finish limit. This is the same in the separate members and in the typed `constraint`, in `mount`, `update` and `setData`, and in the limit editor (`day_edge` in `crates/app/src/host/read.rs`, `limitAt` in `packages/gantt/src/adapters/plain-limits.ts`). It replaces the end-of-day reading of a finish limit that this rule held before.
    - `Decided here:` a date-only `actualStart` is the first working minute of that day on the task's calendar, and a date-only `actualFinish` is the end of its last working minute (00:00 and 24:00 when the day has no working time), because an actual is a fact drawn on the bar, not a bound. How the cell editor reads a typed actual today was not checked.
 7. **Output dates.** Output writes `YYYY-MM-DDTHH:mm`. `Decided here:` the top-level member `dateForm`, `"minute"` (default) or `"day"`, makes every output date `YYYY-MM-DD`: a start-kind field is the day of its instant, and a finish-kind field (`finish`, `lateFinish`, `actualFinish` and the finish limits) is the day of its instant less one minute, which is what the limit cells already show (`edit/limit.rs`). A host with date-only columns then stores what it receives. Reason: a host can store dates only.
 8. **`durationUnit` and `dateForm` describe the conversation, not the schedule.** They are top-level members of plain data in and are repeated in every plain payload out. `mount` and the headless open take the same two members for a session opened from a document. They are never stored in the document.
@@ -65,11 +66,11 @@ A host page talks to the component through plain records: tasks, links, calendar
 | `end` | in | date. With `start` it gives the duration when `duration` is absent. A date-only `end` is 00:00 of that day, so the day itself is not worked (`fromTasks` in `plain.ts`). Never written | `duration` |
 | `duration` | in, out | duration, 0 or more | `duration` (minutes) |
 | `milestone` | in, out | `"start"`, `"finish"` or absent (gantt#2088) | `limit.milestone`; read only on a task with no duration (`Limit::milestone` in `crates/engine/src/model/limit.rs`) |
-| `snet` | in, out | date, start kind, or `null` for no start floor | `snet` |
-| `snlt` | in, out | date, start kind | `limit.snlt` |
-| `fnet`, `fnlt` | in, out | date, finish kind | `limit.fnet`, `limit.fnlt` |
-| `mso` | in, out | date, start kind. One of `mso` and `mfo`, not both (`read_limit`) | `limit.pin_start` |
-| `mfo` | in, out | date, finish kind | `limit.pin_finish` |
+| `snet` | in, out | date, start limit (rule 6), or `null` for no start floor | `snet` |
+| `snlt` | in, out | date, start limit (rule 6) | `limit.snlt` |
+| `fnet`, `fnlt` | in, out | date, finish limit (rule 6) | `limit.fnet`, `limit.fnlt` |
+| `mso` | in, out | date, start limit (rule 6). One of `mso` and `mfo`, not both (`read_limit`) | `limit.pin_start` |
+| `mfo` | in, out | date, finish limit (rule 6) | `limit.pin_finish` |
 | `alap` | in, out | boolean | `limit.alap` |
 | `resume` | in, out | date, start kind | `limit.resume` |
 | `actualStart` | in, out | date (rule 6) | `actual_start` |
@@ -129,7 +130,7 @@ Renames and changes this table forces on merged code and written rows:
 
 Not renamed: the page's own reads (`TaskDetails` in `packages/gantt/src/api.ts`) are chrome API, not host records.
 
-A host that models a mandatory date as a floor plus a ceiling sends `snet` with `snlt`, or `fnet` with `fnlt`, and not `mso` or `mfo`, which are pins.
+A host that models a mandatory date as a floor plus a ceiling (Primavera P6's "Start On" and "Finish On") sends the typed `constraint` with the type `so` or `fo` (decision 0022, rule 9), or the separate members `snet` with `snlt`, or `fnet` with `fnlt`, on one date. It does not send `mso` or `mfo`, which are pins (P6's "Mandatory Start" and "Mandatory Finish").
 
 ## Rows this governs
 

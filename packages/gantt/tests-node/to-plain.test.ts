@@ -45,9 +45,9 @@ test("limits_come_back_as_the_plain_keys_fromTasks_reads", () => {
   const out = toPlain(first, ["2026-03-02 08:00", "2026-03-05 08:00", "2026-03-09 08:00", "2026-03-02 08:00", "2026-03-02 08:00"]);
   expect(out.tasks.map((task) => task.milestone)).toEqual([undefined, undefined, undefined, undefined, "finish"]);
   expect(out.tasks.map(({ snet, snlt, fnet, fnlt, mso, mfo, alap }) => ({ snet, snlt, fnet, fnlt, mso, mfo, alap }))).toEqual([
-    { snet: undefined, snlt: undefined, fnet: undefined, fnlt: "2026-03-07T00:00", mso: undefined, mfo: undefined, alap: undefined },
+    { snet: undefined, snlt: undefined, fnet: undefined, fnlt: "2026-03-06T17:00", mso: undefined, mfo: undefined, alap: undefined },
     { snet: "2026-03-03T00:00", snlt: "2026-03-10T09:00", fnet: "2026-03-04T12:00", fnlt: undefined, mso: undefined, mfo: undefined, alap: undefined },
-    { snet: "2026-03-02T00:00", snlt: undefined, fnet: undefined, fnlt: undefined, mso: "2026-03-09T00:00", mfo: undefined, alap: undefined },
+    { snet: "2026-03-02T00:00", snlt: undefined, fnet: undefined, fnlt: undefined, mso: "2026-03-09T08:00", mfo: undefined, alap: undefined },
     { snet: undefined, snlt: undefined, fnet: undefined, fnlt: undefined, mso: undefined, mfo: undefined, alap: true },
     { snet: undefined, snlt: undefined, fnet: undefined, fnlt: undefined, mso: undefined, mfo: undefined, alap: undefined },
   ]);

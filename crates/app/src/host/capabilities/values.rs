@@ -7,14 +7,17 @@ use crate::document::json_read::Value;
 use crate::edit::{Edit, day_minutes};
 use engine::{Calendar, DAY, Instant, Limit, Pin, TaskId};
 
-/// The date limits a host can name, one bit each in this order; `snet` is a bar move's.
-const KINDS: [&str; 7] = ["snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap"];
+/// The date limits a host can name, one bit each in this order; `snet` is a bar move's. The last two, `so` and `fo`,
+/// are a floor and a ceiling on one instant, which [`kinds`] reads as one.
+const KINDS: [&str; 9] = [
+    "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", "so", "fo",
+];
 const STEPS: [&str; 3] = ["minutes", "hours", "days"];
 
 /// What the host stores beyond the groups it turned off; the default stores everything.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(super) struct Stores {
-    not_kinds: u8,
+    not_kinds: u16,
     per_task: Option<u32>,
     /// Places in [`STEPS`]: a duration's, then a lag's.
     steps: [usize; 2],
@@ -34,13 +37,13 @@ impl Stores {
     pub(super) fn read(root: &Value) -> Result<Self, String> {
         let mut stores = Self::default();
         if let Some(kinds) = root.get("kinds") {
-            let said = "kinds: expected a list of snet, snlt, fnet, fnlt, mso, mfo, alap";
-            let mut allowed = 0u8;
+            let said = "kinds: expected a list of snet, snlt, fnet, fnlt, mso, mfo, alap, so, fo";
+            let mut allowed = 0u16;
             for kind in kinds.as_array().ok_or(said)? {
                 let at = KINDS.iter().position(|k| kind.as_str() == Some(k));
                 allowed |= 1 << at.ok_or(said)?;
             }
-            stores.not_kinds = !allowed & 0x7f;
+            stores.not_kinds = !allowed & 0x1ff;
         }
         if let Some(most) = root.get("perTask") {
             let most = most.as_int().and_then(|n| u32::try_from(n).ok());
@@ -90,11 +93,20 @@ fn whole_day(calendar: &Calendar, finish: bool, at: Instant) -> bool {
     at % DAY == 0 || (finish && closing) || (!finish && calendar.day_start_at(at) == at)
 }
 
-/// The kinds among `held`, one bit each.
-fn kinds(held: &[Option<Instant>]) -> u8 {
-    held.iter()
-        .enumerate()
-        .fold(0, |bits, (i, at)| bits | u8::from(at.is_some()) << i)
+/// The kinds among `held`, one bit each. A floor and a ceiling on one instant, `snet` with `snlt` or `fnet` with
+/// `fnlt`, are the one kind `so` or `fo` unless the host's `not_kinds` leaves it out, which then sees the two
+/// limits, as a host did before the pair had a name.
+fn kinds(held: &[Option<Instant>], not_kinds: u16) -> u16 {
+    let bits =
+        (held.iter().enumerate()).fold(0, |bits, (i, at)| bits | u16::from(at.is_some()) << i);
+    [(0, 1, 7), (2, 3, 8)]
+        .into_iter()
+        .filter(|&(floor, ceiling, pair)| {
+            not_kinds >> pair & 1 == 0 && held[floor].is_some() && held[floor] == held[ceiling]
+        })
+        .fold(bits, |bits, (floor, ceiling, pair)| {
+            bits & !(1 << floor | 1 << ceiling) | 1 << pair
+        })
 }
 
 impl Session {
@@ -162,7 +174,7 @@ impl Session {
     ) -> Option<String> {
         let floor = self.meta.get(task.0 as usize).and_then(|m| m.floor);
         let now = held(constraint_of(snet, floor), &limit);
-        let bits = kinds(&now);
+        let bits = kinds(&now, s.not_kinds);
         if bits & s.not_kinds != 0 {
             let kind = KINDS[(bits & s.not_kinds).trailing_zeros() as usize];
             return Some(format!("no {kind} limit"));

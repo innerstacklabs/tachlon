@@ -317,9 +317,11 @@ impl Session {
                 Value::Null => Ok(None),
                 _ => self.read_date(value).map(Some).ok_or_else(bad),
             };
-            let finish = |value: &Value| match value {
+            let limit = |value: &Value, finish| match value {
                 Value::Null => Ok(None),
-                _ => self.read_finish(value).map(Some).ok_or_else(bad),
+                _ => (self.read_limit(task, value, finish))
+                    .map(Some)
+                    .ok_or_else(bad),
             };
             match &**name {
                 "key" => {}
@@ -327,10 +329,11 @@ impl Session {
                 "start" if record.get("snet").is_some() => {
                     date(value)?;
                 }
-                "start" | "snet" => new.snet = date(value)?,
-                "snlt" => new.limit.snlt = date(value)?,
-                "fnet" => new.limit.fnet = finish(value)?,
-                "fnlt" => new.limit.fnlt = finish(value)?,
+                "start" => new.snet = date(value)?,
+                "snet" => new.snet = limit(value, false)?,
+                "snlt" => new.limit.snlt = limit(value, false)?,
+                "fnet" => new.limit.fnet = limit(value, true)?,
+                "fnlt" => new.limit.fnlt = limit(value, true)?,
                 "hostStart" | "hostFinish" => {
                     let kind = usize::from(&**name == "hostFinish");
                     let at = [Session::read_date, Session::read_finish][kind](self, value);

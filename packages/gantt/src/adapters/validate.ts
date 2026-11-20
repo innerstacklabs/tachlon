@@ -35,6 +35,8 @@ export class PlainDataError extends Error {
 
 type Kind = "id" | "text" | "date" | "number" | "type" | "flag" | "milestone" | "constraint";
 const LIMITS = ["snet", "snlt", "fnet", "fnlt", "mso", "mfo"];
+/** The types of a `constraint`: the six limit members, and `so` and `fo`, which are no member. */
+const CONSTRAINT_TYPES = [...LIMITS, "so", "fo"];
 interface Field {
   kind: Kind;
   required?: boolean;
@@ -103,7 +105,7 @@ function fine(f: Field, v: unknown): boolean {
     case "milestone":
       return v === "start" || v === "finish";
     case "constraint":
-      return v === null || (typeof v === "object" && !Array.isArray(v) && LIMITS.includes((v as { type?: string }).type!) && fine({ kind: "date" }, (v as { date?: unknown }).date));
+      return v === null || (typeof v === "object" && !Array.isArray(v) && CONSTRAINT_TYPES.includes((v as { type?: string }).type!) && fine({ kind: "date" }, (v as { date?: unknown }).date));
     case "number":
       return typeof v === "number" && Number.isFinite(v) && (f.min === undefined || v >= f.min) && (f.max === undefined || v <= f.max);
   }
@@ -120,7 +122,7 @@ function problem(name: string, f: Field, v: unknown): Pick<PlainIssue, "expected
     case "milestone":
       return as('"start" or "finish"');
     case "constraint":
-      return as("null, or { type, date } with a type of snet, snlt, fnet, fnlt, mso or mfo and a date");
+      return as("null, or { type, date } with a type of snet, snlt, fnet, fnlt, mso, mfo, so or fo and a date");
     case "text":
       return as("text");
     case "date":
