@@ -11,38 +11,21 @@ use app::{
     meta::TaskMeta,
     outline::{Outline, demo_layout},
 };
-use common::{clock, setup_with};
-use engine::{Calendar, Dependency, Limit, LinkType, Schedule, Task, TaskId};
+use common::{clock, collapse::standard_calendar, setup_with};
+use engine::{Dependency, Limit, LinkType, Schedule, Task, TaskId};
 use import::ActivityCode;
 use serde_json::Value;
 use timeline::Timeline;
 
-/// A Monday-to-Friday 08:00-17:00 day: 540 working minutes.
-const DAY: i64 = 540;
-
-fn week() -> Calendar {
-    let day = vec![(480, 1020)];
-    Calendar::new(
-        [
-            day.clone(),
-            day.clone(),
-            day.clone(),
-            day.clone(),
-            day,
-            vec![],
-            vec![],
-        ],
-        &[],
-    )
-    .expect("a valid week")
-}
+/// A working day of the standard calendar: 480 minutes.
+const DAY: i64 = 480;
 
 /// Tasks 0 to 4: `first`, `mid`, `last` in a chain of days, `long` (three days) also before
 /// `last`, and `five` days, which sets the project finish on Friday. Total float, by hand:
 /// 2d, 2d, 1d, 1d, 0d. Free float: 0d, 1d, 1d, 0d, 0d.
 fn days() -> Session {
     let mut schedule = Schedule::new();
-    let calendar = schedule.add_calendar(week());
+    let calendar = schedule.add_calendar(standard_calendar());
     for length in [1, 1, 1, 3, 5] {
         schedule
             .add_task(Task {
@@ -108,7 +91,7 @@ fn a_finished_task_has_no_free_float_cell_and_the_rest_keep_theirs() {
     s.edit(Edit::SetProgress {
         task: TaskId(0),
         actual_start: Some(480),
-        actual_finish: Some(1020),
+        actual_finish: Some(960),
         remaining: Some(0),
     })
     .expect("progress sets");
