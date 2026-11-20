@@ -27,12 +27,12 @@ test("Start moved up takes Dur's place in the head and every row, and the panel 
   await expect(page.locator("#columns-up-dur"), "the first row cannot go up").toHaveAttribute("aria-disabled", "true");
   await move(g, "start", "up");
   expect(await shown(page), "Start comes before Dur, and the cells follow their heads").toEqual({ order: ["start", "dur", "finish", "float"], under: true });
-  await expect(page.locator("#table")).toHaveAttribute("data-column-order", "start dur finish float");
-  expect(await page.locator("#columns-panel [data-row]").evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.row)), "the rows stand in the same order").toEqual(["start", "dur", "finish", "float"]);
+  await expect(page.locator("#table")).toHaveAttribute("data-column-order", "start dur finish float free-float");
+  expect(await page.locator("#columns-panel [data-row]").evaluateAll((rows) => rows.map((row) => (row as HTMLElement).dataset.row)), "the rows stand in the same order").toEqual(["start", "dur", "finish", "float", "free-float"]);
   await expect(page.locator("#columns-up-start"), "Start is first now").toHaveAttribute("aria-disabled", "true");
   await expect(page.locator("#columns-up-start"), "focus stays on the button just pressed").toBeFocused();
-  await move(g, "dur", "down", 2);
-  expect(await shown(page), "Dur moved down two places").toEqual({ order: ["start", "finish", "float", "dur"], under: true });
+  await move(g, "dur", "down", 3);
+  expect(await shown(page), "Dur moved down three places, the last past the hidden Free float").toEqual({ order: ["start", "finish", "float", "dur"], under: true });
   await page.locator("#columns-down-dur").click({ force: true }); // aria-disabled: Playwright waits for "enabled" otherwise
   expect((await shown(page)).order, "Dur is last: Down does nothing").toEqual(["start", "finish", "float", "dur"]);
 });

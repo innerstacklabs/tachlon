@@ -18,6 +18,9 @@ export const TEXTS_EN: Readonly<Record<string, string>> = {
   "move-finish-down-title": "Move the Finish column down the list, right in the table", "show-float-title": "Show or hide the Float column",
   "move-float-up": "Move Float up", "move-float-up-title": "Move the Float column up the list, left in the table",
   "move-float-down": "Move Float down", "move-float-down-title": "Move the Float column down the list, right in the table",
+  "free-float": "Free float", "show-free-float-title": "Show or hide the Free float column", "move-free-float-up": "Move Free float up",
+  "move-free-float-up-title": "Move the Free float column up the list, left in the table", "move-free-float-down": "Move Free float down",
+  "move-free-float-down-title": "Move the Free float column down the list, right in the table",
   // The task list, its splitter and the timeline.
   "task-list": "Task list", "resize": "Resize the task list",
   "resize-title": "Drag to resize the task list; double-click to reset; arrow keys move it 16 px", "timeline": "Timeline", "task": "Task",
@@ -37,6 +40,7 @@ export const FIELDS_EN: Readonly<Record<string, string>> = {
   "id": "ID", "wbs": "WBS", "percent-head": "% complete", "task-name": "Task name",
   "var-start": "ΔStart", "var-finish": "ΔFinish", "var-float": "ΔFloat", "var-start-title": "Start against the baseline, in working days",
   "var-finish-title": "Finish against the baseline, in working days", "var-float-title": "Float against the baseline, in working days",
+  "free-float-head": "FF", "free-float-title": "Free float, in working days of each task's own calendar: how long a task can run late before it delays the next task",
   "start-no-earlier": "Start no earlier than", "deadline": "Deadline", "late-start": "Late start", "late-finish": "Late finish", "calendar": "Calendar",
   "resources": "Resources", "critical": "Critical", "driven-by": "Driven by", "status": "Status", "baseline-start": "Baseline start",
   "baseline-finish": "Baseline finish", "successors": "Successors",

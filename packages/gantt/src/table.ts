@@ -161,6 +161,13 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     if (hasPreds) headCols?.querySelector(".float")?.after(Object.assign(document.createElement("span"), { className: "pred", textContent: nameOf(root, "predecessors") }));
   };
   showPredColumn();
+  // The Free float head and cells exist only while the column shows: it opens hidden, and a hidden column leaves the table as it was.
+  let freeShown = false;
+  const showFreeFloatColumn = (on: boolean): void => {
+    freeShown = on;
+    headCols?.querySelector(".free-float")?.remove();
+    if (on) headCols?.querySelector(".float")?.after(Object.assign(document.createElement("span"), { className: "free-float", textContent: nameOf(root, "free-float-head"), title: nameOf(root, "free-float-title") }));
+  };
   let hasResources = false;
   const showResourcesColumn = (): void => {
     hasResources = app.has_resources();
@@ -331,7 +338,9 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const holdVariance = varianceOn && s.drag?.active === true;
     const withVariance = varianceOn && !holdVariance;
     const holdResources = hasResources && s.drag?.active === true;
-    const varianceMode = (holdVariance ? "hold" : withVariance ? "on" : "off") + (holdResources ? "+res" : "");
+    const freeFloat = !isHidden(tableEl, "free-float");
+    if (freeFloat !== freeShown) showFreeFloatColumn(freeFloat);
+    const varianceMode = (holdVariance ? "hold" : withVariance ? "on" : "off") + (holdResources ? "+res" : "") + (freeFloat ? "+ff" : "");
     if (inside && fresh && s.stamp === drawn.stamp && varianceMode === drawn.variance) {
       markRows(s, false);
       return;
@@ -344,7 +353,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const focusWasInRows = tableRows.contains(document.activeElement);
     changed.before();
     tableRows.replaceChildren(
-      ...data.map((row, i) => buildRow(row, first + i, { app, say: sayFor(root), rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending: new Set([...pending, ...unsaved]), refusal })),
+      ...data.map((row, i) => buildRow(row, first + i, { app, say: sayFor(root), rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, freeFloat, holdVariance, withVariance, pending: new Set([...pending, ...unsaved]), refusal })),
     );
     placeRefusal(tableRows);
     changed.after();

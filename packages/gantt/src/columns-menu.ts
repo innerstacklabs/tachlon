@@ -3,8 +3,8 @@ import { optional } from "./dom.js";
 import { listening, type Shell } from "./shell.js";
 
 /** The columns the menu can hide, by the class of their cells. Task and Dur stay: Task names the row, and Dur is the cell an edit walks to. */
-export const HIDEABLE = ["start", "finish", "float"] as const;
-/** The table's flag for a hidden column: `data-hide-start`, `data-hide-finish` or `data-hide-float` (table.css leaves its track, head and cells out). */
+export const HIDEABLE = ["start", "finish", "float", "free-float"] as const;
+/** The table's flag for a hidden column: `data-hide-start`, `data-hide-finish`, `data-hide-float` or `data-hide-free-float` (table.css leaves its track, head and cells out). */
 export const HIDE_FLAGS: readonly string[] = HIDEABLE.map((column) => `data-hide-${column}`);
 
 /** Whether the menu has hidden the column whose cells carry the class `column`. */
@@ -35,9 +35,9 @@ function installMoves(panel: HTMLElement, table: HTMLElement): () => void {
 }
 
 /**
- * The Columns menu: a button in the toolbar that opens a panel with one checkbox row for each of Start, Finish and Float, checked while the
+ * The Columns menu: a button in the toolbar that opens a panel with one checkbox row for each of Start, Finish, Float and Free float, checked while the
  * column shows. A press sets or removes `data-hide-<column>` on the table, as the Variance button sets `data-variance-hidden`;
- * the stylesheet does the rest. Each of Dur, Start, Finish and Float also has two buttons that move it up or down the list, and the table
+ * the stylesheet does the rest. Free float starts unchecked: the chart mounts with `data-hide-free-float`. Each of Dur, Start, Finish, Float and Free float also has two buttons that move it up or down the list, and the table
  * puts the column left or right in step (column-order.ts), for the rest of the visit; nothing is stored. Nothing here runs per frame.
  * Enter or Space on the button opens the panel and puts focus on its first item; the arrows walk the items, Escape closes it and puts
  * focus back on the button, and a press outside it, or focus leaving it, closes it. The chart works with the toolbar removed:

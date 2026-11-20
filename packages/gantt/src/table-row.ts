@@ -23,6 +23,8 @@ export interface RowContext {
   hasResources: boolean;
   holdResources: boolean;
   hasProgress: boolean;
+  /** The Free float column shows (the Columns menu has not hidden it): the row has its cell. A hidden column has no cell and no head, so a table keeps the cells it had. */
+  freeFloat: boolean;
   /** A bar is being dragged: one empty cell stands in for the three variance cells. */
   holdVariance: boolean;
   withVariance: boolean;
@@ -99,7 +101,7 @@ export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext)
     ["dur", app.task_duration(task)],
     ["start", start],
     ["finish", finish],
-    ["float", float === null ? "" : app.task_float(task)], ...(hasPreds ? [["pred", kind === 0 ? (app.predecessors_text(task) ?? "") : ""] as [string, string]] : []),
+    ["float", float === null ? "" : app.task_float(task)], ...(ctx.freeFloat ? [["free-float", variance[3] ?? ""] as [string, string]] : []), ...(hasPreds ? [["pred", kind === 0 ? (app.predecessors_text(task) ?? "") : ""] as [string, string]] : []),
   ];
   // The variance columns come while a baseline is set (data-variance, set by the toolbar) and no bar is being dragged: a drag
   // redraws every row every frame, and three more cells on each cost the frame more than the columns are worth while the

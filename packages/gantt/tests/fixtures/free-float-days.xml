@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Five tasks for packages/gantt/tests/free-float-column.spec.ts under one summary, on an 8-hour Monday-to-Friday day: First, Mid and Last in a chain of one-day tasks, Long (three days) also before Last, and Five (five days), which sets the finish. Total float: 2d, 2d, 1d, 1d, 0d. Free float: 0d, 1d, 1d, 0d, 0d. -->
+<Project xmlns="http://schemas.microsoft.com/project">
+  <StartDate>2026-01-05T08:00:00</StartDate>
+  <CalendarUID>1</CalendarUID>
+  <Calendars>
+    <Calendar>
+      <UID>1</UID>
+      <Name>Standard</Name>
+      <IsBaseCalendar>1</IsBaseCalendar>
+      <BaseCalendarUID>-1</BaseCalendarUID>
+      <WeekDays>
+        <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
+        <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>3</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>4</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>5</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>6</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>
+        <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
+      </WeekDays>
+    </Calendar>
+  </Calendars>
+  <Tasks>
+    <Task><UID>1</UID><Name>Plan</Name><OutlineLevel>1</OutlineLevel><Summary>1</Summary><Duration>PT0S</Duration><DurationFormat>7</DurationFormat></Task>
+    <Task><UID>2</UID><Name>First</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Duration>PT8H0M0S</Duration><DurationFormat>7</DurationFormat></Task>
+    <Task>
+      <UID>3</UID><Name>Mid</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Duration>PT8H0M0S</Duration><DurationFormat>7</DurationFormat>
+      <PredecessorLink><PredecessorUID>2</PredecessorUID><Type>1</Type><LinkLag>0</LinkLag><LagFormat>7</LagFormat></PredecessorLink>
+    </Task>
+    <Task>
+      <UID>4</UID><Name>Last</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Duration>PT8H0M0S</Duration><DurationFormat>7</DurationFormat>
+      <PredecessorLink><PredecessorUID>3</PredecessorUID><Type>1</Type><LinkLag>0</LinkLag><LagFormat>7</LagFormat></PredecessorLink>
+      <PredecessorLink><PredecessorUID>5</PredecessorUID><Type>1</Type><LinkLag>0</LinkLag><LagFormat>7</LagFormat></PredecessorLink>
+    </Task>
+    <Task><UID>5</UID><Name>Long</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Duration>PT24H0M0S</Duration><DurationFormat>7</DurationFormat></Task>
+    <Task><UID>6</UID><Name>Five</Name><OutlineLevel>2</OutlineLevel><Summary>0</Summary><Duration>PT40H0M0S</Duration><DurationFormat>7</DurationFormat></Task>
+  </Tasks>
+</Project>

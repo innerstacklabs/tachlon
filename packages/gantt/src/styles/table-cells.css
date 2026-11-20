@@ -32,6 +32,7 @@
   outline-offset: -2px;
 }
 .gantt .row .float,
+.gantt .row .free-float,
 .gantt .row .var-start,
 .gantt .row .var-finish,
 .gantt .row .var-float,
@@ -43,6 +44,7 @@
 .gantt .row .percent,
 .gantt [data-part=table-head] .dur,
 .gantt [data-part=table-head] .float,
+.gantt [data-part=table-head] .free-float,
 .gantt [data-part=table-head] .remaining,
 .gantt [data-part=table-head] .percent {
   text-align: end;

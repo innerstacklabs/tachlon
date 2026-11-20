@@ -10,6 +10,7 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ### New
 
+- A Free float column (head `FF`) in the task table: how long a task can run late before the next task has to wait, in working days of its own calendar, empty for a summary and a finished task. It opens hidden, so a table keeps the columns it had; the Columns menu shows, hides and moves it, and a saved layout or a print names it `Free float`. `data-hide-free-float` is its flag.
 - `App.table_rows` rows carry one more member, at position 9: the task's free float as working-day text (`1d`), `null` for a summary, a group header and a finished task. A host that reads the tuples by position sees a tenth member; positions 0 to 8 are unchanged.
 - The package's `describe methods` prints the chart's own methods, each with its whole doc comment, and `describe refusals` prints the `reason` of each refusal with the fix where there is one (`describe methods` and `describe commands` end with a line that names it). The `hostEdit` comment now says that `hasActuals` is any `progress` or any change to a task with actual dates, and that `update` is the call for it and for `notAllowed`.
 - The time-scale header no longer draws the name of a period the right edge cuts too short to hold it, and the progress view's Task column leaves room for the Predecessors or Resources column, so the last column is whole at the end of a sideways scroll.

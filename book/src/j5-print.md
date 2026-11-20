@@ -22,7 +22,7 @@ picture of the first page. The pages hold the rows you are looking at, in the or
    59-row office fit-out sample prints on 3 pages.
 3. **Which columns.** The columns of the task list as it stands: Task, Dur, Start, Finish and Float,
    and the variance cells once a baseline is set. A column you hid in the **Columns** menu is left off
-   the page, and the columns print in the order you gave them there. The four cells of the **Progress**
+   the page, and Free float, which the menu starts hidden, prints once you show it, and the columns print in the order you gave them there. The four cells of the **Progress**
    button print while they are on and are left off the page while they are off, and a file with an ID or
    WBS column prints it. A date prints as the day (`2026-10-05`) without its time. The variance
    columns are headed `Start var.`, `Finish var.` and `Float var.` on the page, and a WBS code too long for its cell keeps its end
