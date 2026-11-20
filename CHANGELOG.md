@@ -57,7 +57,7 @@ Read "Breaking changes" first. A page that reads neither the `edit` event nor th
 
 ### Known issues
 
-- After a person sets or clears an `mso` or `mfo` limit and the host rereads its rows, every later `setData` call answers `notUpdatable` until the chart is mounted again (innerstacklabs/tachlon#144). Until it is fixed, a host that lets a person set those limits mounts again after it saves, or applies the other members with `update`.
+- After a person sets or clears an `mso` or `mfo` limit and the host rereads its rows, every later `setData` call answers `notUpdatable` until the chart is mounted again (issue #144 on the project's GitHub repository). Until it is fixed, a host that lets a person set those limits mounts again after it saves, or applies the other members with `update`.
 
 ## 0.3.1
 
