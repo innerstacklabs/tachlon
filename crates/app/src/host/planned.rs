@@ -32,9 +32,10 @@ pub(crate) enum Plan<'a> {
 /// What the before-edit function receives. `changes` are written as the outbox writes them
 /// (decision 0017), old and new: for a plain edit, a group, `undo` and `redo` the task fields set;
 /// for `drag` the start or duration its first frame asks for; for `setTaskFields` each field of the
-/// dialog, read against the chart before the dialog applies any (a finish after a start is measured
-/// from the start that edit leaves); for `insertMany` a task create with its name; for
-/// `linkRelease` a link create with `from` and `to`. A delete, restore, outline move, link edit and data-date edit carry the records
+/// dialog, read against the chart before the dialog applies any (except a finish after
+/// a start, which is measured from the start the start edit leaves); for `insertMany`
+/// a task create with its name; for `linkRelease` a link create with `from` and `to`.
+/// A delete, restore, outline move, link edit and data-date edit carry the records
 /// their commit writes (`values.rs`, read before the edit); an insert carries only the place and
 /// name the edit names, a baseline edit the `baseline` field though its commit writes no change. A
 /// plan of two or more of those (a group, a multi-step undo or redo), an undo or redo of a data-date
