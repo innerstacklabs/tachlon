@@ -12,7 +12,7 @@ impl Session {
     /// then one line per row in table order. With no range and a summary selected, the rows are
     /// the summary and everything under it in outline order, collapsed children included. `None` with nothing to copy (no selection, or a
     /// selection on no row). A name's tabs and line breaks read as spaces so a line stays one
-    /// line of cells; the Task cell has no indentation; a summary's Float cell is empty, as the
+    /// line of cells; the Task cell has no indentation; a summary's and a finished task's Float cell is empty, as the
     /// table shows it.
     pub fn range_text(&self) -> Option<String> {
         let tasks = match self.range_tasks() {
@@ -110,7 +110,9 @@ impl Session {
                 let dates = &self.solution().dates[task as usize];
                 (dates.es, dates.ef)
             });
-            let float = if self.summary_span(task).is_some() {
+            // As the table shows: a summary and a finished task have an empty Float cell (the engine's float for a finished task is 0).
+            let finished = self.solution().dates[task as usize].finished;
+            let float = if self.summary_span(task).is_some() || finished {
                 String::new()
             } else {
                 self.task_float(task)
