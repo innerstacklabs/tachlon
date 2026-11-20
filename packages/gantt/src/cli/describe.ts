@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Refusal } from "./detect.ts";
 
 export interface Item { name: string; type: string; default: string | null; description: string }
-export type Model = Record<"options" | "events" | "commands" | "tokens" | "errors", Item[]>;
+export type Model = Record<"options" | "events" | "commands" | "methods" | "tokens" | "errors" | "refusals", Item[]>;
 /** What `describe` reads: the model and the text of `fit`. */
 export interface Bundle { model: Model; fit: string }
 
@@ -15,8 +15,10 @@ export const TOPICS = {
   options: "what `mount` takes",
   events: "what the chart reports to `on`",
   commands: "what a page's own buttons call on `commands`",
+  methods: "what the chart object answers to, each method with its whole doc comment",
   tokens: "the CSS custom properties that style the chart",
   errors: "the codes a failed start carries, and the fix for each",
+  refusals: "why a call changed nothing: each `reason`, and the fix where there is one",
   fit: "the steps that make the chart fit your product: its look, then its behavior",
 } as const;
 type Topic = keyof typeof TOPICS;
@@ -40,6 +42,8 @@ function line(i: Item): string {
   return `- ${head}: ${i.description}${i.default === null ? "" : ` Default: \`${i.default}\`.`}`;
 }
 
+const reasons = (i: Item): string => `- ${i.name.split(", ").map((r) => `\`${r}\``).join(", ")}: ${i.description}`;
+
 /** The text of `describe [topic]`, markdown or JSON; an unknown topic is the error sentence with the topics listed. */
 export function describeTopic(bundle: Bundle, topic: string | undefined, json: boolean, name: string): { out: string } | { error: string } {
   const topics = Object.entries(TOPICS);
@@ -50,5 +54,6 @@ export function describeTopic(bundle: Bundle, topic: string | undefined, json: b
     return { out: json ? `${JSON.stringify({ topic, markdown }, null, 2)}\n` : markdown };
   }
   const items = bundle.model[topic as Exclude<Topic, "fit">];
-  return { out: json ? `${JSON.stringify({ topic, items }, null, 2)}\n` : `# ${name} describe ${topic}\n\n${TOPICS[topic as Topic]}\n\n${items.map(line).join("\n")}\n` };
+  const more = topic === "methods" || topic === "commands" ? `\nWhy a call changes nothing: \`${name} describe refusals\`.\n` : "";
+  return { out: json ? `${JSON.stringify({ topic, items }, null, 2)}\n` : `# ${name} describe ${topic}\n\n${TOPICS[topic as Topic]}\n\n${items.map(topic === "refusals" ? reasons : line).join("\n")}\n${more}` };
 }

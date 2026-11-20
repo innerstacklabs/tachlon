@@ -89,6 +89,7 @@ export type On = <K extends GanttEventName>(name: K, handler: GanttHandler<K>) =
 
 /** The member `Gantt` takes from here. */
 export interface HasOn {
+  /** Call `handler` for each event the chart fires, and get back the function that removes it; `describe events` lists the events with what each carries. */
   on: On;
 }
 

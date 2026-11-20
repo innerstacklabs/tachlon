@@ -1,4 +1,4 @@
-// The model `describe` prints (to#23): the options, events, commands, tokens and start errors of the package, read as text from the declarations and the
+// The model `describe` prints (to#23): the options, events, commands, methods, tokens, start errors and refusal reasons of the package, read as text from the declarations and the
 // stylesheet, so nothing is listed by hand. Each item has its name, its type, its default (the declaration's `@defaultValue`, else none) and the first
 // sentence of its doc comment (`summary` is how api-docs-check reads one). `scripts/emit-describe.ts` writes it into the package.
 import { readFileSync } from "node:fs";
@@ -51,8 +51,12 @@ function item({ doc, text }: Member): Item {
   return { name: (hit[1] ?? hit[2])!, type: rest.startsWith(":") ? rest.slice(1).trim() : rest, default: /@defaultValue[ \t]+`?([^`\n]+)`?/.exec(doc)?.[1]?.trim() ?? null, description: firstSentence(summary(doc)) };
 }
 
-/** The member names of `export interface <header>`: how `scripts/check-guide.ts` reads the methods of the chart itself. */
-export const memberNames = (source: string, header: RegExp): string[] => members(source, header).map((member) => item(member).name);
+/** A method keeps its whole doc comment, on one line, for the refusals and limits that its later sentences state. */
+const method = (member: Member): Item => ({ ...item(member), description: oneLine(summary(member.doc)) });
+
+/** The reasons of `export type EditRefusal`: an item for each comment group, named by its reasons (`a, b`) and described by the whole comment, which states the fix where there is one. */
+export const refusals = (source: string): Item[] =>
+  [...(/export type EditRefusal =([\s\S]*?)\n\n/.exec(source)?.[1] ?? "").matchAll(/(\/\*\*[\s\S]*?\*\/)\s*((?:\|\s*"\w+"\s*)+)/g)].map((m) => ({ name: [...m[2]!.matchAll(/"(\w+)"/g)].map((r) => r[1]).join(", "), type: "refusal", default: null, description: oneLine(summary(m[1]!)) }));
 
 /** The `--gantt-*` tokens the base block of `tokens.css` declares, with their value and the dark value of a colour; the meaning is the "Used for" cell of a Theming table in `docs/WASM_API.md` (the colours, then the layout), else the comment right above it. */
 export function tokens(css: string, api: string): Item[] {
@@ -92,7 +96,9 @@ export function buildModel(pkg: string): Model {
     options: members(read("src/gantt-types.ts"), /export interface MountOptions[^{]*\{/).map(item),
     events: members(read("src/events.ts"), /export interface GanttEvents \{/).map(item),
     commands,
+    methods: [...members(read("src/events.ts"), /export interface HasOn \{/), ...members(read("src/gantt-types.ts"), /export interface Gantt<[^{]*\{/)].map(method),
     tokens: tokens(read("src/styles/tokens.css"), read("../../docs/WASM_API.md")),
     errors: errors(read("src/errors.ts"), product),
+    refusals: refusals(read("src/edit-result.ts")),
   };
 }

@@ -59,7 +59,7 @@ Every feature is a row in [Compared](#compared).
 - **Your rules.** One option makes the chart read-only, and it can be switched while the page runs.
 - **Your stack.** Plain JavaScript, and React, Vue and Angular components in the same package. The same engine runs in Node with no page (`tachlon/headless`).
 
-`npx tachlon describe` lists every option, event, command and CSS token of the version you installed. The guide to the API is [packages/gantt/README.md](packages/gantt/README.md).
+`npx tachlon describe` lists every option, event, command, method, CSS token and refusal reason of the version you installed. The guide to the API is [packages/gantt/README.md](packages/gantt/README.md).
 
 ## For your assistant
 
@@ -71,7 +71,7 @@ The package carries its own instructions, so your assistant works from the versi
 |---|---|
 | The prompt | One prompt installs the chart, puts it on a page and checks the result. |
 | [`AGENTS.md`](packages/gantt/AGENTS.md) | The guide inside the package: the steps in order, and what never to do. |
-| `npx tachlon describe` | The package describes itself: every option, event, command, CSS token and error of the installed version, generated from the types, as text or JSON. `describe fit` is the procedure for fitting the chart to your product, visually and technically. |
+| `npx tachlon describe` | The package describes itself: every option, event, command, method, CSS token, error and refusal reason of the installed version, generated from the types, as text or JSON. `describe fit` is the procedure for fitting the chart to your product, visually and technically. |
 | [`npx tachlon doctor`](packages/gantt/README.md#check-an-install-with-tachlon-doctor) | Checks an install, writes nothing, and prints a fix under each failed check. |
 | [`validate`](packages/gantt/README.md#start-errors) | Checks your task data and names each problem by path, with a fix. |
 | [`init --skill`](packages/gantt/README.md#add-it-to-a-vite-app) | Writes a skill file that tells your assistant when to use the package, where its `AGENTS.md` is, and what never to do. |

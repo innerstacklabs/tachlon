@@ -13,7 +13,7 @@ description: Add or change a Gantt chart with the ${name} package. Use when a ta
 
 Read \`node_modules/${name}/AGENTS.md\` before you touch the chart, and follow it.
 
-Before you write code against an option, event, command or token, run \`npx ${name} describe\` and ask the topic it names: the answer comes from the installed version. Run \`npx ${name} describe fit\` before you theme the chart or wire saves.
+Before you write code against an option, event, command or token, run \`npx ${name} describe\` and ask the topic it names: the answer comes from the installed version. Run \`npx ${name} describe fit\` before you theme the chart or wire saves. Run \`npx ${name} describe methods\` to read what the chart object answers to, and \`npx ${name} describe refusals\` when a call changes nothing.
 
 When the chart does not draw or does not load, run \`npx ${name} doctor\`: it prints a fix under each failed check.
 

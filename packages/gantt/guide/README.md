@@ -20,7 +20,7 @@ or the other. Every term must hold:
 | `event:<name>` | the product listens to that event |
 
 The package's `describe` command lists the names: `describe options`, `describe events` and
-`describe commands`. The chart's own methods are in the package's type declarations.
+`describe commands` and `describe methods`, the chart's own methods; `describe refusals` lists why a call changes nothing.
 
 `<!-- control: <member> | what it does -->` marks a step that a product's own control carries out.
 Text that needs a `call:` holds at least one.

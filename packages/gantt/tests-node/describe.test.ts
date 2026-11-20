@@ -17,6 +17,7 @@ const declared = {
   options: all(body(read("src/gantt-types.ts"), "export interface MountOptions<F extends Fields | undefined = undefined> {"), /^ {2}(\w+)\??:/gm),
   events: all(body(read("src/events.ts"), "export interface GanttEvents {"), /^ {2}"?([\w-]+)"?:/gm),
   commands: [...new Set([...all(body(read("src/commands.ts"), "export interface Commands {"), /^ {2}(\w+)\(/gm), ...all(body(read("src/host-commands.ts"), "export interface HostCommands {"), /^ {2}(\w+)\(/gm)])],
+  methods: ["on", ...all(body(read("src/gantt-types.ts"), "export interface Gantt<F extends Fields | undefined = undefined> extends HasOn {"), /^ {2}(\w+)[(:]/gm)],
   tokens: all(body(read("src/styles/tokens.css").replace(/\/\*[\s\S]*?\*\//g, ""), ":where(.gantt) {"), /(--gantt-[a-z0-9-]+)\s*:/g),
   errors: all(body(read("src/errors.ts"), "const FIXES = {"), /^ {2}([A-Z_]+): "/gm).map((cause) => `${PRODUCT_NAME.toUpperCase()}_${cause}`),
 };
@@ -54,7 +55,7 @@ test("an option's meaning starts its doc comment, and its default is the declara
 test("describe with no topic lists the topics, and an unknown topic is exit 2 with the topics listed", () => {
   const list = describe();
   assert.equal(list.code, 0);
-  for (const topic of [...Object.keys(declared), "fit"]) assert.match(list.out, new RegExp(` describe ${topic}\``));
+  for (const topic of [...Object.keys(declared), "refusals", "fit"]) assert.match(list.out, new RegExp(` describe ${topic}\``));
   const bad = describe("nope");
   assert.equal(bad.code, 2);
   assert.match(bad.err, /unknown topic nope[^]* describe options`/);
@@ -87,4 +88,23 @@ test("describe fit prints the steps with the package's own name in the commands,
   assert.ok(!text.out.includes("{name}"), "the placeholder is filled");
   assert.match(text.out, new RegExp(`npx ${PRODUCT_NAME.toLowerCase()} describe tokens`));
   assert.equal((JSON.parse(describe("fit", "--json").out) as { markdown: string }).markdown, text.out);
+});
+
+test("the hostEdit entry names its two added reasons and sends both to update; methods and commands point to refusals", () => {
+  const hostEdit = bundle.model.methods.find((m) => m.name === "hostEdit")?.description ?? "";
+  for (const word of ["hasActuals", "notAllowed", "For both, call `update`"]) assert.ok(hostEdit.includes(word), `hostEdit says ${word}`);
+  for (const topic of ["methods", "commands"]) assert.match(describe(topic).out, / describe refusals`\.\n$/);
+});
+
+test("describe refusals prints every reason of EditRefusal, and every reason a method comment names is one of them", () => {
+  const union = read("src/edit-result.ts").split("export type EditRefusal =")[1]!.split("\n\n")[0]!.replace(/\/\*\*.*\*\//g, "");
+  const reasons = all(union, /"(\w+)"/g);
+  const out = describe("refusals").out;
+  assert.ok(reasons.length >= 30 && reasons.every((r) => out.includes(`\`${r}\``)), "every reason is printed");
+  assert.deepEqual((JSON.parse(describe("refusals", "--json").out) as { items: Item[] }).items.flatMap((i) => i.name.split(", ")), reasons);
+  const text = bundle.model.methods.map((m) => m.description).join("\n");
+  const camel = "([a-z]+[A-Z]\\w*)";
+  const named = [...all(text, new RegExp(`\`"${camel}"\``, "g")), ...all(text, new RegExp(`\\bis \`${camel}\``, "g")), ...all(text.match(/EditRefusal`: ([^)]*)\)/)![1]!, new RegExp(`\`${camel}\``, "g"))];
+  assert.ok(named.length >= 10, "the reasons the comments name are found");
+  for (const n of named) assert.ok(reasons.includes(n), `${n} is a reason of EditRefusal`);
 });
