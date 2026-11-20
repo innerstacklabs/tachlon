@@ -14,6 +14,9 @@ pub const HEIGHT_PX: f64 = 3.0;
 /// The gap between the bar and its comparison bar, CSS pixels.
 pub const GAP_PX: f64 = 1.0;
 
+/// The row background kept under a strip, CSS pixels: a later slot is lifted to keep it.
+const ROW_FLOOR_PX: f64 = 2.0;
+
 /// Add a comparison bar under each baselined visible leaf bar, under the bars. `order[row]` is the
 /// task on `row`; `baseline_of(task)` gives its baseline start and finish, or `None` for a task
 /// with no entry. Only the visible rows are walked, one lookup each. A summary row, a bar cut by
@@ -22,7 +25,8 @@ pub const GAP_PX: f64 = 1.0;
 /// row, the comparison bar `HEIGHT_PX` under it after `GAP_PX`, from the baseline start to the
 /// baseline finish; a task whose baseline equals its dates gets the same strip under its bar.
 /// `strip` is the slot and the color: slot 0 is the strip under the bar, and each slot after it
-/// sits `HEIGHT_PX + GAP_PX` lower.
+/// sits `HEIGHT_PX + GAP_PX` lower, but is lifted until `ROW_FLOOR_PX` of its row is left under it
+/// (never above slot 0): in a 24 px row every later slot shares slot 0's place.
 pub fn add_comparison_bars(
     scene: &mut Scene,
     v: &Viewport,
@@ -53,7 +57,11 @@ pub fn add_comparison_bars(
         if x1 < 0.0 || x0 > v.width {
             continue;
         }
-        let y = top + bh + GAP_PX + f64::from(slot) * (HEIGHT_PX + GAP_PX);
+        let first = top + bh + GAP_PX;
+        let floor = v.row_top(row) + v.row_height - ROW_FLOOR_PX - HEIGHT_PX;
+        let y = (first + f64::from(slot) * (HEIGHT_PX + GAP_PX))
+            .min(floor)
+            .max(first);
         b.rect(x0, y, x1, y + HEIGHT_PX, color);
     }
     let rects: Vec<Rect> = b.scene.rects;
