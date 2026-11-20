@@ -25,7 +25,7 @@
 // calendar every side uses: the dates our engine computes from the links, so the start each leaf is
 // given (a start-no-earlier-than in our file and Bryntum's) never moves it. `stress` tasks carry
 // none: some start mid-day, and the links alone place them. Summaries carry none either.
-// `tree4seq` and `tree4long` (to#100) are `tree4` with a host `key` on every task, to open a keyed schedule against
+// `tree4seq` and `tree4long` (#100) are `tree4` with a host `key` on every task, to open a keyed schedule against
 // the unkeyed `tree4`: `tree4seq` keys `t<id>`, `tree4long` keys 54 characters long that differ only in their last six.
 // The hash goes to <out>/dataset.json.sha256 in `sha256sum` format. Datasets are generated at run
 // time and never committed.
@@ -41,7 +41,7 @@ import { stress, type Kind } from "./stress.ts";
 
 export const SHAPES = ["chain", "tree4", "stress"] as const;
 
-/** `tree4` with a host key on every task (to#100): the key each shape gives the task of id `n`. */
+/** `tree4` with a host key on every task (#100): the key each shape gives the task of id `n`. */
 export const KEYED = {
   tree4seq: (n: number) => `t${n}`,
   tree4long: (n: number) => `${"k".repeat(48)}${String(n).padStart(6, "0")}`,
