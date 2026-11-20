@@ -47,18 +47,18 @@ export const hasSave = (save: Save | Handlers | undefined): boolean => save !== 
 /** A commit that is not saved yet, its change set (written at the first call), how many times `save` has run for it, and why it cannot be sent (a key the app refused). */
 interface Waiting { commit: Commit; set?: ChangeSet; calls: number; bad?: string }
 
-/** How the queue gives a new row its key (decision 0022, rule 5): `mode` and `make` are the mount's `keys` and `newKey`, `names` the host's names for `key`, `assign` gives a row its key in the app and says why it refused, if it did, and `rekey` does the same for a row that holds another key. */
-export interface KeyRules { mode: "chart" | "server"; make: () => string; names: KeyNames; assign(record: "task" | "link", slot: number, key: string): string | undefined; rekey(record: "task" | "link", slot: number, key: string): string | undefined }
+/** How the queue gives a new row its key (decision 0022, rule 5): `mode` and `make` are the mount's `keys` and `newKey`, `names` the host's names for `key`, `refs` its names for the members that name a task by its key, `assign` gives a row its key in the app and says why it refused, if it did, and `rekey` does the same for a row that holds another key. */
+export interface KeyRules { mode: "chart" | "server"; make: () => string; names: KeyNames; refs: readonly string[]; assign(record: "task" | "link", slot: number, key: string): string | undefined; rekey(record: "task" | "link", slot: number, key: string): string | undefined }
 
 /** The rules of an app that has `assign_task_key`, `assign_link_key`, `rekey_task_key` and `rekey_link_key`. */
-export function keyRules(app: { assign_task_key(slot: number, key: string): string; assign_link_key(slot: number, key: string): string; rekey_task_key(slot: number, key: string): string; rekey_link_key(slot: number, key: string): string }, keys: "chart" | "server" | undefined, newKey: (() => string) | undefined, names: KeyNames): KeyRules {
+export function keyRules(app: { assign_task_key(slot: number, key: string): string; assign_link_key(slot: number, key: string): string; rekey_task_key(slot: number, key: string): string; rekey_link_key(slot: number, key: string): string }, keys: "chart" | "server" | undefined, newKey: (() => string) | undefined, names: KeyNames, refs: readonly string[] = REFERENCES): KeyRules {
   const refusal = (answer: string): string | undefined => {
     const result = JSON.parse(answer) as { ok: boolean; message?: string };
     return result.ok ? undefined : result.message;
   };
   const assign = (record: "task" | "link", slot: number, key: string): string | undefined => refusal(record === "task" ? app.assign_task_key(slot, key) : app.assign_link_key(slot, key));
   const rekey = (record: "task" | "link", slot: number, key: string): string | undefined => refusal(record === "task" ? app.rekey_task_key(slot, key) : app.rekey_link_key(slot, key));
-  return { mode: keys ?? "chart", make: newKey ?? uuid, names, assign, rekey };
+  return { mode: keys ?? "chart", make: newKey ?? uuid, names, refs, assign, rekey };
 }
 
 /** With `save`, every row a host passes needs a key and no two rows of a kind share one (decision 0022, rule 5.2). The mistake in `rows` (in the chart's names), or undefined. */
@@ -70,10 +70,10 @@ export function keyMistake(kind: "task" | "link", rows: readonly object[] | unde
   return same === undefined ? undefined : `duplicateKey: two ${kind}s have the key ${JSON.stringify(same)}.`;
 }
 
-const CHART_KEYS: KeyRules = { mode: "chart", make: () => uuid(), names: { task: "key", link: "key" }, assign: () => "the queue was given no way to assign keys", rekey: () => "the queue was given no way to assign keys" };
 
-/** The members of a change that name a task by its key. */
+/** The members of a change that name a task by its key, in the chart's names: `KeyRules.refs` has the host's names for them, which differ when the host renames `parent`, `from` or `to`. */
 const REFERENCES = ["parent", "after", "from", "to"];
+const CHART_KEYS: KeyRules = { mode: "chart", make: () => uuid(), names: { task: "key", link: "key" }, refs: REFERENCES, assign: () => "the queue was given no way to assign keys", rekey: () => "the queue was given no way to assign keys" };
 
 const slotOf = (c: Change): number | undefined => (c.record === "task" ? c.task : c.record === "link" ? c.link : undefined);
 /** The name a row has inside the queue, `task:3`: the `ref` of its create when the server makes the key. */
@@ -259,7 +259,7 @@ export class SaveQueue {
     const asked = new Set(commit.changes.filter((c) => asks(c) && c.key === null).map(at)); // the rows with no key yet: a row that has one is named by it
     const restored = new Map(commit.changes.filter((c) => asks(c) && c.record === "task" && c.key !== null).map((c) => [c.key!, at(c)])); // a restored task, by its key
     const point = (m: string, v: unknown): unknown => {
-      if (typeof v === "string") return REFERENCES.includes(m) && restored.has(v) ? { ref: restored.get(v) } : v;
+      if (typeof v === "string") return this.keys.refs.includes(m) && restored.has(v) ? { ref: restored.get(v) } : v;
       const slot = typeof v === "object" && v !== null && Object.keys(v).length === 1 ? (v as { task?: unknown }).task : undefined;
       return typeof slot === "number" ? this.made.get(`task:${slot}`) ?? (asked.has(`task:${slot}`) ? { ref: `task:${slot}` } : v) : v;
     };
@@ -279,7 +279,7 @@ export class SaveQueue {
     const why = this.keys.rekey(record, Number(slot), typeof key === "string" ? key : "");
     if (why !== undefined) return `the key ${JSON.stringify(key)} the save result gives ${ref} was refused: ${why}`;
     this.made.set(ref, key as string);
-    const swap = (members: Record<string, unknown> | undefined): Record<string, unknown> | undefined => members && Object.fromEntries(Object.entries(members).map(([m, v]) => [m, record === "task" && REFERENCES.includes(m) && v === old ? key : v]));
+    const swap = (members: Record<string, unknown> | undefined): Record<string, unknown> | undefined => members && Object.fromEntries(Object.entries(members).map(([m, v]) => [m, record === "task" && this.keys.refs.includes(m) && v === old ? key : v]));
     const rename = (c: Change): Change => ({ ...c, ...(c.record === record && c.key === old ? { key: key as string } : {}), ...(c.set === undefined ? {} : { set: swap(c.set)! }), ...(c.was === undefined ? {} : { was: swap(c.was)! }) });
     for (const w of this.waiting.slice(1)) w.commit = { ...w.commit, changes: w.commit.changes.map(rename) };
     return undefined;

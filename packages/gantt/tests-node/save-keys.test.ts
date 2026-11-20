@@ -151,6 +151,20 @@ test("a commit queued behind a restore that was answered with another key goes o
   expect(seen[2]!.changes).toMatchObject([{ key: "x1", set: { parent: "t10" }, was: { parent: "t10" } }]);
 });
 
+for (const [what, [parent, from, to]] of [["the chart's names for parent, from and to", ["parent", "from", "to"]], ["a host's own names for parent, from and to", ["parentId", "source", "target"]]] as const) {
+  test(`under keys: server, a restored task answered with another key reaches a queued child update, a queued link create and a child created with it, in ${what}`, async () => {
+    const app = fakeApp();
+    app.held.set("task:5", "t9");
+    const got: unknown[] = [];
+    const handlers: Handlers = { createTask: async (row) => (got.push(row), { id: row.id === "t9" ? "t11" : "c2" }), updateTask: async (key, set) => void got.push([key, set]), createLink: async (row) => void got.push(row) };
+    const queue = new SaveQueue(app, handlers, () => undefined, keyRules(app, "server", undefined, NAMES, [parent, "after", from, to]));
+    const [child, link]: Change[] = [{ ...edit(6), key: "x1", set: { [parent]: "t9" }, was: { [parent]: "t9" } }, { record: "link", op: "create", key: "l9", link: 0, set: { [from]: "t9", [to]: "x1" } }];
+    queue.add([restore(create(5, {}, "t9"), create(7, { [parent]: "t9" }, "c1")), commit(2, child), commit(3, link)]);
+    await settle();
+    expect(got).toMatchObject([{ id: "t9" }, { id: "c1", [parent]: "t11" }, ["x1", { [parent]: "t11" }], { [from]: "t11", [to]: "x1" }]);
+  });
+}
+
 test("a re-key the app refuses puts the commit back with the reason \"result\" and the app's message", async () => {
   const app = fakeApp();
   app.held.set("task:5", "t9");
