@@ -3,13 +3,13 @@
 
 use crate::common;
 
-use app::Session;
 use app::meta::TaskMeta;
 use app::outline::{Outline, demo_layout};
+use app::{PageSize, Session, edit::Edit};
 use common::baseline::{set, slipping_edit};
 use common::clock;
 use common::collapse::{N, session, standard_calendar};
-use engine::{Schedule, Task};
+use engine::{Schedule, Task, TaskId};
 use timeline::Timeline;
 
 /// The demo session with an activity ID and a WBS code on every task (`A<i>`, `W.<i>`).
@@ -320,4 +320,42 @@ fn list_text_has_a_header_and_every_visible_row() {
     let filtered = lines(&filtered_text);
     assert_eq!(filtered.len(), 1 + table(&session));
     assert!(filtered.len() < all.len(), "the filter hides rows");
+}
+
+#[test]
+fn a_finished_task_has_an_empty_float_cell_in_the_copy_and_the_print_as_the_grid_shows() {
+    let (mut s, _) = common::demo_session(10);
+    let order = s.timeline().order().to_vec();
+    s.edit(Edit::SetProgress {
+        task: TaskId(order[0]),
+        actual_start: Some(480),
+        actual_finish: Some(960),
+        remaining: Some(0),
+    })
+    .expect("progress sets");
+    let rows: Vec<serde_json::Value> =
+        serde_json::from_str(&s.table_rows_json(0, u32::MAX)).expect("rows are JSON");
+    let grid: Vec<String> = rows
+        .iter()
+        .map(|row| match row[3] {
+            serde_json::Value::Null => String::new(),
+            _ => s.task_float(row[0].as_u64().expect("a task") as u32),
+        })
+        .collect();
+    assert_eq!(grid[0], "", "the finished task's grid cell is empty");
+    assert!(grid[1..].iter().any(|cell| !cell.is_empty()));
+
+    let text = s.list_text();
+    let copied: Vec<&str> = lines(&text)[1..].iter().map(|row| row[4]).collect();
+    assert_eq!(copied, grid);
+
+    let columns = ["Task".to_string(), "Float".to_string()];
+    let svg = &s.print_pages_on("Plan", "", PageSize::Letter, Some(&columns), None, None)[0];
+    let cells = svg.split("<clipPath id=\"pc").skip(1).map(|cell| {
+        let text = cell.split_once("<text ").expect("the cell has text").1;
+        let text = text.split_once('>').expect("the text opens").1;
+        text.split("</text>").next().unwrap_or("")
+    });
+    let printed: Vec<&str> = cells.skip(2).skip(1).step_by(2).collect();
+    assert_eq!(printed, grid);
 }
