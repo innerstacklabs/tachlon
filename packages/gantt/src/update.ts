@@ -3,6 +3,7 @@
 import { readCalendars, toMinutes } from "./adapters/plain-calendars.js";
 import type { PublicApp } from "./api.js";
 import { toSeparate } from "./constraint-form.js";
+import { timedDate } from "./date-form.js";
 import { readAnswer, refused, type Refusal } from "./edit-result.js";
 import type { HostDifference, MountOptions, UpdateResult } from "./gantt-types.js";
 
@@ -11,18 +12,6 @@ const hasDuration = (record: unknown): record is { duration: number } => typeof 
 
 /** `Gantt.pushHostEntry`: a `token` that is not text reads as empty, which the app refuses as `badToken`. */
 export const pushHostEntry = (app: PublicApp, token: string): { ok: true } | Refusal => readAnswer(app.try_push_host_entry(typeof token === "string" ? token : "")) as { ok: true } | Refusal;
-
-/** The members of a record that hold a date. */
-const DATES = ["start", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "hostStart", "hostFinish"];
-
-/** Under `dateForm: "day"` a host writes a date as the chart wrote it, `YYYY-MM-DD`: the first record that gives a date with a time of day, with its member. */
-function withTime(records: readonly unknown[]): { record: number; member: string } | undefined {
-  for (const [record, row] of records.entries()) {
-    const member = typeof row === "object" && row !== null ? DATES.find((name) => String((row as Record<string, unknown>)[name]).includes("T")) : undefined;
-    if (member !== undefined) return { record, member };
-  }
-  return undefined;
-}
 
 /** The working day in minutes of the task with each key, from the saved document: its own calendar's, as the plain-data reader counts a day. */
 function dayOfKey(app: PublicApp): (key: unknown) => number {
@@ -38,11 +27,8 @@ export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["
   if (busy()) return refused("busy");
   let separate: unknown[];
   try { separate = records.map((record) => (typeof record === "object" && record !== null && !Array.isArray(record) ? toSeparate(record as Record<string, unknown>, true) : record)); } catch (err) { return Object.freeze({ ok: false, reason: "badRecords", message: `Nothing changed: ${(err as Error).message}` }); }
-  const timed = dateForm === "day" ? withTime(separate) : undefined;
-  if (timed !== undefined) {
-    const key = (separate[timed.record] as { key?: unknown }).key;
-    return Object.freeze({ ok: false, reason: "badValue", ...timed, message: `Nothing changed: ${timed.member} of record ${timed.record} has a time of day, and dateForm is "day", which takes YYYY-MM-DD.`, ...(typeof key === "string" ? { key } : {}) });
-  }
+  const timed = timedDate(dateForm, separate);
+  if (timed !== undefined) return timed;
   const day = unit === "hours" || unit === "minutes" || !records.some(hasDuration) ? () => 0 : dayOfKey(app);
   const answer = readAnswer(app[call](JSON.stringify(separate.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
   if (answer.ok) {
