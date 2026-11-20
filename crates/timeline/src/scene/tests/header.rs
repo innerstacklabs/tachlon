@@ -362,16 +362,13 @@ fn labels_stay_inside_the_canvas() {
 
 #[test]
 fn a_period_cut_by_the_right_edge_is_named_whole_or_left_out() {
-    // 60 days over 1200 px, slid a quarter day at a time across a week's length: the last week
-    // is cut to every width in turn. Only a period cut by the left edge may be set clipped.
+    // Slid a quarter day at a time, the last week is cut to every width; only a left-edge cut may be clipped.
     for step in 0..28 {
         let (s, v) = band_from(f64::from(step) * 0.25, 1200.0, 60.0, 3, 1.0, 48.0);
         let (top, _) = tiers(&s, &v);
         assert!(!top.is_empty(), "step {step}");
-        assert!(
-            top.iter().filter(|l| !l.center).all(|l| l.x < 8.0),
-            "step {step}: {top:?}"
-        );
+        let clipped_only_left = top.iter().filter(|l| !l.center).all(|l| l.x < 8.0);
+        assert!(clipped_only_left, "step {step}: {top:?}");
     }
 }
 
