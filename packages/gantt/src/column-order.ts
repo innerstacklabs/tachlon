@@ -1,27 +1,28 @@
-/** The columns the Columns menu can move: the four after Task, in the order the table opens with. */
-export const MOVABLE = ["dur", "start", "finish", "float"] as const;
+/** The columns the Columns menu can move: the five after Task, in the order the table opens with (Free float opens hidden). */
+export const MOVABLE = ["dur", "start", "finish", "float", "free-float"] as const;
 export type Movable = (typeof MOVABLE)[number];
 
-/** The table's flag for an order the menu has set: `data-column-order="start dur finish float"`. It is internal; the menu writes it, the cursor reads it. */
+/** The table's flag for an order the menu has set: `data-column-order="start dur finish float free-float"`. It is internal; the menu writes it, the cursor reads it. */
 export const ORDER_FLAG = "data-column-order";
 
-/** The grid track each column has. Start, Finish and Float are empty while the menu hides the column (columns.css). */
+/** The grid track each column has. Start, Finish, Float and Free float are empty while the menu hides the column (columns.css). */
 const TRACK: Record<Movable, string> = {
   dur: "60px",
   start: "var(--start-track, var(--gantt-date-col))",
   finish: "var(--finish-track, var(--gantt-date-col))",
   float: "var(--float-track, 46px)",
+  "free-float": "var(--free-float-track, 76px)",
 };
 
-/** The table's order of the four columns; the default when the table has no flag or the flag does not name each once. */
+/** The table's order of the five columns; the default when the table has no flag or the flag does not name each once. */
 export function columnOrder(table: Element): readonly Movable[] {
   const named = (table.getAttribute(ORDER_FLAG) ?? "").split(" ");
   return named.length === MOVABLE.length && MOVABLE.every((column) => named.includes(column)) ? (named as Movable[]) : MOVABLE;
 }
 
 /**
- * Put the four columns in `order`, for the rest of the visit: the flag for the cursor, then a position per column (`--order-<column>`, which
- * column-order.css turns into `order`) and the tracks in that order (`--track-1` to `--track-4`), so the head and every row follow.
+ * Put the five columns in `order`, for the rest of the visit: the flag for the cursor, then a position per column (`--order-<column>`, which
+ * column-order.css turns into `order`) and the tracks in that order (`--track-1` to `--track-5`), so the head and every row follow.
  */
 export function setColumnOrder(table: HTMLElement, order: readonly Movable[]): void {
   table.setAttribute(ORDER_FLAG, order.join(" "));
@@ -49,7 +50,7 @@ export function dropped(order: readonly Movable[], column: Movable, onto: Movabl
   return next;
 }
 
-/** `names` with the four movable columns, wherever they stand in it, taking the table's order in their places. */
+/** `names` with the five movable columns, wherever they stand in it, taking the table's order in their places. */
 export function arranged<T extends string>(names: readonly T[], table: Element | null): T[] {
   const order = table === null ? MOVABLE : columnOrder(table);
   let at = 0;

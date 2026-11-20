@@ -108,9 +108,9 @@
 .gantt [data-part=table][data-wbs="true"] {
   --wbs-w: calc(var(--gantt-wbs-col, 72px) + 6px);
 }
-/* The Resources column (table.ts sets data-resources) is the last track, after the variance cells (order 10). */
+/* The Resources column (table.ts sets data-resources) is the last track, after the variance cells (order 11). */
 .gantt [data-part=table][data-resources] { --res-track: var(--gantt-res-col); --res-w: calc(var(--gantt-res-col) + 6px); }
-.gantt .cols > .resources { order: 11; }
+.gantt .cols > .resources { order: 12; }
 .gantt [data-part=table][data-progress="true"] {
   --progress-w: 416px;
   /* gs#974: % complete follows Task. Task is the width the names need (task-width.ts), at most the pane less the gutter, ID, WBS and
@@ -132,7 +132,7 @@
   /* The least the columns need: the Task minimum, the fixed tracks of --gantt-cols (Dur 60px, two date columns, Float 46px), five gaps (30px),
      the gutter track (12px) and the end padding (6px), then
      the optional columns above. A pane narrower than this scrolls sideways; the Task column does not give way. */
-  min-width: calc(var(--gantt-task-fit, var(--gantt-task-min)) + 154px + 2 * var(--gantt-date-col) + var(--ids-w) + var(--wbs-w) + var(--pred-w) + var(--variance-w) + var(--progress-w) + var(--res-w, 0px) - var(--hidden-w, 0px));
+  min-width: calc(var(--gantt-task-fit, var(--gantt-task-min)) + 154px + 2 * var(--gantt-date-col) + var(--ids-w) + var(--wbs-w) + var(--pred-w) + var(--variance-w) + var(--progress-w) + var(--res-w, 0px) + var(--free-float-w, 0px) - var(--hidden-w, 0px));
 }
 /* The gutter cover: the first track, stuck at the left like the frozen cells and filled like the row (the head's fill for the head), so
    the scrolled cells do not show in it. It stretches 6px over the gap after it, and it carries the selected-row edge, which the row
@@ -158,7 +158,7 @@
    variance columns; the DOM order is unchanged and the tracks follow the visual order. */
 .gantt [data-part=table][data-progress="true"] .cols {
   /* The tracks' sum: a narrower row ends a frozen cell early. */
-  min-width: calc(var(--progress-task) + 154px + 2 * var(--gantt-date-col) + var(--ids-w) + var(--wbs-w) + var(--pred-w) + var(--variance-w) + var(--progress-w) + var(--res-w, 0px) - var(--hidden-w, 0px));
+  min-width: calc(var(--progress-task) + 154px + 2 * var(--gantt-date-col) + var(--ids-w) + var(--wbs-w) + var(--pred-w) + var(--variance-w) + var(--progress-w) + var(--res-w, 0px) + var(--free-float-w, 0px) - var(--hidden-w, 0px));
   grid-template-columns: var(--gutter-track) var(--gantt-id-track, ) var(--progress-task) 88px 116px 116px 72px var(--movable-tracks) var(--pred-track, ) var(--gantt-var-track, ) var(--res-track, );
 }
 .gantt [data-part=table][data-wbs="true"][data-progress="true"] .cols {
@@ -323,6 +323,7 @@
 .gantt [data-part=table][data-edge-cut="start"] .cols > .start,
 .gantt [data-part=table][data-edge-cut="finish"] .cols > .finish,
 .gantt [data-part=table][data-edge-cut="float"] .cols > .float,
+.gantt [data-part=table][data-edge-cut="free-float"] .cols > .free-float,
 .gantt [data-part=table][data-edge-cut="var-start"] .cols > .var-start,
 .gantt [data-part=table][data-edge-cut="var-finish"] .cols > .var-finish,
 .gantt [data-part=table][data-edge-cut="var-float"] .cols > .var-float,

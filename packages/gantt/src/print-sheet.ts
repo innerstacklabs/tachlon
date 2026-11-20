@@ -19,7 +19,7 @@ export function measureText(text: string, size: number): number {
   return canvas.measureText(text).width;
 }
 
-const HEADS: Record<Movable, string> = { dur: "Dur", start: "Start", finish: "Finish", float: "Float" };
+const HEADS: Record<Movable, string> = { dur: "Dur", start: "Start", finish: "Finish", float: "Float", "free-float": "Free float" };
 const PROGRESS_HEADS = ["% complete", "Actual start", "Actual finish", "Remaining"];
 const VARIANCE_HEADS = ["Start variance", "Finish variance", "Float variance"];
 
@@ -39,14 +39,15 @@ export function printColumns(root: ParentNode): string[] | undefined {
 }
 
 /**
- * Put the screen's columns as a layout's `columns` names them, the inverse of `printColumns` (gantt#703): Start, Finish and Float that the list leaves out are hidden with the Columns menu's flags,
- * the four movable columns take the list's order (any it leaves out keep their places after it), and the Progress and Variance flags are set to match whether any column of their group is named (`setProgress` and `setVariance`, the buttons' own path, so it works without the toolbar).
+ * Put the screen's columns as a layout's `columns` names them, the inverse of `printColumns` (gantt#703): Start, Finish, Float and Free float that the list leaves out are hidden with the Columns menu's flags,
+ * the five movable columns take the list's order (any it leaves out keep their places after it), and the Progress and Variance flags are set to match whether any column of their group is named (`setProgress` and `setVariance`, the buttons' own path, so it works without the toolbar).
  * `null` is every column: nothing hidden, Progress and Variance on, the order as it is. Without a table it does nothing.
  */
 export function applyColumns(root: ParentNode & EventTarget, columns: readonly string[] | null): void {
   const table = root.querySelector<HTMLElement>("[data-part=table]");
   if (!table) return;
-  const shown = (name: string): boolean => columns === null || columns.includes(name);
+  // `null` names every column a layout could name before Free float existed, so it hides Free float.
+  const shown = (name: string): boolean => (columns === null ? name !== HEADS["free-float"] : columns.includes(name));
   for (const column of HIDEABLE) table.toggleAttribute(`data-hide-${column}`, !shown(HEADS[column]));
   const listed = (columns ?? []).flatMap((name) => MOVABLE.filter((column) => HEADS[column] === name));
   setColumnOrder(table, [...new Set([...listed, ...columnOrder(table)])]);

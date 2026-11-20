@@ -67,7 +67,7 @@ fn every_fixture_reads_as_load_bytes_does() {
             "{name}: {line}"
         );
     }
-    assert_eq!(seen, 9);
+    assert_eq!(seen, 10);
 }
 
 #[test]

@@ -1,5 +1,5 @@
-/* The Columns menu (columns-menu.ts) hides Start, Finish or Float: no track, no width (a track and one 6px gap), and the head and the cells go.
-   A hidden column sets its track empty; --gantt-cols is then set again on the table from the four tracks (column-order.css, in the order the menu has set), so the head and every row drop the same tracks, and --hidden-w is what table.css takes off the width the columns need. The same rule serves a table whose order the menu has changed. */
+/* The Columns menu (columns-menu.ts) hides Start, Finish, Float or Free float: no track, no width (a track and one 6px gap), and the head and the cells go.
+   A hidden column sets its track empty; --gantt-cols is then set again on the table from the five tracks (column-order.css, in the order the menu has set), so the head and every row drop the same tracks, and --hidden-w is what table.css takes off the width the columns need. The same rule serves a table whose order the menu has changed. */
 .gantt [data-part=table][data-hide-start] {
   --start-track: ;
   --hide-start-w: calc(var(--gantt-date-col) + 6px);
@@ -12,13 +12,21 @@
   --float-track: ;
   --hide-float-w: 52px;
 }
-.gantt [data-part=table]:is([data-hide-start], [data-hide-finish], [data-hide-float], [data-column-order]) {
+/* Free float opens hidden (the markup carries data-hide-free-float), and a table that is hidden by default and moved by nobody keeps --gantt-cols as the page set it: only a shown Free float, or another flag, takes the template over. A shown column adds its track and one 6px gap to the width the columns need. */
+.gantt [data-part=table][data-hide-free-float] {
+  --free-float-track: ;
+}
+.gantt [data-part=table]:not([data-hide-free-float]) {
+  --free-float-w: 82px;
+}
+.gantt [data-part=table]:is([data-hide-start], [data-hide-finish], [data-hide-float], [data-column-order], :not([data-hide-free-float])) {
   --gantt-cols: minmax(var(--gantt-task-fit, var(--gantt-task-min)), 1fr) var(--movable-tracks);
   --hidden-w: calc(var(--hide-start-w, 0px) + var(--hide-finish-w, 0px) + var(--hide-float-w, 0px));
 }
 .gantt [data-part=table][data-hide-start] .cols > .start,
 .gantt [data-part=table][data-hide-finish] .cols > .finish,
-.gantt [data-part=table][data-hide-float] .cols > .float {
+.gantt [data-part=table][data-hide-float] .cols > .float,
+.gantt [data-part=table][data-hide-free-float] .cols > .free-float {
   display: none;
 }
 /* The button is an icon, as narrow as a button gets, as the Export one is, and it sits by the Progress button with no divider of its own: at 1280 px

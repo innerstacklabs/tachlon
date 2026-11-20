@@ -8,7 +8,7 @@ import { installRangeMarks } from "./range.js";
 import { listening, type Shell } from "./shell.js";
 
 /** The table's columns, left to right; `code` is there only while the table shows the ID column, `wbs` only while it shows the WBS column, `pred` only while it shows the Predecessors column, the four progress cells (gs#703) only while it shows the progress columns. */
-const COLUMNS = ["code", "wbs", "name", "dur", "start", "finish", "float", "pred", "actual-start", "actual-finish", "remaining", "percent"] as const;
+const COLUMNS = ["code", "wbs", "name", "dur", "start", "finish", "float", "free-float", "pred", "actual-start", "actual-finish", "remaining", "percent"] as const;
 const PROGRESS: readonly string[] = ["actual-start", "actual-finish", "remaining", "percent"];
 /** The cells that take an edit, in the order Tab walks a run of them: the name and duration, then the progress cells. */
 const RUNS: readonly (readonly EditField[])[] = [["name", "dur"], ["finish", "pred"], ["actual-start", "actual-finish", "remaining", "percent"]];

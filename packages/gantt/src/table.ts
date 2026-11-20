@@ -6,6 +6,7 @@ import { type Cursor } from "./cursor.js";
 import { element } from "./dom.js";
 import { nameOf } from "./field-names.js";
 import { frozenEdge } from "./frozen-edge.js";
+import { syncFreeFloatHead } from "./free-float-head.js";
 import { sayFor } from "./messages.js";
 import { installRowPosition } from "./row-position.js";
 import { type Shell, watching } from "./shell.js";
@@ -325,13 +326,13 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     // One row of slack: at a fractional scroll the visible count alternates
     // between two values, which would otherwise redraw on every row.
     const fresh = drawn.last - drawn.first <= Math.min(visible + 2 * overscan + 1, 2 * visible);
-    // The variance columns are held while a bar is dragged (below), so a change of that also redraws the rows.
-    // The Variance button hides them (data-variance-hidden, variance-toggle.ts).
+    // The variance columns are held while a bar is dragged (below), so a change of that also redraws the rows. The Variance button hides them (data-variance-hidden, variance-toggle.ts).
     const varianceOn = tableEl.dataset.variance === "true" && tableEl.dataset.varianceHidden === undefined;
     const holdVariance = varianceOn && s.drag?.active === true;
     const withVariance = varianceOn && !holdVariance;
     const holdResources = hasResources && s.drag?.active === true;
-    const varianceMode = (holdVariance ? "hold" : withVariance ? "on" : "off") + (holdResources ? "+res" : "");
+    const freeFloat = syncFreeFloatHead(app, root, tableEl, headCols);
+    const varianceMode = (holdVariance ? "hold" : withVariance ? "on" : "off") + (holdResources ? "+res" : "") + (freeFloat ? "+ff" : "");
     if (inside && fresh && s.stamp === drawn.stamp && varianceMode === drawn.variance) {
       markRows(s, false);
       return;
@@ -344,7 +345,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const focusWasInRows = tableRows.contains(document.activeElement);
     changed.before();
     tableRows.replaceChildren(
-      ...data.map((row, i) => buildRow(row, first + i, { app, say: sayFor(root), rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending: new Set([...pending, ...unsaved]), refusal })),
+      ...data.map((row, i) => buildRow(row, first + i, { app, say: sayFor(root), rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, freeFloat, holdVariance, withVariance, pending: new Set([...pending, ...unsaved]), refusal })),
     );
     placeRefusal(tableRows);
     changed.after();
