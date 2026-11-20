@@ -3,7 +3,7 @@ import type { PlainLink, PlainTask } from "./adapters/plain.js";
 import { MEMBERS as LIMITS, spelledTwice } from "./constraint-form.ts";
 import type { TaskUpdate, UpdateResult } from "./gantt-types.js";
 
-/** The members of a task that `update` takes, the six limits among them (`update` answers `notUpdatable` for `mso` and `mfo`): the only ones `setData` compares. */
+/** The members of a task that `update` takes, the six limits among them (`update` answers `notUpdatable` for an `mso` or `mfo` that is not the pin the chart holds): the only ones `setData` compares. */
 const MEMBERS = ["name", "start", "constraint", "duration", "progress", ...LIMITS] as const;
 /** A member that differs from the one held; a `constraint` is an object, so it is compared by value. */
 const differs = (given: unknown, held: unknown): boolean => given !== held && JSON.stringify(given) !== JSON.stringify(held);

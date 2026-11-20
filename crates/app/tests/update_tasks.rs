@@ -339,6 +339,44 @@ fn a_null_clears_a_limit_and_leaves_the_others_and_the_pin() {
 }
 
 #[test]
+fn a_pin_the_task_holds_is_no_change_and_a_different_one_is_still_refused() {
+    let (mut session, leaves) = keyed();
+    let text = |at| session.date_text(at).replacen(' ', "T", 1);
+    let (start, finish) = (text(0), text(600));
+    let pins = [(leaves[0], Pin::Start(0)), (leaves[1], Pin::Finish(600))];
+    for (task, pin) in pins {
+        let limit = Limit {
+            pin: Some(pin),
+            ..Limit::default()
+        };
+        session.edit(Edit::SetLimit { task, limit }).unwrap();
+    }
+    let same = format!(
+        r#"[{{"key":"k0","name":"A","mso":"{start}","mfo":null}},{{"key":"k1","name":"B","mso":null,"mfo":"{finish}"}},{{"key":"k2","mso":null,"mfo":null}}]"#
+    );
+    assert_eq!(session.update_tasks(&same).unwrap().tasks, 3);
+    assert_eq!(session.meta()[leaves[1].0 as usize].name, "B");
+    assert_eq!(limit_and_dates(&session, leaves[0]).0.pin, Some(pins[0].1));
+    assert_eq!(limit_and_dates(&session, leaves[1]).0.pin, Some(pins[1].1));
+    for (record, member) in [
+        (format!(r#"{{"key":"k0","mso":"{finish}"}}"#), "mso"),
+        (format!(r#"{{"key":"k0","mfo":"{start}"}}"#), "mfo"),
+        (r#"{"key":"k0","mso":null}"#.to_owned(), "mso"),
+        (format!(r#"{{"key":"k1","mso":"{start}"}}"#), "mso"),
+        (format!(r#"{{"key":"k2","mfo":"{finish}"}}"#), "mfo"),
+    ] {
+        let before = saved(&session);
+        let error = session.update_tasks(&format!("[{record}]")).unwrap_err();
+        assert_eq!(
+            (error.kind, error.member.as_deref()),
+            ("notUpdatable", Some(member)),
+            "{record}"
+        );
+        assert_eq!(saved(&session), before, "{record}");
+    }
+}
+
+#[test]
 fn an_update_during_a_bar_press_is_refused_as_busy() {
     let (mut session, _, _, (x, y)) = setup();
     session.pointer_down(x, y, false);
