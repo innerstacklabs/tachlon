@@ -69,6 +69,7 @@ test("the dimming comes off when a call saves, and a row the host marked with se
   await expect.poll(() => dim(page)).toEqual([null, null, "true"]);
   await edit(page, 1, "9");
   await expect.poll(() => dim(page), "the host's mark and the chart's together").toEqual([null, "true", "true"]);
+  await expect.poll(() => page.evaluate("calls.length"), "the save call is made").toBe(1);
   await page.evaluate("calls[0].resolve()");
   await expect.poll(() => dim(page), "only the chart's mark goes").toEqual([null, null, "true"]);
 });
@@ -76,6 +77,7 @@ test("the dimming comes off when a call saves, and a row the host marked with se
 test("a refusal whose field is an Object.prototype name draws no note and breaks no frame, and the row is still selected", async ({ page }) => {
   await open(page);
   await edit(page, 1, "9");
+  await expect.poll(() => page.evaluate("calls.length"), "the save call is made").toBe(1);
   await page.evaluate("calls[0].reject(new SaveRefused({ message: 'Odd field', key: 'b', field: 'constructor' }))");
   await expect(page.locator("#edit-error-text")).toContainText("Odd field");
   await expect(row(page, 1)).toHaveAttribute("data-selected", "true");
