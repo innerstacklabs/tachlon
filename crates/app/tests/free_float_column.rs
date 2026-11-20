@@ -52,13 +52,15 @@ fn days() -> Session {
     }
     let solution = schedule.compute().expect("computes");
     let timeline = Timeline::new(vec![0, 1, 2, 3, 4], 1_000.0, 400.0, 1.0);
-    Session::new(
+    let mut session = Session::new(
         schedule,
         solution,
         timeline,
         vec![TaskMeta::default(); 5],
         clock,
-    )
+    );
+    session.set_free_float_shown(true);
+    session
 }
 
 fn rows(session: &Session) -> Vec<Vec<Value>> {
@@ -124,6 +126,7 @@ fn a_summary_and_a_header_have_an_empty_free_float_cell() {
     )
     .with_outline(outline)
     .expect("a matching outline");
+    s.set_free_float_shown(true);
     let ungrouped = rows(&s);
     let summaries = ungrouped
         .iter()
@@ -154,6 +157,7 @@ fn a_summary_and_a_header_have_an_empty_free_float_cell() {
 #[test]
 fn every_row_equals_the_whole_list_after_an_edit_a_drag_frame_and_an_undo() {
     let (mut s, task, _, (x, y)) = setup_with(true);
+    s.set_free_float_shown(true);
     let agrees = |s: &Session, when: &str| {
         let whole = s
             .schedule()
@@ -223,4 +227,21 @@ fn a_link_edit_an_undo_and_a_redo_leave_every_row_with_its_value() {
     assert_eq!(slot(&rows(&s), 9), whole(&s), "after the undo");
     assert!(s.redo().expect("redoes"));
     assert_eq!(slot(&rows(&s), 9), whole(&s), "after the redo");
+}
+
+/// A hidden column (the start) has `null` in every row and works nothing out; showing it brings
+/// the values and bumps the stamp so the table redraws, hiding it again takes them away.
+#[test]
+fn a_hidden_column_writes_null_and_showing_it_redraws_the_table() {
+    let mut s = days();
+    s.set_free_float_shown(false);
+    assert!(slot(&rows(&s), 9).iter().all(Value::is_null));
+    let stamp = s.stamp();
+    s.set_free_float_shown(true);
+    assert_eq!(s.stamp(), stamp + 1, "showing it redraws the table");
+    assert_eq!(slot(&rows(&s), 9)[1], Value::from("1d"));
+    s.set_free_float_shown(true);
+    assert_eq!(s.stamp(), stamp + 1, "no change, no redraw");
+    s.set_free_float_shown(false);
+    assert!(slot(&rows(&s), 9).iter().all(Value::is_null));
 }

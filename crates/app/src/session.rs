@@ -126,6 +126,8 @@ pub struct Session {
     pub(crate) names: timeline::names::Names,
     /// The sentences this chart refuses an edit in (`set_locale`); `reopen` carries them on.
     pub(crate) texts: crate::texts::Texts,
+    /// The table shows the free float column ([`Session::set_free_float_shown`]); `reopen` carries it on.
+    pub(crate) free_float_shown: bool,
 }
 
 impl Session {
@@ -157,6 +159,7 @@ impl Session {
             row_filter: RowFilter::Off,
             lookahead: None,
             group: None,
+            free_float_shown: false,
             rows_stale: false,
             kept_leaves: None,
             path_line: None,
@@ -302,6 +305,7 @@ impl Session {
         session.links.look = self.links.look;
         session.names.clone_from(&self.names);
         session.texts.clone_from(&self.texts);
+        session.free_float_shown = self.free_float_shown;
         session.host.read_only = self.host.read_only;
         session.host.before_edit.clone_from(&self.host.before_edit);
         session.host.capabilities = self.host.capabilities;
@@ -353,5 +357,14 @@ impl Session {
     /// schedule edit, and therefore does not change the revision, stamp, or undo history.
     pub fn set_theme(&mut self, theme: Theme) {
         self.theme = theme;
+    }
+
+    /// Show or hide the free float column. Hidden at the start; view state, not saved and not an undo
+    /// step. A change bumps [`Session::stamp`], so the table redraws.
+    pub fn set_free_float_shown(&mut self, shown: bool) {
+        if self.free_float_shown != shown {
+            self.free_float_shown = shown;
+            self.stamp = self.stamp.wrapping_add(1);
+        }
     }
 }
