@@ -228,11 +228,11 @@ export interface TaskDetails {
   baselineVariance?: [string | null, string | null];
 }
 
-/** One table row from `App.table_rows`: task, start, finish, float, critical, and kind (leaf 0, expanded summary 1, collapsed summary 2), then the Start, Finish and Float variance against the baseline as signed working-day text (`+5d`, `-2d`, `0`), or null for a summary, a task the baseline lacks, a session with no baseline, a baseline from a file with no float (the Float cell) or with a date before the origin (that Start or Finish cell) and while a bar is dragged. Duration is read separately. */
-export type TableRow = [number, string, string, number | null, boolean, 0 | 1 | 2, string | null, string | null, string | null];
+/** One table row from `App.table_rows`: task, start, finish, float, critical, and kind (leaf 0, expanded summary 1, collapsed summary 2), then the Start, Finish and Float variance against the baseline as signed working-day text (`+5d`, `-2d`, `0`), or null for a summary, a task the baseline lacks, a session with no baseline, a baseline from a file with no float (the Float cell) or with a date before the origin (that Start or Finish cell) and while a bar is dragged; then the free float as working-day text (`1d`, `2.5d`), null for a summary, a finished task and a task whose free float cannot be worked out (the Free float cell). Duration is read separately. */
+export type TableRow = [number, string, string, number | null, boolean, 0 | 1 | 2, string | null, string | null, string | null, string | null];
 
 /** A group header from `App.table_rows` while the rows are grouped: no task, the code value (null for the leaves with no value), the leaf count, and kind 3 (open) or 4 (closed). */
-export type HeaderRow = [null, string | null, number, null, false, 3 | 4, null, null, null];
+export type HeaderRow = [null, string | null, number, null, false, 3 | 4, null, null, null, null];
 
 /** What `App.print_pages(title, printed_on, page_size?, measure?, columns?, from?, to?, layout?)` returns, where `layout` is the name of the print layout in use, headed `Layout: name`, and the optional `page_size` is `"letter"` (the default) or `"a4"`, `columns` names the list columns to print, in order (`print-sheet.ts` passes the screen's), and `from` and `to` (days, `YYYY-MM-DD`, given together) print only the rows active between them, the pages scaled to that window and headed `Dates: from to to`: one SVG document per printed page, in page order, at least one. */
 export type PrintPages = string[];

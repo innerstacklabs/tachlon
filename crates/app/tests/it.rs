@@ -88,6 +88,7 @@ mod float_calendar;
 mod float_text;
 mod fly;
 mod frame_scene;
+mod free_float_column;
 mod gesture;
 mod go_to_date;
 mod group;

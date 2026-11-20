@@ -157,7 +157,7 @@ fn a_header_is_kind_3_with_its_label_and_leaf_count() {
             serde_json::to_string(&g.value).expect("a label"),
             g.rows.len(),
         );
-        let header = format!("[null,{label},{n},null,false,3,null,null,null]");
+        let header = format!("[null,{label},{n},null,false,3,null,null,null,null]");
         assert_eq!(rows[row].to_string(), header, "[header-kind-3]");
         row += n + 1;
     }
@@ -181,7 +181,7 @@ fn a_collapsed_group_hides_its_leaves_and_keeps_its_header_and_count() {
     let json = |s: &Session| s.table_rows_json(row as u32, row as u32 + 1);
     let header = |kind: u32| {
         format!(
-            "[[null,{},{n},null,false,{kind},null,null,null]]",
+            "[[null,{},{n},null,false,{kind},null,null,null,null]]",
             label.as_ref().expect("a label")
         )
     };

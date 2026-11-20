@@ -85,7 +85,11 @@ fn variance(session: &Session, task: u32) -> [Option<String>; 3] {
         .expect("the task has a row")
         .as_array()
         .expect("a row");
-    assert_eq!(row.len(), 9, "six cells, then three of variance");
+    assert_eq!(
+        row.len(),
+        10,
+        "six cells, then three of variance, then the free float"
+    );
     [6, 7, 8].map(|i| row[i].as_str().map(str::to_string))
 }
 

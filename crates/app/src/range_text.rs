@@ -66,7 +66,9 @@ impl Session {
         tasks: Vec<u32>,
         columns: Option<&[String]>,
     ) -> Vec<Vec<String>> {
-        let rows = self.all_cells(tasks);
+        // Free float is a column only a layout or a print asks for by name; the copy the page makes from the start has the five columns it always had.
+        let free = columns.is_some_and(|names| names.iter().any(|name| name == "Free float"));
+        let rows = self.all_cells(tasks, free);
         let Some(names) = columns else { return rows };
         let mut picked: Vec<usize> = Vec::new();
         for name in names {
@@ -78,7 +80,7 @@ impl Session {
             .collect()
     }
 
-    fn all_cells(&self, tasks: Vec<u32>) -> Vec<Vec<String>> {
+    fn all_cells(&self, tasks: Vec<u32>, free: bool) -> Vec<Vec<String>> {
         let ids = self.has_codes();
         let wbs = meta::has_wbs_codes(self.meta());
 
@@ -90,6 +92,9 @@ impl Session {
             header.push("WBS");
         }
         header.extend(["Task", "Dur", "Start", "Finish", "Float"]);
+        if free {
+            header.push("Free float");
+        }
         let variance = self.baseline().is_some();
         let progress = self.has_progress();
         if variance {
@@ -124,6 +129,14 @@ impl Session {
                 self.date_text(finish),
                 float,
             ]);
+            if free {
+                // A summary and a finished task have an empty cell, as the table shows (the engine's value for a finished task is 0).
+                cells.push(if self.summary_span(task).is_some() {
+                    String::new()
+                } else {
+                    self.free_float_text(task).unwrap_or_default()
+                });
+            }
             if variance {
                 // A summary, or a task the baseline has no entry for, has empty variance cells.
                 let cells_of = if self.summary_span(task).is_some() {

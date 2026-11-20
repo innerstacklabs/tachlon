@@ -61,6 +61,7 @@ impl Session {
             "Start" => &t::HEAD_START,
             "Finish" => &t::HEAD_FINISH,
             "Float" => &t::HEAD_FLOAT,
+            "Free float" => &t::HEAD_FREE_FLOAT,
             "Start variance" => &t::HEAD_START_VARIANCE,
             "Finish variance" => &t::HEAD_FINISH_VARIANCE,
             "Float variance" => &t::HEAD_FLOAT_VARIANCE,
