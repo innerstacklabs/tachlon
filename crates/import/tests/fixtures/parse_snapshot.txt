@@ -1,5 +1,6 @@
 c16f6fe68f9945ed 71789 ../packages/gantt/tests/fixtures/baselined.xml
 8be5faccd89b6d6f 76543 ../packages/gantt/tests/fixtures/fan-in.xml
+51a3cb120a12f761 74435 ../packages/gantt/tests/fixtures/free-float-days.xml
 86f849d240d5753d 74420 ../packages/gantt/tests/fixtures/links.xml
 86a3f63472827694 77829 ../packages/gantt/tests/fixtures/measure-chain.xml
 336554f618b2320c 114508 ../packages/gantt/tests/fixtures/office-fitout-update.xml
