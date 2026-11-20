@@ -355,7 +355,7 @@ test("baseline=1 sets a baseline before the first phase and the result records i
 });
 
 test("dragTarget=critical offers the earliest critical leaf only, and head every leaf", () => {
-  const row = (critical: boolean, kind: 0 | 1 | 2): TableRow => [0, "", "", null, critical, kind, null, null, null];
+  const row = (critical: boolean, kind: 0 | 1 | 2): TableRow => [0, "", "", null, critical, kind, null, null, null, null];
   const rows = [row(false, 0), row(true, 1), row(true, 0), row(true, 0), row(false, 0)];
   const start = (r: number) => [0, 0, 50, 10, 0][r] ?? 0;
   expect(dragCandidates(rows, "critical", start), "the critical leaf that starts first, not a critical summary").toEqual([3]);
