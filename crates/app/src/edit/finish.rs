@@ -36,7 +36,11 @@ impl Session {
     /// time of its calendar from its start to then. `None` when that day ends at or before the
     /// start. The typed Finish cell and the drag of a bar's finish edge share it.
     pub(crate) fn duration_to_day_end(&self, task: TaskId, at: i64) -> Option<i64> {
-        let start = self.solution.dates[task.0 as usize].es;
+        self.duration_from(task, self.solution.dates[task.0 as usize].es, at)
+    }
+
+    /// [`Session::duration_to_day_end`] from the instant `start`, not the start `task` has now.
+    fn duration_from(&self, task: TaskId, start: i64, at: i64) -> Option<i64> {
         let end = at.div_euclid(DAY) * DAY + DAY;
         (end > start).then(|| self.schedule.calendar_of(task).working_between(start, end))
     }
@@ -62,6 +66,17 @@ impl Session {
     /// # Errors
     /// The same as [`Session::set_finish_text`], except the refusals of the edit itself.
     pub fn plan_finish_text(&self, task: TaskId, text: &str) -> Result<Option<Edit>, FinishError> {
+        self.plan_finish_from(task, text, None)
+    }
+
+    /// [`Session::plan_finish_text`] measured from `start` when given: the start a dialog's own
+    /// start edit leaves.
+    pub(crate) fn plan_finish_from(
+        &self,
+        task: TaskId,
+        text: &str,
+        start: Option<i64>,
+    ) -> Result<Option<Edit>, FinishError> {
         if !self.is_live(task) {
             return Err(FinishError::Edit(ScheduleError::UnknownTask(task).into()));
         }
@@ -80,8 +95,8 @@ impl Session {
         if current.actual_start.is_some() || current.actual_finish.is_some() {
             return Err(FinishError::Edit(EditError::HasActuals));
         }
-        let Some(minutes) = self.duration_to_day_end(task, day) else {
-            let start = self.solution.dates[task.0 as usize].es;
+        let start = start.unwrap_or(self.solution.dates[task.0 as usize].es);
+        let Some(minutes) = self.duration_from(task, start, day) else {
             return Err(FinishError::BeforeStart {
                 start: self.date_text(start).chars().take(10).collect(),
             });

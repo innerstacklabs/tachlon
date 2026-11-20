@@ -122,6 +122,24 @@ fn hours_refuse_a_part_hour_duration_lag_and_resize_and_days_a_part_day() {
 }
 
 #[test]
+fn a_dialog_that_ends_on_a_part_hour_duration_is_refused_though_the_old_start_gives_whole_hours() {
+    let mut s = host(480, HOURS);
+    let before = state(&s);
+    let late = [("start", "2026-01-06 08:30"), ("finish", "2026-01-06")];
+    let said = Err("Saving allows durations in whole hours.".to_string());
+    assert_eq!(s.set_task_fields(TaskId(2), &late), said);
+    assert_eq!(state(&s), before);
+}
+
+#[test]
+fn a_dialog_that_ends_on_whole_hours_is_allowed_though_the_old_start_gives_a_part_hour() {
+    let mut s = host(480, HOURS);
+    s.set_start_text(TaskId(2), "2026-01-06 08:30").unwrap();
+    let opening = [("start", "2026-01-06 08:00"), ("finish", "2026-01-06")];
+    s.set_task_fields(TaskId(2), &opening).unwrap();
+}
+
+#[test]
 fn a_paste_is_a_day_of_its_calendar_and_hours_refuse_a_day_that_is_not_whole() {
     let refused = host(450, HOURS).insert_many(&["Footing"]).map(drop);
     assert_eq!(refused, Err(stores("durations in whole hours")));

@@ -66,20 +66,39 @@ impl Session {
         Ok(self.plan_field(task, key, typed)?.into_iter().collect())
     }
 
-    /// The edits `text` asks of `task`, each planned against what the session holds now (a finish
-    /// after a start in one dialog reads the old start); a text its plan refuses is left out.
+    /// The start `task` has once `edits` are applied; `None` while none of them moves it.
+    fn start_after(&self, task: TaskId, edits: &[Edit]) -> Option<i64> {
+        let snet = edits.iter().rev().find_map(|edit| match edit {
+            Edit::Move { task: moved, snet } if *moved == task => Some(*snet),
+            _ => None,
+        })?;
+        let mut ahead = self.schedule.clone();
+        ahead.set_snet(task, snet).ok()?;
+        Some(ahead.compute().ok()?.dates[task.0 as usize].es)
+    }
+
+    /// The edits `text` asks of `task`, in the order they run, a finish measured from the start
+    /// the edits before it leave; a text its plan refuses is left out.
     pub(crate) fn dialog_edits<'t>(
         &self,
         task: TaskId,
         text: &dyn Fn(&str) -> Option<&'t str>,
     ) -> Vec<Edit> {
-        let typed = TASK_FIELDS
-            .iter()
-            .filter(|_| self.is_live(task))
-            .filter_map(|&(key, _)| Some((key, text(key)?)));
-        let plan =
-            |(key, typed): (&str, &str)| self.plan_edits(task, key, typed).unwrap_or_default();
-        typed.flat_map(plan).collect()
+        let mut edits = Vec::new();
+        for &(key, _) in TASK_FIELDS.iter().filter(|_| self.is_live(task)) {
+            let Some(typed) = text(key) else { continue };
+            let planned = if key == "finish" {
+                let start = self.start_after(task, &edits);
+                let finish = self.plan_finish_from(task, typed, start);
+                finish
+                    .map(|edit| edit.into_iter().collect())
+                    .map_err(self.said())
+            } else {
+                self.plan_edits(task, key, typed)
+            };
+            edits.extend(planned.unwrap_or_default());
+        }
+        edits
     }
 
     /// Apply the changed `fields` of `task`, `(key, text)` pairs with keys from [`TASK_FIELDS`], as
