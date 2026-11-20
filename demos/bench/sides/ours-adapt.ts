@@ -41,12 +41,14 @@ const LINK_TYPES = ["FS", "SS", "FF", "SF"] as const;
 export function toPlain(d: Dataset, datasetSha256: string): OursData {
   const { data, links } = toDhtmlx(d, datasetSha256);
   const work = new Map(d.data.map((t) => [String(t.id), t.duration]));
+  const keys = new Map(d.data.flatMap((t) => (t.key === undefined ? [] : [[String(t.id), t.key]])));
   const tasks = data.map((t): PlainTask => ({
     id: t.id,
     name: t.text,
     start: isoDate(t.start_date),
     end: isoDate(t.end_date),
     ...(String(t.parent) === "0" ? {} : { parent: t.parent }),
+    ...(keys.has(String(t.id)) ? { key: keys.get(String(t.id)) } : {}),
     ...(t.type === undefined ? { duration: work.get(String(t.id)) } : { type: t.type }),
   }));
   return { datasetSha256, tasks, links: links.map((l) => ({ from: l.source, to: l.target, type: LINK_TYPES[Number(l.type)] })) };

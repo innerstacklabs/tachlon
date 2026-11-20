@@ -29,6 +29,8 @@ export interface DatasetTask {
   parent?: number | string;
   /** YYYY-MM-DD (08:00) or YYYY-MM-DDTHH:MM: the task starts no earlier than this. Leaves only. */
   start?: string;
+  /** The host's key for the task: only the bench's own side reads it. */
+  key?: string;
 }
 
 export interface DatasetLink {
