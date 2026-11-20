@@ -46,7 +46,7 @@ test("a profile that turns off dates refuses a typed duration with its sentence,
   await mountCaps(page, { capabilities: { editable: { dates: false } } });
   const before = await doc(page);
   await typeDuration(page);
-  await expect(page.locator("#table-rows .cell-error")).toHaveText("The host does not allow changing dates and durations.");
+  await expect(page.locator("#table-rows .cell-error")).toHaveText("Changing dates and durations is not allowed.");
   expect(await doc(page), "the schedule is as it was").toBe(before);
   await page.evaluate(() => window.capChart.setCapabilities(undefined));
   await typeDuration(page);
@@ -54,9 +54,7 @@ test("a profile that turns off dates refuses a typed duration with its sentence,
   expect(await doc(page), "an allowed edit applies").not.toBe(before);
 });
 
-test("a profile that turns off bar moves refuses a bar drag and says so in the drag note", async ({ page }) => {
-  await mountCaps(page, { capabilities: { gestures: { barMove: false } } });
-  const before = await doc(page);
+const dragBar = async (page: Page): Promise<void> => {
   const bar = await page.evaluate(() => {
     const { x, y, width, height } = (window.gantt!.app.test_bar_rects() as Record<string, number>[])[2]!;
     const box = document.getElementById("timeline")!.getBoundingClientRect();
@@ -66,8 +64,28 @@ test("a profile that turns off bar moves refuses a bar drag and says so in the d
   await page.mouse.down();
   await page.mouse.move(bar.x + 60, bar.y, { steps: 6 });
   await page.mouse.up();
-  await expect(page.locator("#drag-note")).toHaveText("The host does not allow moving a bar.");
+};
+
+test("a profile that turns off bar moves refuses a bar drag and says so in the drag note", async ({ page }) => {
+  await mountCaps(page, { capabilities: { gestures: { barMove: false } } });
+  const before = await doc(page);
+  await dragBar(page);
+  await expect(page.locator("#drag-note")).toHaveText("Moving a bar is not allowed.");
   expect(await doc(page), "the schedule is as it was").toBe(before);
+});
+
+test("a host that words the refusals sees its own sentence for each kind of change it turned off", async ({ page }) => {
+  const texts = { notAllowedBarMove: "Dieser Balken ist fest.", notAllowedDates: "Termine ändern geht hier nicht." };
+  await mountCaps(page, { locale: "de", texts, capabilities: { gestures: { barMove: false }, editable: { dates: false } } });
+  await dragBar(page);
+  await expect(page.locator("#drag-note")).toHaveText(texts.notAllowedBarMove);
+  await typeDuration(page);
+  await expect(page.locator("#table-rows .cell-error")).toHaveText(texts.notAllowedDates);
+});
+
+test("a host words the disclosure buttons of the table's summaries", async ({ page }) => {
+  await mountCaps(page, { texts: { collapse: "Zuklappen {name}", expand: "Aufklappen {name}" } });
+  await expect(page.locator("#table-rows .disclosure").first()).toHaveAttribute("aria-label", /^(Zuklappen|Aufklappen) /);
 });
 
 test("a profile with a member the chart does not have rejects mount", async ({ page }) => {

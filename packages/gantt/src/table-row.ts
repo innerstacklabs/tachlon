@@ -1,19 +1,21 @@
 import { type HeaderRow, type PublicApp, type TableRow } from "./api.js";
+import { type Say } from "./messages.js";
 import { CHEVRON_PX, INDENT_PX } from "./task-width.js";
 
 /** A variance cell's text: Rust writes "0" for no change, which the table shows as a middot; a row with no variance is empty. */
 const varText = (text: string | null): string => (text === "0" ? "\u00b7" : (text ?? ""));
 
 /** A Start cell holding a real start constraint (`constraint` is its date, not empty; never the floor an import gave) carries the mark and names the date (gs#703 K7). */
-function markConstraint(cell: HTMLElement, constraint: string): void {
+function markConstraint(cell: HTMLElement, constraint: string, say: Say): void {
   if (constraint === "") return;
   cell.dataset["constrained"] = "true";
-  cell.title = `Start no earlier than ${constraint}`;
+  cell.title = say("start-no-earlier", { date: constraint });
 }
 
 /** What a row's cells depend on, fixed for one redraw of the window. */
 export interface RowContext {
   app: PublicApp;
+  say: Say;
   rowHeight: number;
   hasCodes: () => boolean;
   hasWbs: boolean;
@@ -75,7 +77,7 @@ export function buildHeader([, label, count, , , kind]: HeaderRow, r: number, ct
   disclosure.type = "button";
   disclosure.className = "disclosure";
   disclosure.setAttribute("aria-expanded", String(kind === 3));
-  disclosure.setAttribute("aria-label", `${kind === 3 ? "Collapse" : "Expand"} ${text}`);
+  disclosure.setAttribute("aria-label", ctx.say(kind === 3 ? "collapse" : "expand", { name: text }));
   cell.prepend(disclosure);
   row.append(cell);
   return row;
@@ -130,7 +132,7 @@ export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext)
     cell.className = cls;
     cell.textContent = text;
     if (cls === "wbs" || cls === "resources" || cls === "pred") cell.title = text;
-    if (cls === "start" && kind === 0) markConstraint(cell, app.task_constraint_text(task));
+    if (cls === "start" && kind === 0) markConstraint(cell, app.task_constraint_text(task), ctx.say);
     if (cls === "name") {
       // The row shows the leaf name; the outline path is the tooltip and the hover card's.
       // A leaf leaves room for the chevron its summary siblings carry, so sibling names line up.
@@ -142,7 +144,7 @@ export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext)
         disclosure.type = "button";
         disclosure.className = "disclosure";
         disclosure.setAttribute("aria-expanded", String(expanded));
-        disclosure.setAttribute("aria-label", `${expanded ? "Collapse" : "Expand"} ${text}`);
+        disclosure.setAttribute("aria-label", ctx.say(expanded ? "collapse" : "expand", { name: text }));
         cell.prepend(disclosure);
       }
     }

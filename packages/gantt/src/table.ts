@@ -6,6 +6,7 @@ import { type Cursor } from "./cursor.js";
 import { element } from "./dom.js";
 import { nameOf } from "./field-names.js";
 import { frozenEdge } from "./frozen-edge.js";
+import { sayFor } from "./messages.js";
 import { installRowPosition } from "./row-position.js";
 import { type Shell, watching } from "./shell.js";
 import { trackChanged } from "./table-changed.js";
@@ -343,7 +344,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const focusWasInRows = tableRows.contains(document.activeElement);
     changed.before();
     tableRows.replaceChildren(
-      ...data.map((row, i) => buildRow(row, first + i, { app, rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending: new Set([...pending, ...unsaved]), refusal })),
+      ...data.map((row, i) => buildRow(row, first + i, { app, say: sayFor(root), rowHeight: s.rowHeight, hasCodes, hasWbs, hasPreds, hasResources, holdResources, hasProgress, holdVariance, withVariance, pending: new Set([...pending, ...unsaved]), refusal })),
     );
     placeRefusal(tableRows);
     changed.after();

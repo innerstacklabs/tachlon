@@ -68,7 +68,7 @@ fn kinds_refuse_a_limit_of_another_kind_and_let_a_start_through() {
     let mut s = host(450, r#"{"kinds":["snet"]}"#);
     let before = state(&s);
     let typed = s.set_task_fields(TaskId(0), &[("fnlt", "2026-01-09")]);
-    assert_eq!(typed, Err("The host stores no fnlt limit.".to_string()));
+    assert_eq!(typed, Err("Saving allows no fnlt limit.".to_string()));
     let pin = Limit {
         pin: Some(Pin::Start(0)),
         ..Limit::default()
@@ -94,7 +94,7 @@ fn per_task_refuses_a_second_limit_and_a_bar_move_beside_one() {
     s.set_task_fields(TaskId(2), &[("fnlt", "2026-01-09")])
         .unwrap();
     let before = state(&s);
-    let said = "The host stores date limits: at most 1 for a task.";
+    let said = "Saving allows date limits: at most 1 for a task.";
     let second = s.set_task_fields(TaskId(2), &[("snlt", "2026-01-08")]);
     assert_eq!(second, Err(said.to_string()));
     assert_eq!(
@@ -111,7 +111,7 @@ fn hours_refuse_a_part_hour_duration_lag_and_resize_and_days_a_part_day() {
     assert_eq!(s.edit(longer(90)), Err(stores("durations in whole hours")));
     let lag = s.set_link_text(DepId(0), "FS+30m");
     assert_eq!(lag, Err(stores("lags in whole hours")));
-    let said = "The host stores durations in whole hours.";
+    let said = "Saving allows durations in whole hours.";
     assert_eq!(dragged_by(&mut s, true, 100.0), (false, Some(said.into())));
     assert_eq!(state(&s), before);
     s.edit(longer(120)).unwrap();
@@ -171,14 +171,14 @@ fn a_floor_and_a_ceiling_on_one_instant_are_the_one_kind_so_or_fo_unless_the_hos
     let mut s = host(450, r#"{"kinds":["so","fo"],"perTask":1}"#);
     s.set_task_fields(TaskId(3), &finish).unwrap();
     let apart = [("start", "2026-01-07 08:00"), ("snlt", "2026-01-08 08:00")];
-    let said = Err("The host stores no snet limit.".to_string());
+    let said = Err("Saving allows no snet limit.".to_string());
     assert_eq!(s.set_task_fields(TaskId(2), &apart), said);
     s.set_task_fields(TaskId(2), &start).unwrap();
     let mut s = host(
         450,
         r#"{"kinds":["snet","snlt","fnet","fnlt"],"perTask":1}"#,
     );
-    let said = Err("The host stores date limits: at most 1 for a task.".to_string());
+    let said = Err("Saving allows date limits: at most 1 for a task.".to_string());
     assert_eq!(s.set_task_fields(TaskId(2), &start), said);
 }
 
@@ -260,6 +260,52 @@ fn bar_move_off_refuses_a_move_and_still_resizes() {
 }
 
 #[test]
+fn each_refusal_of_what_the_host_turned_off_has_a_sentence_and_the_host_can_word_it() {
+    let said = [
+        ("moving a bar", "Moving a bar is not allowed."),
+        ("resizing a bar", "Resizing a bar is not allowed."),
+        ("drawing a link", "Drawing a link is not allowed."),
+        (
+            "adding and deleting rows",
+            "Adding and deleting rows is not allowed.",
+        ),
+        (
+            "changing the outline",
+            "Changing the outline is not allowed.",
+        ),
+        ("pasting rows", "Pasting rows is not allowed."),
+        ("changing names", "Changing names is not allowed."),
+        (
+            "changing dates and durations",
+            "Changing dates and durations is not allowed.",
+        ),
+        ("changing links", "Changing links is not allowed."),
+        (
+            "changing progress and the data date",
+            "Changing progress and the data date is not allowed.",
+        ),
+        (
+            "changing the baseline",
+            "Changing the baseline is not allowed.",
+        ),
+    ];
+    for (what, sentence) in said {
+        assert_eq!(EditError::NotAllowed(what).to_string(), sentence);
+    }
+    let names = r#""months":["a","b","c","d","e","f","g","h","i","j","k","l"],"weekdays":["a","b","c","d","e","f","g"],"weekStart":0"#;
+    let mut s = limited(r#"{"gestures":{"barMove":false}}"#);
+    s.set_locale(&format!(
+        r#"{{{names},"texts":{{"notAllowedBarMove":"Fixed bar."}}}}"#
+    ))
+    .unwrap();
+    assert_eq!(s.say(&EditError::NotAllowed("moving a bar")), "Fixed bar.");
+    assert_eq!(
+        s.say(&EditError::NotAllowed("pasting rows")),
+        "Pasting rows is not allowed."
+    );
+}
+
+#[test]
 fn resize_off_refuses_an_edge_drag_and_still_moves() {
     let json = r#"{"gestures":{"resize":false}}"#;
     let said = EditError::NotAllowed("resizing a bar").to_string();
@@ -294,10 +340,7 @@ fn dates_off_refuses_a_dialog_whole_and_names_the_duration() {
     let before = state(&s);
     let fields = [("name", "Renamed"), ("duration", "5h")];
     let said = s.set_task_fields(TaskId(0), &fields).unwrap_err();
-    assert_eq!(
-        said,
-        "The host does not allow changing dates and durations."
-    );
+    assert_eq!(said, "Changing dates and durations is not allowed.");
     assert_eq!((state(&s), s.meta()[0].name.as_str()), (before, "A"));
     s.set_task_fields(TaskId(0), &fields[..1]).unwrap();
     assert_eq!(s.meta()[0].name, "Renamed", "the name alone passes");

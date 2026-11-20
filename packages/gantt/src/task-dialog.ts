@@ -1,6 +1,7 @@
 import { type TaskDetails } from "./api.js";
 import { reason } from "./boot.js";
 import { element, optional } from "./dom.js";
+import { say } from "./messages.js";
 import { type Shell } from "./shell.js";
 import "./styles/task-dialog.css";
 
@@ -80,7 +81,7 @@ export function installTaskDialog({ app, root, canvas, status }: Shell, refuseRe
     const showPred = app.has_codes() && details.summary !== true && app.predecessors_text(task) !== undefined;
     for (const input of inputs.filter((i) => i.name === "predecessors")) input.closest("label")!.style.display = showPred ? "" : "none";
     held = { task, epoch: status().epoch, text };
-    title.textContent = `Edit task: ${text.name}`;
+    title.textContent = say(root, "edit-task", { name: text.name ?? "" });
     error.hidden = true;
     dialog.showModal();
     return true;
