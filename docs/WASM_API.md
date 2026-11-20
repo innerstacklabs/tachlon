@@ -326,7 +326,7 @@ The chart's colors are its theming API (decision 0005, gs#110). A theme is 33 en
 | `warn` | `#7f5600` | `#e0a030` | Errors and warnings in the page's own parts: an invalid input's border, the edit, frame and cell error notes, and float lost against the baseline. Amber, never red: red means the critical path only (tl#1193). Text in it keeps 4.5:1 on `bg`. CSS only; the scene does not draw it. |
 | `link-terminal` | `#1b5bbd` | `#5aa9ff` | The link terminal: a dot just outside the finish end of the hovered or selected bar, where a link drag starts. |
 | `baseline` | `#6f7a9c` | `#7f8db0` | The comparison bar: a thin bar under each task bar, from the baseline start to the baseline finish, while a baseline is set (gs#703). At least 3:1 against `bg`, `stripe`, `hov` and `sel` in both themes. |
-| `overlay` | `#8a6bb8` | `#a58bd6` | The host overlay bar: a second thin bar one slot under the comparison bar, from the overlay start to the overlay finish (tl#2086). At least 3:1 against `bg`, `stripe`, `hov` and `sel` in both themes. |
+| `overlay` | `#8a6bb8` | `#a58bd6` | The host overlay bar: a second thin bar one slot under the comparison bar, kept inside its row with 2 px of the row left under it (in the default 24 px row it shares the comparison bar's place, drawn under it), from the overlay start to the overlay finish (tl#2086). At least 3:1 against `bg`, `stripe`, `hov` and `sel` in both themes. |
 | `scrim` | `#18213b66` | `#050a1a99` | The dimmed backdrop behind a dialog (the pickers, the keys help and the export dialog): a translucent tint of the chart's own ink. Has alpha. CSS only; the scene does not draw it. |
 
 Twenty-nine layout tokens are also on the root.
