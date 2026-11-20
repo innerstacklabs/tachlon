@@ -52,6 +52,7 @@ test("medium-5k at 800 px: the last column is whole beside the frozen block at t
     };
   });
   expect(seen.opacity, `the ${seen.last} head is not hidden as a cut column`).toBe("1");
-  expect(seen.left, `the ${seen.last} head clears the frozen block`).toBeGreaterThanOrEqual(seen.frozenRight);
+  // 16 px is a classic vertical scrollbar: the scrolling width is the pane's less its scrollbar, so equality here hides the column there.
+  expect(seen.left - seen.frozenRight, `the ${seen.last} head clears the frozen block by a scrollbar's width`).toBeGreaterThanOrEqual(16);
   expect(seen.right, `the ${seen.last} head is inside the pane`).toBeLessThanOrEqual(seen.paneRight);
 });

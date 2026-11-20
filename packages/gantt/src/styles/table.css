@@ -115,8 +115,8 @@
   --progress-w: 416px;
   /* gs#974: % complete follows Task. Task is the width the names need (task-width.ts), at most the pane less the gutter, ID, WBS and
      % complete (88px) and 22px spare, and at least 60px, so % complete is whole on open and the table keeps to its half. Where Predecessors or Resources shows, the room is the pane less the gutter, ID, WBS and that track,
-     so the last column is whole beside the frozen block at the end of the scroll (#155). */
-  --progress-task: max(60px, min(var(--gantt-task-fit, var(--gantt-task-min)), calc(100cqw - max(128px, 18px + var(--pred-w), 18px + var(--res-w, 0px)) - var(--ids-w) - var(--wbs-w))));
+     so the last column is whole beside the frozen block at the end of the scroll (#155); the 34px is the 18px gutter and a 16px scrollbar. */
+  --progress-task: max(60px, min(var(--gantt-task-fit, var(--gantt-task-min)), calc(100cqw - max(128px, 34px + var(--pred-w), 34px + var(--res-w, 0px)) - var(--ids-w) - var(--wbs-w))));
 }
 .gantt [data-part=table][data-variance="true"] {
   --variance-w: calc(3 * (var(--gantt-var-col) + 6px));
