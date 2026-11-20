@@ -9,7 +9,7 @@ const varText = (text: string | null): string => (text === "0" ? "\u00b7" : (tex
 function markConstraint(cell: HTMLElement, constraint: string, say: Say): void {
   if (constraint === "") return;
   cell.dataset["constrained"] = "true";
-  cell.title = say("start-no-earlier", { date: constraint });
+  cell.title = say("start-no-earlier-hint", { date: constraint });
 }
 
 /** What a row's cells depend on, fixed for one redraw of the window. */
