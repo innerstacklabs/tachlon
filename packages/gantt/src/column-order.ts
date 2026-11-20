@@ -11,7 +11,7 @@ const TRACK: Record<Movable, string> = {
   start: "var(--start-track, var(--gantt-date-col))",
   finish: "var(--finish-track, var(--gantt-date-col))",
   float: "var(--float-track, 46px)",
-  "free-float": "var(--free-float-track, 64px)",
+  "free-float": "var(--free-float-track, 76px)",
 };
 
 /** The table's order of the five columns; the default when the table has no flag or the flag does not name each once. */

@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { fromTasks } from "../src/adapters/plain";
 import type { Page } from "@playwright/test";
 import { expect, test, type Gantt } from "./support/gantt";
 
@@ -108,5 +109,38 @@ test("Up and Down move the column, and the cell cursor walks it in its place", a
   const [float, free] = [await lefts(page, "float"), await lefts(page, "free-float")];
   expect(free.head!, "Free float moved left of Float").toBeLessThan(float.head!);
   expect(free.cell, "its cells follow its head").toBe(free.head);
+  const [need, have] = await page.locator("#table-head .cols > .free-float").evaluate((el) => [el.scrollWidth, el.clientWidth]);
+  expect(need, "after a move the whole heading still fits its track").toBeLessThanOrEqual(have);
+  expect(have, "the moved column keeps the 76 px track").toBe(76);
   expect(await walk(5), "the cursor walks it before Float").toEqual(["dur", "start", "finish", "free-float", "float"]);
+});
+
+/** The left edge of the head cell and of the first row's cell of `column`, or null where it has no box (the three-task file has no row 3). */
+const headAndFirstCell = (page: Page, column: string): Promise<{ head: number | null; cell: number | null }> =>
+  page.evaluate((name) => {
+    const left = (el: Element | null): number | null => {
+      const box = el?.getBoundingClientRect();
+      return box === undefined || box.width === 0 ? null : box.left;
+    };
+    return { head: left(document.querySelector(`#table-head .cols > .${name}`)), cell: left(document.querySelector(`#table-rows .row > .${name}`)) };
+  }, column);
+
+test("with Progress on, a file with IDs opened after Free float was shown keeps its head over its cells", async ({ g }) => {
+  await openDays(g);
+  const { page } = g;
+  await toggle(g);
+  const doc = fromTasks({ tasks: [1, 2, 3].map((id) => ({ id: String(id), name: `T${id}`, start: "2026-03-02", duration: 2 })), links: [{ from: "1", to: "2" }] }).document;
+  await page.evaluate((d) => window.gantt!.api!.load({ document: d }), doc);
+  await g.nextFrame(3);
+  await page.locator("#progress-toggle").click();
+  await expect(page.locator("#table")).toHaveAttribute("data-progress", "true");
+  await g.nextFrame(3);
+  await expect(page.locator("#table-head .cols > .pred"), "the file has IDs").toHaveCount(1);
+  for (const column of ["free-float", "pred"]) {
+    const at = await headAndFirstCell(page, column);
+    expect(at.head, `${column} has a head box`).not.toBeNull();
+    expect(at.cell, `${column}: its cells sit under its head`).toBe(at.head);
+  }
+  const [free, pred] = [await headAndFirstCell(page, "free-float"), await headAndFirstCell(page, "pred")];
+  expect(free.head!, "Free float stays left of Predecessors, as the rows have them").toBeLessThan(pred.head!);
 });

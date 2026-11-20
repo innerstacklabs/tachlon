@@ -13,8 +13,8 @@
 .gantt .cols > .finish { order: calc(var(--order-base) + var(--order-finish, 3)); }
 .gantt .cols > .float { order: calc(var(--order-base) + var(--order-float, 4)); }
 .gantt .cols > .free-float { order: calc(var(--order-base) + var(--order-free-float, 5)); }
-.gantt .cols > .pred { order: 9; }
-.gantt .cols > :is(.var-start, .var-finish, .var-float, .var-hold) { order: 10; }
+.gantt .cols > .pred { order: 10; }
+.gantt .cols > :is(.var-start, .var-finish, .var-float, .var-hold) { order: 11; }
 /* The Columns panel's rows: the checkbox takes the room, the two move buttons sit at the right. */
 .gantt [data-part=columns-panel] [data-row] { display: flex; align-items: center; gap: 6px; align-self: stretch; }
 .gantt [data-part=columns-panel] [data-row] > :first-child { flex: 1; }
