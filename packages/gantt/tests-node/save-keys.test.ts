@@ -12,19 +12,22 @@ const edit = (task: number): Change => ({ record: "task", op: "update", key: nul
 const commit = (seq: number, ...changes: Change[]): Commit => ({ seq, source: "typed", changes });
 const settle = (): Promise<void> => new Promise((resolve) => setTimeout(resolve, 0));
 
-/** An app that logs `assign`, `ack n` and `rollback n`, and refuses a key another row holds, as the engine does. */
-function fakeApp(): { log: string[]; held: Map<string, string>; acknowledge(seq: number): void; rollback_to(seq: number): string; assign_task_key(slot: number, key: string): string; assign_link_key(slot: number, key: string): string } {
+/** An app that logs `assign`, `rekey`, `ack n` and `rollback n`, refuses a key another row holds, and refuses `assign` for a row that holds another key, as the engine does. */
+function fakeApp(): { log: string[]; held: Map<string, string>; acknowledge(seq: number): void; rollback_to(seq: number): string; assign_task_key(slot: number, key: string): string; assign_link_key(slot: number, key: string): string; rekey_task_key(slot: number, key: string): string; rekey_link_key(slot: number, key: string): string } {
   const log: string[] = [];
   const held = new Map<string, string>();
-  const assign = (record: string, slot: number, key: string): string => {
+  const assign = (record: string, slot: number, key: string, verb = "assign"): string => {
+    const has = held.get(`${record}:${slot}`);
+    if (verb === "assign" && has !== undefined && has !== key) return JSON.stringify({ ok: false, reason: "hasKey", message: `The row holds the key ${has}.` });
     const taken = [...held].some(([at, k]) => k === key && at !== `${record}:${slot}` && at.startsWith(`${record}:`)); // keys are unique for each kind of row
     if (key === "" || taken) return JSON.stringify({ ok: false, reason: key === "" ? "emptyKey" : "keyTaken", message: key === "" ? "A key has at least one character." : `Another row holds the key ${key}.` });
     held.set(`${record}:${slot}`, key);
-    log.push(`assign ${record}:${slot}=${key}`);
+    log.push(`${verb} ${record}:${slot}=${key}`);
     return JSON.stringify({ ok: true });
   };
-  return { log, held, acknowledge: (seq) => void log.push(`ack ${seq}`), rollback_to: (seq) => (log.push(`rollback ${seq}`), JSON.stringify({ ok: true, seq: 10 })), assign_task_key: (slot, key) => assign("task", slot, key), assign_link_key: (slot, key) => assign("link", slot, key) };
+  return { log, held, acknowledge: (seq) => void log.push(`ack ${seq}`), rollback_to: (seq) => (log.push(`rollback ${seq}`), JSON.stringify({ ok: true, seq: 10 })), assign_task_key: (slot, key) => assign("task", slot, key), assign_link_key: (slot, key) => assign("link", slot, key), rekey_task_key: (slot, key) => assign("task", slot, key, "rekey"), rekey_link_key: (slot, key) => assign("link", slot, key, "rekey") };
 }
+const restore = (...changes: Change[]): Commit => ({ seq: 1, source: "undo", changes });
 const rules = (app: ReturnType<typeof fakeApp>, mode: "chart" | "server", newKey?: () => string) => keyRules(app, mode, newKey, NAMES);
 
 test("a made key replaces the slot in every reference of every queued commit", async () => {
@@ -87,17 +90,17 @@ test("the undo of a delete creates the row under the key it had, whichever side 
   }
 });
 
-for (const [what, key, saved] of [["the same key", "t9", true], ["no key", undefined, true], ["a different key", "t10", false]] as const) {
+for (const [what, key, log] of [["the same key", "t9", ["ack 1"]], ["no key", undefined, ["ack 1"]], ["a different key", "t10", ["rekey task:5=t10", "ack 1"]]] as const) {
   for (const form of ["function", "handlers"] as const) {
-    test(`under keys: server, ${form} form, a create that carries its key answered with ${what} is ${saved ? "saved" : "put back with a message that names both keys"}`, async () => {
+    test(`under keys: server, ${form} form, a create that carries its key answered with ${what} is saved${key === "t10" ? " and the row takes the new key" : ""}`, async () => {
       const app = fakeApp();
+      app.held.set("task:5", "t9");
       const errors: SaveError[] = [];
       const save: Save | Handlers = form === "function" ? async () => (key === undefined ? undefined : { keys: [{ ref: "task:5", key }] }) : { createTask: async () => (key === undefined ? {} : { id: key }) };
       const queue = new SaveQueue(app, save, (error) => errors.push(error), rules(app, "server"));
-      queue.add([{ seq: 1, source: "undo", changes: [create(5, {}, "t9")] }]);
+      queue.add([restore(create(5, {}, "t9"))]);
       await settle();
-      if (saved) expect([errors, app.log]).toEqual([[], ["ack 1"]]);
-      else expect([errors[0]?.reason, errors[0]?.message, app.log]).toEqual(["result", expect.stringMatching(/"t10".*"t9".*cannot yet take a new key.*setData/), ["rollback 1"]]);
+      expect([errors, app.log, app.held.get("task:5")]).toEqual([[], log, key ?? "t9"]);
     });
   }
 }
@@ -109,20 +112,68 @@ for (const [what, answer] of [["a number", { id: 57 }], ["an empty key", { id: "
     const queue = new SaveQueue(app, { createTask: async () => answer }, (error) => errors.push(error), rules(app, "server"));
     queue.add([{ seq: 1, source: "undo", changes: [create(5, {}, "t9")] }]);
     await settle();
-    expect([errors[0]?.reason, errors[0]?.message, app.log]).toEqual(["result", expect.stringMatching(/the restored task under the key.*but the chart has it under "t9"/), ["rollback 1"]]);
+    expect([errors[0]?.reason, errors[0]?.message, app.log]).toEqual(["result", expect.stringMatching(/resolved with no key for the new row/), ["rollback 1"]]);
   });
 }
 
-test("under keys: server, handlers form, a restored create answered with another key stops the change set before the next handler runs", async () => {
+const LINK: Change = { record: "link", op: "create", key: "l9", link: 0, set: { from: "t9", to: "t10", type: "FS" } };
+
+test("a restored task, its restored child and its restored link name each other by { ref }, and a name or calendar equal to a key stays text", async () => {
   const app = fakeApp();
-  const errors: SaveError[] = [];
-  const called: string[] = [];
-  const link: Change = { record: "link", op: "create", key: null, link: 0, set: { from: { task: 5 }, to: { task: 6 }, type: "FS" } };
-  const handlers: Handlers = { createTask: async () => (called.push("createTask"), { id: "t10" }), createLink: async () => void called.push("createLink") };
-  const queue = new SaveQueue(app, handlers, (error) => errors.push(error), rules(app, "server"));
-  queue.add([{ seq: 1, source: "undo", changes: [create(5, {}, "t9"), link] }]);
+  const seen: ChangeSet[] = [];
+  const queue = new SaveQueue(app, async (cs) => void seen.push(cs), () => undefined, rules(app, "server"));
+  queue.add([restore(create(5, { name: "t9", calendar: "t9" }, "t9"), create(6, { parent: "t9" }, "t10"), LINK)]);
   await settle();
-  expect([called, errors[0]?.reason, errors[0]?.message, app.log]).toEqual([["createTask"], "result", expect.stringMatching(/"t10".*"t9"/), ["rollback 1"]]);
+  expect(seen[0]!.changes).toMatchObject([{ ref: "task:5", set: { name: "t9", calendar: "t9" } }, { ref: "task:6", set: { parent: { ref: "task:5" } } }, { ref: "link:0", set: { from: { ref: "task:5" }, to: { ref: "task:6" } } }]);
+});
+
+for (const [what, answer, from] of [["another key", { id: "t11" }, "t11"], ["none", {}, "t9"]] as const) {
+  test(`under keys: server, handlers form, a restored create answered with ${what}: the next handler gets ${from} in \`from\`, never a { ref }`, async () => {
+    const app = fakeApp();
+    const rows: Record<string, unknown>[] = [];
+    const queue = new SaveQueue(app, { createTask: async () => answer, createLink: async (row) => void rows.push(row) }, () => undefined, rules(app, "server"));
+    queue.add([restore(create(5, {}, "t9"), LINK)]);
+    await settle();
+    expect(rows[0]).toMatchObject({ from });
+  });
+}
+
+test("a commit queued behind a restore that was answered with another key goes out with the new key", async () => {
+  const app = fakeApp();
+  app.held.set("task:5", "t9");
+  const seen: ChangeSet[] = [];
+  const save: Save = async (cs) => (seen.push(cs), cs.seq === 1 ? { keys: [{ ref: "task:5", key: "t10" }] } : undefined);
+  const queue = new SaveQueue(app, save, () => undefined, rules(app, "server"));
+  const child: Change = { ...edit(6), key: "x1", set: { parent: "t9" }, was: { parent: "t9" } };
+  queue.add([restore(create(5, {}, "t9")), commit(2, { ...edit(5), key: "t9" }), commit(3, child)]);
+  await settle();
+  expect(seen[1]!.changes).toMatchObject([{ key: "t10" }]);
+  expect(seen[2]!.changes).toMatchObject([{ key: "x1", set: { parent: "t10" }, was: { parent: "t10" } }]);
+});
+
+for (const [what, [parent, from, to]] of [["the chart's names for parent, from and to", ["parent", "from", "to"]], ["a host's own names for parent, from and to", ["parentId", "source", "target"]]] as const) {
+  test(`under keys: server, a restored task answered with another key reaches a queued child update, a queued link create and a child created with it, in ${what}`, async () => {
+    const app = fakeApp();
+    app.held.set("task:5", "t9");
+    const got: unknown[] = [];
+    const handlers: Handlers = { createTask: async (row) => (got.push(row), { id: row.id === "t9" ? "t11" : "c2" }), updateTask: async (key, set) => void got.push([key, set]), createLink: async (row) => void got.push(row) };
+    const queue = new SaveQueue(app, handlers, () => undefined, keyRules(app, "server", undefined, NAMES, [parent, "after", from, to]));
+    const [child, link]: Change[] = [{ ...edit(6), key: "x1", set: { [parent]: "t9" }, was: { [parent]: "t9" } }, { record: "link", op: "create", key: "l9", link: 0, set: { [from]: "t9", [to]: "x1" } }];
+    queue.add([restore(create(5, {}, "t9"), create(7, { [parent]: "t9" }, "c1")), commit(2, child), commit(3, link)]);
+    await settle();
+    expect(got).toMatchObject([{ id: "t9" }, { id: "c1", [parent]: "t11" }, ["x1", { [parent]: "t11" }], { [from]: "t11", [to]: "x1" }]);
+  });
+}
+
+test("a re-key the app refuses puts the commit back with the reason \"result\" and the app's message", async () => {
+  const app = fakeApp();
+  app.held.set("task:5", "t9");
+  app.held.set("task:1", "t10");
+  const errors: SaveError[] = [];
+  const queue = new SaveQueue(app, async () => ({ keys: [{ ref: "task:5", key: "t10" }] }), (error) => errors.push(error), rules(app, "server"));
+  queue.add([restore(create(5, {}, "t9"))]);
+  await settle();
+  expect([errors[0]?.reason, errors[0]?.message, app.log]).toEqual(["result", expect.stringMatching(/"t10".*task:5.*Another row holds the key t10/), ["rollback 1"]]);
 });
 
 test("a task and a link may hold the same key, as keys are unique for each kind of row", async () => {

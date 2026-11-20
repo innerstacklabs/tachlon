@@ -252,7 +252,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   run.reads({ view: (s) => view.read(s), commits: () => app.take_commits(), ref: (task) => app.task_ref(task), form });
   const events = run.events;
   if (hostSave !== undefined) {
-    const keyName = (map: { toHost(members: Record<string, unknown>): Record<string, unknown> | undefined }): string => Object.keys(map.toHost({ key: "" })!)[0]!;
+    const hostName = (map: { toHost(members: Record<string, unknown>): Record<string, unknown> | undefined }, field: string): string => Object.keys(map.toHost({ [field]: "" })!)[0]!;
     // A put-back that names a row selects it, and one that names a field of it shows the message at that cell (rule 3.5); `field` is the host's name, and the cell is the chart's.
     const showRefusal = ({ key, field, message }: SaveError): void => {
       const slot = key === undefined ? null : (JSON.parse(app.task_slots([key])) as (number | null)[])[0];
@@ -266,7 +266,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
       rows.refuse(error.reload || error.reason === "stopped" ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
       if (!error.reload && error.reason === "refused" && names) showRefusal(error);
       events.putBack(error);
-    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: keyName(names.tasks), link: keyName(names.links) }), (count) => ((open.unsavedCommits = count), open.countMoves++), (tasks) => table.setUnsaved(tasks));
+    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: hostName(names.tasks, "key"), link: hostName(names.links, "key") }, [hostName(names.tasks, "parent"), "after", hostName(names.links, "from"), hostName(names.links, "to")]), (count) => ((open.unsavedCommits = count), open.countMoves++), (tasks) => table.setUnsaved(tasks));
     // The next edit of the person's clears a refusal's message; the put-back's own rollback commit does not.
     disposers.push(events.on("edit", ({ commits }) => (commits.some((c) => c.source !== "rollback" && c.source !== "host") && table.refuse(null), queue.add(commits))), () => queue.stop());
   }
