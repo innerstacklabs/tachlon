@@ -361,6 +361,18 @@ fn labels_stay_inside_the_canvas() {
 }
 
 #[test]
+fn a_period_cut_by_the_right_edge_is_named_whole_or_left_out() {
+    // Slid a quarter day at a time, the last week is cut to every width; only a left-edge cut may be clipped.
+    for step in 0..28 {
+        let (s, v) = band_from(f64::from(step) * 0.25, 1200.0, 60.0, 3, 1.0, 48.0);
+        let (top, _) = tiers(&s, &v);
+        assert!(!top.is_empty(), "step {step}");
+        let clipped_only_left = top.iter().filter(|l| !l.center).all(|l| l.x < 8.0);
+        assert!(clipped_only_left, "step {step}: {top:?}");
+    }
+}
+
+#[test]
 fn a_partial_period_keeps_its_name_at_the_visible_left_edge() {
     // 120 days over 1200 px starting on day 10: January is cut off on the left, yet its name
     // fits in what shows.
