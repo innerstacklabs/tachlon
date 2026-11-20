@@ -53,15 +53,14 @@
     "task": {
       "type": "object",
       "required": ["id", "name"],
-      "anyOf": [{ "required": ["start"] }, { "required": ["constraint"] }],
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "name": { "type": "string", "description": "The text shown for the task." },
-        "start": { "$ref": "#/$defs/date" },
+        "start": { "$ref": "#/$defs/date", "description": "Required of a task that no other task names as parent and that has no constraint: a task that others name as parent takes its dates from them and needs none. A schema cannot see the other rows, so validate checks this." },
         "end": { "$ref": "#/$defs/date" },
         "duration": { "type": "number", "minimum": 0, "description": "In the data's durationUnit: working days of the task's calendar, by default." },
         "calendar": { "type": "string", "description": "The key of one of the data's calendars; the first when left out." },
-        "parent": { "$ref": "#/$defs/id", "description": "The id of the summary task this one sits under." },
+        "parent": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }], "description": "The id of the summary task this one sits under. null, or leaving it out, is no parent." },
         "progress": { "type": "number", "minimum": 0, "maximum": 100, "description": "Percent complete." },
         "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "The bar's color as #rrggbb, with no alpha. Any other text is left out and named in leftOut. The name on the bar stays readable for the tested palette only." },
         "label": { "type": "string", "description": "The text the bar shows in place of the name. The task list keeps the name. Any other kind of value is left out and named in leftOut." },

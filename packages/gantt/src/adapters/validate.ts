@@ -40,6 +40,7 @@ const CONSTRAINT_TYPES = [...LIMITS, "so", "fo"];
 interface Field {
   kind: Kind;
   required?: boolean;
+  nullable?: boolean;
   min?: number;
   max?: number;
 }
@@ -50,7 +51,7 @@ const TASK: Record<string, Field> = {
   start: { kind: "date", required: true },
   end: { kind: "date" },
   duration: { kind: "number", min: 0 },
-  parent: { kind: "id" },
+  parent: { kind: "id", nullable: true },
   progress: { kind: "number", min: 0, max: 100 },
   key: { kind: "text" },
   snet: { kind: "date" },
@@ -91,6 +92,7 @@ const isId = (v: unknown): v is string | number => typeof v === "string" || type
 
 /** Whether `v` is a good value for a field of this kind: the cheap test, so a good value allocates nothing. */
 function fine(f: Field, v: unknown): boolean {
+  if (v === null && f.nullable) return true;
   switch (f.kind) {
     case "id":
       return typeof v === "string" || typeof v === "number";
@@ -227,13 +229,14 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
     else if (typeof key === "string" && first === undefined) keys[kind].set(key, i);
     else if (first !== undefined) add(`${kind}[${i}].key`, `a key no other ${one} has`, `${show(key)}, also ${kind}[${first}].key`, `Give each ${one} its own key.`);
   };
-  const fields = (item: unknown, path: string, table: [string, Field][]) => {
+  const fields = (item: unknown, path: string, table: [string, Field][], parents?: Set<string>) => {
     if (typeof item !== "object" || item === null || Array.isArray(item)) return add(path, "an object", show(item), "Write each entry as an object in braces, with its fields.");
     const rec = item as Record<string, unknown>;
+    const summary = parents !== undefined && isId(rec.id) && parents.has(String(rec.id)); // a task other tasks name as parent takes its dates from them
     for (const [name, f] of table) {
       const v = rec[name];
       if (v === undefined) {
-        if (f.required && !(name === "start" && rec.constraint !== undefined)) add(`${path}.${name}`, `a ${name}`, "nothing", `Add ${name}, for example ${EXAMPLE[f.kind]}.`);
+        if (f.required && !(name === "start" && (rec.constraint !== undefined || summary))) add(`${path}.${name}`, `a ${name}`, "nothing", `Add ${name}, for example ${EXAMPLE[f.kind]}.`);
       } else if (!fine(f, v)) {
         const p = problem(name, f, v);
         add(`${path}.${name}`, p.expected, show(v), p.fix);
@@ -255,10 +258,15 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
   if (!Array.isArray(tasks)) add("tasks", "an array of tasks", show(tasks), 'Pass the tasks as an array: { "tasks": [{ "id": 1, "name": "Task", "start": "2026-03-02" }] }.');
   if (links !== undefined && !Array.isArray(links)) add("links", "an array of links", show(links), 'Pass links as an array: [{ "from": 1, "to": 2 }], or leave links out.');
   if (Array.isArray(tasks)) {
+    const parents = new Set<string>(); // the ids named as parent: "" and null are no parent
+    for (const t of tasks) {
+      const p = (t as { parent?: unknown } | null)?.parent;
+      if (isId(p) && p !== "") parents.add(String(p));
+    }
     for (let i = 0; i < tasks.length; i++) {
       if (!(i in tasks)) continue;
       const t = tasks[i];
-      fields(t, `tasks[${i}]`, TASK_ENTRIES);
+      fields(t, `tasks[${i}]`, TASK_ENTRIES, parents);
       keyed("tasks", t, i);
       const calendar = (t as { calendar?: unknown } | null)?.calendar;
       if (typeof calendar === "string" && !calendarKeys.has(calendar)) add(`tasks[${i}].calendar`, "the key of a calendar in calendars", show(calendar), "Use the key of a calendar in calendars, or leave calendar out for the first.");
