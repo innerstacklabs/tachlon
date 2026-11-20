@@ -17,7 +17,7 @@ impl Session {
         Ok(())
     }
 
-    /// Add the overlay bars to `scene`, one slot under the comparison bars. They read the records, not `display_dates`, so a
+    /// Add the overlay bars to `scene`, one slot under the comparison bars, lifted to stay inside the row. They read the records, not `display_dates`, so a
     /// slide or a drag does not move them. With no overlay it returns at once, before anything is allocated.
     pub fn add_overlay_bars(&self, scene: &mut timeline::Scene) {
         let Some(overlay) = &self.host.overlay else {

@@ -185,17 +185,47 @@ fn no_baseline_adds_nothing() {
     assert_eq!(s, before);
 }
 
-#[test]
-fn a_later_slot_sits_one_strip_lower_in_its_own_color() {
+fn a_later_slot_in_its_own_color(v: &Viewport) -> (Scene, Rect) {
     let sums = Summaries::new(40);
-    let v = view(20, 40);
-    let mut s = bars(&v, 40, &sums);
+    let mut s = bars(v, 40, &sums);
     let teal = [0.0, 0.5, 0.5, 1.0];
     let of = |t| (t == 1).then_some((5 * DAY, 7 * DAY));
-    scene::add_comparison_bars(&mut s, &v, 1.0, &sums, &order(40), of, (1, teal));
+    scene::add_comparison_bars(&mut s, v, 1.0, &sums, &order(40), of, (1, teal));
     let got: Vec<_> = s.rects.iter().filter(|r| r.color == teal).collect();
-    // Slot 0 is 1 px under the 12 px bar and 3 px tall, so slot 1 starts 4 px lower.
-    let top = AXIS_HEIGHT + ROW_HEIGHT + 6.0 + 12.0 + 1.0 + 4.0;
     assert_eq!(got.len(), 1);
-    assert_eq!(f64::from(got[0].pos[1]), top);
+    let strip = *got[0];
+    (s, strip)
+}
+
+#[test]
+fn in_a_24_px_row_a_later_slot_lies_inside_its_row_close_under_the_bar() {
+    let v = view(20, 40);
+    let (s, strip) = a_later_slot_in_its_own_color(&v);
+    let row = AXIS_HEIGHT + ROW_HEIGHT;
+    // The 12 px bar is 6 px from the row's top; the strip is 3 px tall.
+    let (bar_bottom, top) = (row + 6.0 + 12.0, f64::from(strip.pos[1]));
+    let (gap, below) = (top - bar_bottom, row + ROW_HEIGHT - (top + 3.0));
+    assert!(
+        below >= 2.0,
+        "{below} px of the row's background under the strip"
+    );
+    assert!(
+        gap < below,
+        "gap to the bar {gap} against {below} to the row's bottom edge"
+    );
+    assert_eq!(
+        s.rects[s.bar_rects[1].1].pos[1],
+        (row + 6.0) as f32,
+        "the bar did not move"
+    );
+}
+
+#[test]
+fn in_a_taller_row_a_later_slot_still_sits_one_strip_lower() {
+    let mut v = view(20, 40);
+    v.row_height = 48.0;
+    let (_, strip) = a_later_slot_in_its_own_color(&v);
+    let row = AXIS_HEIGHT + 48.0;
+    // The 24 px bar is 12 px from the row's top; slot 0 is 1 px under it and 3 px tall, so slot 1 starts 4 px lower.
+    assert_eq!(f64::from(strip.pos[1]), row + 12.0 + 24.0 + 1.0 + 4.0);
 }
