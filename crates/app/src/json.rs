@@ -83,7 +83,8 @@ impl Session {
 
     /// The task table's rows `first..last` (clamped to the schedule) as a JSON array of
     /// `[task, start, finish, float in minutes or null, critical, kind, start variance, finish
-    /// variance, float variance]`, where kind is 0 for a leaf, 1 for an expanded summary, and 2 for
+    /// variance, float variance]`, where the float is `null` for a summary and for a finished task
+    /// (the table shows no float cell for it), and kind is 0 for a leaf, 1 for an expanded summary, and 2 for
     /// a collapsed summary. While grouped a header row is `[null, value or null for no value, leaf
     /// count, null, false, 3, null, null, null]`, with kind 4 while its group is collapsed. The variances are text (working days, as `variance_cells` writes them),
     /// `null` for a task with no baseline entry, with no baseline and while a bar is being dragged;
@@ -131,11 +132,15 @@ impl Session {
                         self.variance_cells(TaskId(t))
                     };
                     let [vs, vf, vl] = cells_json(cells);
+                    let float = if d.finished {
+                        "null".to_string()
+                    } else {
+                        d.float.to_string()
+                    };
                     format!(
-                        "[{t},{},{},{},{},0,{vs},{vf},{vl}]",
+                        "[{t},{},{},{float},{},0,{vs},{vf},{vl}]",
                         quote(&self.date_text(d.es)),
                         quote(&self.date_text(d.ef)),
-                        d.float,
                         d.is_critical()
                     )
                 }

@@ -191,3 +191,24 @@ fn a_task_finished_after_the_baseline_is_not_counted_as_leaving_the_path() {
     let diff = s.baseline_diff().expect("a baseline is in force");
     assert_eq!((diff.joined, diff.left), (0, 0), "{diff:?}");
 }
+
+#[test]
+fn a_finished_task_has_no_float_cell_and_an_unfinished_one_keeps_its_float() {
+    let mut s = chain();
+    s.edit(Edit::SetProgress {
+        task: TaskId(0),
+        actual_start: Some(0),
+        actual_finish: Some(8 * HOUR),
+        remaining: None,
+    })
+    .expect("applies");
+
+    let rows: serde_json::Value =
+        serde_json::from_str(&s.table_rows_json(0, u32::MAX)).expect("rows are JSON");
+    let float = |task: usize| rows[task][3].clone();
+    assert!(float(0).is_null(), "a finished task's float cell is empty");
+    assert!(
+        float(1).is_i64() && float(2).is_i64(),
+        "an unfinished task shows its float: {rows}"
+    );
+}

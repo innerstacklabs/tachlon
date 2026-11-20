@@ -33,6 +33,7 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ### Fixed
 
+- The Float cell of a finished task (one with an actual finish) is empty; it read `0d`. The engine's float for it is unchanged.
 - A typed percent complete of `0` (in the percent cell, the task dialog and the by-key update's `progress`) leaves a task that has not started with no actual start and no remaining work; it used to give it its early start. A typed percent that would put an actual start or finish after the data date is refused with `actualAfterDataDate`, as the actual date cells and the by-key update already refuse it.
 
 ## 0.3.1
