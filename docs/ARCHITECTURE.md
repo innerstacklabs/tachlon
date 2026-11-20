@@ -300,7 +300,7 @@ hold:
    listens for a key on `window`, `document`, `document.body` or `document.documentElement`.
 3. *Every style rule is under the root class.* Each selector in the `<style>` blocks of
    `packages/gantt/index.html` and `packages/gantt/src/chart.html` and in `packages/gantt/src/**/*.css` starts with `.gantt` or
-   `:where(.gantt)`.
+   `:where(.gantt)`. The one exception is `html` and `body` inside the `@media print` block of `index.html`, which lifts the clip the developer page sets on them inline.
 
 The architecture checks keep rules 1 to 3 (see "Checks"), and `packages/gantt/tests/embedding.spec.ts` keeps
 them in a real browser. The checks read the chart's markup, `packages/gantt/src/chart.html`, as well as
@@ -427,7 +427,7 @@ directory also holds the `name` check (`name.rs`, `the_old_name_stays_out_of_the
 - *Theme and embedding* (`theming`, `embedding`, `style_scope`): every `--gantt-` token is on the
   page and used; no stylesheet but `tokens.css` holds a literal color, except the files in `LITERAL_COLOURS` (`theming.rs`), whose counts only shrink; nothing reads the window's size or listens for a key on the window or document;
   outside `main.ts`, nothing looks parts up on the document (`getElementById`, `querySelector`,
-  `querySelectorAll`, `getElementsBy*`) or listens on it; every selector starts with `.gantt`.
+  `querySelectorAll`, `getElementsBy*`) or listens on it; every selector starts with `.gantt`, except `html` and `body` in the page's `@media print` rule.
 - *Size* (`size`): `apps/chrome/src` is source too; flat limits of 400 lines for source, 300 for an in-file test module and 600 for
   a test file. The files over a limit when the budget began are listed at their size, and the list
   only shrinks. The budget covers `apps/hosted/` too: its `src`, `samples`, `scripts`, page and

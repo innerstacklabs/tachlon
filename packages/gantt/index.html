@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tachlon: 50k timeline</title>
     <link rel="icon" href="data:," />
+    <style>
+      @media print {
+        /* !important: the inline clip on html and body wins otherwise, and prints only the first sheet. */
+        html, body { height: auto !important; overflow: visible !important; }
+      }
+    </style>
   </head>
   <body style="margin: 0; height: 100%; overflow: hidden; font: 12px/1.4 'Gantt Mono', ui-monospace, monospace">
     <div id="app" class="gantt" tabindex="0"></div>

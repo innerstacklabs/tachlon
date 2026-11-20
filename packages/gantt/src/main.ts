@@ -11,15 +11,6 @@ import { MountError, mount, type MountOptions } from "./index.js";
 import { createStatusLine } from "./status-line.js";
 import { installChrome } from "@gantt/chrome";
 
-// This page sets `height: 100%; overflow: hidden` inline on `html` and `body`, which prints only the first sheet; lift it while printing.
-const clipped = [document.documentElement, document.body].map((el) => ({ el, height: el.style.height, overflow: el.style.overflow }));
-window.addEventListener("beforeprint", () => {
-  for (const { el } of clipped) Object.assign(el.style, { height: "auto", overflow: "visible" });
-});
-window.addEventListener("afterprint", () => {
-  for (const { el, height, overflow } of clipped) Object.assign(el.style, { height, overflow });
-});
-
 async function sha256(bytes: ArrayBuffer): Promise<string> {
   const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   return Array.from(digest, (b) => b.toString(16).padStart(2, "0")).join("");

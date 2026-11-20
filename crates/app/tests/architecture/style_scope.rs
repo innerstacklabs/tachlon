@@ -91,18 +91,27 @@ fn under_root_class(selector: &str) -> bool {
 /// `@container` and `@layer` blocks are read through; other at-rule blocks (`@keyframes`,
 /// `@font-face`) hold no selectors of the page and are skipped.
 pub(crate) fn rule_preludes(css: &str) -> Vec<(usize, String)> {
+    printed_preludes(css)
+        .into_iter()
+        .map(|(line, prelude, _)| (line, prelude))
+        .collect()
+}
+
+/// `rule_preludes` with a flag for a rule inside an `@media print` block.
+fn printed_preludes(css: &str) -> Vec<(usize, String, bool)> {
     let text = strip_block_comments(css);
     let mut lists = Vec::new();
-    // One entry per open brace: true when the block holds rules, false when it holds declarations
-    // (or a nested rule, which is relative to its parent) or is skipped.
-    let mut stack: Vec<bool> = Vec::new();
+    // One entry per open brace: whether the block holds rules (false when it holds declarations,
+    // a nested rule, which is relative to its parent, or is skipped) and whether it is in `@media print`.
+    let mut stack: Vec<(bool, bool)> = Vec::new();
     let mut prelude_start = 0;
     for (i, c) in text.char_indices() {
         match c {
             '{' => {
                 let raw = &text[prelude_start..i];
                 let prelude = raw.trim();
-                let holds_rules = if stack.last().copied().unwrap_or(true) {
+                let (parent_rules, parent_print) = stack.last().copied().unwrap_or((true, false));
+                let holds_rules = if parent_rules {
                     if let Some(at_rule) = prelude.strip_prefix('@') {
                         let name: String = at_rule
                             .chars()
@@ -112,13 +121,13 @@ pub(crate) fn rule_preludes(css: &str) -> Vec<(usize, String)> {
                     } else {
                         let line =
                             line_of(&text, prelude_start + raw.len() - raw.trim_start().len());
-                        lists.push((line, prelude.to_string()));
+                        lists.push((line, prelude.to_string(), parent_print));
                         false
                     }
                 } else {
                     false
                 };
-                stack.push(holds_rules);
+                stack.push((holds_rules, parent_print || prelude == "@media print"));
                 prelude_start = i + 1;
             }
             '}' => {
@@ -135,10 +144,13 @@ pub(crate) fn rule_preludes(css: &str) -> Vec<(usize, String)> {
 /// The number of selector lists in `css` and one failure for each selector outside the root class.
 pub(crate) fn style_scope(path: &str, css: &str) -> (usize, Vec<String>) {
     let mut failures = Vec::new();
-    let lists = rule_preludes(css);
-    for (line, prelude) in &lists {
+    let lists = printed_preludes(css);
+    for (line, prelude, in_print) in &lists {
         for selector in split_selectors(prelude) {
-            if !under_root_class(selector) {
+            // The one exception: the developer page's print rule lifts the clip its `html` and `body` carry inline.
+            let page_print_reset =
+                path == INDEX_HTML && *in_print && matches!(selector.trim(), "html" | "body");
+            if !under_root_class(selector) && !page_print_reset {
                 failures.push(format!(
                     "{path}:{line} has the selector `{}`, which does not start \
                      with .gantt or :where(.gantt); a rule outside the chart's \
@@ -153,7 +165,7 @@ pub(crate) fn style_scope(path: &str, css: &str) -> (usize, Vec<String>) {
 }
 
 pub(crate) fn check_style_scope(css: &[SourceFile], html: &[SourceFile]) -> Vec<String> {
-    // Neither the page nor the chart's markup keeps an inline `<style>` (gs#204); one added later is still read here.
+    // The page keeps one `<style>`, the `@media print` rule for `html` and `body`; the chart's markup keeps none (gs#204). Any other added later is read here.
     let mut failures = Vec::new();
     for file in html {
         failures.extend(style_scope(&file.path, &style_blocks(&file.text)).1);
@@ -272,6 +284,23 @@ fn only_the_style_blocks_of_the_page_are_read() {
     let failures = check_style_scope(&css, &index_page(html));
     assert_eq!(failures.len(), 1, "{failures:#?}");
     one(&failures, web!("index.html:8 has the selector `body`"));
+}
+
+#[test]
+fn only_the_pages_print_rule_may_name_html_and_body() {
+    let print = "<style>.gantt { x: 1 }\n@media print {\n  html, body { x: 1 }\n  div { x: 1 }\n}\nbody { x: 1 }\n</style>";
+    let css = [file(web!("src/styles/tokens.css"), ".gantt { x: 1 }\n")];
+    let failures = check_style_scope(&css, &index_page(print));
+    assert_eq!(failures.len(), 2, "{failures:#?}");
+    one(&failures, web!("index.html:4 has the selector `div`"));
+    one(&failures, web!("index.html:6 has the selector `body`"));
+    let chart = [file(
+        CHART_HTML,
+        "<style>@media print { body { x: 1 } }</style>",
+    )];
+    let failures = check_style_scope(&css, &chart);
+    assert_eq!(failures.len(), 1, "{failures:#?}");
+    one(&failures, web!("src/chart.html:1 has the selector `body`"));
 }
 
 #[test]
