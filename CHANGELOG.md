@@ -4,6 +4,10 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+### New
+
+- Under `keys: "server"`, a restored row (the undo of a delete, the redo of a create) may be answered with another key, and the chart takes it; a different key was put back with `reason: "result"` before. A member of the change set that names a restored row is now `{ ref }`, as for a new row, so a `save` function puts the `key` of each create that has one in its ref map before it reads the creates that name it.
+
 ## 0.4.0
 
 Read "Breaking changes" first. A page that reads neither the `edit` event nor the `beforeEdit` payload, never calls `chart.save()` and does not set `structure`, `kinds` or `perTask` in `capabilities`, sets no `notAllowed` text, and puts no date limit on a task whose calendar ends before midnight, needs none of them except the type changes in the last entry, for TypeScript code. The new `save` option, which stores what the person edits, is under "New".

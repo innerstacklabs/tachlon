@@ -38,19 +38,11 @@ export function callSave(save: Save | Handlers, changeSet: ChangeSet, stopped: (
 /** The change of a change set whose handler has not resolved yet: the one a call that ended was at. */
 export const failedChange = (changeSet: ChangeSet): Change | undefined => changeSet.changes[resolved.get(changeSet) ?? 0];
 
-/** What a restored row's answer says when the server holds it under a key other than the one the chart has. */
-export const restoredMismatch = (record: string, key: unknown, old: string): string =>
-  `the server holds the restored ${record} under the key ${JSON.stringify(key)}, but the chart has it under ${JSON.stringify(old)}, and the chart cannot yet take a new key for a restored row: restore the row under its original key on the server, or read your data again with setData, which shows the row under its new key`;
-
-/** The key a create's handler answered: the key itself, an object that holds it under the host's name for `key`, or a `Response` whose JSON is that row. A create that carries its key may answer none, but not another. */
+/** The key a create's handler answered: the key itself, an object that holds it under the host's name for `key`, or a `Response` whose JSON is that row. A create that carries its key may answer none, and then its own key is the answer. */
 async function keyOf(result: unknown, field: string, name: Name, change: Change): Promise<string | undefined> {
   const row = result instanceof Response ? (await result.json().catch(() => undefined)) as unknown : result;
   const key = typeof row === "object" && row !== null ? (row as Record<string, unknown>)[field] : row;
-  if (change.key !== null) {
-    if (key === undefined || key === null) return undefined;
-    if (key !== change.key) throw new BadResult(restoredMismatch(change.record, key, change.key));
-    return change.key;
-  }
+  if (change.key !== null && (key === undefined || key === null)) return change.key;
   if (typeof key === "string" && key !== "") return key;
   throw new BadResult(`the ${name} handler resolved with no key for the new row: with keys: "server" resolve with the key, an object that has it as "${field}", or a Response whose JSON body is the row`);
 }

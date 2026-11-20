@@ -162,3 +162,70 @@ fn a_drawn_link_gets_a_key_and_a_second_link_cannot_have_it() {
     assert!(saved(&session).contains(r#""key":"l-1""#));
     assert_eq!(session.host_keys().link("l-1"), Some(one));
 }
+
+fn rekey(session: &mut Session, target: KeyTarget, key: &str) -> Result<(), &'static str> {
+    session.rekey(target, key).map_err(|e| e.kind())
+}
+
+#[test]
+fn a_rekey_moves_the_key_of_a_task_and_frees_the_old_one() {
+    let (mut session, leaves) = opened(true);
+    let task = KeyTarget::Task(leaves[0]);
+    let (history, revision) = (session.history_len(), session.revision());
+    assert_eq!(rekey(&mut session, task, "new"), Ok(()));
+    assert_eq!(session.host_keys().task("new"), Some(leaves[0]));
+    assert_eq!(session.host_keys().task("held"), None);
+    let text = saved(&session);
+    assert!(text.contains(r#""key":"new""#) && !text.contains(r#""key":"held""#));
+    assert_eq!(
+        (session.history_len(), session.revision()),
+        (history, revision)
+    );
+    assert_eq!(assign(&mut session, leaves[1], "held"), Ok(()));
+}
+
+#[test]
+fn a_rekey_refuses_a_key_another_task_holds_and_changes_nothing() {
+    let (mut session, leaves) = opened(true);
+    let (live, gone) = (
+        insert(&mut session, leaves[1]),
+        insert(&mut session, leaves[1]),
+    );
+    assert_eq!(assign(&mut session, live, "live"), Ok(()));
+    assert_eq!(assign(&mut session, gone, "gone"), Ok(()));
+    session.edit(Edit::Delete { task: gone }).unwrap();
+    let (before, task) = (saved(&session), KeyTarget::Task(leaves[0]));
+    assert_eq!(rekey(&mut session, task, "live"), Err("keyTaken"));
+    assert_eq!(rekey(&mut session, task, "gone"), Err("keyTaken"));
+    assert_eq!(saved(&session), before);
+    assert_eq!(rekey(&mut session, task, "held"), Ok(()), "the same key");
+    assert_eq!(assign(&mut session, leaves[0], "other"), Err("hasKey"));
+}
+
+#[test]
+fn a_rekey_moves_the_key_of_a_link() {
+    let (mut session, leaves) = opened(false);
+    let (a, b, c) = (
+        insert(&mut session, leaves[2]),
+        insert(&mut session, leaves[2]),
+        insert(&mut session, leaves[2]),
+    );
+    let (one, two) = (link(&mut session, a, b), link(&mut session, b, c));
+    session.assign_key(KeyTarget::Link(one), "l-1").unwrap();
+    let (history, revision) = (session.history_len(), session.revision());
+    assert_eq!(rekey(&mut session, KeyTarget::Link(one), "l-2"), Ok(()));
+    let keys = session.host_keys();
+    assert_eq!(
+        (keys.link_key(one), keys.link("l-2"), keys.link("l-1")),
+        (Some("l-2"), Some(one), None)
+    );
+    assert_eq!(
+        (session.history_len(), session.revision()),
+        (history, revision)
+    );
+    session.assign_key(KeyTarget::Link(two), "l-1").unwrap();
+    assert_eq!(
+        rekey(&mut session, KeyTarget::Link(two), "l-2"),
+        Err("keyTaken")
+    );
+}
