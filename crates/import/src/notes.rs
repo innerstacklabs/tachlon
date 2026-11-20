@@ -43,8 +43,8 @@ pub(crate) struct Notes {
     positions: [HashMap<String, usize>; 5],
     lines: Vec<String>,
     seen: HashSet<String>,
-    /// The kind and id of each count made by [`Notes::add_once`].
-    once: HashSet<(String, String)>,
+    /// The kind and task number of each count made by [`Notes::add_once`].
+    once: HashSet<(String, u32)>,
 }
 
 impl Notes {
@@ -147,10 +147,11 @@ impl Notes {
         }
     }
 
-    /// [`Notes::add`] for a task, counted once per `kind` however many of its values are noted.
-    pub(crate) fn add_once(&mut self, section: Section, kind: &str, id: &str) {
-        if self.once.insert((kind.to_owned(), id.to_owned())) {
-            self.add(section, kind, Some(id));
+    /// [`Notes::add`] for a task, counted once per `kind` by its `task` number however many of its
+    /// values are noted; `label` is the id listed.
+    pub(crate) fn add_once(&mut self, section: Section, kind: &str, task: u32, label: &str) {
+        if self.once.insert((kind.to_owned(), task)) {
+            self.add(section, kind, Some(label));
         }
     }
 

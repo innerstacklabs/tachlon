@@ -127,3 +127,14 @@ fn a_task_with_two_dates_outside_the_range_is_counted_once() {
     let imported = import("", &tasks, &[]);
     assert_eq!(counted(&imported, DATE), Some("1 (first: A1)"));
 }
+
+#[test]
+fn two_tasks_with_one_code_are_counted_twice() {
+    let started = format!("\t\t{YEAR_9999}\t");
+    let tasks = [
+        row(1, "TK_Active", "1", "1", &started),
+        row(2, "TK_Active", "1", "1", &started).replace("A2", "A1"),
+    ];
+    let imported = import("", &tasks, &[]);
+    assert_eq!(counted(&imported, DATE), Some("2 (first: A1, A1)"));
+}

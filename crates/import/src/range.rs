@@ -5,11 +5,12 @@ use engine::{Instant, MAX_DATE, MAX_DURATION, MAX_LAG, MIN_DATE, Minutes};
 
 use crate::notes::{Notes, Section};
 
-/// A task's date, or `None` when it is outside `MIN_DATE..=MAX_DATE` from the origin.
-pub(crate) fn date(value: Instant, id: &str, notes: &mut Notes) -> Option<Instant> {
+/// A task's date, or `None` when it is outside `MIN_DATE..=MAX_DATE` from the origin. The note
+/// counts the task once, by its `task` number (unique in the file); `label` is what it names.
+pub(crate) fn date(value: Instant, task: u32, label: &str, notes: &mut Notes) -> Option<Instant> {
     let kept = (MIN_DATE..=MAX_DATE).contains(&value).then_some(value);
     if kept.is_none() {
-        notes.add_once(Section::Activity, "Tasks with a date more than 1,000 years from the schedule start: the date was not read, so their dates can differ from the file's", id);
+        notes.add_once(Section::Activity, "Tasks with a date more than 1,000 years from the schedule start: the date was not read, so their dates can differ from the file's", task, label);
     }
     kept
 }
@@ -73,7 +74,7 @@ mod tests {
             ]
         };
         let above = |top: i64| [(top - 1, true), (top, true), (top + 1, false)];
-        check(&both(MAX_DATE), |v, n| date(v, "1", n).is_some());
+        check(&both(MAX_DATE), |v, n| date(v, 1, "1", n).is_some());
         check(&both(MAX_DATE), |v, n| data_date(v, None, n).is_some());
         check(&both(MAX_LAG), |v, n| lag(v, "1", n) == v);
         check(&above(MAX_DURATION), |v, n| remaining(v, "1", n).is_some());

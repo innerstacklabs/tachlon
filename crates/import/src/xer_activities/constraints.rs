@@ -75,7 +75,7 @@ fn apply(
                 return Ok(());
             };
             let at = relative_instant(minutes, source.origin_day, source.task_id)?;
-            let Some(at) = range::date(at, source.label, notes) else {
+            let Some(at) = range::date(at, source.task_id, source.label, notes) else {
                 return Ok(());
             };
             let at = at.max(0);
