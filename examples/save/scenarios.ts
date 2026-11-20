@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { Page } from "@playwright/test";
-import type { FakeServer, Script } from "./server.ts";
+import type { FakeServer, Script, Seen } from "./server.ts";
 
 export type Form = "handlers" | "url" | "function";
 /** A scenario of decision 0022, rule 11.2. `keys` pins the key mode it runs in; without it the suite runs both. `not` names forms it skips on top of rule 11.1's list. `props` is a setting the scenario names, written as the props it adds to the chart (`retry: false`): the page changes in that and nothing else. */
@@ -70,7 +70,7 @@ async function away(page: Page, server: FakeServer): Promise<number[]> {
   return was;
 }
 // The PATCH is held, and so is the read the host makes after a put-back: the example page starts the chart again with the rows it reads, so what the put-back shows stays on screen long enough to be read.
-const HELD: Script["latency"] = (r) => (r.method === "PATCH" ? 800 : r.n > 1 && r.method === "GET" ? 1_500 : 0);
+const HELD = (r: Seen): number => (r.method === "PATCH" ? 800 : r.n > 1 && r.method === "GET" ? 1_500 : 0);
 // A create whose response is lost: the server stores it and the connection closes.
 const LOST: Script = { drop: (r) => (r.method === "POST" && !r.repeat ? "response" : undefined) };
 
@@ -119,7 +119,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     n: 5, name: "5 a refused create with edits behind it",
-    script: { latency: (r) => (r.method === "POST" ? 1_500 : 0), refuse: (r) => (r.method === "POST" ? { status: 422, body: { message: "No new tasks today" } } : undefined) },
+    script: { latency: (r) => (r.method === "POST" ? 1_500 : HELD(r)), refuse: (r) => (r.method === "POST" ? { status: 422, body: { message: "No new tasks today" } } : undefined) },
     async run(page, server) {
       await ready(page);
       await insert(page, "Review");
