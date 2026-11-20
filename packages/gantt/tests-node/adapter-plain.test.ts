@@ -132,7 +132,7 @@ const limitOf = (task: Record<string, unknown>) => fromTasks({ tasks: [t0, { id:
 
 test("each_limit_key_of_a_plain_task_lands_in_the_documents_limit", () => {
   const at = "2026-03-06T09:00";
-  expect(limitOf({ snet: "2026-03-04" })).toMatchObject({ snet: 2 * 1440 });
+  expect(limitOf({ snet: "2026-03-04" })).toMatchObject({ snet: 2 * 1440 + 480 });
   expect(limitOf({ snet: "2026-03-04" })).not.toHaveProperty("limit");
   expect(limitOf({ snlt: at }).limit).toEqual({ snlt: FRI + 540 });
   expect(limitOf({ fnet: at }).limit).toEqual({ fnet: FRI + 540 });
@@ -144,16 +144,16 @@ test("each_limit_key_of_a_plain_task_lands_in_the_documents_limit", () => {
   expect(limitOf({ snlt: at, fnlt: at, alap: true }).limit).toEqual({ snlt: FRI + 540, fnlt: FRI + 540, alap: true });
 });
 
-test("a_date_alone_on_a_finish_limit_is_the_end_of_that_day_and_on_a_start_limit_its_start", () => {
+test("a_date_alone_on_a_finish_limit_is_the_close_of_that_day_and_on_a_start_limit_its_opening", () => {
   const day = "2026-03-06";
-  for (const [key, field] of [["fnet", "fnet"], ["fnlt", "fnlt"], ["mfo", "pin_finish"]] as const) expect(limitOf({ [key]: day }).limit).toEqual({ [field]: FRI + 1440 });
-  expect(limitOf({ snlt: day }).limit).toEqual({ snlt: FRI });
-  expect(limitOf({ mso: day }).limit).toEqual({ pin_start: FRI });
+  for (const [key, field] of [["fnet", "fnet"], ["fnlt", "fnlt"], ["mfo", "pin_finish"]] as const) expect(limitOf({ [key]: day }).limit).toEqual({ [field]: FRI + 1020 });
+  expect(limitOf({ snlt: day }).limit).toEqual({ snlt: FRI + 480 });
+  expect(limitOf({ mso: day }).limit).toEqual({ pin_start: FRI + 480 });
 });
 
 test("milestone_start_or_finish_lands_in_the_documents_limit_type_milestone_alone_sets_none_and_another_value_is_refused", () => {
   expect(limitOf({ duration: 0, milestone: "start" }).limit).toEqual({ milestone: "start" });
-  expect(limitOf({ duration: 0, milestone: "finish", snlt: "2026-03-06" }).limit).toEqual({ snlt: FRI, milestone: "finish" });
+  expect(limitOf({ duration: 0, milestone: "finish", snlt: "2026-03-06" }).limit).toEqual({ snlt: FRI + 480, milestone: "finish" });
   expect(limitOf({ type: "milestone" })).not.toHaveProperty("limit");
   expect(() => limitOf({ duration: 0, milestone: "middle" })).toThrow('tasks[1].milestone: expected "start" or "finish", got string "middle"');
 });
@@ -179,7 +179,7 @@ test("an_actual_start_and_finish_reach_the_document_and_a_date_alone_is_read_by_
 
 test("resume_lands_in_the_documents_limit_beside_the_other_limits", () => {
   expect(second({ actualStart: "2026-03-03", resume: "2026-03-06" }).limit).toEqual({ resume: FRI });
-  expect(second({ actualStart: "2026-03-03", resume: "2026-03-06T09:00", snlt: "2026-03-10" }).limit).toEqual({ snlt: 8 * 1440, resume: FRI + 540 });
+  expect(second({ actualStart: "2026-03-03", resume: "2026-03-06T09:00", snlt: "2026-03-10" }).limit).toEqual({ snlt: 8 * 1440 + 480, resume: FRI + 540 });
 });
 
 test("the_data_date_reaches_the_document_and_moves_the_origin_when_it_is_the_earliest_date", () => {

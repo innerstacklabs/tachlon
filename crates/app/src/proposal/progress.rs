@@ -4,7 +4,7 @@
 use super::Proposal;
 use crate::edit::{Edit, EditError};
 use crate::{Session, what_moves::refuse};
-use engine::{DAY, Instant, Schedule, ScheduleError, Solution, TaskId};
+use engine::{Instant, Schedule, ScheduleError, Solution, TaskId};
 
 /// A held report: the task, the field and the text as they were proposed.
 pub(super) type Report = (TaskId, String, String);
@@ -44,18 +44,13 @@ impl Session {
 
     /// `text` with the time of day a date alone takes (decision 0017, rule 6), on the task's calendar.
     fn dated(&self, task: TaskId, field: &str, text: &str) -> String {
-        let (calendar, text) = (self.schedule.calendar_of(task), text.trim());
+        let text = text.trim();
         let Some(day) = self.origin.parse_day(text) else {
             return text.to_string();
         };
         let at = match field {
-            "actual_start" => Some(calendar.next_working(day))
-                .filter(|&at| at < day + DAY)
-                .unwrap_or(day),
-            "actual_finish" => calendar
-                .prev_period_end(day + DAY)
-                .filter(|&at| at > day)
-                .unwrap_or(day + DAY),
+            "actual_start" => self.day_edge(task, day, false),
+            "actual_finish" => self.day_edge(task, day, true),
             _ => return text.to_string(),
         };
         self.date_text(at)

@@ -16,7 +16,7 @@ fn all_three_limits_and_a_duration_are_one_undo_step() {
     let l = s.schedule().tasks()[0].limit;
     assert_eq!(
         (l.snlt, l.fnet, l.fnlt),
-        (Some(0), Some(4 * 1440), Some(1440))
+        (Some(480), Some(3 * 1440 + 1020), Some(1020))
     );
     assert_eq!(*s.solution(), s.schedule().clone().compute().unwrap());
     assert_eq!(s.history_len(), (1, 0));
@@ -32,7 +32,7 @@ fn a_blank_clears_one_limit_and_keeps_the_others() {
     s.set_task_fields(TaskId(0), &limits).unwrap();
     s.set_task_fields(TaskId(0), &[("snlt", " ")]).unwrap();
     let limit = s.schedule().tasks()[0].limit;
-    assert_eq!((limit.snlt, limit.fnlt), (None, Some(10 * 1440)));
+    assert_eq!((limit.snlt, limit.fnlt), (None, Some(9 * 1440 + 1020)));
     assert_eq!(*s.solution(), s.schedule().clone().compute().unwrap());
 }
 

@@ -1,6 +1,6 @@
 // `Gantt.setData` (decision 0022, rules 4.1 and 4.2): the host hands the chart its rows again, and the chart sets only the members that differ from the rows it was last given.
 import type { PlainLink, PlainTask } from "./adapters/plain.js";
-import { TYPES as LIMITS, spelledTwice } from "./constraint-form.ts";
+import { MEMBERS as LIMITS, spelledTwice } from "./constraint-form.ts";
 import type { TaskUpdate, UpdateResult } from "./gantt-types.js";
 
 /** The members of a task that `update` takes, the six limits among them (`update` answers `notUpdatable` for `mso` and `mfo`): the only ones `setData` compares. */

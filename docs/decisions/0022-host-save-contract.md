@@ -342,7 +342,7 @@ type Retry = readonly number[] | false; // the waits before each repeated call, 
 ### 9. The typed constraint at the boundary
 
 ```ts
-type ConstraintType = "snet" | "snlt" | "fnet" | "fnlt" | "mso" | "mfo";
+type ConstraintType = "snet" | "snlt" | "fnet" | "fnlt" | "mso" | "mfo" | "so" | "fo";
 type Constraint = { type: ConstraintType; date: string } | null;
 ```
 
@@ -356,11 +356,13 @@ type Constraint = { type: ConstraintType; date: string } | null;
    | `snlt` | `limit.snlt`, the start ceiling |
    | `fnet` | `limit.fnet`, the finish floor |
    | `fnlt` | `limit.fnlt`, the finish ceiling |
-   | `mso` | `limit.pin_start` when `mandatoryDates` is `"pin"`; `snet` and `limit.snlt` on the same instant when it is `"bounds"` |
-   | `mfo` | `limit.pin_finish` when `"pin"`; `limit.fnet` and `limit.fnlt` on the same instant when `"bounds"` |
+   | `mso` | `limit.pin_start`: the bar goes to the date |
+   | `mfo` | `limit.pin_finish`: the bar goes to the date |
+   | `so` | `snet` and `limit.snlt` on the same instant: the bar is not moved, and float goes negative when logic pushes past the date |
+   | `fo` | `limit.fnet` and `limit.fnlt` on the same instant, the same way |
 
-4. **"Must start on" is a schedule option, not a mapping the host writes.** `mandatoryDates` is a member of `options` (decision 0018, rule 4) with the values `"pin"` (default: the date holds even when logic pushes past it, as today's `mso`) and `"bounds"` (a floor and a ceiling on the same day, so logic can push past and float goes negative). The two give different dates, so it travels with the schedule. Under `"bounds"` a task whose floor and ceiling sit on the same instant reads back as `mso` or `mfo`. This replaces the closing note of decision 0017, which tells the host to send two fields.
-5. **Under `"typed"` a task holds one constraint.** Setting one replaces every date bound the task had, as one change with `set: { constraint }` and `was: { constraint }`. `start` in host data is still a wanted start kept as `snet`, unless the record has a `constraint` member (`null` included), which wins. A task that arrives from a file with more than one bound keeps them all in the engine; its `constraint` reads the first that is set in the order `mso`, `mfo`, `snlt`, `fnlt`, `snet`, `fnet`, and `leftOut` counts the rest.
+4. **"Mandatory" and "on" are two kinds, not a setting.** `Owner decided:` Primavera P6 has both a pin ("Mandatory Start", "Mandatory Finish": the bar goes to the day) and a floor plus a ceiling on one date ("Start On", "Finish On"). `mso` and `mfo` stay the pins and no option changes what they mean; `so` and `fo` are the second pair, each read as the two limits it stands for and written back as one typed constraint. The names are `so` and `fo` because the record's vocabulary has none for them. A host whose own type names are the P6 pair maps each to the kind it means, once, in its own module. This replaces an earlier draft of this rule, a `mandatoryDates` schedule option, which was never built.
+5. **Under `"typed"` a task holds one constraint.** Setting one replaces every date bound the task had, as one change with `set: { constraint }` and `was: { constraint }`. `start` in host data is still a wanted start kept as `snet`, unless the record has a `constraint` member (`null` included), which wins. A task that arrives from a file with more than one bound keeps them all in the engine; its `constraint` reads the first that is set in the order `mso`, `mfo`, `so`, `fo`, `snlt`, `fnlt`, `snet`, `fnet` (`so` when `snet` and `snlt` hold one instant, `fo` when `fnet` and `fnlt` do), and `leftOut` counts the rest. The engine's profile compares instants. The chart's typed read-back compares the dates as written after `dateForm` is applied, so under `dateForm: "day"` an `snet` at 08:00 and an `snlt` at 15:00 of one day write the same text and read as `so`, while the profile counts two limits. Both read `so` and `fo` only when the host's `kinds` is left out or lists them: a typed host whose `kinds` omits one gets the single constraint it got before the pair had a name (`snlt` or `fnlt` by the reading order). A date alone is read on the task's calendar (decision 0017, rule 6).
 
 ### 10. The URL default
 
@@ -450,7 +452,7 @@ The order is the outside review's, and this record agrees with it: `save` takes 
 | 1 | Record-shaped changes (section 2), one unit, `dateForm: "day"`, the field map and custom fields (rules 8.3 and 8.4) | no row found; `tl2090dd` covers the displayed form only; the field map: not searched | `edit` commits and the before-edit payload change from `field`, `old`, `new` to `set`, `was`; a host mounted with hours or minutes gets durations in its unit, not days; an unknown member of a task or link is kept as a custom field, not left out and counted |
 | 2 | Data in place by key (section 4): props, `setData`, `update` with every input field, links and deletes; `capabilities`, `pending` and `selectedKey` as props | `tl2087cp`, `tl2087uc`; links, creates and deletes by key: no row found | a changed `tasks` or `links` prop no longer starts the chart again; a host that relied on that sets a React `key` or calls `load` |
 | 3 | `save` as handlers and as a function, the status table and `classify`, the queue, repeated calls, `retry` and `idempotent`, put-back, `keys`, `changed`, `SaveError`, `state().unsavedCommits` and `state().save` (sections 3 and 5); the URL default (section 10): `src`, a `save` string as handlers over `fetch`, and `headers`, with the convention in the README | `tl2091sq`; its engine half is merged; the URL default: not searched | nothing without `save` or `src`; `Gantt.save()` is renamed `download()` |
-| 4 | The typed constraint and `mandatoryDates` (section 9), then the profile values and snapping (rule 8.2) | no row found for the constraint; `tl2090cq`, `tl2090sn`; the `structure` split: no row found | `editable.structure` becomes `rows`, `outline` and `paste`; at 0.4.0 changes write `constraint` |
+| 4 | The typed constraint (section 9), then the profile values and snapping (rule 8.2) | no row found for the constraint; `tl2090cq`, `tl2090sn`; the `structure` split: no row found | `editable.structure` becomes `rows`, `outline` and `paste`; at 0.4.0 changes write `constraint` |
 | 5 | Undo (section 6): `history`, `canUndo`, `canRedo`, stale steps, host-only entries | issue tl#2092; no row found | nothing under the default |
 
 `Owner decided:` the URL default is built in step 3 with `save`, as handlers over `fetch` on the same queue (rule 10.1), not after it; the handlers form and the function form are built in the same step. The convention ships where the first section does: the package README's "Connect to your backend" section is the first section, unchanged (rule 1.1), and the README is the package's own documentation (decision 0016, rule 6), so a host's coding assistant finds it in the installed package.

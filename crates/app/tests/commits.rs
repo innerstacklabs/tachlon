@@ -183,9 +183,9 @@ fn the_dialog_s_limit_fields_are_three_updates_in_one_commit() {
     s.set_task_fields(FIRST, &fields).unwrap();
     let want = [
         "1 dialog",
-        r#"0 snlt: null -> "2026-02-02T00:00""#,
-        r#"0 fnet: null -> "2026-02-04T00:00""#,
-        r#"0 fnlt: null -> "2026-02-05T00:00""#,
+        r#"0 snlt: null -> "2026-02-02T08:00""#,
+        r#"0 fnet: null -> "2026-02-03T17:00""#,
+        r#"0 fnlt: null -> "2026-02-04T17:00""#,
     ];
     assert_eq!(drained(&mut s), want);
 }

@@ -12,7 +12,7 @@ use app::{
     edit::Edit,
     host::KeyTarget,
 };
-use engine::{DAY, Limit, LinkType, Pin, TaskDates, TaskId};
+use engine::{Limit, LinkType, Pin, TaskDates, TaskId};
 
 /// A session over the demo outline with its first 30 leaf tasks keyed `k0` to `k29`.
 fn keyed() -> (Session, Vec<TaskId>) {
@@ -246,18 +246,32 @@ fn limit_and_dates(session: &Session, task: TaskId) -> (Limit, TaskDates) {
 #[test]
 fn a_start_no_later_than_is_set_the_late_start_follows_and_the_undo_list_is_left() {
     let (mut session, leaves) = keyed();
-    let (depth, (_, before)) = (session.history_len(), limit_and_dates(&session, leaves[0]));
-    let first = session.origin().day_text(0);
-    let json = format!(r#"[{{"key":"k0","snlt":"{first}"}}]"#);
+    let floating = |t: &TaskId| session.solution().dates[t.0 as usize].float > 0;
+    let n = leaves.iter().position(floating).unwrap();
+    let (depth, (_, before)) = (session.history_len(), limit_and_dates(&session, leaves[n]));
+    let day = session.origin().day_text(before.es);
+    let json = format!(r#"[{{"key":"k{n}","snlt":"{day}"}}]"#);
     session.update_tasks(&json).unwrap();
-    let (limit, after) = limit_and_dates(&session, leaves[0]);
-    assert_eq!(limit.snlt, Some(0));
-    assert!(before.ls > 0 && after.ls <= 0, "{before:?} {after:?}");
+    let (limit, after) = limit_and_dates(&session, leaves[n]);
+    let midnight = session.origin().parse_day(&day).unwrap();
+    let opening = session
+        .schedule()
+        .calendar_of(leaves[n])
+        .next_working(midnight);
+    assert_eq!(
+        limit.snlt,
+        Some(opening),
+        "a date alone is the day's first working minute"
+    );
+    assert!(
+        before.ls > opening && after.ls <= opening,
+        "{before:?} {after:?}"
+    );
     assert_eq!(session.history_len(), depth);
 }
 
 #[test]
-fn a_finish_no_earlier_than_is_set_to_the_end_of_a_day_alone_and_the_early_finish_follows() {
+fn a_finish_no_earlier_than_is_set_to_the_close_of_a_day_alone_and_the_early_finish_follows() {
     let (mut session, leaves) = keyed();
     let (depth, (_, before)) = (session.history_len(), limit_and_dates(&session, leaves[0]));
     let day = session.origin().parse_day("2026-03-09").unwrap();
@@ -265,7 +279,7 @@ fn a_finish_no_earlier_than_is_set_to_the_end_of_a_day_alone_and_the_early_finis
         .update_tasks(r#"[{"key":"k0","fnet":"2026-03-09"}]"#)
         .unwrap();
     let (limit, after) = limit_and_dates(&session, leaves[0]);
-    assert_eq!(limit.fnet, Some(day + DAY));
+    assert_eq!(limit.fnet, Some(day + 1020));
     assert!(before.ef < day && after.ef >= day, "{before:?} {after:?}");
     assert_eq!(session.history_len(), depth);
 }

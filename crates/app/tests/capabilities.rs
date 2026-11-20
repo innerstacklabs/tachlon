@@ -165,6 +165,24 @@ fn a_dialog_is_checked_for_the_limits_it_leaves_not_one_field_at_a_time() {
 }
 
 #[test]
+fn a_floor_and_a_ceiling_on_one_instant_are_the_one_kind_so_or_fo_unless_the_host_leaves_it_out() {
+    let start = [("start", "2026-01-07 08:00"), ("snlt", "2026-01-07 08:00")];
+    let finish = [("fnet", "2026-01-07"), ("fnlt", "2026-01-07")];
+    let mut s = host(450, r#"{"kinds":["so","fo"],"perTask":1}"#);
+    s.set_task_fields(TaskId(3), &finish).unwrap();
+    let apart = [("start", "2026-01-07 08:00"), ("snlt", "2026-01-08 08:00")];
+    let said = Err("The host stores no snet limit.".to_string());
+    assert_eq!(s.set_task_fields(TaskId(2), &apart), said);
+    s.set_task_fields(TaskId(2), &start).unwrap();
+    let mut s = host(
+        450,
+        r#"{"kinds":["snet","snlt","fnet","fnlt"],"perTask":1}"#,
+    );
+    let said = Err("The host stores date limits: at most 1 for a task.".to_string());
+    assert_eq!(s.set_task_fields(TaskId(2), &start), said);
+}
+
+#[test]
 fn every_value_member_at_its_default_allows_everything() {
     let kinds = r#""kinds":["snet","snlt","fnet","fnlt","mso","mfo","alap"]"#;
     let steps = r#""durationStep":"minutes","lagStep":"minutes","dates":"minute""#;

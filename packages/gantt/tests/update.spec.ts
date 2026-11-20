@@ -124,14 +124,14 @@ test("a constraint is the one date limit: it replaces the other bounds, null cle
   expect(await limits(), "a constraint in the rows at mount is the limit its type names").toMatchObject({ snlt: expect.stringMatching(/^2026-03-20/) });
   expect(await page.evaluate(() => (window.upChart.toDocument() as { tasks: { snet: number | null }[] }).tasks[0]!.snet), "the start of a row with a constraint is no floor").toBeNull();
   expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: { type: "fnlt", date: "2026-03-27" } }]))).toEqual({ ok: true, updated: 1 });
-  expect(await limits(), "the new limit replaces the old one").toMatchObject({ fnlt: "2026-03-28T00:00", snlt: undefined });
+  expect(await limits(), "the new limit replaces the old one").toMatchObject({ fnlt: "2026-03-27T17:00", snlt: undefined });
   expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: null }]))).toEqual({ ok: true, updated: 1 });
   expect(await limits(), "null clears every bound").toEqual({ snet: undefined, snlt: undefined, fnet: undefined, fnlt: undefined });
   expect(await page.evaluate(() => window.upChart.update([{ key: "k0", constraint: { type: "snet", date: "2026-03-09" }, snlt: "2026-03-20" }]))).toMatchObject({ ok: false, reason: "badRecords", message: expect.stringContaining('both "constraint" and "snlt"') });
   expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k1", constraint: { type: "fnet", date: "2026-03-30" } }]))).toEqual({ ok: true, updated: 1 });
   await expect.poll(() => page.evaluate(() => window.edits.length)).toBe(1);
   const [edit] = await page.evaluate(() => window.edits as { commits: { changes: { key: string; set: unknown; was: unknown }[] }[] }[]);
-  expect(edit!.commits[0]!.changes, "the edit event carries the one member in both set and was").toMatchObject([{ key: "k1", set: { constraint: { type: "fnet", date: "2026-03-31T00:00" } }, was: { constraint: null } }]);
+  expect(edit!.commits[0]!.changes, "the edit event carries the one member in both set and was").toMatchObject([{ key: "k1", set: { constraint: { type: "fnet", date: "2026-03-30T17:00" } }, was: { constraint: null } }]);
 });
 
 test("rows with a constraint, an object and null, are no floor at mount and setData with the same rows changes nothing; the separate form still floors a start and writes six members", async ({ page }) => {

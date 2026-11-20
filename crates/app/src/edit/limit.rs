@@ -2,7 +2,7 @@
 
 use super::{Edit, EditError};
 use crate::Session;
-use engine::{DAY, Limit, ScheduleError, TaskId};
+use engine::{Limit, ScheduleError, TaskId};
 
 impl Session {
     /// The day of limit `key` (`snlt`, `fnet` or `fnlt`) on task `i`, or an empty string when it
@@ -41,7 +41,8 @@ impl Session {
     }
 
     /// The edit that sets limit `key` (`snlt`, `fnet` or `fnlt`) of the live `task` to `text` (blank
-    /// clears), keeping the other limits, the pin and as-late-as-possible. A finish is the day's end.
+    /// clears), keeping the other limits, the pin and as-late-as-possible. A date alone is the first working minute
+    /// of the day for a start and the end of its last working minute for a finish (`day_edge`).
     pub(crate) fn plan_limit_text(
         &self,
         task: TaskId,
@@ -55,11 +56,15 @@ impl Session {
             _ => self
                 .origin
                 .parse_day(text)
-                .map(|day| Some(day.div_euclid(DAY) * DAY + DAY))
+                .map(|day| Some(self.day_edge(task, day, true)))
                 .ok_or(EditError::BadDate),
         };
+        let day_start = |text: &str| match self.origin.parse_day(text) {
+            Some(day) => Ok(Some(self.day_edge(task, day, false))),
+            None => self.parse_start(text).map_err(|_| EditError::BadDate),
+        };
         match key {
-            "snlt" => limit.snlt = self.parse_start(text).map_err(|_| EditError::BadDate)?,
+            "snlt" => limit.snlt = day_start(text)?,
             "fnet" => limit.fnet = day_end(text)?,
             "fnlt" => limit.fnlt = day_end(text)?,
             _ => return Err(EditError::BadDate),
