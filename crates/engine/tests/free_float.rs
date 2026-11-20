@@ -260,3 +260,67 @@ fn delaying_a_task_by_its_free_float_moves_nothing_and_one_minute_more_does() {
         assert!(!moved_by(0) && moved_by(1), "{id}: free float {}", free[i]);
     }
 }
+
+/// `free_float` of one task is the value `free_floats` gives for it: on the day network, and on a
+/// network of every link type with lags that holds a started task, a finished one and a deleted
+/// slot.
+#[test]
+fn one_tasks_free_float_equals_its_place_in_the_whole_list() {
+    let mut nets = vec![slack()];
+    let mut s = Schedule::new();
+    let cal = s.add_calendar(cont_cal());
+    let ids = [100, 60, 200, 50, 90, 30, 120, 40].map(|len| task(&mut s, cal, len, None));
+    for (p, q, kind, lag) in [
+        (0, 1, FS, 10),
+        (0, 2, SS, 30),
+        (1, 3, FF, 20),
+        (2, 3, FS, 0),
+        (2, 4, SF, 150),
+        (3, 5, FS, 0),
+        (4, 5, FF, 0),
+        (1, 6, SS, 0),
+    ] {
+        dep(&mut s, ids[p], ids[q], kind, lag);
+    }
+    s.set_actual_start(ids[1], Some(0)).unwrap();
+    s.set_actual_start(ids[0], Some(0)).unwrap();
+    s.set_actual_finish(ids[0], Some(100)).unwrap();
+    s.delete_task(ids[7]).unwrap();
+    nets.push(s);
+    for mut s in nets {
+        let sol = s.compute().expect("computes");
+        let all = s.free_floats(&sol).expect("free floats");
+        for (i, want) in all.iter().enumerate() {
+            let id = TaskId(u32::try_from(i).unwrap());
+            assert_eq!(s.free_float(&sol, id), Ok(*want), "{id}");
+        }
+        assert!(all.iter().any(|&m| m > 0), "a net with some free float");
+    }
+}
+
+/// A task past the schedule, a solution of another length and a schedule edited since the solution
+/// (no graph) are refused, not worked from a graph built for the call.
+#[test]
+fn one_tasks_free_float_refuses_what_it_cannot_work_from() {
+    let mut s = slack();
+    let sol = s.compute().unwrap();
+    assert_eq!(
+        s.free_float(&sol, TaskId(5)),
+        Err(ScheduleError::UnknownTask(TaskId(5)))
+    );
+    let mut other = net(&[DAY], &[]);
+    let one = other.compute().unwrap();
+    assert_eq!(
+        s.free_float(&one, TaskId(0)),
+        Err(ScheduleError::UnknownTask(TaskId(1)))
+    );
+    dep(&mut s, TaskId(0), TaskId(4), SS, 0);
+    assert_eq!(
+        s.free_float(&sol, TaskId(0)),
+        Err(ScheduleError::UnknownTask(TaskId(0)))
+    );
+    assert!(
+        s.free_floats(&sol).is_ok(),
+        "the whole list builds its own graph"
+    );
+}

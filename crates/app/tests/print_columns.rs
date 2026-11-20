@@ -32,7 +32,7 @@ fn spread(started: bool, gap: i64, short: bool) -> Session {
         };
         schedule.add_task(task).expect("calendar is the schedule's");
     }
-    let solution = schedule.clone().compute().expect("computes");
+    let solution = schedule.compute().expect("computes");
     let timeline = Timeline::new(vec![0, 1, 2], 1_000.0, 400.0, 1.0);
     let meta = (0..3)
         .map(|i| TaskMeta {
@@ -114,6 +114,30 @@ fn a_moved_start_prints_where_the_screen_puts_it() {
     let moved = cells(&session, Some(&columns));
     assert_eq!(moved[5 + 2].2, standard[7 + 5].2, "Finish is third");
     assert_eq!(moved[5 + 3].2, standard[7 + 4].2, "Start is fourth");
+}
+
+#[test]
+fn a_free_float_column_prints_where_the_columns_name_it_and_only_then() {
+    // Three tasks of one length that all start together: each has no room before the project finish.
+    let session = spread(false, 0, true);
+    let columns = names(&["Task", "Free float", "Float"]);
+    assert_eq!(head(&session, Some(&columns)), columns);
+    let printed = cells(&session, Some(&columns));
+    let free: Vec<_> = printed
+        .iter()
+        .skip(4)
+        .step_by(3)
+        .map(|c| c.2.as_str())
+        .collect();
+    let float: Vec<_> = printed
+        .iter()
+        .skip(5)
+        .step_by(3)
+        .map(|c| c.2.as_str())
+        .collect();
+    assert_eq!((free, float), (vec!["0d"; 3], vec!["0d"; 3]), "{printed:?}");
+    // A print that does not name it has the columns it always had.
+    assert!(!head(&session, None).contains(&"Free float".to_string()));
 }
 
 #[test]

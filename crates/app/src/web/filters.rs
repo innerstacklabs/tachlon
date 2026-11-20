@@ -269,6 +269,13 @@ impl App {
         self.session.group_by().unwrap_or_default().to_owned()
     }
 
+    /// Show or hide the free float column: hidden (the start), `App.table_rows` writes `null` at
+    /// position 9 and works nothing out. View state: not saved, not an undo step. A change bumps
+    /// [`Session::stamp`](crate::Session::stamp), so the task table redraws.
+    pub fn set_free_float_shown(&mut self, shown: bool) {
+        self.session.set_free_float_shown(shown);
+    }
+
     /// The activity code types the rows can be grouped by, as a JSON array of names in order of
     /// name; `[]` for a file with no activity codes.
     pub fn group_choices(&self) -> String {

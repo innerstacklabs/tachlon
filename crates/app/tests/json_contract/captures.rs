@@ -258,6 +258,7 @@ pub fn capture() -> Captured {
             kinds_seen.insert(cells[5].as_u64().expect("row kind is a number"));
         }
     };
+    outline.set_free_float_shown(true);
     add_rows(&outline);
     // With a baseline set the variance cells of a leaf are text, where they were `null` above.
     outline

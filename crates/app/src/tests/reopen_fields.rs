@@ -69,6 +69,7 @@ fn busy_session() -> Session {
     old.timeline.viewport.bar_ratio = 0.7;
     old.timeline.viewport.bar_radius = 5.0;
     old.set_theme(Theme::dark());
+    old.set_free_float_shown(true);
     let leaves: Vec<u32> = old
         .timeline()
         .order()
@@ -238,6 +239,7 @@ fn reopen_decides_every_session_field() {
         fit_pending,
         names,
         texts: _, // read through `say` below
+        free_float_shown,
     } = &fresh;
 
     // DROPPED: the percents typed into the old file belong to its tasks.
@@ -274,6 +276,9 @@ fn reopen_decides_every_session_field() {
     // CARRIED: the host's month names, like the colours.
     assert_eq!(*names, old.names);
     assert_ne!(*names, timeline::names::Names::default());
+
+    // CARRIED: the page's choice to show the free float column, which it keeps across a file.
+    assert!(*free_float_shown);
 
     // CARRIED: the host's refusal sentences.
     assert_eq!(fresh.say(&crate::edit::EditError::EmptyName), "vide");

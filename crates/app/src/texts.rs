@@ -140,6 +140,7 @@ texts! {
     HEAD_START "headStart" "Start";
     HEAD_FINISH "headFinish" "Finish";
     HEAD_FLOAT "headFloat" "Float";
+    HEAD_FREE_FLOAT "headFreeFloat" "Free float";
     HEAD_START_VARIANCE "headStartVariance" "Start variance";
     HEAD_FINISH_VARIANCE "headFinishVariance" "Finish variance";
     HEAD_FLOAT_VARIANCE "headFloatVariance" "Float variance";

@@ -4,7 +4,7 @@
 //! the same shapes by hand. Every string goes through [`quote`], which escapes the way
 //! `serde_json` does.
 
-use crate::{Session, lookahead};
+use crate::{Session, edit, lookahead};
 use engine::{Instant, TaskId};
 use std::fmt::Write as _;
 use timeline::axis;
@@ -83,14 +83,17 @@ impl Session {
 
     /// The task table's rows `first..last` (clamped to the schedule) as a JSON array of
     /// `[task, start, finish, float in minutes or null, critical, kind, start variance, finish
-    /// variance, float variance]`, where the float is `null` for a summary and for a finished task
+    /// variance, float variance, free float]`, where the float is `null` for a summary and for a finished task
     /// (the table shows no float cell for it), and kind is 0 for a leaf, 1 for an expanded summary, and 2 for
     /// a collapsed summary. While grouped a header row is `[null, value or null for no value, leaf
-    /// count, null, false, 3, null, null, null]`, with kind 4 while its group is collapsed. The variances are text (working days, as `variance_cells` writes them),
+    /// count, null, false, 3, null, null, null, null]`, with kind 4 while its group is collapsed. The variances are text (working days, as `variance_cells` writes them),
     /// `null` for a task with no baseline entry, with no baseline and while a bar is being dragged;
     /// the float one is also `null` for a summary and for a baseline a file saved, which has no
     /// float, and a start or finish one when the baseline's date is before the origin. A summary's
     /// start and finish read its rolled-up span against the baseline's (`summary_variance_cells`).
+    /// The last slot is the free float as text (`free_float_text`), `null` for a summary, a header and a
+    /// finished task, when the engine cannot work it out, and always while the column is hidden
+    /// ([`Session::set_free_float_shown`]): a hidden column works nothing out.
     pub fn table_rows_json(&self, first: u32, last: u32) -> String {
         let order = self.timeline().rows();
         let end = (last as usize).min(order.len());
@@ -101,7 +104,7 @@ impl Session {
                 if let Some((value, count, collapsed)) = self.header(row) {
                     let label = value.map_or_else(|| "null".to_string(), quote);
                     let kind = if collapsed { 4 } else { 3 };
-                    return format!("[null,{label},{count},null,false,{kind},null,null,null]");
+                    return format!("[null,{label},{count},null,false,{kind},null,null,null,null]");
                 }
                 let d = &self.solution().dates[t as usize];
                 // The page holds the columns while a bar is dragged, so a drag frame does not compute them.
@@ -121,7 +124,7 @@ impl Session {
                     };
                     let [vs, vf, vl] = cells_json(cells);
                     format!(
-                        "[{t},{},{},null,false,{kind},{vs},{vf},{vl}]",
+                        "[{t},{},{},null,false,{kind},{vs},{vf},{vl},null]",
                         quote(&self.date_text(start)),
                         quote(&self.date_text(finish))
                     )
@@ -137,8 +140,11 @@ impl Session {
                     } else {
                         d.float.to_string()
                     };
+                    let free = (self.free_float_shown.then(|| self.free_float_text(t)))
+                        .flatten()
+                        .map_or_else(|| "null".to_string(), |text| quote(&text));
                     format!(
-                        "[{t},{},{},{float},{},0,{vs},{vf},{vl}]",
+                        "[{t},{},{},{float},{},0,{vs},{vf},{vl},{free}]",
                         quote(&self.date_text(d.es)),
                         quote(&self.date_text(d.ef)),
                         d.is_critical()
@@ -147,6 +153,22 @@ impl Session {
             })
             .collect();
         format!("[{}]", rows.join(","))
+    }
+
+    /// The free float of leaf task `task` as the table writes it, in working days of the task's calendar
+    /// (`1d`, `2.5d`), or `None` for a finished task, an absent or deleted one, and when the engine
+    /// cannot work it out ([`engine::Schedule::free_float`]). A zero reads `0d`; only `None` is an empty cell.
+    pub(crate) fn free_float_text(&self, task: u32) -> Option<String> {
+        let id = TaskId(task);
+        if !self.is_live(id) || self.solution().dates.get(task as usize)?.finished {
+            return None;
+        }
+        let schedule = self.schedule();
+        let minutes = schedule.free_float(self.solution(), id).ok()?;
+        Some(edit::format_float_days(
+            minutes,
+            edit::day_minutes(schedule.calendar_of(id)),
+        ))
     }
 
     /// Everything the hover card shows for `task` as a JSON object, or `None` past the schedule.
