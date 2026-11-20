@@ -3,7 +3,7 @@
 import type { Change, Commit } from "./events.js";
 import type { ChangeSet, Handlers, Save, SaveError, SaveResult } from "./gantt-types.js";
 import type { KeyNames } from "./save-handlers.js";
-import { BadResult, callSave, failedChange, restoredMismatch } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
+import { BadResult, callSave, failedChange } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
 import { judge } from "./save-status.ts";
 import type { Verdict } from "./save-status.js";
 
@@ -47,16 +47,18 @@ export const hasSave = (save: Save | Handlers | undefined): boolean => save !== 
 /** A commit that is not saved yet, its change set (written at the first call), how many times `save` has run for it, and why it cannot be sent (a key the app refused). */
 interface Waiting { commit: Commit; set?: ChangeSet; calls: number; bad?: string }
 
-/** How the queue gives a new row its key (decision 0022, rule 5): `mode` and `make` are the mount's `keys` and `newKey`, `names` the host's names for `key`, `assign` gives a row its key in the app and says why it refused, if it did. */
-export interface KeyRules { mode: "chart" | "server"; make: () => string; names: KeyNames; assign(record: "task" | "link", slot: number, key: string): string | undefined }
+/** How the queue gives a new row its key (decision 0022, rule 5): `mode` and `make` are the mount's `keys` and `newKey`, `names` the host's names for `key`, `refs` its names for the members that name a task by its key, `assign` gives a row its key in the app and says why it refused, if it did, and `rekey` does the same for a row that holds another key. */
+export interface KeyRules { mode: "chart" | "server"; make: () => string; names: KeyNames; refs: readonly string[]; assign(record: "task" | "link", slot: number, key: string): string | undefined; rekey(record: "task" | "link", slot: number, key: string): string | undefined }
 
-/** The rules of an app that has `assign_task_key` and `assign_link_key`. */
-export function keyRules(app: { assign_task_key(slot: number, key: string): string; assign_link_key(slot: number, key: string): string }, keys: "chart" | "server" | undefined, newKey: (() => string) | undefined, names: KeyNames): KeyRules {
-  const assign = (record: "task" | "link", slot: number, key: string): string | undefined => {
-    const answer = JSON.parse(record === "task" ? app.assign_task_key(slot, key) : app.assign_link_key(slot, key)) as { ok: boolean; message?: string };
-    return answer.ok ? undefined : answer.message;
+/** The rules of an app that has `assign_task_key`, `assign_link_key`, `rekey_task_key` and `rekey_link_key`. */
+export function keyRules(app: { assign_task_key(slot: number, key: string): string; assign_link_key(slot: number, key: string): string; rekey_task_key(slot: number, key: string): string; rekey_link_key(slot: number, key: string): string }, keys: "chart" | "server" | undefined, newKey: (() => string) | undefined, names: KeyNames, refs: readonly string[] = REFERENCES): KeyRules {
+  const refusal = (answer: string): string | undefined => {
+    const result = JSON.parse(answer) as { ok: boolean; message?: string };
+    return result.ok ? undefined : result.message;
   };
-  return { mode: keys ?? "chart", make: newKey ?? uuid, names, assign };
+  const assign = (record: "task" | "link", slot: number, key: string): string | undefined => refusal(record === "task" ? app.assign_task_key(slot, key) : app.assign_link_key(slot, key));
+  const rekey = (record: "task" | "link", slot: number, key: string): string | undefined => refusal(record === "task" ? app.rekey_task_key(slot, key) : app.rekey_link_key(slot, key));
+  return { mode: keys ?? "chart", make: newKey ?? uuid, names, refs, assign, rekey };
 }
 
 /** With `save`, every row a host passes needs a key and no two rows of a kind share one (decision 0022, rule 5.2). The mistake in `rows` (in the chart's names), or undefined. */
@@ -68,7 +70,10 @@ export function keyMistake(kind: "task" | "link", rows: readonly object[] | unde
   return same === undefined ? undefined : `duplicateKey: two ${kind}s have the key ${JSON.stringify(same)}.`;
 }
 
-const CHART_KEYS: KeyRules = { mode: "chart", make: () => uuid(), names: { task: "key", link: "key" }, assign: () => "the queue was given no way to assign keys" };
+
+/** The members of a change that name a task by its key, in the chart's names: `KeyRules.refs` has the host's names for them, which differ when the host renames `parent`, `from` or `to`. */
+const REFERENCES = ["parent", "after", "from", "to"];
+const CHART_KEYS: KeyRules = { mode: "chart", make: () => uuid(), names: { task: "key", link: "key" }, refs: REFERENCES, assign: () => "the queue was given no way to assign keys", rekey: () => "the queue was given no way to assign keys" };
 
 const slotOf = (c: Change): number | undefined => (c.record === "task" ? c.task : c.record === "link" ? c.link : undefined);
 /** The name a row has inside the queue, `task:3`: the `ref` of its create when the server makes the key. */
@@ -247,16 +252,18 @@ export class SaveQueue {
   }
 
   /** The change set of a commit: a new `id`, and `once` on each change. The session slots (`task`, `link`) mean nothing after a reload, so they stay out of what the host stores.
-   * A row the commit names by its slot (`{ task: n }`, in `parent`, `after`, `from` or `to`) is named by its key, and a create carries its key in `key` and in `set`. With `keys: "server"` a create carries a `ref`, and every `{ task: n }` that names a row with no key yet is `{ ref }`. */
+   * A row the commit names by its slot (`{ task: n }`, in `parent`, `after`, `from` or `to`) is named by its key, and a create carries its key in `key` and in `set`. With `keys: "server"` a create carries a `ref`, and every member of `set` and `was` that names a create of the set (by its slot with no key yet, or by the key a restored task carries) is `{ ref }`. */
   private write(commit: Commit): ChangeSet {
     const id = uuid();
     const asks = (c: Change): boolean => this.keys.mode === "server" && c.op === "create" && slotOf(c) !== undefined;
     const asked = new Set(commit.changes.filter((c) => asks(c) && c.key === null).map(at)); // the rows with no key yet: a row that has one is named by it
-    const point = (v: unknown): unknown => {
+    const restored = new Map(commit.changes.filter((c) => asks(c) && c.record === "task" && c.key !== null).map((c) => [c.key!, at(c)])); // a restored task, by its key
+    const point = (m: string, v: unknown): unknown => {
+      if (typeof v === "string") return this.keys.refs.includes(m) && restored.has(v) ? { ref: restored.get(v) } : v;
       const slot = typeof v === "object" && v !== null && Object.keys(v).length === 1 ? (v as { task?: unknown }).task : undefined;
       return typeof slot === "number" ? this.made.get(`task:${slot}`) ?? (asked.has(`task:${slot}`) ? { ref: `task:${slot}` } : v) : v;
     };
-    const named = (members: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(members).map(([m, v]) => [m, point(v)]));
+    const named = (members: Record<string, unknown>): Record<string, unknown> => Object.fromEntries(Object.entries(members).map(([m, v]) => [m, point(m, v)]));
     const changes = commit.changes.map((c, n) => {
       const { task, link, set, was, ...change } = c;
       const key = c.key ?? this.made.get(at(c)) ?? null;
@@ -266,7 +273,19 @@ export class SaveQueue {
     return { id, seq: commit.seq, source: commit.source, changes };
   }
 
-  /** What `save` answered, set against what the change set asked: with `keys: "server"` one key for each `ref`, no other, no key twice, each one a key the app accepts, which the row now holds. The mistake, or undefined. */
+  /** The server holds a restored row under `key`, not `old`: the app takes the new key, `made` names the row by it, and every commit waiting behind the head that names the row by `old` names it by `key`. Commits that come later are not renamed: the server may give `old` to another row. The mistake, or undefined. */
+  private rekey(ref: string, old: string, key: unknown): string | undefined {
+    const [record, slot] = ref.split(":") as ["task" | "link", string];
+    const why = this.keys.rekey(record, Number(slot), typeof key === "string" ? key : "");
+    if (why !== undefined) return `the key ${JSON.stringify(key)} the save result gives ${ref} was refused: ${why}`;
+    this.made.set(ref, key as string);
+    const swap = (members: Record<string, unknown> | undefined): Record<string, unknown> | undefined => members && Object.fromEntries(Object.entries(members).map(([m, v]) => [m, record === "task" && this.keys.refs.includes(m) && v === old ? key : v]));
+    const rename = (c: Change): Change => ({ ...c, ...(c.record === record && c.key === old ? { key: key as string } : {}), ...(c.set === undefined ? {} : { set: swap(c.set)! }), ...(c.was === undefined ? {} : { was: swap(c.was)! }) });
+    for (const w of this.waiting.slice(1)) w.commit = { ...w.commit, changes: w.commit.changes.map(rename) };
+    return undefined;
+  }
+
+  /** What `save` answered, set against what the change set asked: with `keys: "server"` one key for each `ref`, no other, no key twice, each one a key the app accepts, which the row now holds (a restored row may be answered with another key, and then holds that one). The mistake, or undefined. */
   private take(set: ChangeSet, result: SaveResult | void): string | undefined {
     const given = (result as SaveResult | undefined)?.keys;
     if (this.keys.mode === "chart") return given === undefined ? undefined : 'the save result has keys, but the chart made the keys of the new rows: mount with keys: "server" when the server makes them';
@@ -286,7 +305,8 @@ export class SaveQueue {
     for (const { ref, key } of answers) {
       const old = had.get(ref);
       if (old !== undefined) {
-        if (key !== old) return restoredMismatch(ref.split(":")[0]!, key, old);
+        const why = key === old ? undefined : this.rekey(ref, old, key);
+        if (why !== undefined) return why;
         continue;
       }
       const [record, slot] = ref.split(":");

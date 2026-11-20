@@ -35,6 +35,8 @@ const MIX: u64 = 0x517c_c1b7_2722_0a95;
 struct Entry {
     slot: usize,
     range: Range<usize>,
+    /// Freed by a re-key: it stays in the probe chain, no lookup finds it, and `add` of the same text takes it again.
+    dead: bool,
 }
 
 /// The map's hasher: `hash` already mixes the low bits the table reads; the multiply fills the high bits, which a `u32` leaves zero.
@@ -72,24 +74,36 @@ fn hash(key: &str) -> u32 {
 impl Keys {
     /// Take `key` for slot `slot` of `kind`. A key already taken gives the slot that holds it.
     pub(crate) fn add(&mut self, kind: Kind, slot: usize, key: &str) -> Result<(), usize> {
-        let id = self.entries.len();
         let mut at = hash(key);
-        loop {
+        let id = loop {
             match self.heads[kind as usize].entry(at) {
-                Occupied(held) if self.text[self.entries[*held.get()].range.clone()] == *key => {
-                    return Err(self.entries[*held.get()].slot);
+                Occupied(held) => {
+                    let id = *held.get();
+                    let entry = &mut self.entries[id];
+                    if self.text[entry.range.clone()] != *key {
+                        at = at.wrapping_add(1);
+                    } else if entry.dead {
+                        (entry.dead, entry.slot) = (false, slot);
+                        break id;
+                    } else {
+                        return Err(entry.slot);
+                    }
                 }
-                Occupied(_) => at = at.wrapping_add(1),
                 Vacant(free) => {
+                    let id = self.entries.len();
                     free.insert(id);
-                    break;
+                    let start = self.text.len();
+                    self.text.push_str(key);
+                    let range = start..self.text.len();
+                    self.entries.push(Entry {
+                        slot,
+                        range,
+                        dead: false,
+                    });
+                    break id;
                 }
             }
-        }
-        let start = self.text.len();
-        self.text.push_str(key);
-        let range = start..self.text.len();
-        self.entries.push(Entry { slot, range });
+        };
         let by_slot = match kind {
             Kind::Task => return Ok(()),
             Kind::Link => &mut self.links,
@@ -112,8 +126,24 @@ impl Keys {
         let mut at = hash(key);
         loop {
             let entry = &self.entries[*self.heads[kind as usize].get(&at)?];
-            if self.text[entry.range.clone()] == *key {
+            if !entry.dead && self.text[entry.range.clone()] == *key {
                 return Some(entry);
+            }
+            at = at.wrapping_add(1);
+        }
+    }
+
+    /// Free `key` of `kind`: mark its entry dead, so `find` no longer answers it and `add` can take the text again.
+    fn release(&mut self, kind: Kind, key: &str) {
+        let mut at = hash(key);
+        while let Some(&id) = self.heads[kind as usize].get(&at) {
+            let entry = &mut self.entries[id];
+            if !entry.dead && self.text[entry.range.clone()] == *key {
+                entry.dead = true;
+                if let (Kind::Link, Some(by_slot)) = (kind, self.links.get_mut(entry.slot)) {
+                    *by_slot = None;
+                }
+                return;
             }
             at = at.wrapping_add(1);
         }
@@ -206,6 +236,21 @@ impl Session {
     /// made; [`EditError::HasKey`] for a record that holds another key; [`EditError::KeyTaken`] when
     /// another record of that kind holds `key`. Nothing changes on a refusal.
     pub fn assign_key(&mut self, target: KeyTarget, key: &str) -> Result<(), EditError> {
+        self.give_key(target, key, false)
+    }
+
+    /// Give the task or link in `target` the key `key` the server answered for a row the chart held under another
+    /// key (a restored row, decision 0022 rule 5): [`Session::assign_key`] without the `HasKey` refusal, and the old
+    /// key is free afterwards. No edit and no history entry.
+    ///
+    /// # Errors
+    ///
+    /// As [`Session::assign_key`], except [`EditError::HasKey`]. Nothing changes on a refusal.
+    pub fn rekey(&mut self, target: KeyTarget, key: &str) -> Result<(), EditError> {
+        self.give_key(target, key, true)
+    }
+
+    fn give_key(&mut self, target: KeyTarget, key: &str, replace: bool) -> Result<(), EditError> {
         if key.is_empty() {
             return Err(EditError::EmptyKey);
         }
@@ -226,11 +271,14 @@ impl Session {
         };
         match held {
             Some(held) if held == key => return Ok(()),
-            Some(_) => return Err(EditError::HasKey),
-            None => {}
+            Some(_) if !replace => return Err(EditError::HasKey),
+            _ => {}
         }
         if self.host.keys.find(kind, key).is_some() {
             return Err(EditError::KeyTaken);
+        }
+        if let Some(old) = held.map(str::to_owned) {
+            self.host.keys.release(kind, &old);
         }
         if kind == Kind::Task {
             self.meta[slot].key = Some(key.to_owned());
@@ -253,6 +301,30 @@ mod tests {
             spread.finish() & mask
         };
         keys.map(at).collect::<std::collections::HashSet<_>>().len()
+    }
+
+    #[test]
+    fn a_freed_key_keeps_the_probe_chain_and_its_text_can_be_taken_again() {
+        let mut seen = HashMap::new();
+        let (a, b) = (0u32..)
+            .find_map(|n| {
+                let key = format!("k{n}");
+                seen.insert(hash(&key), key.clone())
+                    .map(|first| (first, key))
+            })
+            .unwrap();
+        let mut keys = Keys::default();
+        keys.add(Kind::Task, 0, &a).unwrap();
+        keys.add(Kind::Task, 1, &b).unwrap();
+        for n in 2..2000 {
+            keys.add(Kind::Task, n, &format!("other-{n}")).unwrap();
+        }
+        keys.release(Kind::Task, &a);
+        assert_eq!(keys.task(&a), None);
+        assert_eq!(keys.task(&b), Some(TaskId(1)), "found past the freed entry");
+        assert!((2..2000u32).all(|n| keys.task(&format!("other-{n}")) == Some(TaskId(n))));
+        keys.add(Kind::Task, 7000, &a).unwrap();
+        assert_eq!(keys.task(&a), Some(TaskId(7000)));
     }
 
     #[test]

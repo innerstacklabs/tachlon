@@ -22,6 +22,21 @@ impl App {
         answer(result.map(|()| None), &self.session.texts)
     }
 
+    /// Give task slot `slot` the key `key` the server answered for a row the chart held under another key, and free
+    /// the old one. Answered like [`App::assign_task_key`], without `hasKey`. Not an edit, and not refused while a bar
+    /// is pressed. The slot lasts until the next load, open or remount.
+    pub fn rekey_task_key(&mut self, slot: u32, key: &str) -> String {
+        let result = self.session.rekey(KeyTarget::Task(TaskId(slot)), key);
+        answer(result.map(|()| None), &self.session.texts)
+    }
+
+    /// Give link slot `slot` the key `key`, answered like [`App::rekey_task_key`] with `unknownLink` in place of
+    /// `unknownTask`.
+    pub fn rekey_link_key(&mut self, slot: u32, key: &str) -> String {
+        let result = self.session.rekey(KeyTarget::Link(DepId(slot)), key);
+        answer(result.map(|()| None), &self.session.texts)
+    }
+
     /// The session slot of each key in `keys`, as a JSON array of the same length: the number of the live task that
     /// holds the key, or `null` for a key no task holds and for a deleted task's. Reads only. The slot lasts until the
     /// next load, open or remount.
