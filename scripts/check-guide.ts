@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { FIELDS_EN, TEXTS_EN } from "../packages/gantt/src/texts-en.ts";
 import { definedSamples } from "./lib/book-pages.ts";
-import { buildModel, memberNames } from "./lib/describe-model.ts";
+import { buildModel } from "./lib/describe-model.ts";
 import { checkGuide } from "./lib/guide-pages.ts";
 import { WEB_ROOT } from "./lib/web-root.ts";
 
@@ -24,8 +24,8 @@ const problems = checkGuide({
   names: {
     option: new Set(names(model.options)),
     event: new Set(names(model.events)),
-    // A `call:` names a command or a method of the chart itself; `describe` lists only the commands.
-    call: new Set([...names(model.commands), ...memberNames(read(`${WEB_ROOT}/src/gantt-types.ts`), /export interface Gantt[^{]*\{/)]),
+    // A `call:` names a command or a method of the chart itself.
+    call: new Set([...names(model.commands), ...names(model.methods)]),
   },
   labels: new Set([...Object.values(TEXTS_EN), ...Object.values(FIELDS_EN)]),
   samples: [...definedSamples(read("apps/hosted/scripts/build-samples.mjs"))],

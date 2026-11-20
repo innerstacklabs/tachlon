@@ -10,6 +10,7 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ### New
 
+- `npx tachlon describe methods` prints the chart's own methods, each with its whole doc comment, and `npx tachlon describe refusals` prints the `reason` of each refusal with the fix where there is one (`describe methods` and `describe commands` end with a line that names it). The `hostEdit` comment now says that `hasActuals` is any `progress` or any change to a task with actual dates, and that `update` is the call for it and for `notAllowed`.
 - The time-scale header no longer draws the name of a period the right edge cuts too short to hold it, and the progress view's Task column leaves room for the Predecessors or Resources column, so the last column is whole at the end of a sideways scroll.
 - Under `keys: "server"`, a restored row (the undo of a delete, the redo of a create) may be answered with another key, and the chart takes it; a different key was put back with `reason: "result"` before. A member of the change set that names a restored row is now `{ ref }`, as for a new row, so a `save` function puts the `key` of each create that has one in its ref map before it reads the creates that name it.
 

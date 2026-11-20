@@ -243,7 +243,7 @@ const why = chart.commands.explain(3);
 
 `propose` holds a change apart from the schedule while the chart draws a dashed ghost where each task it would move goes, and the call answers as `whatIf` does. Up to 10 changes are held; a second change of the same kind to a task replaces the first. `acceptProposed` leaves the other held changes held, and `rejectProposed` returns `true` when that change was held.
 
-`npx tachlon describe commands` prints every call with its arguments and what it does.
+`npx tachlon describe commands` prints every call with its arguments and what it does. `npx tachlon describe methods` prints the chart's own methods, each with its whole doc comment, and `npx tachlon describe refusals` prints the `reason` of each refusal, with the fix where there is one.
 
 ## Tools for an AI assistant
 

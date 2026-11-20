@@ -188,7 +188,7 @@ test("init --skill is listed by --dry-run and --json, writes the skill once, and
 test("the skill and AGENTS.md say `describe` exists and when to use it", () => {
   const guide = readFileSync(new URL("../AGENTS.md", import.meta.url), "utf8");
   for (const [where, text] of [["the skill", skillFile(NAME)], ["AGENTS.md", guide]] as const) {
-    for (const phrase of ["before you write code against an option, event, command or token", `npx ${NAME} describe`, `npx ${NAME} describe fit`, "before you theme the chart or wire saves"]) assert.ok(text.toLowerCase().includes(phrase.toLowerCase()), `${where} says: ${phrase}`);
+    for (const phrase of ["before you write code against an option, event, command or token", `npx ${NAME} describe`, `npx ${NAME} describe fit`, `npx ${NAME} describe methods`, `npx ${NAME} describe refusals`, "before you theme the chart or wire saves"]) assert.ok(text.toLowerCase().includes(phrase.toLowerCase()), `${where} says: ${phrase}`);
   }
 });
 
