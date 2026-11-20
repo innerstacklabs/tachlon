@@ -10,7 +10,7 @@ use crate::{
     history::{Source, Step},
     json::quote,
 };
-use engine::{Instant, Limit, Minutes, TaskId};
+use engine::{Instant, Limit, Minutes, Pin, TaskId};
 use std::collections::HashSet;
 
 /// How many tasks an update changed and how many times it solved: twice if it mixes progress with timing.
@@ -69,6 +69,11 @@ struct Progress {
     remaining: Option<Minutes>,
 }
 
+fn pin_of(pin: Option<Pin>, member: &str) -> Option<Instant> {
+    let fin = |p: &Pin| matches!(p, Pin::Finish(_)) == (member == "mfo");
+    pin.filter(fin).map(|(Pin::Start(at) | Pin::Finish(at))| at)
+}
+
 impl Values {
     /// The steps that put `old` back where `self` is, one for each of the name, duration, start floor and limits
     /// that differ, in the order a call sets them: an undo runs them newest first.
@@ -107,7 +112,7 @@ impl Session {
     /// applies every record's `duration`, `start`, `snet`, limits and `name` first and works each `progress` out
     /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
     /// with a duration, start, snet or limit in any record solves twice, and any other call once. A member a
-    /// record leaves out keeps its value. `hostStart` and `hostFinish`, the dates the host computed, set nothing and are named in `differs` when the chart's early start or finish is not theirs (a day alone compares the day, a finish's day being its last minute's). Every other member, the pins and `alap` included, is `notUpdatable`.
+    /// record leaves out keeps its value. `hostStart` and `hostFinish`, the dates the host computed, set nothing and are named in `differs` when the chart's early start or finish is not theirs (a day alone compares the day, a finish's day being its last minute's). `mso` and `mfo`, the pins, are read and never set: one that equals what the task's pin holds (`null` with no such pin) changes nothing, and any other is `notUpdatable`, as is every other member, `alap` included.
     ///
     /// # Errors
     ///
@@ -334,6 +339,8 @@ impl Session {
                 "snlt" => new.limit.snlt = limit(value, false)?,
                 "fnet" => new.limit.fnet = limit(value, true)?,
                 "fnlt" => new.limit.fnlt = limit(value, true)?,
+                "mso" | "mfo"
+                    if limit(value, &**name == "mfo")? == pin_of(current.limit.pin, name) => {}
                 "hostStart" | "hostFinish" => {
                     let kind = usize::from(&**name == "hostFinish");
                     let at = [Session::read_date, Session::read_finish][kind](self, value);

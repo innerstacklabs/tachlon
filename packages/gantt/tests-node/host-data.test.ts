@@ -54,7 +54,7 @@ test("a changed snlt, fnet, fnlt, mso or mfo reaches update by key, as update ta
   const { calls, give } = chart();
   const limits = { snlt: "2026-03-20", fnet: "2026-03-10", fnlt: "2026-03-25", mso: "2026-03-03", mfo: "2026-03-04" };
   expect(give({ tasks: [task(1, limits), task(2), task(3)] })).toEqual({ ok: true, updated: 1 });
-  expect(calls, "update answers mso and mfo notUpdatable").toEqual([[{ key: "k1", ...limits }]]);
+  expect(calls, "mso and mfo are sent as they are").toEqual([[{ key: "k1", ...limits }]]);
   expect(give({ tasks: [task(1, limits), task(2), task(3)] }), "the same limits again").toEqual({ ok: true, updated: 0 });
   give({ tasks: [task(1, { ...limits, fnlt: "2026-03-26" }), task(2), task(3)] });
   expect(calls[1], "only the limit that changed").toEqual([{ key: "k1", fnlt: "2026-03-26" }]);

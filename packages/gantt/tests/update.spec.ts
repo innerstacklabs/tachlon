@@ -151,6 +151,37 @@ test("rows with a constraint, an object and null, are no floor at mount and setD
   expect(Object.keys(edit!.commits[0]!.changes[0]!.set), "under separate a limit is its own member, not constraint").toEqual(["snlt"]);
 });
 
+// to#144: a host that saves and rereads its rows gives back the pin the chart holds, spelled as its database writes it; `update` refuses a pin only when it differs from the one held, so `setData` goes on with the rest.
+const pinned = (pins: Record<number, object>, name = "Task 1") => tasks(4).map((t, i) => ({ ...t, ...(i === 1 ? { name } : {}), ...pins[i] }));
+const names = (page: Page) => page.evaluate(() => window.upChart.snapshot().tasks.map((t) => t.name));
+
+test("setData after a reread of the pin the chart holds sets the rest: mso and mfo, each spelled another way, and a pin that differs is still refused", async ({ page }) => {
+  await mountHost(page, { tasks: pinned({ 0: { mso: "2026-03-09" }, 2: { mfo: "2026-03-10" } }), constraintForm: "separate" });
+  const reread = (pins: Record<number, object>, name?: string) => page.evaluate((r) => window.upChart.setData({ tasks: r } as never), pinned(pins, name));
+  expect(await reread({ 0: { mso: "2026-03-09T08:00" }, 2: { mfo: "2026-03-10T17:00" } }, "Renamed")).toEqual({ ok: true, updated: 3 });
+  expect((await names(page))[1], "the name is set").toBe("Renamed");
+  expect(await reread({ 0: { mso: "2026-03-09T08:00" }, 2: { mfo: "2026-03-10T17:00" } }, "Renamed"), "the same rows again").toEqual({ ok: true, updated: 0 });
+  expect(await reread({ 0: { mso: "2026-03-10" }, 2: { mfo: "2026-03-10T17:00" } }, "Again")).toMatchObject({ ok: false, reason: "notUpdatable", member: "mso", key: "k0" });
+  expect((await names(page))[1], "a refused call sets nothing").toBe("Renamed");
+  expect(await page.evaluate(() => window.edits.length), "setData is not an edit").toBe(0);
+});
+
+test("setData with mso and mfo null against rows that left them out sets the rest", async ({ page }) => {
+  await mountHost(page, { tasks: pinned({}), constraintForm: "separate" });
+  const nulls = Object.fromEntries([0, 1, 2, 3].map((i) => [i, { mso: null, mfo: null }]));
+  expect(await page.evaluate((r) => window.upChart.setData({ tasks: r } as never), pinned(nulls, "Renamed"))).toEqual({ ok: true, updated: 4 });
+  expect((await names(page))[1]).toBe("Renamed");
+});
+
+test("setData after a reread of a typed constraint the chart holds sets the rest: mso, mfo, so and fo", async ({ page }) => {
+  const at = (type: string, date: string) => ({ constraint: { type, date } });
+  await mountHost(page, { tasks: pinned({ 0: at("mso", "2026-03-09"), 1: at("so", "2026-03-09"), 2: at("mfo", "2026-03-10"), 3: at("fo", "2026-03-10") }) });
+  const rows = pinned({ 0: at("mso", "2026-03-09T08:00"), 1: at("so", "2026-03-09T08:00"), 2: at("mfo", "2026-03-10T17:00"), 3: at("fo", "2026-03-10T17:00") }, "Renamed");
+  expect(await page.evaluate((r) => window.upChart.setData({ tasks: r } as never), rows)).toEqual({ ok: true, updated: 4 });
+  expect((await names(page))[1], "the name is set").toBe("Renamed");
+  expect(await page.evaluate((r) => window.upChart.setData({ tasks: r.map((t, i) => (i === 2 ? { ...t, constraint: { type: "mfo", date: "2026-03-11" } } : t)) } as never), rows)).toMatchObject({ ok: false, reason: "notUpdatable", member: "mfo", key: "k2" });
+});
+
 const shown = (page: Page) => page.evaluate(() => [...document.querySelectorAll<HTMLElement>("#table-rows .row[data-task] > span")].map((c) => ({ text: c.textContent, marked: c.dataset.changed === "true", motion: getComputedStyle(c).animationName })));
 
 test("an update highlights the cells in view whose shown value changed and no others, and the mark goes after its timer", async ({ page }) => {

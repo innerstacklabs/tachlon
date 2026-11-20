@@ -24,7 +24,7 @@ test("null is no limit: nothing on a row at mount, the four updatable members cl
   expect(foldConstraint(update({ snet: null, fnlt: null }, { fnlt: "2026-03-09" }))).toEqual(update({ constraint: null }, { constraint: { type: "fnlt", date: "2026-03-09" } }));
 });
 
-test("in an update a limit replaces every bound: the other three are cleared, and a pin is left for the engine to refuse", () => {
+test("in an update a limit replaces every bound: the other three are cleared, and a pin is its own member, which update reads against the pin the task holds", () => {
   expect(toSeparate({ key: "k", constraint: { type: "fnlt", date: "2026-03-09" } }, true)).toEqual({ key: "k", snet: null, snlt: null, fnet: null, fnlt: "2026-03-09" });
   expect(toSeparate({ key: "k", constraint: { type: "mso", date: "2026-03-09" } }, true)).toEqual({ key: "k", mso: "2026-03-09" });
 });

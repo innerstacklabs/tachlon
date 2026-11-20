@@ -14,7 +14,7 @@ type Row = Record<string, unknown>;
 export const MEMBERS = ["snet", "snlt", "fnet", "fnlt", "mso", "mfo"] as const satisfies readonly ConstraintType[];
 /** Every `ConstraintType`. */
 const TYPES = [...MEMBERS, "so", "fo"] as const satisfies readonly ConstraintType[];
-/** The four members `update` takes; `mso` and `mfo` it answers `notUpdatable`. */
+/** The four members `update` sets; `mso` and `mfo` it reads and sets no pin from (a pin the task holds changes nothing, any other is `notUpdatable`). */
 const FLOORS_AND_CEILINGS = ["snet", "snlt", "fnet", "fnlt"] as const;
 /** The order a task with several bounds reads its one constraint in (rule 9.5). */
 const READING = ["mso", "mfo", "so", "fo", "snlt", "fnlt", "snet", "fnet"] as const satisfies readonly ConstraintType[];
@@ -26,7 +26,7 @@ export const spelledTwice = (task: Row): ConstraintType | undefined => (task.con
 
 /**
  * `task` with its `constraint` written as the member its type names; a task with no `constraint` is returned as it is.
- * `forUpdate` is for `update`: a `start` beside the `constraint` is dropped, since the record's `constraint` wins (rule 9.5), and `null`, or a type, also sets the other three of `snet`, `snlt`, `fnet` and `fnlt` to `null`, so the one limit replaces every bound (a pin names no such members: `update` refuses it).
+ * `forUpdate` is for `update`: a `start` beside the `constraint` is dropped, since the record's `constraint` wins (rule 9.5), and `null`, or a type, also sets the other three of `snet`, `snlt`, `fnet` and `fnlt` to `null`, so the one limit replaces every bound (a pin names no such members: `update` takes its own member only when the task holds that pin).
  * A row at mount keeps its `start`, which the plain-data reader requires and holds as `snet`.
  * Throws an `Error` for a `constraint` that is not `{ type, date }` or `null`, and for a task that gives it with one of the six members (two spellings of one limit, rule 9.2).
  */
