@@ -92,7 +92,8 @@ impl Session {
     /// float, and a start or finish one when the baseline's date is before the origin. A summary's
     /// start and finish read its rolled-up span against the baseline's (`summary_variance_cells`).
     /// The last slot is the free float as text (`free_float_text`), `null` for a summary, a header and a
-    /// finished task, and when the engine cannot work it out.
+    /// finished task, when the engine cannot work it out, and always while the column is hidden
+    /// ([`Session::set_free_float_shown`]): a hidden column works nothing out.
     pub fn table_rows_json(&self, first: u32, last: u32) -> String {
         let order = self.timeline().rows();
         let end = (last as usize).min(order.len());
@@ -139,8 +140,8 @@ impl Session {
                     } else {
                         d.float.to_string()
                     };
-                    let free = self
-                        .free_float_text(t)
+                    let free = (self.free_float_shown.then(|| self.free_float_text(t)))
+                        .flatten()
                         .map_or_else(|| "null".to_string(), |text| quote(&text));
                     format!(
                         "[{t},{},{},{float},{},0,{vs},{vf},{vl},{free}]",

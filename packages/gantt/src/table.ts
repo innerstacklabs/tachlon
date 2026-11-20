@@ -331,7 +331,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
     const holdVariance = varianceOn && s.drag?.active === true;
     const withVariance = varianceOn && !holdVariance;
     const holdResources = hasResources && s.drag?.active === true;
-    const freeFloat = syncFreeFloatHead(root, tableEl, headCols);
+    const freeFloat = syncFreeFloatHead(app, root, tableEl, headCols);
     const varianceMode = (holdVariance ? "hold" : withVariance ? "on" : "off") + (holdResources ? "+res" : "") + (freeFloat ? "+ff" : "");
     if (inside && fresh && s.stamp === drawn.stamp && varianceMode === drawn.variance) {
       markRows(s, false);

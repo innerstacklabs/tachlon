@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import type { Page } from "@playwright/test";
 import { expect, test, type Gantt } from "./support/gantt";
 
-// The Free float column (to#151): a head `FF` and a cell per row, hidden when the chart opens, shown, hidden and moved from the Columns menu. The
+// The Free float column (to#151): a head `Free float` beside `Float` and a cell per row, hidden when the chart opens, shown, hidden and moved from the Columns menu. The
 // five tasks of `fixtures/free-float-days.xml` under one summary (rows 1 to 5): total float 2d 2d 1d 1d 0d, free float 0d 1d 1d 0d 0d. The specs read
 // the DOM boxes and the cell cursor, not pixels. WebGL2 from the start: this file checks boxes and keys.
 test.use({ webgl: true });
@@ -55,8 +55,9 @@ test("Free float opens hidden, the menu shows it with the values beside Float, a
   await toggle(g);
   await expect(page.locator("#table")).not.toHaveAttribute("data-hide-free-float", /.*/);
   const head = page.locator("#table-head .cols > .free-float");
-  await expect(head).toHaveText("FF");
-  await expect(head).toHaveAttribute("title", "Free float, in working days of each task's own calendar: how long a task can run late before it delays the next task");
+  await expect(head).toHaveText("Free float");
+  expect(await head.evaluate((el) => el.scrollWidth <= el.clientWidth), "the whole heading fits its track").toBe(true);
+  await expect(head).toHaveAttribute("title", "Free float, in working days of each task's own calendar");
   expect(await cells(page, "free-float"), "the summary's cell is empty; the leaves read their free float").toEqual(["", "0d", "1d", "1d", "0d", "0d"]);
   expect(await cells(page, "float"), "Float beside it reads the total float").toEqual(["", "2d", "2d", "1d", "1d", "0d"]);
   const seen = await lefts(page, "free-float");

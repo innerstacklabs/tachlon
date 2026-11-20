@@ -58,7 +58,7 @@
    divider to put the width back; with focus on it, Left and Right move it 16 px. In a right-to-left chart, dragging the list divider left widens the list, and `Left` moves the divider left.
 10. **Hide a column.** The **Columns** button in the toolbar (an icon of three columns, next to Progress) opens a panel with one checkbox each for Start,
    Finish, Float and Free float, ticked while the column shows. Free float is unticked when the chart opens:
-   tick it to add an **FF** column, how long a task can run late before the next task has to wait, empty for
+   tick it to add a **Free float** column beside Float, how long a task can run late before the next task has to wait, empty for
    a summary and a finished task. Press one to hide that column; the Task column takes
    its room, and the cell cursor passes over it. Press it again to bring the column back. Escape closes
    the panel. Task and Dur stay, and an edit does not bring a hidden column back.

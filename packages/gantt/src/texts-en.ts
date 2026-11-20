@@ -40,7 +40,7 @@ export const FIELDS_EN: Readonly<Record<string, string>> = {
   "id": "ID", "wbs": "WBS", "percent-head": "% complete", "task-name": "Task name",
   "var-start": "ΔStart", "var-finish": "ΔFinish", "var-float": "ΔFloat", "var-start-title": "Start against the baseline, in working days",
   "var-finish-title": "Finish against the baseline, in working days", "var-float-title": "Float against the baseline, in working days",
-  "free-float-head": "FF", "free-float-title": "Free float, in working days of each task's own calendar: how long a task can run late before it delays the next task",
+  "free-float-head": "Free float", "free-float-title": "Free float, in working days of each task's own calendar",
   "start-no-earlier": "Start no earlier than", "deadline": "Deadline", "late-start": "Late start", "late-finish": "Late finish", "calendar": "Calendar",
   "resources": "Resources", "critical": "Critical", "driven-by": "Driven by", "status": "Status", "baseline-start": "Baseline start",
   "baseline-finish": "Baseline finish", "successors": "Successors",
