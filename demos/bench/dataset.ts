@@ -1,6 +1,6 @@
 // One benchmark schedule from (shape, size, seed), written as dataset.json with its SHA-256.
 //
-//   node demos/bench/dataset.ts --shape <chain|tree4|stress> --size <n> --seed <u64> --out <dir>
+//   node demos/bench/dataset.ts --shape <chain|tree4|stress|tree4seq|tree4long> --size <n> --seed <u64> --out <dir>
 //
 // Every side of the benchmark loads this one file (through its own adapter), and two runs compare
 // only when the hash is equal. The file is a pure function of (shape, size, seed): equal inputs
@@ -25,6 +25,8 @@
 // calendar every side uses: the dates our engine computes from the links, so the start each leaf is
 // given (a start-no-earlier-than in our file and Bryntum's) never moves it. `stress` tasks carry
 // none: some start mid-day, and the links alone place them. Summaries carry none either.
+// `tree4seq` and `tree4long` (#100) are `tree4` with a host `key` on every task, to open a keyed schedule against
+// the unkeyed `tree4`: `tree4seq` keys `t<id>`, `tree4long` keys 54 characters long that differ only in their last six.
 // The hash goes to <out>/dataset.json.sha256 in `sha256sum` format. Datasets are generated at run
 // time and never committed.
 // Exit code: 0 done; 64 usage (unknown shape, size outside 1,000 to 100,000, bad seed).
@@ -38,10 +40,16 @@ import { placeLeafDays } from "./plan.ts";
 import { stress, type Kind } from "./stress.ts";
 
 export const SHAPES = ["chain", "tree4", "stress"] as const;
-export type Shape = (typeof SHAPES)[number];
 
-/** Who the shape comes from: the comparison harness, or our own stress fixture. */
-export const SOURCE: Record<Shape, "harness" | "ours"> = { chain: "harness", tree4: "harness", stress: "ours" };
+/** `tree4` with a host key on every task (#100): the key each shape gives the task of id `n`. */
+export const KEYED = {
+  tree4seq: (n: number) => `t${n}`,
+  tree4long: (n: number) => `${"k".repeat(48)}${String(n).padStart(6, "0")}`,
+} as const;
+export type Shape = (typeof SHAPES)[number] | keyof typeof KEYED;
+
+/** Who the shape comes from: the comparison harness, or our own fixtures. */
+export const SOURCE: Record<Shape, "harness" | "ours"> = { chain: "harness", tree4: "harness", stress: "ours", tree4seq: "ours", tree4long: "ours" };
 
 export const MIN_SIZE = 1000;
 export const MAX_SIZE = 100000;
@@ -142,7 +150,8 @@ function stressShape(size: number, seed: bigint) {
 
 /** Throw unless `size` is an integer from MIN_SIZE to MAX_SIZE and `seed` a u64. */
 export function checkInputs(shape: string, size: number, seed: bigint): asserts shape is Shape {
-  if (!(SHAPES as readonly string[]).includes(shape)) throw new Error(`unknown shape ${JSON.stringify(shape)} (${SHAPES.join(", ")})`);
+  const known = [...SHAPES, ...Object.keys(KEYED)];
+  if (!known.includes(shape)) throw new Error(`unknown shape ${JSON.stringify(shape)} (${known.join(", ")})`);
   if (!Number.isInteger(size) || size < MIN_SIZE || size > MAX_SIZE) throw new Error(`size ${size} is not an integer from ${MIN_SIZE} to ${MAX_SIZE}`);
   if (seed < 0n || seed >= 1n << 64n) throw new Error(`seed ${seed} is not a u64`);
 }
@@ -150,8 +159,10 @@ export function checkInputs(shape: string, size: number, seed: bigint): asserts 
 /** The records for (shape, size, seed). */
 export function buildDataset(shape: Shape, size: number, seed: bigint): BenchDataset {
   checkInputs(shape, size, seed);
-  const body = shape === "chain" ? chain(size) : shape === "tree4" ? tree4(size) : stressShape(size, seed);
+  const keyOf = shape in KEYED ? KEYED[shape as keyof typeof KEYED] : undefined;
+  const body = shape === "chain" ? chain(size) : shape === "stress" ? stressShape(size, seed) : tree4(size);
   if (shape !== "stress") placeLeafDays(START, body.data, body.links);
+  if (keyOf) for (const t of body.data) t.key = keyOf(Number(t.id));
   return { shape, size, seed: String(seed), source: SOURCE[shape], start: START, ...body };
 }
 
@@ -184,7 +195,7 @@ export function parseArgs(argv: string[]): Record<(typeof OPTIONS)[number], stri
 function main(argv: string[]): number {
   const args = parseArgs(argv);
   if (!args || !/^\d+$/.test(args.seed)) {
-    console.error("usage: node dataset.ts --shape <chain|tree4|stress> --size <n> --seed <u64> --out <dir>");
+    console.error("usage: node dataset.ts --shape <chain|tree4|stress|tree4seq|tree4long> --size <n> --seed <u64> --out <dir>");
     return EXIT_USAGE;
   }
   const { shape, size, seed, out } = args;

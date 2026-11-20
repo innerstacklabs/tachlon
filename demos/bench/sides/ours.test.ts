@@ -139,6 +139,15 @@ test("what the bench page hands to mount is the dataset's schedule: every task a
   assert.match(leftOut[0], /summary tasks take their dates/);
 });
 
+test("a keyed shape's keys reach mount as each task's key; the unkeyed tree4 hands over none", () => {
+  const root = mkdtempSync(join(tmpdir(), "ours-keys-"));
+  for (const [shape, keyed] of [["tree4", false], ["tree4seq", true]] as const) {
+    writeDataset(join(root, shape), { shape, size: 1000 }, 20261020n);
+    const { data } = adaptInto(join(root, shape, "dataset.json"), join(root, "bundle"));
+    assert.deepEqual(fromTasks({ tasks: data.tasks, links: data.links }).document.tasks.map((t) => t.key), data.tasks.map((t) => (keyed ? `t${t.id}` : undefined)), shape);
+  }
+});
+
 test("our file and the DHTMLX file, made from one dataset, hold the same tasks, links and dates", () => {
   const root = mkdtempSync(join(tmpdir(), "ours-same-"));
   writeDataset(join(root, "cell"), { shape: "tree4", size: 1000 }, 20261020n);

@@ -136,3 +136,16 @@ test("the CLI refuses an option with no value and writes nothing", () => {
     assert.deepEqual(readdirSync(cwd), [], `${bad.join(" ")}: wrote ${readdirSync(cwd).join(", ")}`);
   }
 });
+
+test("tree4seq and tree4long are tree4 with one unique host key on every task: t<id>, and 54 characters that differ only in their last six", () => {
+  const plain = buildDataset("tree4", 1000, 1n).data;
+  for (const shape of ["tree4seq", "tree4long"] as const) {
+    const d = buildDataset(shape, 1000, 1n);
+    assert.deepEqual(d.data.map(({ key, ...t }) => t), plain, shape);
+    assert.equal(new Set(d.data.map((t) => t.key)).size, 1000, shape);
+  }
+  assert.ok(buildDataset("tree4seq", 1000, 1n).data.every((t) => t.key === `t${t.id}`));
+  const long = buildDataset("tree4long", 1000, 1n).data.map((t) => t.key!);
+  assert.deepEqual([...new Set(long.map((k) => k.length))], [54]);
+  assert.equal(new Set(long.map((k) => k.slice(0, 48))).size, 1);
+});
