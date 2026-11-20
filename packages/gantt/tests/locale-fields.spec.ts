@@ -6,7 +6,7 @@ import { chromePath } from "./support/knobs";
 const HOST = `<div id="g" class="gantt" tabindex="0" style="width: 1000px; height: 400px"></div><script type="module">
   import { mount } from "/src/index.ts";
   window.mountWith = async (texts) => (window.api = await mount(document.getElementById("g"), { tasks: [{ id: 1, name: "Dig", start: "2026-11-02", duration: 3 }], forceWebgl: true, texts }));</script>`;
-const BUNDLE = { start: "Inicio", finish: "Fin", "actual-start": "Inicio real", "actual-finish": "Fin real", remaining: "Restante", "percent-head": "% completo", "var-start": "ΔInicio", "task-name": "Tarea", duration: "Duración" };
+const BUNDLE = { start: "Inicio", finish: "Fin", "actual-start": "Inicio real", "actual-finish": "Fin real", remaining: "Restante", "percent-head": "% completo", "var-start": "ΔInicio", "task-name": "Tarea", duration: "Duración", "gantt-chart": "Diagrama de Gantt", "edit-task": "Editar tarea: {name}", "start-no-earlier": "Inicio no antes de", "start-no-earlier-hint": "Inicio no antes del {date}", "start-no-earlier-clear": "Inicio no antes del {date}. Borre la celda para quitarlo." };
 const head = (cls: string) => `#g [data-part=table-head] .cols > .${cls}`;
 test.use({ launchOptions: { executablePath: chromePath(), args: ["--ignore-gpu-blocklist", "--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
 test("with Start as Inicio the cell keeps class start, and the columns the table adds, the card and the editor use the bundle's names", async ({ page }) => {
@@ -31,5 +31,19 @@ test("with Start as Inicio the cell keeps class start, and the columns the table
   await page.keyboard.press("Escape");
   await page.locator(`${row} > .start`).dblclick();
   await expect(page.locator(`${row} input`), "the editor is named by its field").toHaveAttribute("aria-label", "Inicio: Dig");
+  await page.locator(`${row} input`).fill("2026-11-04");
+  await page.keyboard.press("Enter");
+  await expect(page.locator(`${row} > .start`), "the cell's hint").toHaveAttribute("title", "Inicio no antes del 2026-11-04 00:00");
+  await page.locator(`${row} > .start`).dblclick();
+  await expect(page.locator(`${row} input`), "the constraint hint").toHaveAttribute("title", /^Inicio no antes del 2026-11-04.*Borre la celda/);
+  await page.keyboard.press("Escape");
+  await page.locator(`${row} > .dur`).click();
+  await page.keyboard.press("Alt+Enter");
+  await expect(page.locator("#g [data-part=hover-card] .label", { hasText: "Inicio no antes de" }), "the card's row is the field name, with no {date}").toHaveText("Inicio no antes de");
+  await page.keyboard.press("Escape");
+  await page.locator(`${row} > .dur`).click();
+  await page.keyboard.press("Shift+Enter");
+  await expect(page.locator("#g [data-part=task-dialog-title]"), "the dialog title").toHaveText("Editar tarea: Dig");
+  await expect(page.locator("#g"), "the chart's name for a screen reader").toHaveAttribute("aria-label", "Diagrama de Gantt");
   await server.close();
 });

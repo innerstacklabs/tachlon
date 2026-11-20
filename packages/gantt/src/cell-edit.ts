@@ -1,5 +1,6 @@
 import { element } from "./dom.js";
 import { nameOf } from "./field-names.js";
+import { say } from "./messages.js";
 import { type Shell } from "./shell.js";
 import { type TaskDialog } from "./task-dialog.js";
 
@@ -124,7 +125,7 @@ export function installCellEdit( // oxlint-disable-line max-lines-per-function -
     cell.replaceChildren(input);
     // A Start cell holding a real constraint names it and how to clear it; an error message replaces the hint.
     const constraint = field === "start" ? app.task_constraint_text(task) : "";
-    if (constraint !== "") input.title = `Start no earlier than ${constraint}. Clear the cell to remove it.`;
+    if (constraint !== "") input.title = say(root, "start-no-earlier-clear", { date: constraint });
     const current: CellEditor = { row, cell, input, original, closing: false, error: null };
     editor = current;
     input.addEventListener("input", () => clearEditError(current));

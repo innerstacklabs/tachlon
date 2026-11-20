@@ -18,7 +18,7 @@ mod values;
 
 use crate::baseline::Baseline;
 pub use baseline::BaselineRecordsError;
-pub(crate) use capabilities::Capabilities;
+pub(crate) use capabilities::{Capabilities, not_allowed};
 pub(crate) use keys::Kind;
 pub use keys::{KeyTarget, Keys};
 pub use outbox::OUTBOX_CAP;

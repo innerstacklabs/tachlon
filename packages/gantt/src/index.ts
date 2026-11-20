@@ -165,7 +165,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   const brand = root.querySelector<HTMLElement>(".tb-brand");
   if (brand !== null) brand.textContent = PRODUCT_NAME;
   root.setAttribute("role", "group");
-  root.setAttribute("aria-label", "Gantt chart");
+  root.setAttribute("aria-label", say(root, "gantt-chart"));
   setLang(root, locale);
   const canvas = element<HTMLCanvasElement>(root, "timeline");
   const overlay = element<HTMLDivElement>(root, "overlay");

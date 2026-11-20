@@ -8,6 +8,7 @@ use super::Plan;
 use crate::document::fields::fields_allowing;
 use crate::document::json_read::{Value, parse_streaming};
 use crate::press::{Before, Press};
+use crate::texts::{self as t, Text};
 use crate::{Session, edit::Edit, edit::EditError};
 use engine::TaskId;
 
@@ -49,6 +50,23 @@ const TABLE: [(Item, &str, &str); 11] = [
     ),
     (Item::Baseline, "editable.baseline", "changing the baseline"),
 ];
+
+/// The sentence for the refusal that names `what`, one of the words in [`TABLE`].
+pub(crate) fn not_allowed(what: &str) -> &'static Text {
+    match what {
+        "moving a bar" => &t::NOT_ALLOWED_BAR_MOVE,
+        "resizing a bar" => &t::NOT_ALLOWED_RESIZE,
+        "drawing a link" => &t::NOT_ALLOWED_LINK,
+        "adding and deleting rows" => &t::NOT_ALLOWED_ROWS,
+        "changing the outline" => &t::NOT_ALLOWED_OUTLINE,
+        "pasting rows" => &t::NOT_ALLOWED_PASTE,
+        "changing names" => &t::NOT_ALLOWED_NAMES,
+        "changing dates and durations" => &t::NOT_ALLOWED_DATES,
+        "changing links" => &t::NOT_ALLOWED_LINKS,
+        "changing progress and the data date" => &t::NOT_ALLOWED_PROGRESS,
+        _ => &t::NOT_ALLOWED_BASELINE,
+    }
+}
 
 /// The items a host turned off, one bit each, and the values it stores; none is the whole chart.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

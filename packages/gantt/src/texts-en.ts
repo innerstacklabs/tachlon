@@ -59,6 +59,9 @@ export const MESSAGES_EN: Readonly<Record<string, string>> = {
   "bar-dates": "{name}. Start {start}, finish {finish}", "bar-float": "float {float}", "bar-critical": "critical {value}", "bar-yes": "yes", "bar-no": "no",
   "bar-percent": "{percent} complete", "bar-predecessors.one": "{count} predecessor", "bar-predecessors.other": "{count} predecessors",
   "bar-successors.one": "{count} successor", "bar-successors.other": "{count} successors", "bar-baseline": "baseline start {start}",
+  // The chart's name for a screen reader, the task dialog's title, a Start cell's hint when it holds a constraint (in the table and in its editor) and a group's disclosure button.
+  "gantt-chart": "Gantt chart", "edit-task": "Edit task: {name}", "start-no-earlier-clear": "Start no earlier than {date}. Clear the cell to remove it.",
+  "start-no-earlier-hint": "Start no earlier than {date}", "collapse": "Collapse {name}", "expand": "Expand {name}",
   // A frame that failed.
   "render-stopped": "Render error: {why}. The chart stopped; the last good view is still shown.",
   "render-stopped-reload": "Render error: {why}. The chart stopped; the last good view is still shown. Reload to recover.",

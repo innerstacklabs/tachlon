@@ -111,7 +111,7 @@ fn kinds(held: &[Option<Instant>], not_kinds: u16) -> u16 {
 
 impl Session {
     /// What the host cannot store in the first of `edits` that has such a value, as the end of
-    /// "The host stores ...".
+    /// "Saving allows ...".
     pub(super) fn unstorable(&self, s: Stores, edits: &[Edit]) -> Option<String> {
         let mut folded = std::collections::BTreeMap::new();
         for edit in edits {
