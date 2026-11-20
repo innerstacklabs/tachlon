@@ -273,7 +273,11 @@ fn tier(
             (lo, hi) = widest;
         }
         if spec.sticky && text_w + 2.0 * spec.pad > hi - lo {
-            // A period only partly in view keeps its name at the edge, clipped.
+            // A period cut by the right edge whose part in view cannot hold its name leaves it out;
+            // one cut by the left edge keeps its name at the edge, clipped.
+            if x >= 0.0 && next > v.width {
+                continue;
+            }
             if hi - lo >= 2.0 * spec.px {
                 b.label(
                     text,
