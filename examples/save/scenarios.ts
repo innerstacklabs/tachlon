@@ -108,7 +108,7 @@ export const SCENARIOS: Scenario[] = [
     async run(page, server) {
       await ready(page);
       await insert(page, "Review");
-      await until("both saves", () => writes(server).length === 2, 10_000);
+      await until("both saves applied", () => writes(server).length === 2 && [...server.db.tasks.values()].some((t) => t.title === "Review"), 10_000); // the server logs a request when it arrives and applies it after its latency, so a request count alone can be read before the rename lands
       const [create, rename] = writes(server);
       assert.deepEqual([create!.method, rename!.method, rename!.body], ["POST", "PATCH", { title: "Review" }], "the rename is saved second");
       assert.equal(server.db.tasks.get(rename!.key!)?.title, "Review", "and names the row's key");
