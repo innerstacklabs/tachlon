@@ -243,6 +243,23 @@ test("a host's own finish dates go through App.update_tasks and update: the one 
   expect(await page.evaluate(() => window.upChart.update([{ key: "k0", hostFinish: "2026-03-03" }])), "a host date that matches leaves no differs member").toStrictEqual({ ok: true, updated: 1 });
 });
 
+test("under dateForm day, update and setData read a date alone on the task's calendar and refuse a date with a time as badValue, naming dateForm", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(2), dateForm: "day" });
+  const limits = () => page.evaluate(() => { const { start, fnlt } = window.upChart.snapshot().tasks[0] as Record<string, unknown>; return { start, fnlt }; });
+  const refusal = { ok: false, reason: "badValue", record: 0, member: "fnlt", key: "k0", message: expect.stringContaining('dateForm is "day"') };
+  const untouched = { start: "2026-03-02T08:00", fnlt: undefined };
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", fnlt: "2026-03-27T17:00" }])), "update refuses the minute form").toMatchObject(refusal);
+  const rows = tasks(2).map((task, i) => (i === 0 ? { ...task, fnlt: "2026-03-27T17:00" } : task));
+  expect(await page.evaluate((r) => window.upChart.setData({ tasks: r }), rows), "setData refuses it too").toMatchObject(refusal);
+  expect(await limits(), "a refused call changes nothing").toEqual(untouched);
+  const day = [{ key: "k0", snet: "2026-03-09", fnlt: "2026-03-27" }];
+  expect(await page.evaluate((r) => window.upChart.update(r), day)).toEqual({ ok: true, updated: 1 });
+  const read = { start: "2026-03-09T08:00", fnlt: "2026-03-27T17:00" };
+  expect(await limits(), "a start is the first working minute of its day, a finish the end of the last").toEqual(read);
+  expect(await page.evaluate((r) => window.upChart.update(r), day), "the dates written back").toEqual({ ok: true, updated: 1 });
+  expect(await limits(), "leave the task where it was").toEqual(read);
+});
+
 test("setData sets only the 20 changed durations: selection, scroll and the undo list hold, old rows do not undo a rename, and the same rows again do nothing", async ({ page }) => {
   await mountHost(page, { tasks: tasks(40) });
   await page.locator('#table-rows .row[data-row="2"] .name').dblclick();
