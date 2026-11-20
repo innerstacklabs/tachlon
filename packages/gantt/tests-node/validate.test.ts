@@ -45,7 +45,9 @@ const shapes: [string, unknown, boolean][] = [
   ["id boolean", { tasks: [{ ...t, id: true }] }, false],
   ["name missing", { tasks: [{ id: 1, start: "2026-03-02" }] }, false],
   ["name number", { tasks: [{ ...t, name: 5 }] }, false],
-  ["start missing", { tasks: [{ id: 1, name: "A" }] }, false],
+  ["parent null", { tasks: [{ ...t, parent: null }] }, true],
+  ["a folder with no start", { tasks: [{ id: 1, name: "F" }, { ...t, id: 2, parent: 1 }] }, true],
+  ["parent true",{ tasks: [{ ...t, parent: true }] }, false],
   ["a constraint needs no start", { tasks: [{ id: 1, name: "A", constraint: { type: "fnlt", date: "2026-03-20" } }] }, true],
   ["a null constraint needs no start", { tasks: [{ id: 1, name: "A", constraint: null }] }, true],
   ["a constraint and a start", { tasks: [{ ...t, constraint: { type: "snet", date: "2026-03-09" } }] }, true],
@@ -146,6 +148,29 @@ for (const [label, data, path] of faults) {
     expect(() => fromTasks(data as never)).toThrow(PlainDataError);
   });
 }
+
+test("a_top_level_folder_with_parent_null_and_no_start_a_nested_folder_and_leaves_validate_and_mount", () => {
+  const data = { tasks: [
+    { id: "f", name: "Folder", parent: null },
+    { id: "g", name: "Nested", parent: "f" },
+    { id: 1, name: "A", start: "2026-03-02", duration: 2, parent: "g" },
+    { id: 2, name: "B", start: "2026-03-04", duration: 1, parent: "f" },
+    { id: 3, name: "C", start: "2026-03-02", duration: 1, parent: null },
+  ] };
+  expect(validate(data)).toEqual({ ok: true });
+  const tasks = fromTasks(data).document.tasks;
+  expect(tasks.map((x) => [x.code, x.outline_level])).toEqual([["f", 1], ["g", 2], ["1", 3], ["2", 2], ["3", 1]]);
+  expect(tasks.map((x) => x.parent)).toEqual([null, 0, 1, 0, null]);
+});
+
+test("parent_null_is_a_root_even_when_a_task_has_the_id_null_and_a_leaf_still_needs_a_start", () => {
+  const roots = fromTasks({ tasks: [{ id: "null", name: "N", start: "2026-03-02" }, { id: 1, name: "A", start: "2026-03-02", parent: null }] }).document.tasks;
+  expect(roots.map((x) => x.parent), "null names no task, not the task whose id is the text null").toEqual([null, null]);
+  const missing = (data: unknown) => { const v = validate(data); return v.ok ? [] : v.issues.map((i) => i.path); };
+  expect(missing({ tasks: [{ id: 1, name: "A" }] }), "a leaf").toEqual(["tasks[0].start"]);
+  expect(missing({ tasks: [{ id: 1, name: "A", parent: null }] }), "a leaf with parent null").toEqual(["tasks[0].start"]);
+  expect(missing({ tasks: [{ id: 1, name: "A", start: "soon" }, { ...t, id: 2, parent: 1 }] }), "a folder's own start is still checked when given").toEqual(["tasks[0].start"]);
+});
 
 test("an_end_before_the_start_that_fromTasks_never_reads_still_validates_and_mounts", () => {
   const early = { ...t, end: "2026-03-01" };

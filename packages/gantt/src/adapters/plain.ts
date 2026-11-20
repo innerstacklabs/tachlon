@@ -29,7 +29,7 @@ export interface PlainTask {
   start?: string;
   end?: string;
   duration?: number;
-  parent?: string | number;
+  parent?: string | number | null;
   progress?: number;
   color?: string;
   label?: string;
@@ -98,7 +98,7 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
   tasks.forEach((task, i) => {
     if (String(task.id) === "0") throw new Error(`DHTMLX data: task id 0 is the root, not a task (data[${i}])`);
     const p = task.parent;
-    if (p === undefined || String(p) === "0" || p === "") roots.push(i);
+    if (p === undefined || p === null || String(p) === "0" || p === "") roots.push(i);
     else children[ids.get(String(p))!]!.push(i);
   });
   const order: number[] = [];
@@ -136,7 +136,7 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
     const task = constrained ? (toSeparate(given) as PlainTask) : given;
     countUnread(task, KNOWN_TASK, unreadTask);
     const id = String(task.id);
-    const parentAt = task.parent !== undefined && ids.has(String(task.parent)) ? place[ids.get(String(task.parent))!]! : null;
+    const parentAt = task.parent !== undefined && task.parent !== null && ids.has(String(task.parent)) ? place[ids.get(String(task.parent))!]! : null;
     const name = task.name !== "" ? task.name : id;
     const own = task.calendar === undefined ? 0 : calendars.at.get(task.calendar)!;
     calendarAt[i] = own;
