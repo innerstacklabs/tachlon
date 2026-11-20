@@ -31,9 +31,12 @@ const argsOf = ({ record, op, key, set }: Change, keys: Map<string, string>): un
 };
 
 /** Send a change set through `save`: a function is called with it, an object (the handlers form) runs its handlers, and stops before the next one once `stopped()` is true. */
-export function callSave(save: Save | Handlers, changeSet: ChangeSet, stopped: () => boolean = () => false, names?: KeyNames): Promise<SaveResult | void> {
+export function callSave(save: Save | Handlers, changeSet: ChangeSet, stopped: () => boolean = () => false, names?: KeyNames): Promise<SaveResult | Response | void> {
   return typeof save === "function" ? save(changeSet) : runHandlers(save, changeSet, stopped, names);
 }
+
+/** The change of a change set whose handler has not resolved yet: the one a call that ended was at. */
+export const failedChange = (changeSet: ChangeSet): Change | undefined => changeSet.changes[resolved.get(changeSet) ?? 0];
 
 /** What a restored row's answer says when the server holds it under a key other than the one the chart has. */
 export const restoredMismatch = (record: string, key: unknown, old: string): string =>
@@ -52,7 +55,7 @@ async function keyOf(result: unknown, field: string, name: Name, change: Change)
   throw new BadResult(`the ${name} handler resolved with no key for the new row: with keys: "server" resolve with the key, an object that has it as "${field}", or a Response whose JSON body is the row`);
 }
 
-async function runHandlers(handlers: Handlers, changeSet: ChangeSet, stopped: () => boolean, names?: KeyNames): Promise<SaveResult | void> {
+async function runHandlers(handlers: Handlers, changeSet: ChangeSet, stopped: () => boolean, names?: KeyNames): Promise<SaveResult | Response | void> {
   const keys = answered.get(changeSet) ?? new Map<string, string>();
   answered.set(changeSet, keys);
   for (let n = resolved.get(changeSet) ?? 0; n < changeSet.changes.length; n++) {
@@ -70,7 +73,7 @@ async function runHandlers(handlers: Handlers, changeSet: ChangeSet, stopped: ()
     } finally {
       clearTimeout(timer);
     }
-    if (result instanceof Response && !result.ok) throw result;
+    if (result instanceof Response && !result.ok) return result; // the call ends here, and the queue judges this answer (rule 3.5)
     warnIfRefused(name, result);
     const answer = names !== undefined && change.ref !== undefined ? await keyOf(result, names[change.record as "task" | "link"], name, change) : undefined;
     if (answer !== undefined) keys.set(change.ref!, answer);

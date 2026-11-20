@@ -24,8 +24,30 @@ export interface RowContext {
   /** A bar is being dragged: one empty cell stands in for the three variance cells. */
   holdVariance: boolean;
   withVariance: boolean;
-  /** The task slots the host marked as waiting for its own recalculation (`Gantt.setPending`). */
+  /** The task slots that wait: the ones the host marked for its own recalculation (`Gantt.setPending`) and the ones whose commit the host's `save` has not saved. */
   pending: ReadonlySet<number>;
+  /** The line a refused change shows at the cell it names (decision 0022, rule 3.5). */
+  refusal: Refusal | null;
+}
+
+/** A refused change's message, for the task `task` and the cell `cell` (its class). */
+export interface Refusal { task: number; cell: string; message: string }
+
+/** The message of a refusal, as a note under the row; `placeRefusal` moves it under its cell once the row is on the page. */
+function refusalNote({ cell, message }: Refusal): HTMLDivElement {
+  const note = document.createElement("div");
+  note.className = "cell-error";
+  note.setAttribute("role", "alert");
+  note.dataset["cell"] = cell;
+  note.textContent = message;
+  return note;
+}
+
+/** Start the refusal's note at its cell, as a cell edit's reason starts (cell-edit.ts); a cell the table does not show leaves it at the row's start. */
+export function placeRefusal(rows: HTMLElement): void {
+  const note = rows.querySelector<HTMLElement>(".cell-error[data-cell]");
+  const cell = note?.parentElement?.querySelector<HTMLElement>(`.${note.dataset["cell"]}`);
+  if (note !== undefined && note !== null && cell !== null && cell !== undefined) Object.assign(note.style, { insetInlineStart: "auto", left: `${cell.offsetLeft}px` });
 }
 
 /** A row the host marked pending (`Gantt.setPending`): `data-pending` dims its cells, and `aria-busy` tells a screen reader it is busy. */
@@ -126,5 +148,5 @@ export function buildRow(data: TableRow | HeaderRow, r: number, ctx: RowContext)
     }
     row.append(cell);
   }
-  return row;
+  return ctx.refusal?.task === task ? (row.append(refusalNote(ctx.refusal)), row) : row;
 }

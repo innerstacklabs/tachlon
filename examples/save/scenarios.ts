@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import type { Page } from "@playwright/test";
-import type { FakeServer, Script } from "./server.ts";
+import type { FakeServer, Script, Seen } from "./server.ts";
 
 export type Form = "handlers" | "url" | "function";
 /** A scenario of decision 0022, rule 11.2. `keys` pins the key mode it runs in; without it the suite runs both. `not` names forms it skips on top of rule 11.1's list. `props` is a setting the scenario names, written as the props it adds to the chart (`retry: false`): the page changes in that and nothing else. */
@@ -69,6 +69,8 @@ async function away(page: Page, server: FakeServer): Promise<number[]> {
   assert.deepEqual(await errors(page), [], "nothing is put back");
   return was;
 }
+// The PATCH is held, and so is the read the host makes after a put-back: the example page starts the chart again with the rows it reads, so what the put-back shows stays on screen long enough to be read. Temporary: it goes when a changed `tasks` prop no longer starts the chart again (build step 2).
+const HELD = (r: Seen): number => (r.method === "PATCH" ? 800 : r.n > 1 && r.method === "GET" ? 1_500 : 0);
 // A create whose response is lost: the server stores it and the connection closes.
 const LOST: Script = { drop: (r) => (r.method === "POST" && !r.repeat ? "response" : undefined) };
 
@@ -85,11 +87,12 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     n: 2, name: "2 a field refusal",
-    script: { refuse: (r) => (r.method === "PATCH" && Number(r.body?.days) > 100 ? { status: 422, body: { message: "A task cannot take more than 100 days", key: r.key, field: "days" } } : undefined) },
+    script: { latency: HELD, refuse: (r) => (r.method === "PATCH" && Number(r.body?.days) > 100 ? { status: 422, body: { message: "A task cannot take more than 100 days", key: r.key, field: "days" } } : undefined) },
     async run(page, server) {
       await ready(page);
       const was = await days(page, 1);
       await edit(page, 1, "dur", "120");
+      await row(page, 0).click({ position: { x: 4, y: 4 } }); // another row is selected while the PATCH is held, so a selected row 1 afterwards is the chart's doing
       await until("the refusal", () => server.seen.length > 1, 8_000);
       assert.deepEqual(writes(server).map((r) => [r.key, r.body]), [["t2", { days: 120 }]], "the server got its own name for the field");
       await until("the cell goes back", async () => (await days(page, 1)) === was, 8_000);
@@ -116,7 +119,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     n: 5, name: "5 a refused create with edits behind it",
-    script: { latency: (r) => (r.method === "POST" ? 1_500 : 0), refuse: (r) => (r.method === "POST" ? { status: 422, body: { message: "No new tasks today" } } : undefined) },
+    script: { latency: (r) => (r.method === "POST" ? 1_500 : HELD(r)), refuse: (r) => (r.method === "POST" ? { status: 422, body: { message: "No new tasks today" } } : undefined) },
     async run(page, server) {
       await ready(page);
       await insert(page, "Review");
@@ -350,7 +353,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     n: 23, name: "23 a refusal that carries a status", // the body is not JSON; the handlers form's client throws an error with `status: 422` and its status line as the message
-    script: { latency: (r) => (r.method === "PATCH" ? 800 : 0), refuse: (r) => (r.method === "PATCH" ? { status: 422, body: "That change is not allowed" } : undefined) },
+    script: { latency: HELD, refuse: (r) => (r.method === "PATCH" ? { status: 422, body: "That change is not allowed" } : undefined) },
     async run(page, server, _keys, form) {
       await ready(page);
       const was = await days(page, 1);

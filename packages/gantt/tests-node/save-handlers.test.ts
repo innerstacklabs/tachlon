@@ -112,7 +112,7 @@ test("a handler that resolves with a Response that is not a 2xx ends the call wi
   const handlers: Handlers = {
     updateTask: async (key) => (calls.push(key), key === "t2" ? refused : new Response(null, { status: 204 })),
   };
-  await expect(callSave(handlers, set([update("t1", "a"), update("t2", "b"), update("t3", "c")]))).rejects.toBe(refused);
+  await expect(callSave(handlers, set([update("t1", "a"), update("t2", "b"), update("t3", "c")]))).resolves.toBe(refused);
   expect(calls).toEqual(["t1", "t2"]);
 });
 

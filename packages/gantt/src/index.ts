@@ -8,7 +8,7 @@ import { App } from "./wasm/app.js";
 import { engine, load, MountError, renderError, type StartSource } from "./mount-load.js";
 import { createGantt } from "./gantt-object.js";
 import { hostData } from "./host-data.js";
-import type { Fields, Gantt, MountOptions } from "./gantt-types.js";
+import type { Fields, Gantt, MountOptions, SaveError } from "./gantt-types.js";
 import { Metrics } from "./measure.js";
 import { speedOf } from "./speed.js";
 import { type PageKnobs, type RunFacts, takePageKnobs } from "./page-knobs.js";
@@ -108,6 +108,9 @@ export type { CheckKind, CodeValue, FilterInputs, RowFilterName, StatusKind, Vie
 export { MountError, preloadEngine } from "./mount-load.js";
 // The product's name (packages/gantt/src/product.ts), for a host page that shows it.
 export { PRODUCT_NAME };
+
+/** The table cell (its class) that shows each chart field of a task. */
+const CELL_OF: Record<string, string> = { name: "name", duration: "dur", start: "start", end: "finish", progress: "percent" };
 
 /**
  * Start the chart in `root`: the page gives a `div` with the class `gantt` and a box with a height, and the chart
@@ -250,11 +253,22 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   const events = run.events;
   if (hostSave !== undefined) {
     const keyName = (map: { toHost(members: Record<string, unknown>): Record<string, unknown> | undefined }): string => Object.keys(map.toHost({ key: "" })!)[0]!;
-    const queue = new SaveQueue(app, hostSave, (error) => {
+    // A put-back that names a row selects it, and one that names a field of it shows the message at that cell (rule 3.5); `field` is the host's name, and the cell is the chart's.
+    const showRefusal = ({ key, field, message }: SaveError): void => {
+      const slot = key === undefined ? null : (JSON.parse(app.task_slots([key])) as (number | null)[])[0];
+      if (slot === null || slot === undefined) return;
+      app.select_task(slot);
+      const chartField = field === undefined ? undefined : Object.keys((names.tasks.toChart({ [field]: null }) ?? {}) as object)[0];
+      const cell = chartField !== undefined && Object.hasOwn(CELL_OF, chartField) ? CELL_OF[chartField] : undefined;
+      if (cell !== undefined) table.refuse({ task: slot, cell, message });
+    };
+    const queue = new SaveQueue(app, hostSave, (error, names = true) => {
       rows.refuse(error.reload || error.reason === "stopped" ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
+      if (!error.reload && error.reason === "refused" && names) showRefusal(error);
       events.putBack(error);
-    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: keyName(names.tasks), link: keyName(names.links) }), (count) => ((open.unsavedCommits = count), open.countMoves++));
-    disposers.push(events.on("edit", ({ commits }) => queue.add(commits)), () => queue.stop());
+    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: keyName(names.tasks), link: keyName(names.links) }), (count) => ((open.unsavedCommits = count), open.countMoves++), (tasks) => table.setUnsaved(tasks));
+    // The next edit of the person's clears a refusal's message; the put-back's own rollback commit does not.
+    disposers.push(events.on("edit", ({ commits }) => (commits.some((c) => c.source !== "rollback" && c.source !== "host") && table.refuse(null), queue.add(commits))), () => queue.stop());
   }
   installKeys(shell, events.request, rows, cursor, () => card, split, links, save, taskDialog);
   const pointer = installPointer(shell, edit.active, (at) => metrics.moved(at));
