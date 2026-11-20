@@ -135,7 +135,7 @@ fn constraint(
                 return Ok(out);
             }
             let at = relative_instant(date.unwrap_or_default(), origin_day, "ConstraintDate")?;
-            let Some(at) = range::date(at, &uid.to_string(), notes) else {
+            let Some(at) = range::date(at, uid, &uid.to_string(), notes) else {
                 return Ok(out);
             };
             let at = at.max(0);

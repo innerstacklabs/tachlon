@@ -41,7 +41,7 @@ impl Actuals {
         let instant = |element: &str, notes: &mut Notes| {
             stated(element)
                 .and_then(|value| relative_instant(value, origin_day, element).ok())
-                .and_then(|at| range::date(at, &id, notes))
+                .and_then(|at| range::date(at, uid, &id, notes))
         };
         let start = instant("ActualStart", notes);
         let finish = start.and_then(|_| instant("ActualFinish", notes));

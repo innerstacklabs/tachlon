@@ -31,7 +31,7 @@ impl Actuals {
         let instant = |minutes: Option<i64>, notes: &mut Notes| {
             minutes
                 .and_then(|minutes| instant_from_origin(minutes, origin_day))
-                .and_then(|at| range::date(at, label, notes))
+                .and_then(|at| range::date(at, activity.task_id, label, notes))
         };
         let start = instant(activity.act_start_date.filter(|_| started), notes);
         let finish = instant(activity.act_end_date.filter(|_| complete), notes);

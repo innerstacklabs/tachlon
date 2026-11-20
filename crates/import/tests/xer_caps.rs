@@ -105,9 +105,36 @@ fn a_duration_remaining_lag_or_data_date_outside_the_range_is_counted() {
     assert_eq!(task(&imported, "A1").1.remaining, None);
     assert_eq!(imported.schedule.dependencies()[0].lag, 0);
     assert_eq!(imported.data_date, None);
-    for note in [DURATION, REMAINING, LAG, DATA_DATE] {
-        assert!(counted(&imported, note).is_some(), "{note}");
+    for (note, count) in [
+        (DURATION, "1 (first: A1)"),
+        (REMAINING, "1 (first: A1)"),
+        (LAG, "1 (first: A2)"),
+        (DATA_DATE, "1 (first: 1)"),
+    ] {
+        assert_eq!(counted(&imported, note), Some(count), "{note}");
     }
     let kept = import(AT_BOUND, &tasks, &[]);
     assert_eq!(kept.data_date, Some(MAX_DATE));
+}
+
+#[test]
+fn a_task_with_two_dates_outside_the_range_is_counted_once() {
+    let both = format!("\t\t{YEAR_9999}\t{YEAR_9999}");
+    let tasks = [
+        row(1, "TK_Complete", "1", "1", &both),
+        row(2, "TK_NotStart", "1", "1", "\t\t\t"),
+    ];
+    let imported = import("", &tasks, &[]);
+    assert_eq!(counted(&imported, DATE), Some("1 (first: A1)"));
+}
+
+#[test]
+fn two_tasks_with_one_code_are_counted_twice() {
+    let started = format!("\t\t{YEAR_9999}\t");
+    let tasks = [
+        row(1, "TK_Active", "1", "1", &started),
+        row(2, "TK_Active", "1", "1", &started).replace("A2", "A1"),
+    ];
+    let imported = import("", &tasks, &[]);
+    assert_eq!(counted(&imported, DATE), Some("2 (first: A1, A1)"));
 }
