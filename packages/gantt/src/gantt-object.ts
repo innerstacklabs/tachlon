@@ -47,6 +47,8 @@ export interface GanttParts {
   speed: () => Speed;
   /** The unit of the host's durations (`MountOptions.durationUnit`). */
   unit: MountOptions["durationUnit"];
+  /** The form of the host's dates (`MountOptions.dateForm`). */
+  dateForm: MountOptions["dateForm"];
   /** The host's names for its rows (`field-map.ts`). */
   fields: FieldMap;
   /** `setData` against the rows this start was given (`host-data.ts`). */
@@ -65,7 +67,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
   /** `update` or `hostEdit` of the host's records: the members of a record that the chart has no field for are kept once it took the rest (decision 0022, rule 8.3). */
   const hostUpdate = (records: unknown, call?: "host_edit"): UpdateResult => {
     const taken = Array.isArray(records) ? p.fields.custom.take("tasks", records) : undefined;
-    const answer = update(app, p.busy, p.unit, taken?.rows?.map(p.fields.tasks.toChart) ?? records, p.wrote, call);
+    const answer = update(app, p.busy, p.unit, p.dateForm, taken?.rows?.map(p.fields.tasks.toChart) ?? records, p.wrote, call);
     if (answer.ok) taken?.commit();
     return answer;
   };
@@ -202,7 +204,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     setData: (data) => {
       alive();
       const custom = { tasks: p.fields.custom.take("tasks", data.tasks), links: p.fields.custom.take("links", data.links) };
-      const answer = p.setData(p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), shell.status().epoch, (records) => update(app, p.busy, p.unit, records, p.wrote));
+      const answer = p.setData(p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), shell.status().epoch, (records) => update(app, p.busy, p.unit, p.dateForm, records, p.wrote));
       if (answer.ok) [custom.tasks, custom.links].forEach((taken) => taken.commit());
       return answer;
     },
