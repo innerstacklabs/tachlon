@@ -150,21 +150,28 @@ impl Session {
                 Entry::DataDates(_) | Entry::Host(_) => {}
             }
         }
-        let marks = |delete: bool| -> Vec<TaskId> {
-            let mark = |s: &Step| match s.edit {
-                Edit::Delete { task } if delete => Some(task),
-                Edit::Restore { task, .. } if !delete => Some(task),
+        let marks: Vec<(TaskId, bool)> = steps
+            .iter()
+            .filter_map(|s| match s.edit {
+                Edit::Delete { task } => Some((task, true)),
+                Edit::Restore { task, .. } => Some((task, false)),
                 _ => None,
-            };
-            steps.iter().filter_map(mark).collect()
-        };
-        let restored = marks(false);
-        let netted: Vec<TaskId> = marks(true)
-            .into_iter()
-            .filter(|t| restored.contains(t))
+            })
             .collect();
-        let of = |s: &Step| task_of(&Entry::Step(s.clone()));
-        steps.retain(|s| of(s).is_none_or(|task| !netted.contains(&task)));
+        let made_then_deleted = |task: TaskId| {
+            let mut run = marks.iter().filter(|m| m.0 == task).map(|m| m.1);
+            (run.next(), run.next_back()) == (Some(true), Some(false))
+        };
+        let netted: Vec<TaskId> = marks
+            .iter()
+            .map(|m| m.0)
+            .filter(|&task| made_then_deleted(task))
+            .collect();
+        let named = |s: &Step| match s.edit {
+            Edit::SetLimit { task, .. } => Some(task),
+            _ => task_of(&Entry::Step(s.clone())),
+        };
+        steps.retain(|s| named(s).is_none_or(|task| !netted.contains(&task)));
         steps.reverse();
         let mut changes = self.changes_of(&Entry::Group(steps));
         let dates = done

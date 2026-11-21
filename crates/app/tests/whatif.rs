@@ -4,8 +4,8 @@
 
 use crate::common;
 
-use app::{Session, WhatIfError, edit::Edit, edit::EditError};
-use engine::{DAY, TaskId};
+use app::{Place, Session, WhatIfError, edit::Edit, edit::EditError};
+use engine::{DAY, Limit, Pin, TaskId};
 
 /// Lengthen the task that finishes last by a working day.
 fn lengthen(session: &mut Session) {
@@ -149,6 +149,42 @@ fn a_task_made_then_deleted_in_the_what_if_leaves_no_change() {
 }
 
 #[test]
+fn a_task_deleted_restored_and_renamed_in_the_what_if_keeps_its_changes() {
+    let (mut session, meta) = common::outline_session(30);
+    let leaf = leaf_of(&meta);
+    let original = meta[leaf.0 as usize].name.as_str();
+    session.begin_whatif().unwrap();
+    session.edit(Edit::Delete { task: leaf }).unwrap();
+    let place = Place {
+        parent: meta[leaf.0 as usize].parent,
+        after: None,
+    };
+    session.edit(Edit::Restore { task: leaf, place }).unwrap();
+    let name = "Renamed in the what-if".to_string();
+    session.edit(Edit::Rename { task: leaf, name }).unwrap();
+    let changes = discard_changes(&mut session);
+    let ours = |c: &&serde_json::Value| c["record"] == "task" && c["task"] == leaf.0;
+    let named = |c: &serde_json::Value| c["fields"]["name"] == original || c["new"] == original;
+    assert!(changes.iter().filter(ours).any(named), "{changes:#?}");
+}
+
+#[test]
+fn a_limit_set_on_a_task_made_then_deleted_in_the_what_if_leaves_no_change() {
+    let mut session = common::outline_session(30).0;
+    session.begin_whatif().unwrap();
+    let made = session.insert_many(&["Footing"]).unwrap()[0];
+    let limit = Limit {
+        pin: Some(Pin::Finish(900)),
+        ..Limit::default()
+    };
+    session.edit(Edit::SetLimit { task: made, limit }).unwrap();
+    session.edit(Edit::Delete { task: made }).unwrap();
+    let changes = discard_changes(&mut session);
+    let ours = |c: &&serde_json::Value| c["record"] == "task" && c["task"] == made.0;
+    assert!(changes.iter().find(ours).is_none(), "{changes:#?}");
+}
+
+#[test]
 fn a_field_changed_twice_in_the_what_if_is_one_change_from_its_value_before_the_discard() {
     let mut session = common::demo_session(60).0;
     let task = TaskId(2);
@@ -158,6 +194,16 @@ fn a_field_changed_twice_in_the_what_if_is_one_change_from_its_value_before_the_
         session.edit(Edit::SetDuration { task, minutes }).unwrap();
     }
     let longest = session.schedule().tasks()[2].duration;
+    let sent: serde_json::Value = serde_json::from_str(&session.take_commits()).unwrap();
+    let duration = |n: usize| {
+        let changes = sent["commits"][n]["changes"].as_array().unwrap();
+        changes
+            .iter()
+            .find(|c| c["field"] == "duration")
+            .unwrap()
+            .clone()
+    };
+    let (first, second) = (duration(0), duration(1));
     let changes = discard_changes(&mut session);
     assert_eq!(session.schedule().tasks()[2].duration, start);
     let ours: Vec<_> = changes
@@ -167,6 +213,11 @@ fn a_field_changed_twice_in_the_what_if_is_one_change_from_its_value_before_the_
     assert_eq!(ours.len(), 1, "{changes:#?}");
     assert_ne!(longest, start);
     assert_ne!(ours[0]["old"], ours[0]["new"]);
+    assert_eq!(
+        ours[0]["old"], second["new"],
+        "the value before the discard"
+    );
+    assert_eq!(ours[0]["new"], first["old"], "the value before the what-if");
 }
 
 #[test]
