@@ -189,11 +189,11 @@ fn updated_answer(result: Result<Updated, UpdateError>) -> String {
     format!(r#"{{"ok":true,"updated":{tasks}{more}}}"#)
 }
 
-/// `{"ok":false,"reason":"<kind>"}`, with `"record":n` and `"member":m` when the refusal names them.
 fn link_answer(done: Result<(), UpdateError>) -> String {
     done.map_or_else(record_refusal, |()| r#"{"ok":true}"#.to_string())
 }
 
+/// `{"ok":false,"reason":"<kind>"}`, with `"record":n` and `"member":m` when the refusal names them.
 fn record_refusal(error: UpdateError) -> String {
     let at = (error.record).map_or(String::new(), |n| format!(r#","record":{n}"#));
     let of = (error.member).map_or(String::new(), |m| format!(r#","member":{}"#, quote(&m)));

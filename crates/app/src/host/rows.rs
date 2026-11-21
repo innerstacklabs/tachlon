@@ -131,12 +131,17 @@ impl Session {
             self.assign_key(KeyTarget::Link(dep), key)
                 .map_err(|e| refuse(&e))?;
         }
-        // A replay of a person's Undo of removing this pair's old link would leave two live links on it.
+        // A person's older link on this pair stays dead: every step on it is forgotten, as a replay of the
+        // Undo of its removal would leave two live links on the pair.
         let links = self.schedule.dependencies();
         let old =
             |old: DepId| (links[old.0 as usize].pred, links[old.0 as usize].succ) == (pred, succ);
-        let stale =
-            |step: &Step| matches!(step.edit, Edit::RestoreLink { dep: d } if d != dep && old(d));
+        let stale = |step: &Step| match step.edit {
+            Edit::RestoreLink { dep: d }
+            | Edit::RemoveLink { dep: d }
+            | Edit::SetLink { dep: d, .. } => d != dep && old(d),
+            _ => false,
+        };
         if self.history.forget(stale).0 > 0 {
             self.host.pending.truncate(0);
         }

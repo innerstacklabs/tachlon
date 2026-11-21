@@ -130,6 +130,19 @@ fn a_host_add_forgets_the_undo_of_a_persons_remove_of_that_pair() {
 }
 
 #[test]
+fn a_host_add_forgets_every_step_on_the_persons_removed_link() {
+    let mut s = keyed_links();
+    rename(&mut s, A, "Mine");
+    let dep = DepId(0);
+    s.set_link_text(dep, "SS").unwrap();
+    s.edit(Edit::RemoveLink { dep }).unwrap();
+    s.add_link_by_key(r#"{"key":"n","pred":"t2","succ":"t3"}"#)
+        .unwrap();
+    assert_eq!(s.history_len(), (1, 0));
+    drain(&mut s);
+}
+
+#[test]
 fn undo_and_redo_after_a_host_link_set_never_stick() {
     let mut s = keyed_links();
     rename(&mut s, A, "Mine");
