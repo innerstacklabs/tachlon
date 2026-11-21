@@ -40,6 +40,7 @@ mod clear_filters;
 mod collapse;
 mod collapse_links;
 mod commits;
+mod commits_host;
 mod commits_outline;
 mod common;
 mod compare_file;

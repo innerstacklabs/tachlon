@@ -4,6 +4,7 @@
 use crate::Session;
 use crate::outline::Outline;
 use engine::TaskId;
+use std::collections::HashMap;
 
 /// Where a task sits in the outline: under `parent` (`None`: a root), after sibling `after`
 /// (`None`: first child).
@@ -23,6 +24,38 @@ impl Place {
             parent,
             after: at.and_then(|at| at.checked_sub(1)).map(|at| siblings[at]),
         }
+    }
+
+    /// The tasks outside `moved` whose `after` differs between the chart `outline` holds and the chart a step
+    /// changed it from or to, each with its place in that other chart: it follows a task that joined or left
+    /// its list. `moved` has each moved task with its place in the other chart.
+    pub(crate) fn followers(outline: &Outline, moved: &[(TaskId, Place)]) -> Vec<(TaskId, Place)> {
+        let is_moved = |t: &TaskId| moved.iter().any(|m| m.0 == *t);
+        let mut lists: Vec<_> = (moved.iter())
+            .flat_map(|&(t, other)| [other.parent, outline.parent(t)])
+            .collect();
+        lists.sort();
+        lists.dedup();
+        let mut changed = Vec::new();
+        for parent in lists {
+            let held = parent.map_or(outline.roots(), |p| outline.children(p));
+            let mut other: Vec<TaskId> = held.iter().copied().filter(|t| !is_moved(t)).collect();
+            for &(t, place) in moved.iter().filter(|m| m.1.parent == parent) {
+                let at = place.after.and_then(|a| other.iter().position(|&o| o == a));
+                other.insert(at.map_or(0, |at| at + 1), t);
+            }
+            let after = |list: &[TaskId], at: usize| at.checked_sub(1).map(|at| list[at]);
+            let there: HashMap<TaskId, Option<TaskId>> = (other.iter().enumerate())
+                .map(|(at, &t)| (t, after(&other, at)))
+                .collect();
+            for (at, t) in held.iter().enumerate().filter(|(_, t)| !is_moved(t)) {
+                if there[t] != after(held, at) {
+                    let after = there[t];
+                    changed.push((*t, Place { parent, after }));
+                }
+            }
+        }
+        changed
     }
 }
 
