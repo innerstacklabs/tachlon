@@ -4,7 +4,6 @@ use super::{History, Source, task_of};
 use crate::{Session, edit::EditError};
 
 impl History {
-    /// Drop the entry a press of `source` would replay.
     fn drop_top(&mut self, source: Source) {
         if source == Source::Undo {
             self.undo.pop_back();
@@ -19,8 +18,9 @@ impl History {
 }
 
 impl Session {
-    /// A press of `source`: `gate` runs before each step tried. The engine's refusal of a step drops
-    /// it and the press goes on; the gate's refusal, a host's save refusal included, drops nothing.
+    /// A press of `source`: `gate` runs before each step tried. A refusal about the rows as they are
+    /// now (`EditError::is_data`) drops the step and the press goes on; any other refusal, the gate's
+    /// and a host's save refusal included, is returned and the step stays.
     pub(super) fn press(
         &mut self,
         source: Source,
@@ -34,7 +34,7 @@ impl Session {
                 _ => self.redo_step(),
             };
             match step {
-                Err(_) => {
+                Err(error) if error.is_data() => {
                     self.history.drop_top(source);
                     dropped = true;
                 }

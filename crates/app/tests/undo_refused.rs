@@ -1,10 +1,13 @@
-//! A step the engine refuses when Undo or Redo applies it is dropped and the press goes on (tl#2087):
-//! Undo never sticks. `Session::apply` records nothing, so a test changes the rows under a list by it.
+//! Undo and Redo drop a step the engine refuses about the rows, and go on (tl#2087); `Session::apply` records nothing.
 
 #![expect(clippy::unwrap_used, reason = "a test's unwrap is its assertion")]
 
 use crate::reparent::build;
-use app::{Place, Session, edit::Edit, host::KeyTarget};
+use app::{
+    Place, Session,
+    edit::{Edit, EditError},
+    host::KeyTarget,
+};
 use engine::{DepId, LinkType, TaskId};
 
 const A: TaskId = TaskId(1);
@@ -150,4 +153,21 @@ fn a_redo_step_the_engine_refuses_is_dropped_too() {
     assert_eq!(s.undo(), Ok(true));
     give_child(&mut s, A);
     assert_eq!(s.redo().unwrap_err().kind(), "stepGone");
+}
+
+#[test]
+fn a_view_refusal_returns_and_the_step_stays_until_the_view_is_off() {
+    let mut s = built();
+    s.select_task(2);
+    s.indent_selected().unwrap();
+    assert!(s.set_critical_only(true));
+    assert_eq!(s.undo(), Err(EditError::ReparentFiltered));
+    assert_eq!(s.history_len(), (2, 0));
+    assert!(s.set_critical_only(false));
+    assert_eq!(s.undo(), Ok(true));
+    assert!(s.set_critical_only(true));
+    assert_eq!(s.redo(), Err(EditError::ReparentFiltered));
+    assert_eq!(s.history_len(), (1, 1));
+    assert!(s.set_critical_only(false));
+    assert_eq!(s.redo(), Ok(true));
 }

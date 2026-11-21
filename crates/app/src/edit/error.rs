@@ -140,6 +140,26 @@ pub enum EditError {
 }
 
 impl EditError {
+    /// Whether the refusal is about the rows as they are now, so a history step it refuses cannot
+    /// apply until they change. A refusal of the view, the mode, a gesture or the host is not.
+    pub(crate) fn is_data(&self) -> bool {
+        matches!(
+            self,
+            Self::Schedule(_)
+                | Self::UnknownTask(_)
+                | Self::HasChildren { .. }
+                | Self::BadPlace
+                | Self::Outline(_)
+                | Self::LinkCycle { .. }
+                | Self::LinkToSummary { .. }
+                | Self::HasLinks { .. }
+                | Self::AlreadyLinked { .. }
+                | Self::UnknownLink(_)
+                | Self::HasActuals
+                | Self::ProgressOnSummary { .. }
+        )
+    }
+
     /// The reason as a name a program reads (`busy`, `noSelection`), one per variant. The host API
     /// (`packages/gantt/src/edit-result.ts`) maps these to its own names; the person's sentence is `Display`.
     #[must_use]
