@@ -90,6 +90,8 @@ export interface MountOptions<F extends Fields | undefined = undefined> {
   links?: Rows<PlainLink[], F>;
   /** The day the plain `tasks` are as of (`YYYY-MM-DD[THH:mm]`, 00:00 of the day when it is a date alone): work that has not started cannot start before it. Read with `tasks`, and kept no longer than they are. */
   dataDate?: string;
+  /** The day the project starts, for the plain `tasks` (`YYYY-MM-DD[THH:mm]`, 00:00 of the day when it is a date alone): no task starts earlier, and a task's `start` is optional when it is given. Read with `tasks`, and kept no longer than they are. */
+  projectStart?: string;
   /** The date the project must finish by, for the plain `tasks` (`YYYY-MM-DD[THH:mm]`, the end of that day when it is a date alone), as `fromTasks` reads it: float is measured against the earlier of it and the computed finish, as in the headless results. Read with `tasks`, and kept no longer than they are. */
   mustFinishBy?: string;
   /** The schedule options of decision 0018 (`startedLateStart`, `unstartedRemaining`) for the plain `tasks`, as `fromTasks` reads them. Read with `tasks`, and ignored when there is a `schedule` or a `document`: each carries its own. */

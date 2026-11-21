@@ -189,6 +189,25 @@ test("the_data_date_reaches_the_document_and_moves_the_origin_when_it_is_the_ear
   expect(read("2026-02-24")).toMatchObject({ origin: Date.UTC(2026, 1, 23) / 86_400_000, data_date: 1440 });
 });
 
+// A task of 2026-03-03 is day 1 from Monday 2026-03-02, and 2026-03-09 is day 7.
+const dated = [{ id: 2, name: "early", start: "2026-03-03" }, { id: 3, name: "late", start: "2026-03-09" }];
+
+test("a_project_start_gives_a_task_with_no_start_its_date_as_snet_lifts_an_earlier_task_and_keeps_a_later_one", () => {
+  const read = (projectStart?: string) => fromTasks({ tasks: [{ id: 1, name: "none" }, ...dated], projectStart }).document.tasks.map((t) => t.snet);
+  expect(read("2026-03-05")).toEqual([3 * 1440, 3 * 1440, 7 * 1440]);
+  expect(fromTasks({ tasks: dated }).document.tasks.map((t) => t.snet)).toEqual([1440, 7 * 1440]);
+});
+
+test("a_project_start_before_every_task_is_the_earliest_date_and_moves_the_origin", () => {
+  const { document } = fromTasks({ tasks: dated, projectStart: "2026-02-24" });
+  expect(document.origin).toBe(Date.UTC(2026, 1, 23) / 86_400_000);
+  expect(document.tasks.map((t) => t.snet)).toEqual([8 * 1440, 14 * 1440]);
+});
+
+test("a_project_start_that_is_not_a_date_is_refused_by_name", () => {
+  expect(() => fromTasks({ tasks: dated, projectStart: "2026-02-31" })).toThrow(/projectStart/);
+});
+
 test("the_options_reach_the_document_as_one_object_and_are_absent_when_not_given", () => {
   const options = { startedLateStart: "project", unstartedRemaining: "on" } as const;
   expect(fromTasks({ tasks: [t0], options }).document.options).toEqual(options);

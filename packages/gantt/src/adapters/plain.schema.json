@@ -7,6 +7,7 @@
   "properties": {
     "tasks": { "type": "array", "items": { "$ref": "#/$defs/task" } },
     "links": { "type": "array", "items": { "$ref": "#/$defs/link" } },
+    "projectStart": { "$ref": "#/$defs/date", "description": "The day the project starts. No task starts earlier, and a task's start is optional when this is given. A date alone is 00:00 of that day." },
     "dataDate": { "$ref": "#/$defs/date", "description": "The day the update is as of. Work that has not started cannot start before it. A date alone is 00:00 of that day." },
     "mustFinishBy": { "$ref": "#/$defs/date", "description": "The date the project must finish by. Float is measured against the earlier of it and the computed finish, so a date the plan cannot meet shows as negative float. A date alone is the end of that day." },
     "options": {
@@ -56,7 +57,7 @@
       "properties": {
         "id": { "$ref": "#/$defs/id" },
         "name": { "type": "string", "description": "The text shown for the task." },
-        "start": { "$ref": "#/$defs/date", "description": "Required of a task that no other task names as parent and that has no constraint: a task that others name as parent takes its dates from them and needs none. A schema cannot see the other rows, so validate checks this." },
+        "start": { "$ref": "#/$defs/date", "description": "Required of a task that no other task names as parent, that has no constraint, when the data has no projectStart: a task that others name as parent takes its dates from them and needs none. A schema cannot see the other rows, so validate checks this." },
         "end": { "$ref": "#/$defs/date" },
         "duration": { "type": "number", "minimum": 0, "description": "In the data's durationUnit: working days of the task's calendar, by default." },
         "calendar": { "type": "string", "description": "The key of one of the data's calendars; the first when left out." },

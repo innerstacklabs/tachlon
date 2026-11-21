@@ -37,7 +37,7 @@ A host page talks to the component through plain records: tasks, links, calendar
 | Field | Dir | Value | Document |
 |---|---|---|---|
 | `name` | in, out | text | `name` |
-| `projectStart` | in, out | date, start kind. No unstarted task starts earlier. With it, a task's `start` is optional | No field at head. Maps to the `floor` of every task and to the `snet` of each task that has no later one (`read_task` in `items.rs`; `TaskMeta::floor` in `crates/app/src/meta.rs`). `origin` stays the Monday on or before the earliest date (`fromTasks` in `plain.ts`) |
+| `projectStart` | in, out | date, start kind. No unstarted task starts earlier. With it, a task's `start` is optional | Read by `fromTasks` in `plain.ts` and not written back (the document has no field for it): the date is one of those that set `origin`, and each leaf task's `snet` is the later of its own and this date, so it is the `floor` of every task and the `snet` of each task that has no later one (`read_task` in `items.rs`; `TaskMeta::floor` in `crates/app/src/meta.rs`). `origin` stays the Monday on or before the earliest date (`fromTasks` in `plain.ts`) |
 | `dataDate` | in, out | date, start kind | `data_date` (`read` in `document/read.rs`) |
 | `mustFinishBy` | in, out | date, finish kind | `must_finish_by`, minutes from `origin`, written only when a date is set (decision 0010, amendment; gantt#2074) |
 | `lagCalendar` | in, out | `"successor"` (default), `"predecessor"`, `"24h"` or `{ "calendar": key }` | `lag_calendar` (`lag_calendar` in `items.rs`) |
