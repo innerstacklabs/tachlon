@@ -18,7 +18,7 @@ Watch the narrated overview at [tachlon.com](https://tachlon.com).
 
 ## Why Tachlon
 
-- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. 50,000 tasks reschedule in under 20 milliseconds. [Measured](#measured)
+- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (17.8 ms on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured)
 - **AI first.** Built for developers who work with an AI assistant. Your assistant installs it from one prompt, reads the guide that ships inside the package, asks the package what it can do, and checks its own work. [For your assistant](#for-your-assistant)
 - **Free and open source.** MIT. Every feature, with no paid tier, license key, trial or watermark.
 - **Powerful.** Auto-scheduling, critical path, constraints, calendars, baselines and progress, with Primavera P6 and MS Project files opened and saved in the browser. [What it does](#what-it-does)
@@ -83,6 +83,8 @@ The package carries its own instructions, so your assistant works from the versi
 ## Measured
 
 After a drag at 50,000 tasks, the engine reschedules in 17.8 ms, and 50,000 tasks load in 291.7 ms. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
+
+To time a file on your own machine, click the chart in the hosted app and press `s` ([open time](docs/MEASURING.md#open-time-gs87-pr-5)).
 
 <details>
 <summary>The measurements, next to three other charts</summary>
