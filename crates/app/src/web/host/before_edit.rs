@@ -10,7 +10,7 @@ use web_sys::js_sys::{Function, JSON};
 #[wasm_bindgen]
 impl App {
     /// Hand the chart the page's before-edit function, or take it away with `None`. It is called once for each
-    /// action a person takes, after read-only and before anything changes, with `{ kind, source, tasks, changes }`.
+    /// action a person takes, after read-only and before anything changes, with `{ kind, source, tasks, changes, needs }`.
     /// `undefined`, `null` or `true` allows the action, a string refuses it with that reason, `false` refuses it with the
     /// default sentence, and anything else (a throw, a promise) refuses it as failed. It must not call the chart: a call into it throws and the change is refused, except that a command answers busy while a cell is being edited.
     pub fn set_before_edit(&mut self, before: Option<Function>) {
@@ -22,10 +22,11 @@ impl App {
 fn ask(before: &Function, planned: &Planned) -> Result<(), EditError> {
     let source = format!("{:?}", planned.source).to_lowercase();
     let json = format!(
-        r#"{{"kind":"{}","source":"{source}","tasks":{:?},"changes":[{}]}}"#,
+        r#"{{"kind":"{}","source":"{source}","tasks":{:?},"changes":[{}],"needs":[{}]}}"#,
         planned.kind,
         planned.tasks,
-        planned.changes.join(",")
+        planned.changes.join(","),
+        planned.needs.join(",")
     );
     let payload = JSON::parse(&json).map_err(|_| EditError::Refused(String::new()))?;
     match before.call1(&JsValue::UNDEFINED, &payload) {

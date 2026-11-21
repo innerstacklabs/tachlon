@@ -34,6 +34,12 @@ impl Session {
         }
     }
 
+    /// The records of every edit of `edits`, each read against the chart as it is: right in what
+    /// they are (`record`, `op`), not in their values past the first edit.
+    pub(super) fn shaped_each(&self, edits: &[Edit]) -> Vec<String> {
+        edits.iter().flat_map(|e| self.shaped(e)).collect()
+    }
+
     /// A task create record for `task`, which may not exist yet, with its `fields` written.
     fn task_create(&self, task: TaskId, fields: &str) -> String {
         let (key, slot, day) = (self.task_key(task), task.0, self.task_day(task));

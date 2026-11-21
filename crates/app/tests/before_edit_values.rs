@@ -4,7 +4,7 @@
 
 use crate::link_gesture::session;
 use crate::read_only::state;
-use app::{Place, Session, Siblings, edit::Edit, edit::EditError, host::Planned};
+use app::{Place, Session, Siblings, edit::Edit, edit::EditError, history::Source, host::Planned};
 use engine::{DepId, LinkType, TaskId};
 use serde_json::Value;
 use std::{cell::RefCell, rc::Rc};
@@ -104,4 +104,36 @@ variants! {
     a_data_date_is_seen_with_the_old_and_new_date: none,
         Edit::SetDataDate { date: Some(0) },
         r#""field":"dataDate","old":null,"new":"2026-01-05T00:00""#, true;
+}
+
+/// Every plan of two or more edits, asked in turn (two typed links, their undo and redo, a paste of two rows and its undo, the end of a what-if), as `(kind, changes, needs)` with each record read `record.op`.
+#[rustfmt::skip]
+fn plans() -> Vec<(&'static str, String, String)> {
+    let link = |pred, succ| Edit::AddLink { pred: TaskId(pred), succ: TaskId(succ), kind: LinkType::FS, lag: 0 };
+    let mut s = session();
+    let asked = watch(&mut s, false);
+    s.edit_group(vec![link(1, 2), link(0, 3)], Source::Typed).unwrap();
+    s.undo().unwrap(); s.redo().unwrap(); s.insert_many(&["X", "Y"]).unwrap(); s.undo().unwrap();
+    s.begin_whatif().unwrap();
+    s.edit(Edit::Delete { task: TaskId(2) }).unwrap(); s.edit(Edit::Delete { task: TaskId(3) }).unwrap();
+    s.discard_whatif().unwrap();
+    let of = |rows: &[String]| rows.iter().map(|r| r.parse::<Value>().unwrap()).map(|v| format!("{}.{}", v["record"].as_str().unwrap(), v["op"].as_str().unwrap())).collect::<Vec<_>>().join(" ");
+    asked.borrow().iter().map(|p| (p.kind, of(&p.changes), of(&p.needs))).collect()
+}
+
+#[test]
+#[rustfmt::skip]
+fn the_function_is_shown_the_same_changes_for_every_plan_as_before_needs_existed() {
+    let expected = [("group", ""), ("undo", ""), ("redo", ""), ("insertMany", "task.create task.create"), ("undo", ""), ("delete", "link.delete link.delete task.delete"), ("delete", "link.delete task.delete"), ("discardWhatIf", "")];
+    let shown = plans();
+    assert_eq!(shown.iter().map(|(kind, changes, _)| (*kind, changes.as_str())).collect::<Vec<_>>(), expected);
+}
+
+#[test]
+#[rustfmt::skip]
+fn a_plan_of_several_edits_names_each_record_it_saves_and_a_single_edit_names_none() {
+    let (made, gone) = ("link.create link.create", "link.delete link.delete");
+    let expected = [("group", made), ("undo", gone), ("redo", made), ("insertMany", ""), ("undo", "task.delete task.delete"), ("delete", ""), ("delete", ""), ("discardWhatIf", "task.create link.create task.create link.create")];
+    let shown = plans();
+    assert_eq!(shown.iter().map(|(kind, _, needs)| (*kind, needs.as_str())).collect::<Vec<_>>(), expected);
 }

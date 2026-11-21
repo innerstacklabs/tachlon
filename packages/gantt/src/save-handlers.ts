@@ -101,10 +101,10 @@ export const profileFor = (profile: HostCapabilities | undefined, handlers: Hand
   handlers === undefined || handlers.createLink !== undefined ? profile : { ...profile, gestures: { ...profile?.gestures, link: false } };
 
 /** `before` behind a check that refuses, with `say(what, handler)`, an edit whose handler the host did not give (`handlers()` is the object now); `before` is not asked about it. */
-export function refuseMissing<A extends { changes: readonly FieldChange[] }>(before: ((change: A) => unknown) | undefined, handlers: () => Handlers | undefined, say: (what: string, handler: string) => string): (change: A) => unknown {
+export function refuseMissing<A extends { changes: readonly FieldChange[]; needs?: readonly FieldChange[] }>(before: ((change: A) => unknown) | undefined, handlers: () => Handlers | undefined, say: (what: string, handler: string) => string): (change: A) => unknown {
   return (change) => {
     const h = handlers();
-    const name = h === undefined ? undefined : foldChanges(change.changes).map(nameOf).find((n) => h[n] === undefined);
+    const name = h === undefined ? undefined : [...foldChanges(change.changes), ...(change.needs ?? [])].map(nameOf).find((n) => h[n] === undefined);
     return name === undefined ? before?.(change) : say(WHAT[name], name);
   };
 }

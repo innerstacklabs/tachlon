@@ -50,6 +50,10 @@ pub struct Planned {
     pub tasks: Vec<u32>,
     /// One JSON object per task field that would change; `old` is what the session holds now.
     pub changes: Vec<String>,
+    /// For a plan of two or more edits and for `discardWhatIf`: every record the plan would save,
+    /// each read against the chart as it is, so only its `record` and `op` are right. The chart's
+    /// own gate of a host's save handlers reads them; the host's function is not shown them.
+    pub needs: Vec<String>,
 }
 
 /// A task field a plan changes: the task, the field, what the session holds and what it would hold.
@@ -91,11 +95,18 @@ impl Session {
             _ => self.planned_changes(&edits),
         };
         changes.extend(self.created(plan));
+        let several = edits.len() > 1 || matches!(plan, Plan::Discard(_));
+        let needs = if several {
+            [self.field_changes(&edits), self.shaped_each(&edits)].concat()
+        } else {
+            Vec::new()
+        };
         Planned {
             kind,
             source,
             tasks: slots.into_iter().collect(),
             changes,
+            needs,
         }
     }
 
@@ -162,6 +173,11 @@ impl Session {
     /// it began. [`Session::carried`] reads each variant's values; [`Session::shaped_all`] adds the
     /// records of an edit that changes no task field.
     fn planned_changes(&self, edits: &[Edit]) -> Vec<String> {
+        [self.field_changes(edits), self.shaped_all(edits)].concat()
+    }
+
+    /// The task-field changes of `edits`, without the records [`Session::shaped_all`] adds.
+    fn field_changes(&self, edits: &[Edit]) -> Vec<String> {
         let mut fields: Vec<Field> = Vec::new();
         for edit in edits {
             if !self.describe(edit).1.iter().all(|&task| self.is_live(task)) {
@@ -176,8 +192,6 @@ impl Session {
         }
         let changed = fields.iter().filter(|f| f.2 != f.3);
         let update = |(task, field, old, new): &Field| self.task_update(*task, field, old, new);
-        let mut out: Vec<String> = changed.map(update).collect();
-        out.extend(self.shaped_all(edits));
-        out
+        changed.map(update).collect()
     }
 }
