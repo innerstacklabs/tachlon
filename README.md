@@ -4,6 +4,8 @@
 
 [Website](https://tachlon.com) · [Live demo](https://app.tachlon.com) · [Guide](https://app.tachlon.com/book/) · [npm](https://www.npmjs.com/package/tachlon)
 
+Use a current Chrome, Edge, Firefox or Safari with hardware acceleration on. A browser without WebGPU still works: the chart draws with WebGL2, and the toolbar's tooltip reads "Drawing with WebGL2" instead of "Drawing with WebGPU". On a Dell laptop with Intel graphics (Chromium 152 on Linux), WebGL2 kept a 50,000-task chart in step with a 60 Hz display; how much slower it is than WebGPU on the same machine is not measured, and Windows is not measured yet.
+
 [![npm version](https://img.shields.io/npm/v/tachlon)](https://www.npmjs.com/package/tachlon) [![MIT license](https://img.shields.io/npm/l/tachlon)](LICENSE)
 
 <!-- screencast:begin (written by demos/screencast/run.sh; do not edit by hand) -->
@@ -84,7 +86,7 @@ The package carries its own instructions, so your assistant works from the versi
 
 After a drag at 50,000 tasks, the engine reschedules in 17.8 ms, and 50,000 tasks load in 291.7 ms. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
 
-To time a file on your own machine, click the chart in the hosted app and press `s` ([open time](docs/MEASURING.md#open-time-gs87-pr-5)).
+To time how long your own file takes to open, open it in the hosted app, click the chart and press `s` ([open time](docs/MEASURING.md#open-time-gs87-pr-5)).
 
 <details>
 <summary>The measurements, next to three other charts</summary>
