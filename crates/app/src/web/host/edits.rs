@@ -59,6 +59,15 @@ impl App {
         updated_answer(self.session.host_edit(json))
     }
 
+    /// `remove_task_by_key`, answered as JSON: `{"ok":true}` or `{"ok":false,"reason":r}` (`unknownKey`, `hasChildren`,
+    /// `busy`, `noOutline`). Not an edit; the person's steps that named the row are forgotten.
+    pub fn remove_task(&mut self, key: &str) -> String {
+        match self.session.remove_task_by_key(key) {
+            Ok(()) => r#"{"ok":true}"#.to_string(),
+            Err(error) => record_refusal(error),
+        }
+    }
+
     /// `push_host_entry`, answered as JSON: `{"ok":true}` or `{"ok":false,"reason":r}` (`badToken`).
     pub fn try_push_host_entry(&mut self, token: &str) -> String {
         let pushed = self.session.push_host_entry(token);
