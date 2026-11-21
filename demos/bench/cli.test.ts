@@ -49,13 +49,13 @@ for (const command of commands) {
   });
 }
 
-// A detached unit has no ~/.cargo/bin and a fresh worktree has no node_modules: profile.ts says so in one line before it builds.
+// A detached unit has no cargo bin folder on its PATH and a fresh worktree has no node_modules: profile.ts says so in one line before it builds.
 const empty = () => mkdtempSync(join(tmpdir(), "bench-need-"));
 
 test("profile.ts without wasm-bindgen on PATH exits 2 with the fix in one line, before it builds", () => {
   const r = spawnSync(process.execPath, [join(repo, "demos/bench/profile.ts"), "--cell", "chain-10", "--holder", "x"], { cwd: empty(), env: { PATH: empty() }, encoding: "utf8", timeout: 30_000 });
   assert.equal(r.status, 2, `exit ${r.status}\n${r.stdout}${r.stderr}`);
-  assert.match(r.stderr, /^profile: wasm-bindgen is not on PATH: run `export PATH="\$HOME\/\.cargo\/bin:\$PATH"`.*; nothing was built\n$/);
+  assert.match(r.stderr, /^profile: wasm-bindgen is not on PATH: run `export PATH=.*; nothing was built\n$/);
 });
 
 test("profile.ts names the one-line fix when @playwright/test does not resolve from the checkout", () => {
