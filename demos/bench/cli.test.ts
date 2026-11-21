@@ -9,7 +9,8 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
-import { missingNeed } from "./profile.ts";
+import { dragProfile, measure, missingNeed } from "./profile.ts";
+import { parseArgs } from "./profile-format.ts";
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const MARKER = "<!-- demos/bench/cli.test.ts runs every command in the next block with --help. -->";
@@ -62,4 +63,34 @@ test("profile.ts names the one-line fix when @playwright/test does not resolve f
   const bin = empty();
   writeFileSync(join(bin, "wasm-bindgen"), "#!/bin/sh\necho wasm-bindgen 0\n", { mode: 0o755 });
   assert.equal(missingNeed({ PATH: bin }, empty()), "no @playwright/test: run pnpm install in apps/hosted or packages/gantt");
+});
+
+// `--drag` writes each run's frame-interval p95 per drag to the run folder; `--critical-only` skips the open measurement and the head drag.
+const stub = () => {
+  const urls: string[] = [];
+  let url = "";
+  const page = { goto: async (u: string) => void urls.push((url = u)), on() {}, off() {}, waitForFunction: async () => ({ jsonValue: async () => ({ drag: { p50: 5, p95: url.includes("dragTarget=head") ? 11 : 7 }, dragResponseMs: { p50: 1, p95: 2 } }) }) };
+  const open = async () => ({ baseUrl: "http://mini/", browser: { contexts: () => [{ pages: () => [page] }] }, close: async () => {} }) as any;
+  return { urls, open };
+};
+const dragArgs = (out: string, ...more: string[]) => parseArgs(["--cell", "tree4-50", "--holder", "x", "--drag", "--runs", "2", "--out", out, ...more])!;
+const p95s = (out: string, k: number) => JSON.parse(readFileSync(join(out, "run", `run-${k}`, "drag.json"), "utf8"));
+
+test("--drag leaves one frame-interval p95 per drag in each run folder", async () => {
+  const out = empty();
+  await dragProfile(dragArgs(out), [["run", "bundle"]], stub().open);
+  for (const k of [1, 2]) assert.deepEqual(p95s(out, k), { frameIntervalP95Ms: { head: 11, critical: 7 } });
+});
+
+test("--critical-only measures no open and no head drag: the stubbed driver sees only the critical drags", async () => {
+  const out = empty();
+  const { urls, open } = stub();
+  const { runs } = await measure(dragArgs(out, "--critical-only"), [["run", "bundle"]], open);
+  assert.equal(runs, undefined);
+  assert.deepEqual(urls.map((u) => u.match(/[^/]+\.html|dragTarget=\w+/g)?.join(" ")), ["index.html dragTarget=critical", "index.html dragTarget=critical"]);
+  assert.deepEqual(p95s(out, 2), { frameIntervalP95Ms: { critical: 7 } });
+});
+
+test("--critical-only needs --drag", () => {
+  assert.equal(parseArgs(["--cell", "tree4-50", "--critical-only"]), undefined);
 });

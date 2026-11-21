@@ -1,6 +1,6 @@
 // One command that shows where the time and memory go: builds (or reuses) the profile build, copies it to the Mac mini, serves it there, and opens one benchmark cell in Chromium n times. Usage and output: docs/PROFILING.md.
 //
-//   node demos/bench/profile.ts --cell chain-10000 --holder <lock name> [--runs 3] [--compare <ref>] [--out dir] [--host mini] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit]
+//   node demos/bench/profile.ts --cell chain-10000 --holder <lock name> [--runs 3] [--compare <ref>] [--out dir] [--host mini] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit] [--critical-only]
 
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -188,18 +188,35 @@ export async function dragOnce(session: Session, target: string, ghosts = 0, gro
   }
 }
 
-/** `--drag`: the head-task and critical-path drags of each bundle, `a.runs` times, interleaved. */
+/** `--drag`: the head-task and critical-path drags of each bundle (`--critical-only`: the critical-path drag alone), `a.runs` times, interleaved. Each run's folder gets `drag.json`: the p95 of each drag's frame intervals, in ms. */
 export const dragProfile = (a: Args, bundles: [string, string][], open: OpenSession = openSession) =>
   interleaved(a, bundles, open, async (session, label, k): Promise<DragRun> => {
-    const head = await dragOnce(session, "head", a.ghosts, a.groups, a.beforeEdit);
-    say(`${label} session ${k}/${a.runs} head drag done`);
+    const head = a.criticalOnly ? undefined : await dragOnce(session, "head", a.ghosts, a.groups, a.beforeEdit);
+    if (head) say(`${label} session ${k}/${a.runs} head drag done`);
     const critical = await dragOnce(session, "critical", a.ghosts, a.groups, a.beforeEdit);
     say(`${label} session ${k}/${a.runs} critical drag done`);
+    const dir = join(a.out, label, `run-${k}`);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "drag.json"), JSON.stringify({ frameIntervalP95Ms: { ...(head && { head: head.interval[1] }), critical: critical.interval[1] } }, null, 2) + "\n");
     return { head, critical };
   }, true);
 
+/** What `main` measures on the mini: the open runs (not with `--critical-only`) and, with `--drag`, the drags. */
+export async function measure(a: Args, bundles: [string, string][], open: OpenSession = openSession) {
+  const runs = a.criticalOnly ? undefined : await profile(a, bundles, open, !a.drag);
+  return { runs, drags: a.drag ? await dragProfile(a, bundles, open) : undefined };
+}
+
+/** The open tables of `runs` (`--memory-infra` adds the allocator table). */
+const openTables = (a: Args, runs: Map<string, Run[]>, labels: string[]): string => {
+  const sets = a.compare === null ? [runs.get("run")!] : [runs.get("before")!, runs.get("after")!];
+  const table = a.compare === null ? summaryTable(sets[0]) : compareTable(sets[0], sets[1], [labels[0], labels[1]]);
+  const clusters = a.compare === null ? "" : `${clusterTable(sets[0], sets[1], [labels[0], labels[1]])}\n\n${pairedLine(sets[0], sets[1])}`.trim();
+  return [table, clusters, a.memoryInfra ? allocatorTable(sets, labels) : ""].filter(Boolean).join("\n\n");
+};
+
 async function main(argv: string[]): Promise<number> {
-  if (argv.includes("--help")) return console.log("usage: node demos/bench/profile.ts --cell <shape>-<size> --holder <lock name> [--runs <n>] [--compare <ref>] [--out <dir>] [--host <ssh host>] [--chrome <path on the host>] [--seed <u64>] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit] [--build-only]"), 0;
+  if (argv.includes("--help")) return console.log("usage: node demos/bench/profile.ts --cell <shape>-<size> --holder <lock name> [--runs <n>] [--compare <ref>] [--out <dir>] [--host <ssh host>] [--chrome <path on the host>] [--seed <u64>] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit] [--critical-only] [--build-only]"), 0;
   // The mini's Chrome and page server have no terminal and get no SIGHUP, so a signal here runs the session's close (the same
   // one `profile` awaits), for at most 20 s, then exits 130.
   for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
@@ -209,7 +226,7 @@ async function main(argv: string[]): Promise<number> {
     });
   }
   const a = parseArgs(argv);
-  if (!a) return console.error("usage: node demos/bench/profile.ts --cell <shape>-<size> --holder <lock name> [--runs <n>] [--compare <ref>] [--out <dir>] [--host mini] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit] [--build-only]"), 64;
+  if (!a) return console.error("usage: node demos/bench/profile.ts --cell <shape>-<size> --holder <lock name> [--runs <n>] [--compare <ref>] [--out <dir>] [--host mini] [--memory-infra] [--drag] [--ghosts <n>] [--groups <k>] [--before-edit] [--critical-only] [--build-only]"), 64;
   const need = missingNeed();
   if (need) return console.error(`profile: ${need}; nothing was built`), 2;
   // The ref is resolved to a sha once, here, before anything is built or run, and printed: pass that sha as `--compare` to compare another cell against the same code.
@@ -230,14 +247,12 @@ async function main(argv: string[]): Promise<number> {
     console.error(`no session finished for ${ms / 60_000} minutes; last: ${last || "none"}`);
     void closeSoon().finally(() => process.exit(3));
   });
-  const runs = await profile(a, bundles, openSession, !a.drag).catch(stop);
-  const drags = a.drag ? await dragProfile(a, bundles).catch(stop) : undefined;
+  const { runs, drags } = await measure(a, bundles).catch(stop);
   dog.stop();
-  const [labels, sets] = a.compare === null ? [["median"], [runs.get("run")!]] : [[a.compare, "this checkout"], [runs.get("before")!, runs.get("after")!]];
-  const table = a.compare === null ? summaryTable(sets[0]) : compareTable(sets[0], sets[1], [labels[0], labels[1]]);
-  const clusters = a.compare === null ? "" : `${clusterTable(sets[0], sets[1], [labels[0], labels[1]])}\n\n${pairedLine(sets[0], sets[1])}`.trim();
-  const opens = [base === null ? "" : `baseline: ${a.compare} = ${base}`, table, clusters, a.memoryInfra ? allocatorTable(sets, labels) : ""].filter(Boolean).join("\n\n");
-  const text = drags ? `${opens}\n\n${a.groups > 0 ? `drag fixture: grouped by Phase, ${a.groups} groups\n\n` : ""}${a.compare === null ? dragTable(drags.get("run")!, undefined, ["median"]) : dragTable(drags.get("before")!, drags.get("after")!, [labels[0], labels[1]])}` : opens;
+  const labels = a.compare === null ? ["median"] : [a.compare, "this checkout"];
+  const opens = [base === null ? "" : `baseline: ${a.compare} = ${base}`, runs && openTables(a, runs, labels)].filter(Boolean).join("\n\n");
+  const drag = drags && `${a.groups > 0 ? `drag fixture: grouped by Phase, ${a.groups} groups\n\n` : ""}${a.compare === null ? dragTable(drags.get("run")!, undefined, ["median"]) : dragTable(drags.get("before")!, drags.get("after")!, [labels[0], labels[1]])}`;
+  const text = [opens, drag].filter(Boolean).join("\n\n");
   writeFileSync(join(a.out, "summary.md"), `${text}\n`);
   console.log(text);
   return 0;
