@@ -1,7 +1,8 @@
 //! The one place a history entry is recorded or replayed (decision 0019, rule 1): every undo step
-//! is a commit with a `seq` and a source, which a host reads from the outbox.
+//! is a commit with a `seq` and a source, which a host reads from the outbox; a discard's steps
+//! share one commit.
 
-use super::{Entry, History};
+use super::{Entry, History, task_of};
 use crate::{Session, edit::EditError, host::Pending, json::quote};
 
 /// What made a commit. A host reads the name of the variant, in lower case.
@@ -21,6 +22,13 @@ pub enum Source {
 impl History {
     fn clear(&mut self) {
         *self = Self::new(self.cap);
+    }
+
+    /// Each latest undo entry becomes the next of `inverses` on the redo stack, in order.
+    fn redo_all(&mut self, inverses: Vec<Entry>) {
+        for inverse in inverses {
+            self.move_to_redo(inverse);
+        }
     }
 }
 
@@ -73,6 +81,57 @@ impl Session {
         }
         let seq = self.record(source, &changes, &host);
         self.host.pending.push(seq, source);
+    }
+
+    /// Undo every entry past the first `depth`, newest first. A host entry is its own commit, so the
+    /// host reads its token; the entries between share one commit. `Ok(false)` during a press.
+    pub(crate) fn undo_to(&mut self, depth: usize) -> Result<bool, EditError> {
+        while self.history.undo.len() > depth {
+            let plain = |entry: &&Entry| !matches!(entry, Entry::Host(_));
+            let run = self.history.past(depth).take_while(plain).count();
+            if !(if run == 0 {
+                self.undo_step()?
+            } else {
+                self.undo_run(run)?
+            }) {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    /// Undo the latest `count` entries as one commit with source `undo`. A refusal puts back what
+    /// already ran, so nothing changes on `Err`.
+    fn undo_run(&mut self, count: usize) -> Result<bool, EditError> {
+        if self.busy() {
+            return Ok(false);
+        }
+        let from = self.history.undo.len() - count;
+        let entries: Vec<Entry> = self.history.past(from).cloned().collect();
+        let row = entries.iter().filter_map(task_of).next_back();
+        let (mut done, mut changes) = (Vec::new(), Vec::new());
+        for entry in entries {
+            match self.run_entry(entry, true) {
+                Ok((inverse, _)) => {
+                    changes.extend(self.changes_of(&inverse));
+                    done.push(inverse);
+                }
+                Err(error) => {
+                    for inverse in done.into_iter().rev() {
+                        let _ = self.run_entry(inverse, true);
+                    }
+                    return Err(error);
+                }
+            }
+        }
+        self.history.redo_all(done);
+        let seq = self.record(Source::Undo, &changes.join(","), "");
+        for _ in 0..count {
+            self.host.pending.push(seq, Source::Undo);
+        }
+        self.history.end_whatif_past_mark();
+        self.reveal_changed(row);
+        Ok(true)
     }
 
     /// Number a commit and put it in the outbox; `changes` is its changes, comma-joined, and `host`

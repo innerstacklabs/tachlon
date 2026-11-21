@@ -4,7 +4,7 @@
 
 use crate::common;
 
-use app::{Session, WhatIfError, edit::Edit};
+use app::{Session, WhatIfError, edit::Edit, edit::EditError};
 use engine::{DAY, TaskId};
 
 /// Lengthen the task that finishes last by a working day.
@@ -55,6 +55,68 @@ fn a_history_that_dropped_the_mark_cannot_be_discarded() {
     assert_eq!(session.discard_whatif(), Err(WhatIfError::Lost));
     assert!(session.solution() == &solution && session.history_len() == (2, 0));
     assert_eq!(session.keep_whatif(), Ok(()));
+}
+
+/// The commits in the outbox: `(seq, source, host token)`, oldest first.
+fn outbox(session: &mut Session) -> Vec<(u64, String, Option<String>)> {
+    let out: serde_json::Value = serde_json::from_str(&session.take_commits()).unwrap();
+    let text = |c: &serde_json::Value, key: &str| c[key].as_str().map(str::to_owned);
+    let commit = |c: &serde_json::Value| {
+        (
+            c["seq"].as_u64().unwrap(),
+            text(c, "source").unwrap(),
+            text(c, "host"),
+        )
+    };
+    out["commits"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(commit)
+        .collect()
+}
+
+fn rename(session: &mut Session, task: u32) {
+    let (task, name) = (TaskId(task), format!("n{task}"));
+    session.edit(Edit::Rename { task, name }).unwrap();
+}
+
+#[test]
+fn a_discard_is_one_commit_and_a_host_entry_in_it_keeps_its_own() {
+    let mut session = common::demo_session(60).0;
+    session.begin_whatif().unwrap();
+    rename(&mut session, 1);
+    rename(&mut session, 2);
+    session.push_host_entry("lock-7").unwrap();
+    rename(&mut session, 3);
+    rename(&mut session, 4);
+    outbox(&mut session);
+    session.discard_whatif().unwrap();
+    let sent: Vec<_> = outbox(&mut session)
+        .into_iter()
+        .map(|(_, s, h)| (s, h))
+        .collect();
+    let undo = ("undo".to_string(), None);
+    assert_eq!(
+        sent,
+        [undo.clone(), ("undo".into(), Some("lock-7".into())), undo]
+    );
+    assert_eq!(session.history_len(), (0, 5));
+}
+
+#[test]
+fn a_put_back_of_a_discard_the_cap_dropped_is_refused_whole() {
+    let mut session = common::demo_session(200).0;
+    session.begin_whatif().unwrap();
+    (0..150).for_each(|task| rename(&mut session, task));
+    let last = outbox(&mut session).last().unwrap().0;
+    session.acknowledge(last);
+    session.discard_whatif().unwrap();
+    let discard = outbox(&mut session)[0].0;
+    for _ in 0..51 {
+        assert!(session.redo().unwrap());
+    }
+    assert_eq!(session.rollback_to(discard), Err(EditError::RollbackGone));
 }
 
 #[test]

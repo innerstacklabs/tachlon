@@ -18,8 +18,8 @@ pub(crate) enum PendingKind {
 pub(crate) struct Pending(VecDeque<(u64, PendingKind)>);
 
 impl Pending {
-    /// Keep the commit `seq` made by `source`. One past [`HISTORY_CAP`] drops the oldest, and a
-    /// rollback to it then refuses.
+    /// Keep one step of the commit `seq` made by `source`; a commit that took several steps is kept once for
+    /// each. One past [`HISTORY_CAP`] drops every step of the oldest commit, and a rollback to it then refuses.
     pub(crate) fn push(&mut self, seq: u64, source: Source) {
         let kind = match source {
             Source::Undo => PendingKind::Undid,
@@ -27,7 +27,8 @@ impl Pending {
             _ => PendingKind::Pushed,
         };
         if self.0.len() >= HISTORY_CAP {
-            self.0.pop_front();
+            let oldest = self.0.front().map(|&(kept, _)| kept);
+            self.0.retain(|&(kept, _)| Some(kept) != oldest);
         }
         self.0.push_back((seq, kind));
     }
