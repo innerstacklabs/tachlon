@@ -3,6 +3,7 @@
 
 use super::{KeyTarget, update::UpdateError};
 use crate::document::json_read::{Value, parse};
+use crate::history::Gone;
 use crate::{Session, edit::EditError, json::quote, structure::NEW_TASK};
 use engine::{Pin, TaskId};
 use std::fmt::Write as _;
@@ -151,16 +152,23 @@ impl Session {
         let Some(outline) = self.outline.as_ref() else {
             return;
         };
-        let links = self.schedule.dependencies();
-        let (count, restores, reparents) = self
-            .history
-            .forget(|step| step.blocked_by_add(task, outline, links));
-        if count > 0 {
+        let (mut todo, mut rows, mut forgot) = (vec![task], Vec::new(), 0);
+        while let Some(row) = todo.pop() {
+            let (count, gone) = self
+                .history
+                .forget(|step| step.blocked_by_add(row, outline, &self.schedule));
+            forgot += count;
+            for step in gone {
+                match step {
+                    Gone::Delete(task) => todo.push(task),
+                    Gone::Reparent(task) => rows.push(task),
+                    Gone::Restore(task) if self.schedule.is_deleted(task) => rows.push(task),
+                    Gone::Restore(_) => {}
+                }
+            }
+        }
+        if forgot > 0 {
             self.host.pending.truncate(0);
-            let deleted = restores
-                .into_iter()
-                .filter(|t| self.schedule.is_deleted(*t));
-            let rows: Vec<_> = reparents.into_iter().chain(deleted).collect();
             for row in rows {
                 self.forget_row(row);
             }
@@ -174,10 +182,13 @@ impl Session {
         while let Some(gone) = rows.pop() {
             done.push(gone);
             let links = self.schedule.dependencies();
-            let (count, restores, _) = self.history.forget(|step| step.names(gone, links));
+            let (count, steps) = self.history.forget(|step| step.names(gone, links));
             forgot += count;
             let deleted = |task: &TaskId| self.schedule.is_deleted(*task) && !done.contains(task);
-            rows.extend(restores.into_iter().filter(deleted));
+            rows.extend(steps.into_iter().filter_map(|step| match step {
+                Gone::Restore(task) if deleted(&task) => Some(task),
+                _ => None,
+            }));
         }
         if forgot > 0 {
             self.host.pending.truncate(0);
