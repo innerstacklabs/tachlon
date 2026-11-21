@@ -20,6 +20,17 @@ impl App {
     pub fn export_xer(&self) -> Result<JsValue, JsError> {
         self.exported(crate::export::export_xer)
     }
+
+    /// What a Save as XER would leave out of this schedule, as a `string[]` from
+    /// `export::xer_left_out`: the activity codes, baselines and deadlines it has, each with its
+    /// task count, and nothing when it has none. Writes no file; reads the session and changes
+    /// nothing.
+    pub fn export_xer_left_out(&self) -> Array {
+        crate::export::xer_left_out(&self.session)
+            .iter()
+            .map(|s| JsValue::from_str(s))
+            .collect()
+    }
 }
 
 impl App {

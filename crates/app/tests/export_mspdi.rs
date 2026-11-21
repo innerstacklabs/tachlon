@@ -448,3 +448,31 @@ fn a_baseline_that_is_not_markup_or_not_baseline_0_is_not_reported() {
         assert!(!says_baseline(&with_baseline(baseline)), "{baseline}");
     }
 }
+
+/// The sentence in docs/IMPORT.md ("Writing an MS Project XML file"): reopened, a saved file has
+/// each task's deadline and baseline 0, and none of a P6 file's activity codes.
+#[test]
+fn a_saved_ms_project_file_reopens_with_its_deadline_and_baseline_and_no_activity_codes() {
+    let dated = "<DurationFormat>7</DurationFormat><Deadline>2026-01-12T16:00:00</Deadline>";
+    let file = BASELINED.replacen("<DurationFormat>7</DurationFormat>", dated, 1);
+    let reopen = |bytes: &[u8]| load_bytes(bytes, &ProjectSelection::Unspecified, &|| 0.0);
+    let first = reopen(file.as_bytes()).expect("loads");
+    assert!(first.deadlines[0].is_some() && first.baseline.is_some());
+    let extras = Extras {
+        name: "kept",
+        notes: &[],
+        source: None,
+    };
+    let session = open(file.as_bytes()).with_deadlines(first.deadlines.clone());
+    let saved = export_mspdi(&session, &extras).expect("exports");
+    let again = reopen(&saved.bytes).expect("reopens");
+    assert_eq!(again.deadlines, first.deadlines);
+    assert_eq!(again.baseline, first.baseline);
+
+    let coded = open(&xer::synth::write(&xer::synth::Spec::with_activities(7, 6)));
+    assert!(coded.meta().iter().any(|m| !m.activity_codes.is_empty()));
+    let saved = export_mspdi(&coded, &extras).expect("exports");
+    assert!(saved.left_out.iter().any(|l| l.contains("activity codes")));
+    let again = reopen(&saved.bytes).expect("reopens");
+    assert!(again.meta.iter().all(|m| m.activity_codes.is_empty()));
+}

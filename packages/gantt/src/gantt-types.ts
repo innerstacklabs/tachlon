@@ -185,6 +185,8 @@ export interface Gantt<F extends Fields | undefined = undefined> extends HasOn {
   snapshot(): { tasks: PlainTask[]; links: PlainLink[]; leftOut: string[]; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions };
   /** The open schedule as a P6 XER file: `bytes` and `leftOut`, one line for each thing the file cannot carry. Throws when a date cannot be written. */
   exportXer(): ExportResult;
+  /** What `exportXer` would leave out of this schedule, one line for each of the activity codes, baselines and deadlines it has, with its task count; empty when it has none. Writes no file; reads the session and changes nothing. */
+  exportXerLeftOut(): string[];
   /** The open schedule as an MS Project XML file, as `exportXer` returns it. */
   exportMspdi(): ExportResult;
   /** The schedule-quality counts of the open schedule, as the Checks panel lists them: no pass or fail, just the counts. Reads the session and changes nothing; ask it when the panel opens, not every frame. */

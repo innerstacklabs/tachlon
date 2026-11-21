@@ -78,3 +78,20 @@ test("export_names_the_download_as_save_does", async ({ g }) => {
   expect((await download).suggestedFilename()).toBe("stored name.xml");
   await expect(page.locator("#export-result")).toContainText("stored name.xml");
 });
+
+test("the_export_window_lists_what_a_p6_save_leaves_out_before_it_writes", async ({ g }) => {
+  const { page } = g;
+  await openAndRename(g);
+  await page.locator("#export-button").click();
+  await expect(page.locator("#export-result")).toHaveText("Saving as P6 XER 19.12 will leave out:");
+  await expect(page.locator("#export-left-out")).toHaveText("the activity codes on 12 tasks are not written");
+});
+
+test("the_export_window_lists_nothing_when_a_p6_save_loses_none_of_them", async ({ g }) => {
+  const { page } = g;
+  await g.open({ n: 20 });
+  await page.locator("#export-button").click();
+  await expect(page.locator("#export-dialog")).toBeVisible();
+  await expect(page.locator("#export-result")).toBeHidden();
+  await expect(page.locator("#export-left-out")).toBeHidden();
+});
