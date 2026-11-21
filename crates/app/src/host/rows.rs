@@ -3,6 +3,7 @@
 
 use super::update::UpdateError;
 use crate::{Session, edit::EditError};
+use engine::TaskId;
 
 impl Session {
     /// Delete the task that holds `key`, as a person's delete does (its links go with it, a selection on it moves
@@ -28,8 +29,17 @@ impl Session {
         self.run_delete(row, None).map_err(refuse)?;
         self.revision = revision;
         self.free_task_key(row);
-        let links = self.schedule.dependencies();
-        if self.history.forget(|step| step.names(row, links)) > 0 {
+        // A forgotten restore of a deleted row deletes that row for good, so its own steps go too, and so on.
+        let (mut rows, mut done, mut forgot) = (vec![row], Vec::new(), 0);
+        while let Some(gone) = rows.pop() {
+            done.push(gone);
+            let links = self.schedule.dependencies();
+            let (count, restores) = self.history.forget(|step| step.names(gone, links));
+            forgot += count;
+            let deleted = |task: &TaskId| self.schedule.is_deleted(*task) && !done.contains(task);
+            rows.extend(restores.into_iter().filter(deleted));
+        }
+        if forgot > 0 {
             self.host.pending.truncate(0);
         }
         Ok(())

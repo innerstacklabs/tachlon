@@ -39,13 +39,27 @@ impl Step {
 
 impl History {
     /// Drop from both stacks every entry `names` is true of (a group when any of its steps is), and answer how
-    /// many were dropped. A host token and a data-date entry stay. The what-if mark moves down by the entries
-    /// dropped below it, so a discard still undoes exactly the what-if's own steps.
-    pub(crate) fn forget(&mut self, names: impl Fn(&Step) -> bool) -> usize {
-        let dropped = |entry: &Entry| match entry {
-            Entry::Step(step) => names(step),
-            Entry::Group(steps) => steps.iter().any(&names),
-            Entry::DataDates(_) | Entry::Host(_) => false,
+    /// many were dropped and the task of every restore among them. A host token and a data-date entry stay. The
+    /// what-if mark moves down by the entries dropped below it, so a discard still undoes exactly its own steps.
+    pub(crate) fn forget(&mut self, names: impl Fn(&Step) -> bool) -> (usize, Vec<TaskId>) {
+        let mut restores = Vec::new();
+        let mut dropped = |entry: &Entry| {
+            let steps = match entry {
+                Entry::Step(step) => std::slice::from_ref(step),
+                Entry::Group(steps) => steps,
+                Entry::DataDates(_) | Entry::Host(_) => &[],
+            };
+            let drop = steps.iter().any(&names);
+            restores.extend(
+                steps
+                    .iter()
+                    .filter(|_| drop)
+                    .filter_map(|step| match step.edit {
+                        Edit::Restore { task, .. } => Some(task),
+                        _ => None,
+                    }),
+            );
+            drop
         };
         let mark = self.whatif.as_ref().and_then(|mark| mark.depth);
         let held = self.undo.len() + self.redo.len();
@@ -60,6 +74,6 @@ impl History {
         if let Some(mark) = &mut self.whatif {
             mark.depth = mark.depth.map(|depth| depth - below);
         }
-        held - self.undo.len() - self.redo.len()
+        (held - self.undo.len() - self.redo.len(), restores)
     }
 }

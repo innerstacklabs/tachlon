@@ -220,3 +220,50 @@ fn a_group_that_touched_the_row_is_forgotten_whole() {
     assert_eq!(s.undo(), Ok(true));
     assert_eq!(name(&s, D), "D");
 }
+
+/// A person's insert of a row `Y` (slot 6) after C, on `keyed()` with A renamed first.
+fn inserted_after_c() -> Session {
+    let mut s = keyed();
+    rename(&mut s, A, "a1");
+    let place = Place {
+        parent: None,
+        after: Some(C),
+    };
+    s.edit(Edit::Insert {
+        place,
+        name: "Y".into(),
+    })
+    .unwrap();
+    s
+}
+
+#[test]
+fn a_row_deleted_after_the_removed_one_loses_its_older_steps_too() {
+    let mut s = keyed();
+    rename(&mut s, A, "a1");
+    rename(&mut s, D, "d1");
+    s.edit(Edit::Delete { task: D }).unwrap();
+    s.remove_task_by_key("t3").unwrap();
+    assert_eq!(s.undo(), Ok(true));
+    assert_eq!((name(&s, A), s.history_len()), ("A", (0, 1)));
+}
+
+#[test]
+fn a_row_inserted_and_deleted_after_the_removed_one_loses_its_insert_step() {
+    let mut s = inserted_after_c();
+    s.edit(Edit::Delete { task: TaskId(6) }).unwrap();
+    s.remove_task_by_key("t3").unwrap();
+    assert_eq!(s.undo(), Ok(true));
+    assert_eq!((name(&s, A), s.history_len()), ("A", (0, 1)));
+}
+
+#[test]
+fn an_undone_insert_after_the_removed_row_loses_its_redo_steps() {
+    let mut s = inserted_after_c();
+    rename(&mut s, TaskId(6), "y1");
+    assert!(s.undo().unwrap() && s.undo().unwrap());
+    s.remove_task_by_key("t3").unwrap();
+    assert_eq!((s.redo(), s.history_len()), (Ok(false), (1, 0)));
+    assert_eq!(s.undo(), Ok(true));
+    assert_eq!(name(&s, A), "A");
+}
