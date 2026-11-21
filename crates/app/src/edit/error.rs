@@ -140,8 +140,8 @@ pub enum EditError {
 }
 
 impl EditError {
-    /// Whether the refusal is about the rows as they are now, so a history step it refuses cannot
-    /// apply until they change. A refusal of the view, the mode, a gesture or the host is not.
+    /// Whether the refusal is about the schedule data as it is now, so a history step it refuses
+    /// cannot apply until that changes. A refusal of the view, the mode, a gesture or the host is not.
     pub(crate) fn is_data(&self) -> bool {
         matches!(
             self,
@@ -157,6 +157,7 @@ impl EditError {
                 | Self::UnknownLink(_)
                 | Self::HasActuals
                 | Self::ProgressOnSummary { .. }
+                | Self::NoBaseline
         )
     }
 

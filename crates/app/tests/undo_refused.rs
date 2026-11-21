@@ -175,12 +175,10 @@ fn a_view_refusal_returns_and_the_step_stays_until_the_view_is_off() {
 #[test]
 fn two_dropped_steps_then_an_applied_one_report_once_and_carry_two() {
     let mut s = built();
-    let c = TaskId(3);
-    let d = TaskId(4);
-    set_progress(&mut s, c);
-    set_progress(&mut s, d);
-    give_child(&mut s, c);
-    give_child(&mut s, d);
+    set_progress(&mut s, A);
+    set_progress(&mut s, E);
+    give_child(&mut s, A);
+    give_child(&mut s, E);
     let texts = r#"{"stepGoneMany":"{count} Schritte gingen verloren"}"#;
     let locale = format!(
         r#"{{"months":{:?},"weekdays":{:?},"weekStart":0,"texts":{texts}}}"#,
@@ -191,7 +189,10 @@ fn two_dropped_steps_then_an_applied_one_report_once_and_carry_two() {
     let pressed = s.undo_counted().unwrap();
     assert!(pressed.applied);
     assert_eq!(pressed.dropped, 2);
-    assert_eq!(pressed.report, Some("2 Schritte gingen verloren".to_string()));
+    assert_eq!(
+        pressed.report,
+        Some("2 Schritte gingen verloren".to_string())
+    );
     assert_eq!(s.meta()[E.0 as usize].name, "E");
 
     let pressed = s.redo_counted().unwrap();

@@ -17,6 +17,7 @@ use crate::{
 pub(crate) use changes::link_create;
 pub use commit::Source;
 use engine::{Instant, ScheduleError, TaskId};
+pub use replay::Pressed;
 use std::collections::VecDeque;
 
 /// Most steps the history keeps; the oldest is dropped past it.
@@ -299,15 +300,13 @@ impl Session {
 
     /// Undo the latest recorded edit. Returns false when none is available or while a bar press or
     /// a link drag is in flight. A step the engine refuses now is dropped and the press goes on to
-    /// the next, so Undo never sticks.
+    /// the next; applying it returns true. [`Session::undo_counted`] carries the count and report.
     ///
     /// # Errors
     /// [`EditError::StepGone`] when the press dropped a step and found none left to undo, or the
     /// gate's refusal ([`EditError::ReadOnly`] while the chart is read-only).
     pub fn undo(&mut self) -> Result<bool, EditError> {
-        self.press(Source::Undo, |s| {
-            s.gate(&Plan::Replay("undo", Source::Undo))
-        })
+        self.undo_counted().map(|pressed| pressed.applied)
     }
 
     /// [`Session::undo`] after the gate has run, for an action that undoes several steps.
@@ -331,9 +330,7 @@ impl Session {
     /// # Errors
     /// As [`Session::undo`].
     pub fn redo(&mut self) -> Result<bool, EditError> {
-        self.press(Source::Redo, |s| {
-            s.gate(&Plan::Replay("redo", Source::Redo))
-        })
+        self.redo_counted().map(|pressed| pressed.applied)
     }
 
     /// Whether the undo, redo or discard `plan` describes replays a data-date step, which holds no
