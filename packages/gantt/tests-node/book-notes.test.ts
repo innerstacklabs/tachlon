@@ -1,4 +1,4 @@
-// The import-notes section of the book's open page quotes the panel heading as `apps/chrome/src/unsupported.ts` writes it, and each note it quotes starts with
+// The import-notes section of the open guide file quotes the panel heading as `apps/chrome/src/unsupported.ts` writes it, and each note it quotes starts with
 // words a format string in the importer or the loader writes (numbers and link kinds read as `{}`). Read as text.
 import { readdirSync, readFileSync } from "node:fs";
 import { test } from "node:test";
@@ -9,7 +9,7 @@ const read = (path: string): string => readFileSync(new URL(path, root), "utf8")
 const shape = (text: string): string => text.replace(/\{[^}]*\}|\b\d+\b|\b(?:FS|SS|FF|SF)\b/g, "{}").replace(/\{\}(, \{\})+/g, "{}");
 
 test("the_book_quotes_the_panel_heading_and_the_notes_as_the_code_writes_them", () => {
-  const section = read("book/src/open-a-schedule.md").split(/^## /m).find((part) => part.startsWith("What the panel says"));
+  const section = read("packages/gantt/guide/open.md").split(/^## /m).find((part) => part.startsWith("What the panel says"));
   expect(section, "the section is found").toBeDefined();
   const [lead, ...items] = section!.split("\n- ");
   const heading = /"([^"\n]+)"/.exec(lead!)?.[1];
