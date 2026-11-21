@@ -9,7 +9,7 @@ use crate::document::fields::fields_allowing;
 use crate::document::json_read::{Value, parse_streaming};
 use crate::press::{Before, Press};
 use crate::texts::{self as t, Text};
-use crate::{Session, edit::Edit, edit::EditError};
+use crate::{Session, edit::Edit, edit::EditError, edit::day_minutes};
 use engine::TaskId;
 
 /// One thing a host can turn off: a gesture, or a group of fields. Every [`Edit`] is in one group.
@@ -133,6 +133,18 @@ fn group(edit: &Edit) -> Item {
 }
 
 impl Session {
+    /// The start `task` gets from a drag that asks for `at`, as a start the host stores.
+    pub(crate) fn snap_move(&self, task: TaskId, at: i64) -> i64 {
+        let calendar = self.schedule.calendar_of(task);
+        self.host.capabilities.stores.snap_start(calendar, at)
+    }
+
+    /// The duration `task` gets from a drag that asks for `minutes`, as a whole step the host stores.
+    pub(crate) fn snap_length(&self, task: TaskId, minutes: i64) -> i64 {
+        let stores = self.host.capabilities.stores;
+        stores.snap_length(minutes, || day_minutes(self.schedule.calendar_of(task)))
+    }
+
     /// Tell the chart what the host's database can take, replacing any profile it had; `{}` allows
     /// everything. A change the profile turned off is refused at the gate on every path, undo and
     /// redo included, with [`EditError::NotAllowed`]. `reopen` keeps the profile.

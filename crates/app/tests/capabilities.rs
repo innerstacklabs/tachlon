@@ -105,14 +105,12 @@ fn per_task_refuses_a_second_limit_and_a_bar_move_beside_one() {
 }
 
 #[test]
-fn hours_refuse_a_part_hour_duration_lag_and_resize_and_days_a_part_day() {
+fn hours_refuse_a_part_hour_duration_and_lag_and_days_a_part_day() {
     let mut s = host(450, HOURS);
     let before = state(&s);
     assert_eq!(s.edit(longer(90)), Err(stores("durations in whole hours")));
     let lag = s.set_link_text(DepId(0), "FS+30m");
     assert_eq!(lag, Err(stores("lags in whole hours")));
-    let said = "Saving allows durations in whole hours.";
-    assert_eq!(dragged_by(&mut s, true, 100.0), (false, Some(said.into())));
     assert_eq!(state(&s), before);
     s.edit(longer(120)).unwrap();
     s.set_link_text(DepId(0), "FS+2h").unwrap();
@@ -459,4 +457,62 @@ fn reopen_keeps_the_profile() {
     let (schedule, solution) = (s.schedule().clone(), s.solution().clone());
     let fresh = s.reopen(schedule, solution, order, meta, None, None, Origin::DEMO);
     assert_eq!(fresh.unwrap().insert_below_selection().map(drop), Err(ROWS));
+}
+
+/// Task 2 on a day of `day` working minutes from 08:00, starting at `start`, under the profile `json`: its
+/// finish edge pressed and dragged to the minute `to`, and the duration it ends with.
+fn stretched(day: u16, start: i64, to: f64, json: &str) -> i64 {
+    let mut s = session_on(&[(480, 480 + day)]);
+    let (task, snet) = (TaskId(2), Some(start));
+    s.edit(Edit::Move { task, snet }).unwrap();
+    s.set_capabilities(json).unwrap();
+    let (_, y) = on(&s, 2);
+    let finish = s.solution().dates[2].ef as f64;
+    let v = &s.timeline().viewport;
+    let (edge, target) = (v.x_of(finish) - 6.0, v.x_of(to));
+    s.pointer_down(edge, y, false);
+    s.pointer_move(target, y);
+    s.apply_drag();
+    s.pointer_up();
+    s.schedule().tasks()[2].duration
+}
+
+#[test]
+fn a_stretch_lands_on_the_step_the_host_stores_and_a_half_step_rounds_up() {
+    let hours = r#"{"durationStep":"hours"}"#;
+    assert_eq!(stretched(220, 480, 760.0, hours), 240, "3 h 40 min");
+    assert_eq!(stretched(200, 480, 760.0, hours), 180, "3 h 20 min");
+    assert_eq!(stretched(450, 480, 760.0, hours), 480, "7 h 30 min");
+    assert_eq!(stretched(450, 910, 1000.0, hours), 60, "20 min is not none");
+    let days = r#"{"durationStep":"days"}"#;
+    assert_eq!(stretched(450, 750, 2000.0, days), 450, "1.4 days");
+    assert_eq!(stretched(450, 705, 2000.0, days), 900, "1.5 days");
+}
+
+#[test]
+fn a_milestone_dragged_to_a_time_of_day_starts_at_midnight_when_the_host_stores_whole_days() {
+    let mut s = session_on(&[(480, 930)]);
+    let (task, minutes) = (TaskId(2), 0);
+    s.edit(Edit::SetDuration { task, minutes }).unwrap();
+    s.set_capabilities(r#"{"dates":"day"}"#).unwrap();
+    let (x, y) = on(&s, 2);
+    s.pointer_down(x, y, false);
+    s.pointer_move(x + 1440.0 + 630.0, y);
+    s.apply_drag();
+    s.pointer_up();
+    assert_eq!(s.schedule().tasks()[2].snet, Some(1440));
+}
+
+#[test]
+fn a_stretch_of_a_started_task_says_it_has_started_and_not_that_the_step_is_wrong() {
+    let mut s = host(450, HOURS);
+    let progress = Edit::SetProgress {
+        task: TaskId(2),
+        actual_start: Some(480),
+        actual_finish: None,
+        remaining: Some(180),
+    };
+    s.edit(progress).unwrap();
+    let said = "C has started: change Remaining or % complete in the table to move its finish.";
+    assert_eq!(dragged_by(&mut s, true, 100.0), (false, Some(said.into())));
 }
