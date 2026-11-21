@@ -77,6 +77,7 @@ impl Session {
         if held.is_some() {
             self.forget_row(task);
         }
+        self.forget_blocked(task);
         self.revision = revision;
         Ok(task)
     }
@@ -144,6 +145,28 @@ impl Session {
         ))
     }
 
+    /// Forget the steps the add of `task` makes impossible, and with a forgotten reparent or restore the steps that
+    /// name its row, as `forget_row` does.
+    fn forget_blocked(&mut self, task: TaskId) {
+        let Some(outline) = self.outline.as_ref() else {
+            return;
+        };
+        let links = self.schedule.dependencies();
+        let (count, restores, reparents) = self
+            .history
+            .forget(|step| step.blocked_by_add(task, outline, links));
+        if count > 0 {
+            self.host.pending.truncate(0);
+            let deleted = restores
+                .into_iter()
+                .filter(|t| self.schedule.is_deleted(*t));
+            let rows: Vec<_> = reparents.into_iter().chain(deleted).collect();
+            for row in rows {
+                self.forget_row(row);
+            }
+        }
+    }
+
     /// Forget every undo and redo entry that names `row`. A forgotten restore of a deleted row deletes that row for
     /// good, so its own steps go too, and so on. When any is forgotten, the unsaved list is emptied.
     fn forget_row(&mut self, row: TaskId) {
@@ -151,7 +174,7 @@ impl Session {
         while let Some(gone) = rows.pop() {
             done.push(gone);
             let links = self.schedule.dependencies();
-            let (count, restores) = self.history.forget(|step| step.names(gone, links));
+            let (count, restores, _) = self.history.forget(|step| step.names(gone, links));
             forgot += count;
             let deleted = |task: &TaskId| self.schedule.is_deleted(*task) && !done.contains(task);
             rows.extend(restores.into_iter().filter(deleted));
