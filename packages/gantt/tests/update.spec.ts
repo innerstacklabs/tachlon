@@ -374,3 +374,16 @@ test("a React host hands 20 tasks to the component as records while one is selec
   expect((await saved(page))[2]!.name, "undo undoes the rename").toBe("Task 2");
   expect(await minutes(page, keys(20, 40)), "and leaves the 20 durations").toEqual(Array(20).fill(2400));
 });
+
+test("a React host moves the data date in place: no second start, the same day again and a bad day change nothing, and one Undo takes it back", async ({ page }) => {
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: REACT_HOST }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction(() => (window as unknown as { ready?: boolean }).ready === true, undefined, { timeout: 120_000 });
+  await page.evaluate((rows) => window.render({ tasks: rows }), tasks(3));
+  await page.waitForFunction(() => window.starts === 1, undefined, { timeout: 120_000 });
+  await page.evaluate(() => window.render({ dataDate: "2026-03-09" }));
+  await expect.poll(() => page.evaluate(() => window.upChart.state().dataDate)).toBe("2026-03-09");
+  expect(await page.evaluate(() => ({ starts: window.starts, canvases: document.querySelectorAll("canvas").length })), "the chart did not start again").toEqual({ starts: 1, canvases: 1 });
+  expect(await page.evaluate(() => [window.upChart.setData({ dataDate: "2026-03-09" }), window.upChart.setData({ dataDate: "2026-02-30" })])).toMatchObject([{ ok: true, updated: 0 }, { ok: false, reason: "badDate" }]);
+  expect(await page.evaluate(() => [window.upChart.commands.undo(), window.upChart.state().dataDate, window.upChart.commands.undo()]), "one step, and it is the data date").toEqual([true, null, false]);
+});

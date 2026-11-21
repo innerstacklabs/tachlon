@@ -8,11 +8,11 @@ const MEMBERS = ["name", "start", "constraint", "duration", "progress", ...LIMIT
 /** A member that differs from the one held; a `constraint` is an object, so it is compared by value. */
 const differs = (given: unknown, held: unknown): boolean => given !== held && JSON.stringify(given) !== JSON.stringify(held);
 
-/** The rows a host gives: either list may be left out. */
-export interface HostRows { tasks?: PlainTask[]; links?: PlainLink[] }
+/** The rows a host gives and the day they are as of: any of the three may be left out. */
+export interface HostRows { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?: string }
 
-/** `setData` of one start of the chart: `next` is the rows given, `epoch` the schedule's, and `apply` is the chart's `update`. */
-export type SetData = (next: HostRows, epoch: number, apply: (records: TaskUpdate[]) => UpdateResult) => UpdateResult;
+/** `setData` of one start of the chart: `next` is the rows given, `epoch` the schedule's, `apply` sets the records with the chart's `update`, after it has moved the data date to `day` (when there is one) with its `setDataDate`. */
+export type SetData = (next: HostRows, epoch: number, apply: (records: TaskUpdate[], day?: string) => UpdateResult) => UpdateResult;
 
 const rowsChanged = (message: string): UpdateResult => Object.freeze({ ok: false, reason: "rowsChanged", message: `Nothing changed: ${message}` });
 const same = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((text, i) => text === b[i]);
@@ -29,11 +29,17 @@ function membersByKey(tasks: readonly PlainTask[]): Map<string, readonly unknown
   return byKey;
 }
 
+/** `text` as the day `setDataDate` reads (`YYYY-MM-DD`, trimmed, a day the calendar has), or undefined. */
+const dayOf = (text: unknown): string | undefined => {
+  const day = typeof text === "string" ? text.trim() : "";
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) && new Date(`${day}T00:00:00Z`).toJSON()?.slice(0, 10) === day ? day : undefined;
+};
+
 const weak = (list: object | undefined): WeakRef<object> | undefined => list && new WeakRef(list);
 
 /** Remember the rows a start of the chart was given, at schedule `epoch`; the function answers `setData` against what it last accepted. The page's own arrays are held weakly (the chart lets them go once it has started), only to skip the same array again. */
 export function hostData(first: HostRows, epoch: number): SetData {
-  let kept = { epoch, tasks: weak(first.tasks), byKey: first.tasks && membersByKey(first.tasks), shape: shapeOf(first.tasks ?? []), links: weak(first.links), linkTexts: linkTexts(first.links ?? []) };
+  let kept = { epoch, tasks: weak(first.tasks), byKey: first.tasks && membersByKey(first.tasks), shape: shapeOf(first.tasks ?? []), links: weak(first.links), linkTexts: linkTexts(first.links ?? []), day: first.dataDate?.slice(0, 10) };
   return (next, now, apply) => {
     const old = kept.byKey;
     if (old === undefined) return rowsChanged("the chart holds no rows of yours to compare with (every task needs its own text key).");
@@ -56,8 +62,11 @@ export function hostData(first: HostRows, epoch: number): SetData {
         byKey.set(key, values.map((value, i) => (value === undefined ? was[i] : value)));
       }
     }
-    const answer = records.length === 0 ? Object.freeze({ ok: true as const, updated: 0 }) : apply(records);
-    if (answer.ok && next.tasks !== undefined) kept = { ...kept, tasks: weak(next.tasks), byKey };
+    const day = next.dataDate === undefined ? undefined : dayOf(next.dataDate);
+    if (next.dataDate !== undefined && day === undefined) return Object.freeze({ ok: false, reason: "badDate", message: "Nothing changed: write the data date as YYYY-MM-DD." });
+    const move = day !== kept.day ? day : undefined;
+    const answer = records.length === 0 && move === undefined ? Object.freeze({ ok: true as const, updated: 0 }) : apply(records, move);
+    if (answer.ok) kept = { ...kept, ...(next.tasks !== undefined && { tasks: weak(next.tasks), byKey }), ...(move !== undefined && { day: move }) };
     return answer;
   };
 }
