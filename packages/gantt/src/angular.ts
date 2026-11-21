@@ -7,7 +7,7 @@ import { liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions, type UpdateResult } from "./index.js";
 export type { Handlers, SaveContext } from "./index.js";
 
-const INPUTS = ["schedule", "document", "tasks", "links", "projectStart", "dataDate", "mustFinishBy", "calendars", "durationUnit", "dateForm", "constraintForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
+const INPUTS = ["schedule", "document", "tasks", "links", "projectStart", "mustFinishBy", "calendars", "durationUnit", "dateForm", "constraintForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
 /** Each output and the event of `Gantt.on` it emits: `(chartToggleStatus)` is `toggle-status`. The `chart` in front keeps an output apart from the DOM event of the same name: Angular also listens on the element for `change` and `select`, which an input inside the chart fires and which bubble. */
 const EVENTS = [["chartSelect", "select"], ["chartEdit", "edit"], ["chartMove", "move"], ["chartOpen", "open"], ["chartLoad", "load"], ["chartChange", "change"], ["chartError", "error"], ["chartFind", "find"], ["chartToggleStatus", "toggle-status"], ["chartChooseFile", "choose-file"], ["chartToggleKeys", "toggle-keys"]] as const satisfies readonly (readonly [string, keyof GanttEvents])[];
 ({}) as Record<(typeof EVENTS)[number][1], true> satisfies Record<keyof GanttEvents, true>; // an event of `GanttEvents` with no output here does not compile
@@ -16,8 +16,9 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 /**
  * The mount options, one input each, and an output for each event, named `chart` and the event (see `EVENTS`): `(chartSelect)` gets `{ task, key }`, `(chartMove)` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `chartFind` or `chartChooseFile` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
- * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `projectStart`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
+ * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
+ * A new `dataDate` (a day written `YYYY-MM-DD`) is set on the chart that is mounted, as `Gantt.setData({ dataDate })` does, and mounts it again only when `setData` refuses it or the input is taken away.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `records` is a new array of `Gantt.update` records: each one that arrives calls `update` on the chart that is mounted, in place, and `(update)` gets its answer, a refusal too. One that arrives while the chart starts is applied once it has, the latest only. The first value, and a value that comes with a change that mounts the chart again, is not applied: put those values in `tasks`.
@@ -79,7 +80,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (this.viewed && INPUTS.some((name) => name in changes)) this.start();
+    if (this.viewed && (INPUTS.some((name) => name in changes) || ("dataDate" in changes && !this.setDay()))) this.start();
     if ("readOnly" in changes) this.chart?.setReadOnly(this.readOnly === true);
     if ("capabilities" in changes || "save" in changes) this.chart?.setCapabilities(this.capabilities); // a `save` that gains or drops `createLink` turns link drawing on or off
     if ("records" in changes) this.send();
@@ -90,6 +91,12 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   }
   ngOnDestroy(): void {
     this.stopStart();
+  }
+
+  // A changed `dataDate` is set on the chart that is mounted; false when that cannot be (a start is pending, the day is refused or taken away), and the chart starts again.
+  private setDay(): boolean {
+    const { chart, dataDate } = this;
+    return chart !== undefined && dataDate !== undefined && chart.setData({ dataDate }).ok;
   }
 
   // `update` is synchronous, so the chart that is mounted answers at once; with none mounted (a start is pending) the start applies `records` when it has settled.

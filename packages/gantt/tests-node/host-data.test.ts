@@ -9,13 +9,14 @@ const task = (n: number, extra: object = {}): PlainTask => ({ id: n, key: `k${n}
 const rows = (): PlainTask[] => [task(1), task(2), task(3)];
 const links: PlainLink[] = [{ from: 1, to: 2 }, { from: 2, to: 3, lag: 1 }];
 
-/** A chart that has been given `tasks` and `links` at epoch 0, and the records its `update` was asked to set. */
+/** A chart that has been given `tasks`, `links` and a data date at epoch 0, the records its `update` was asked to set and the days its `setDataDate` was. */
 function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) = (records) => ({ ok: true, updated: records.length })) {
   const calls: TaskUpdate[][] = [];
-  const first = { tasks: rows(), links: links.map((link) => ({ ...link })) };
+  const days: string[] = [];
+  const first = { tasks: rows(), links: links.map((link) => ({ ...link })), dataDate: "2026-03-02T08:00" };
   const set = hostData(first, 0);
-  const apply = (records: TaskUpdate[]): UpdateResult => { calls.push(records); return typeof answer === "function" ? answer(records) : answer; };
-  return { calls, first, give: (data: { tasks?: PlainTask[]; links?: PlainLink[] }, epoch = 0) => set(data, epoch, apply) };
+  const apply = (records: TaskUpdate[], day?: string): UpdateResult => { if (records.length > 0) calls.push(records); if (day !== undefined) days.push(day); return typeof answer === "function" ? answer(records) : answer; };
+  return { calls, days, first, give: (data: { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?: string }, epoch = 0) => set(data, epoch, apply) };
 }
 
 test("only the member that differs reaches update, with the task's key", () => {
@@ -101,4 +102,32 @@ test("a chart with no rows of the host's, or a schedule opened since, refuses", 
   expect(empty({ tasks: rows() }, 0, apply)).toMatchObject({ ok: false, reason: "rowsChanged" });
   const { give } = chart();
   expect(give({ tasks: rows() }, 1)).toMatchObject({ ok: false, reason: "rowsChanged" });
+});
+
+test("a data date that differs from the one given reaches the chart once, with the rows it came with, and the day it was given sets nothing", () => {
+  const { calls, days, give } = chart();
+  expect(give({ dataDate: "2026-03-02" }), "the day of the one mounted with, whose time of day is dropped").toEqual({ ok: true, updated: 0 });
+  expect(give({ dataDate: "2026-03-09" })).toEqual({ ok: true, updated: 0 });
+  expect(give({ dataDate: " 2026-03-09 " }), "the same day again, trimmed as setDataDate trims it").toEqual({ ok: true, updated: 0 });
+  expect(days).toEqual(["2026-03-09"]);
+  expect(give({ tasks: [task(1, { duration: 5 }), task(2), task(3)], dataDate: "2026-03-10" })).toEqual({ ok: true, updated: 1 });
+  expect([calls, days]).toEqual([[[{ key: "k1", duration: 5 }]], ["2026-03-09", "2026-03-10"]]);
+});
+
+test("a data date that is not a real YYYY-MM-DD refuses the whole call by name and sets neither the rows nor the day", () => {
+  const { calls, days, give } = chart();
+  const next = [task(1, { duration: 5 }), task(2), task(3)];
+  const bad = ["2026-02-30", "2026-3-9", "", "2026-03-09T08:00", "tomorrow", 20260309, null];
+  expect(bad.map((dataDate) => give({ tasks: next, dataDate: dataDate as string }))).toEqual(bad.map(() => ({ ok: false, reason: "badDate", message: "Nothing changed: write the data date as YYYY-MM-DD." })));
+  expect([calls, days]).toEqual([[], []]);
+  expect(give({ tasks: next }), "the rows were not remembered").toEqual({ ok: true, updated: 1 });
+});
+
+test("a data date the chart refuses is offered again, not remembered", () => {
+  let refuse = true;
+  const { days, give } = chart(() => (refuse ? { ok: false, reason: "busy", message: "no" } : { ok: true, updated: 0 }));
+  expect(give({ dataDate: "2026-03-09" }).ok).toBe(false);
+  refuse = false;
+  expect(give({ dataDate: "2026-03-09" })).toEqual({ ok: true, updated: 0 });
+  expect(days).toEqual(["2026-03-09", "2026-03-09"]);
 });

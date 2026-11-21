@@ -24,8 +24,9 @@ const EVENTS = {
 /**
  * The mount options, one prop each, and a callback for each event: `onSelect({ task, key })`, `onMove({ task, key, start })` and the rest of `GanttEvents`.
  * A handler is called with the latest function the component was given. A handler for `find` or `choose-file` takes that key from the browser,
- * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `projectStart`, `dataDate`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
+ * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
  * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `tasks`, `links`, `texts` and `fonts` stable between renders.
+ * A new `dataDate` (a day written `YYYY-MM-DD`) is set on the chart that is mounted, as `Gantt.setData({ dataDate })` does, and mounts it again only when `setData` refuses it or the prop is taken away.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
@@ -47,6 +48,17 @@ function sendRecords<F extends Fields | undefined>(chart: Chart<F> | undefined, 
   if (chart !== undefined && props.records !== undefined) props.onUpdate?.(chart.update((applied.current = props.records)));
 }
 
+/** A changed `dataDate` is set on the chart that is mounted; one it refuses (`setData` holds none of your rows, or the day is not a day) or that is taken away starts the chart again (`count` goes up, and `ask` does it too). A start that is pending reads it when it has settled. */
+function useDataDate<F extends Fields | undefined>(live: { current: { chart: Chart<F> } | null }, dataDate: string | undefined): { count: number; ask: () => void } {
+  const [count, setCount] = useState(0); // the starts a `dataDate` that the chart could not take in place has asked for
+  const ask = (): void => setCount((n) => n + 1);
+  useEffect(() => {
+    const chart = live.current?.chart;
+    if (chart !== undefined && (dataDate === undefined || !chart.setData({ dataDate }).ok)) ask();
+  }, [dataDate]);
+  return { count, ask };
+}
+
 export function Gantt<F extends Fields | undefined = undefined>(props: GanttProps<F>): JSX.Element {
   const { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly, capabilities, records, className, style } = props;
   const root = useRef<HTMLDivElement>(null);
@@ -54,11 +66,9 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
   const queue = useRef<Promise<void>>(Promise.resolve());
   const live = useRef<{ chart: Chart<F>; heard: Map<string, () => void>; loaded: boolean } | null>(null);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+  const redo = useDataDate(live, dataDate);
   if (failure !== null) throw failure.error;
-
-  useEffect(() => {
-    latest.current = props;
-  });
+  useEffect(() => { latest.current = props; });
 
   // Listen for the events that have a handler (and stop for the ones that lost theirs), on the chart that is mounted. It runs as soon as `mount`
   // settles, so an event the first frames fire is not lost, and a handler added later does not make the others listen again: `load` is told to
@@ -97,7 +107,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
       live.current = { chart: started, heard: new Map(), loaded: false };
       try { started.setReadOnly(latest.current.readOnly === true), started.setCapabilities(latest.current.capabilities); } catch (error) { return setFailure({ error }); } // a change while `mount` was pending found no chart to switch; a profile the chart rejects fails like a start
       listen();
-      for (const call of [() => latest.current.onReady?.(started as Chart<F>), () => !stopped && latest.current.records !== applied.current && sendRecords(live.current?.chart, latest.current, applied)]) {
+      for (const call of [() => latest.current.onReady?.(started as Chart<F>), () => !stopped && latest.current.records !== applied.current && sendRecords(live.current?.chart, latest.current, applied), () => !stopped && latest.current.dataDate !== dataDate && redo.ask()]) {
         try { call(); } catch (error) { reportError(error); } // a handler that throws must not stall the queue the next mount waits on
       }
     });
@@ -107,7 +117,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
       live.current = null;
       started?.destroy();
     };
-  }, [schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts]);
+  }, [schedule, document, tasks, links, projectStart, redo.count, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts]);
 
   // `readOnly` switches the chart that is mounted and never mounts it again; a chart that mounts later starts on the latest value.
   useEffect(() => live.current?.chart.setReadOnly(readOnly === true), [readOnly]);

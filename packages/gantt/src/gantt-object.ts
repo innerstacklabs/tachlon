@@ -75,8 +75,9 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     if (answer.ok) taken?.commit();
     return answer;
   };
+  const commands = guardCommands(createCommands(shell, p.reason, p.busy), () => destroyed);
   return {
-    commands: guardCommands(createCommands(shell, p.reason, p.busy), () => destroyed),
+    commands,
     open: async (file, options) => {
       alive();
       await p.openFile(file, options);
@@ -208,7 +209,12 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     setData: (data) => {
       alive();
       const custom = { tasks: p.fields.custom.take("tasks", data.tasks), links: p.fields.custom.take("links", data.links) };
-      const answer = p.setData(p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), shell.status().epoch, (records) => update(app, p.busy, p.unit, p.dateForm, records, p.wrote));
+      const rows = { ...p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), dataDate: data.dataDate };
+      const answer = p.setData(rows, shell.status().epoch, (records, day) => {
+        const moved = day === undefined ? undefined : commands.setDataDate(day);
+        if (moved !== undefined && !moved.ok) return moved;
+        return records.length === 0 ? Object.freeze({ ok: true, updated: 0 }) : update(app, p.busy, p.unit, p.dateForm, records, p.wrote);
+      });
       if (answer.ok) [custom.tasks, custom.links].forEach((taken) => taken.commit());
       return answer;
     },
