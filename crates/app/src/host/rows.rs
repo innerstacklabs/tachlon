@@ -110,6 +110,18 @@ impl Session {
         Ok(())
     }
 
+    pub fn add_link_by_key(&mut self, _json: &str) -> Result<engine::DepId, UpdateError> {
+        Err(UpdateError::new("unimplemented", None, None))
+    }
+
+    pub fn set_link_by_key(&mut self, _json: &str) -> Result<(), UpdateError> {
+        Err(UpdateError::new("unimplemented", None, None))
+    }
+
+    pub fn remove_link_by_key(&mut self, _json: &str) -> Result<(), UpdateError> {
+        Err(UpdateError::new("unimplemented", None, None))
+    }
+
     /// The members of the task keyed `key` that `update_tasks` reads, as one record it takes back with no change:
     /// `key`, `name`, `duration` (working minutes), `snet` as the task holds it, the limits `snlt`, `fnet` and `fnlt`
     /// and the pins `mso` and `mfo`, each a date to the minute or `null`. `progress` is left out: a percent sets the
