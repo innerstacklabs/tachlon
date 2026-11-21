@@ -59,6 +59,33 @@ impl App {
         updated_answer(self.session.host_edit(json))
     }
 
+    /// `add_task_by_key`, answered as JSON: `{"ok":true,"task":n}` or `{"ok":false,"reason":r}` with `member` when
+    /// named. Not an edit; a key whose row a person deleted brings it back and forgets their steps that named it.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "wasm_bindgen takes an optional string by value; `Option<&str>` has no ABI"
+    )]
+    pub fn add_task(
+        &mut self,
+        json: &str,
+        parent: Option<String>,
+        after: Option<String>,
+    ) -> String {
+        match (self.session).add_task_by_key(json, parent.as_deref(), after.as_deref()) {
+            Ok(task) => format!(r#"{{"ok":true,"task":{}}}"#, task.0),
+            Err(error) => record_refusal(error),
+        }
+    }
+
+    /// `task_members`, answered as JSON: `{"ok":true,"record":{...}}`, the record `update_tasks` takes back with no
+    /// change, or `{"ok":false,"reason":"unknownKey"}`.
+    pub fn task_members(&self, key: &str) -> String {
+        match self.session.task_members(key) {
+            Ok(record) => format!(r#"{{"ok":true,"record":{record}}}"#),
+            Err(error) => record_refusal(error),
+        }
+    }
+
     /// `remove_task_by_key`, answered as JSON: `{"ok":true}` or `{"ok":false,"reason":r}` (`unknownKey`, `hasChildren`,
     /// `busy`, `noOutline`). Not an edit; the person's steps that named the row are forgotten.
     pub fn remove_task(&mut self, key: &str) -> String {

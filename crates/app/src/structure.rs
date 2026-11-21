@@ -8,30 +8,12 @@ use crate::history::{Meta, Step};
 use crate::outline::{Outline, OutlineError};
 use crate::{Session, Summaries, meta::TaskMeta};
 use engine::{CalendarId, ScheduleError, Task, TaskId};
+pub use place::Place;
+
+mod place;
 
 /// The name an inserted task starts with.
-const NEW_TASK: &str = "New task";
-
-/// Where a task sits in the outline: under `parent` (`None`: a root), after sibling `after`
-/// (`None`: first child).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Place {
-    pub parent: Option<TaskId>,
-    pub after: Option<TaskId>,
-}
-
-impl Place {
-    /// The place `task` has in `outline`.
-    pub(crate) fn of(outline: &Outline, task: TaskId) -> Place {
-        let parent = outline.parent(task);
-        let siblings = parent.map_or(outline.roots(), |parent| outline.children(parent));
-        let at = siblings.iter().position(|&sibling| sibling == task);
-        Place {
-            parent,
-            after: at.and_then(|at| at.checked_sub(1)).map(|at| siblings[at]),
-        }
-    }
-}
+pub(crate) const NEW_TASK: &str = "New task";
 
 pub(crate) type Done = Result<(Step, f64), EditError>;
 
@@ -39,27 +21,6 @@ impl Session {
     /// The number of live tasks: the slot count less the deleted ones.
     pub fn task_count(&self) -> usize {
         self.schedule.live_task_count()
-    }
-
-    /// Where a task inserted below `selected` goes: a sibling after its whole subtree, at its
-    /// level. With none, the last top-level row. A session with no outline has no place.
-    pub fn place_below(&self, selected: Option<TaskId>) -> Place {
-        let Some(outline) = self.outline.as_ref() else {
-            return Place {
-                parent: None,
-                after: None,
-            };
-        };
-        match selected.filter(|&task| self.is_live(task)) {
-            Some(task) => Place {
-                parent: outline.parent(task),
-                after: Some(task),
-            },
-            None => Place {
-                parent: None,
-                after: outline.roots().last().copied(),
-            },
-        }
     }
 
     /// Insert a task named `New task` below the selected subtree (see [`Session::place_below`]),
@@ -222,14 +183,17 @@ impl Session {
 
     /// Add a leaf named `name` at `place`: a fresh id, 1 working day of the calendar of
     /// `place.after` (else the shading calendar), no constraint, and the next activity ID
-    /// ([`import::next_activity_id`]). The new task is selected. A parent that is a leaf with a dependency is refused before anything changes.
-    /// Any later refusal leaves the slot as a tombstone, which no reader sees.
-    pub(crate) fn run_insert(&mut self, place: Place, name: &str) -> Done {
+    /// ([`import::next_activity_id`]). A parent that is a leaf with a dependency is refused before anything changes.
+    /// Any later refusal leaves the slot as a tombstone, which no reader sees. A `person`'s insert is refused while a
+    /// row filter or a grouping is on, and selects the new task; a host's names its place, and leaves the selection.
+    pub(crate) fn run_insert(&mut self, place: Place, name: &str, person: bool) -> Done {
         self.check_structural()?;
-        if self.filtering() {
+        if person && self.filtering() {
             return Err(EditError::FilterActive);
         }
-        self.refuse_grouped(EditError::InsertGrouped)?;
+        if person {
+            self.refuse_grouped(EditError::InsertGrouped)?;
+        }
         let at = self.position(place)?;
         let calendar = self.insert_calendar(place);
         let duration = day_minutes(&self.schedule.calendars()[calendar.0 as usize]);
@@ -282,15 +246,23 @@ impl Session {
         let elapsed = self.rebuild_structure(&wbs, |s| {
             let _ = s.schedule.delete_task(task);
         })?;
-        self.go_to(task.0);
+        if person {
+            self.go_to(task.0);
+        }
         self.refresh_selection();
         Ok((Step::plain(Edit::Delete { task }), elapsed))
     }
 
     /// Restore `task` at `place`. A person's restore (`meta` is `None`) takes its level from the
     /// parent `place` names; `meta`, from a history step, puts back exactly the parent and level
-    /// the task held when the step was recorded.
-    pub(crate) fn run_restore(&mut self, task: TaskId, place: Place, meta: Option<Meta>) -> Done {
+    /// the task held when the step was recorded. A host's add (`select` is false) leaves the selection.
+    pub(crate) fn run_restore(
+        &mut self,
+        task: TaskId,
+        place: Place,
+        meta: Option<Meta>,
+        select: bool,
+    ) -> Done {
         self.check_structural()?;
         if task.0 as usize >= self.schedule.tasks().len() {
             return Err(ScheduleError::UnknownTask(task).into());
@@ -329,7 +301,9 @@ impl Session {
         })?;
         // Selected only while visible: a row filter hides some restored tasks, and `go_to`
         // refuses those without touching the filter or the selection.
-        self.go_to(task.0);
+        if select {
+            self.go_to(task.0);
+        }
         self.refresh_selection();
         // Undoing this restore puts back the parent and level the tombstone held before it.
         let inverse = Step {
