@@ -16,7 +16,7 @@ const PENDING = new Set([
   "6 a server recalculation", "7 an outside change during a save", "8 a late result", "9 an old read", "10 a lost response", "11 a failure part of the way",
   "12 undo across the server", "13 the server is away", "14 discard", "15 repeats off", "16 the host's own names",
   "17 a server that ignores the key, keys chart", "17 a server that ignores the key, keys server", "21 a 500 that applied nothing", "22 an expired login",
-  "24 a 503 part of the way", "25 a create the server cannot repeat", "26 a missing handler",
+  "24 a 503 part of the way", "25 a create the server cannot repeat",
 ]);
 
 const scenarios = SCENARIOS.map((s) => ({ ...s, forms: FORMS.filter((f) => !SKIP[f].includes(s.n) && !s.not?.includes(f)) }));
