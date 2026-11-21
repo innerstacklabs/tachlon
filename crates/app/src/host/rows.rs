@@ -3,6 +3,7 @@
 
 use super::{KeyTarget, update::UpdateError};
 use crate::document::json_read::{Value, parse};
+use crate::history::Gone;
 use crate::{Session, edit::EditError, json::quote, structure::NEW_TASK};
 use engine::{Pin, TaskId};
 use std::fmt::Write as _;
@@ -77,6 +78,7 @@ impl Session {
         if held.is_some() {
             self.forget_row(task);
         }
+        self.forget_blocked(task);
         self.revision = revision;
         Ok(task)
     }
@@ -144,6 +146,35 @@ impl Session {
         ))
     }
 
+    /// Forget the steps the add of `task` makes impossible, and with a forgotten reparent or restore the steps that
+    /// name its row, as `forget_row` does.
+    fn forget_blocked(&mut self, task: TaskId) {
+        let Some(outline) = self.outline.as_ref() else {
+            return;
+        };
+        let (mut todo, mut rows, mut forgot) = (vec![task], Vec::new(), 0);
+        while let Some(row) = todo.pop() {
+            let (count, gone) = self
+                .history
+                .forget(|step| step.blocked_by_add(row, outline, &self.schedule));
+            forgot += count;
+            for step in gone {
+                match step {
+                    Gone::Delete(task) => todo.push(task),
+                    Gone::Reparent(task) => rows.push(task),
+                    Gone::Restore(task) if self.schedule.is_deleted(task) => rows.push(task),
+                    Gone::Restore(_) => {}
+                }
+            }
+        }
+        if forgot > 0 {
+            self.host.pending.truncate(0);
+            for row in rows {
+                self.forget_row(row);
+            }
+        }
+    }
+
     /// Forget every undo and redo entry that names `row`. A forgotten restore of a deleted row deletes that row for
     /// good, so its own steps go too, and so on. When any is forgotten, the unsaved list is emptied.
     fn forget_row(&mut self, row: TaskId) {
@@ -151,10 +182,13 @@ impl Session {
         while let Some(gone) = rows.pop() {
             done.push(gone);
             let links = self.schedule.dependencies();
-            let (count, restores) = self.history.forget(|step| step.names(gone, links));
+            let (count, steps) = self.history.forget(|step| step.names(gone, links));
             forgot += count;
             let deleted = |task: &TaskId| self.schedule.is_deleted(*task) && !done.contains(task);
-            rows.extend(restores.into_iter().filter(deleted));
+            rows.extend(steps.into_iter().filter_map(|step| match step {
+                Gone::Restore(task) if deleted(&task) => Some(task),
+                _ => None,
+            }));
         }
         if forgot > 0 {
             self.host.pending.truncate(0);

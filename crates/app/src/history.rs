@@ -3,6 +3,7 @@
 mod changes;
 mod commit;
 mod forget;
+pub(crate) use forget::Gone;
 mod record;
 mod rollback;
 

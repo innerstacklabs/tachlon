@@ -489,3 +489,5 @@ fn a_key_freed_by_a_remove_can_be_added_again() {
     assert_eq!((s.task_for_key("t4"), name(&s, task)), (Some(task), "D2"));
     assert!(s.schedule().is_deleted(D));
 }
+
+mod forget;
