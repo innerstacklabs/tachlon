@@ -1,11 +1,12 @@
-//! A host adds and removes a task by its key (tl#2087): the row its own data holds, or no longer holds. Neither is
-//! an edit: no gate, no undo step, no outbox commit, and `revision` stays, as `update_tasks` keeps it.
+//! A host adds and removes a task, and adds, changes and removes a link, by key (tl#2087): what its own data holds,
+//! or no longer holds. None is an edit: no gate, no undo step, no outbox commit, and `revision` stays, as
+//! `update_tasks` keeps it.
 
 use super::{KeyTarget, update::UpdateError};
 use crate::document::json_read::{Value, parse};
-use crate::history::Gone;
-use crate::{Session, edit::EditError, json::quote, structure::NEW_TASK};
-use engine::{Pin, TaskId};
+use crate::history::{Gone, Step};
+use crate::{Session, edit::Edit, edit::EditError, json::quote, structure::NEW_TASK};
+use engine::{DepId, LinkType, Minutes, Pin, TaskId};
 use std::fmt::Write as _;
 
 impl Session {
@@ -110,6 +111,104 @@ impl Session {
         Ok(())
     }
 
+    /// Add a host link (`pred`, `succ`, optional `key`, `kind` default FS, `lag` default 0); keep history and selections.
+    /// # Errors
+    /// `badJson`, `notUpdatable`, `badValue`, `noKey`, `unknownKey`, `duplicateKey`, `busy`, `alreadyLinked`, `linkCycle`, `linkToSummary`, `schedule`.
+    pub fn add_link_by_key(&mut self, json: &str) -> Result<DepId, UpdateError> {
+        let record = link_record(json)?;
+        let (pred, succ) = self.link_ends(&record)?;
+        let (kind, lag) = link_shape(&record)?;
+        let key = text(&record, "key")?;
+        if key.is_some_and(|key| self.host_keys().link(key).is_some()) {
+            return Err(UpdateError::new("duplicateKey", None, Some("key")));
+        }
+        let (revision, selected) = (self.revision, self.links.selected);
+        let added = self.run_add_link(pred, succ, kind.unwrap_or(LinkType::FS), lag.unwrap_or(0));
+        (self.revision, self.links.selected) = (revision, selected);
+        added.map_err(|e| refuse(&e))?;
+        let dep = self.link_between(pred, succ)?;
+        if let Some(key) = key {
+            self.assign_key(KeyTarget::Link(dep), key)
+                .map_err(|e| refuse(&e))?;
+        }
+        // A person's older link on this pair stays dead: every step on it is forgotten, as a replay of the
+        // Undo of its removal would leave two live links on the pair.
+        let links = self.schedule.dependencies();
+        let old =
+            |old: DepId| (links[old.0 as usize].pred, links[old.0 as usize].succ) == (pred, succ);
+        let stale = |step: &Step| match step.edit {
+            Edit::RestoreLink { dep: d }
+            | Edit::RemoveLink { dep: d }
+            | Edit::SetLink { dep: d, .. } => d != dep && old(d),
+            _ => false,
+        };
+        if self.history.forget(stale).0 > 0 {
+            self.host.pending.truncate(0);
+        }
+        Ok(dep)
+    }
+
+    /// Set a host link by `key`, else `pred` and `succ`; omitted `kind` or `lag` stays. History and selections stay.
+    /// # Errors
+    /// `badJson`, `notUpdatable`, `badValue`, `noKey`, `unknownKey`, `unknownLink`, `busy`, `alreadyLinked`, `linkCycle`, `linkToSummary`, `schedule`.
+    pub fn set_link_by_key(&mut self, json: &str) -> Result<(), UpdateError> {
+        let record = link_record(json)?;
+        let dep = self.link_named(&record)?;
+        let (kind, lag) = link_shape(&record)?;
+        let link = self.schedule.dependencies()[dep.0 as usize];
+        let (kind, lag) = (kind.unwrap_or(link.kind), lag.unwrap_or(link.lag));
+        let revision = self.revision;
+        let done = self.run_set_link(dep, kind, lag, false);
+        self.revision = revision;
+        done.map(|_| ()).map_err(|e| refuse(&e))
+    }
+
+    /// Remove a host link by `key`, else its ends, freeing its key; an already removed link keeps its key and Undo.
+    /// # Errors
+    /// `badJson`, `notUpdatable`, `noKey`, `unknownKey`, `unknownLink`, `busy`, `schedule`.
+    pub fn remove_link_by_key(&mut self, json: &str) -> Result<(), UpdateError> {
+        let record = link_record(json)?;
+        let dep = self.link_named(&record)?;
+        if !self.schedule.is_dependency_live(dep) {
+            return Ok(());
+        }
+        let (revision, selected) = (self.revision, self.links.selected);
+        self.run_remove_link(dep).map_err(|e| refuse(&e))?;
+        (self.revision, self.links.selected) = (revision, selected.filter(|&was| was != dep));
+        self.free_link_key(dep);
+        Ok(())
+    }
+
+    fn link_ends(&self, record: &Value) -> Result<(TaskId, TaskId), UpdateError> {
+        let end = |member| {
+            let key = text(record, member)?;
+            let key = key.ok_or_else(|| UpdateError::new("noKey", None, Some(member)))?;
+            self.task_for_key(key)
+                .ok_or_else(|| UpdateError::new("unknownKey", None, Some(member)))
+        };
+        Ok((end("pred")?, end("succ")?))
+    }
+
+    fn link_between(&self, pred: TaskId, succ: TaskId) -> Result<DepId, UpdateError> {
+        self.schedule
+            .live_dependencies()
+            .find(|(_, link)| (link.pred, link.succ) == (pred, succ))
+            .map(|(dep, _)| dep)
+            .ok_or_else(|| UpdateError::new("unknownLink", None, None))
+    }
+
+    /// A key can name a removed link, so a repeated remove leaves its Undo intact.
+    fn link_named(&self, record: &Value) -> Result<DepId, UpdateError> {
+        if let Some(key) = text(record, "key")? {
+            return self
+                .host_keys()
+                .link(key)
+                .ok_or_else(|| UpdateError::new("unknownKey", None, Some("key")));
+        }
+        let (pred, succ) = self.link_ends(record)?;
+        self.link_between(pred, succ)
+    }
+
     /// The members of the task keyed `key` that `update_tasks` reads, as one record it takes back with no change:
     /// `key`, `name`, `duration` (working minutes), `snet` as the task holds it, the limits `snlt`, `fnet` and `fnlt`
     /// and the pins `mso` and `mfo`, each a date to the minute or `null`. `progress` is left out: a percent sets the
@@ -194,4 +293,50 @@ impl Session {
             self.host.pending.truncate(0);
         }
     }
+}
+
+const LINK_MEMBERS: [&str; 5] = ["key", "pred", "succ", "kind", "lag"];
+
+fn refuse(error: &EditError) -> UpdateError {
+    UpdateError::new(error.kind(), None, None)
+}
+
+/// A link record: one object that holds no member but `LINK_MEMBERS`.
+fn link_record(json: &str) -> Result<Value<'_>, UpdateError> {
+    let record = parse(json).ok().filter(|r| matches!(r, Value::Object(_)));
+    let record = record.ok_or_else(|| UpdateError::new("badJson", None, None))?;
+    if let Value::Object(members) = &record
+        && let Some((name, _)) = members
+            .iter()
+            .find(|(name, _)| !LINK_MEMBERS.contains(&&**name))
+    {
+        return Err(UpdateError::new("notUpdatable", None, Some(name)));
+    }
+    Ok(record)
+}
+
+/// The non-empty string member `member`, `None` when left out; any other value is `badValue`.
+fn text<'a>(record: &'a Value, member: &str) -> Result<Option<&'a str>, UpdateError> {
+    match record.get(member).map(Value::as_str) {
+        None => Ok(None),
+        Some(Some(text)) if !text.is_empty() => Ok(Some(text)),
+        _ => Err(UpdateError::new("badValue", None, Some(member))),
+    }
+}
+
+/// The `kind` and `lag` a link record sets, each `None` when it leaves the member out.
+fn link_shape(record: &Value) -> Result<(Option<LinkType>, Option<Minutes>), UpdateError> {
+    let bad = |member| UpdateError::new("badValue", None, Some(member));
+    let kind = match record.get("kind").map(Value::as_str) {
+        None => None,
+        Some(Some("FS")) => Some(LinkType::FS),
+        Some(Some("SS")) => Some(LinkType::SS),
+        Some(Some("FF")) => Some(LinkType::FF),
+        Some(Some("SF")) => Some(LinkType::SF),
+        Some(_) => return Err(bad("kind")),
+    };
+    let lag = record
+        .get("lag")
+        .map(|lag| lag.as_int().ok_or_else(|| bad("lag")));
+    Ok((kind, lag.transpose()?))
 }

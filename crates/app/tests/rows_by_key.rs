@@ -491,3 +491,4 @@ fn a_key_freed_by_a_remove_can_be_added_again() {
 }
 
 mod forget;
+mod links;

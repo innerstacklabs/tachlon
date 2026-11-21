@@ -95,6 +95,24 @@ impl App {
         }
     }
 
+    /// Add a host link record without an edit: `{"ok":true,"link":n}` or a record refusal.
+    pub fn add_link_by_key(&mut self, json: &str) -> String {
+        let added = self.session.add_link_by_key(json);
+        added.map_or_else(record_refusal, |dep| {
+            format!(r#"{{"ok":true,"link":{}}}"#, dep.0)
+        })
+    }
+
+    /// Set a host link record without an edit: `{"ok":true}` or a record refusal.
+    pub fn set_link_by_key(&mut self, json: &str) -> String {
+        link_answer(self.session.set_link_by_key(json))
+    }
+
+    /// Remove a host link without an edit: `{"ok":true}` or a record refusal.
+    pub fn remove_link_by_key(&mut self, json: &str) -> String {
+        link_answer(self.session.remove_link_by_key(json))
+    }
+
     /// `push_host_entry`, answered as JSON: `{"ok":true}` or `{"ok":false,"reason":r}` (`badToken`).
     pub fn try_push_host_entry(&mut self, token: &str) -> String {
         let pushed = self.session.push_host_entry(token);
@@ -169,6 +187,10 @@ fn updated_answer(result: Result<Updated, UpdateError>) -> String {
     let more = (!list.is_empty()).then(|| format!(r#","differs":[{list}]"#));
     let (tasks, more) = (done.tasks, more.unwrap_or_default());
     format!(r#"{{"ok":true,"updated":{tasks}{more}}}"#)
+}
+
+fn link_answer(done: Result<(), UpdateError>) -> String {
+    done.map_or_else(record_refusal, |()| r#"{"ok":true}"#.to_string())
 }
 
 /// `{"ok":false,"reason":"<kind>"}`, with `"record":n` and `"member":m` when the refusal names them.

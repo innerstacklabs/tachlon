@@ -223,6 +223,13 @@ impl Session {
             self.host.keys.release(Kind::Task, &key);
         }
     }
+
+    /// Free the key link `dep` holds, so a host can give it to another link.
+    pub(crate) fn free_link_key(&mut self, dep: DepId) {
+        if let Some(key) = self.host.keys.link_key(dep).map(str::to_owned) {
+            self.host.keys.release(Kind::Link, &key);
+        }
+    }
 }
 
 /// The record a key is handed to, by session slot.
