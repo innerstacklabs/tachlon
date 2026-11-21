@@ -80,7 +80,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   ngOnChanges(changes: SimpleChanges): void {
     if (this.viewed && INPUTS.some((name) => name in changes)) this.start();
     if ("readOnly" in changes) this.chart?.setReadOnly(this.readOnly === true);
-    if ("capabilities" in changes) this.chart?.setCapabilities(this.capabilities);
+    if ("capabilities" in changes || "save" in changes) this.chart?.setCapabilities(this.capabilities); // a `save` that gains or drops `createLink` turns link drawing on or off
     if ("records" in changes) this.send();
   }
   ngAfterViewInit(): void {

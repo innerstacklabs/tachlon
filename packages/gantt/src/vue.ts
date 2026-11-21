@@ -2,7 +2,7 @@
 // mount options as props and emits the chart's events. It uses only what the entry exports, `mount` and its types, imported by relative path, so
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { camelize, defineComponent, getCurrentInstance, h, onBeforeUnmount, onMounted, onUpdated, shallowRef, toHandlerKey, watch, type PropType } from "vue";
-import { liveSave } from "./save-queue.js";
+import { drawsLinks, liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions, type UpdateResult } from "./index.js";
 export type { Handlers, SaveContext } from "./index.js";
 
@@ -99,7 +99,7 @@ const component = defineComponent({
     watch(() => [props.schedule, props.document, props.tasks, props.links, props.dataDate, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.records], (now, before) => (now.slice(0, -1).some((value, i) => value !== before[i]) ? start() : send(props.records))); // `records` is last: any other prop that changed mounts again, in whatever order the host wrote them
     // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
-    watch(() => props.capabilities, (profile) => live?.chart.setCapabilities(profile));
+    watch(() => [props.capabilities, drawsLinks(props.save)], ([profile]) => live?.chart.setCapabilities(profile as MountOptions["capabilities"]));
     onUpdated(listen);
     onBeforeUnmount(() => stopStart());
     return () => {
