@@ -2,6 +2,7 @@
 
 mod changes;
 mod commit;
+mod forget;
 mod record;
 mod rollback;
 

@@ -216,6 +216,13 @@ impl Session {
             .task(key)
             .filter(|&task| !self.schedule.is_deleted(task))
     }
+
+    /// Free the key `task` holds, so a host can give it to another record: a row it removed comes back by no undo.
+    pub(crate) fn free_task_key(&mut self, task: TaskId) {
+        if let Some(key) = self.meta[task.0 as usize].key.take() {
+            self.host.keys.release(Kind::Task, &key);
+        }
+    }
 }
 
 /// The record a key is handed to, by session slot.
