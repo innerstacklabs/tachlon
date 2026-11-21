@@ -125,12 +125,12 @@ fn plans() -> Vec<(Planned, String)> {
 #[test]
 #[rustfmt::skip]
 fn each_whole_before_edit_argument_and_save_argument_stays_byte_for_byte_as_on_main() {
-    let shown = plans();
-    let paste = [r#"{"record":"task","key":null,"task":6,"op":"create","fields":{"name":"X"}}"#, r#"{"record":"task","key":null,"task":7,"op":"create","fields":{"name":"Y"}}"#];
-    assert_eq!(shown.iter().map(|(p, _)| (p.kind, p.source, p.tasks.clone())).collect::<Vec<_>>(), [("group", Source::Typed, vec![0, 1, 2, 3]), ("undo", Source::Undo, vec![0, 1, 2, 3]), ("redo", Source::Redo, vec![0, 1, 2, 3]), ("insertMany", Source::Paste, vec![]), ("undo", Source::Undo, vec![6, 7]), ("delete", Source::Typed, vec![2]), ("delete", Source::Typed, vec![3]), ("discardWhatIf", Source::Undo, vec![2, 3])]);
-    assert_eq!(shown.iter().map(|(p, _)| p.changes.len()).collect::<Vec<_>>(), [0, 0, 0, 2, 0, 3, 2, 0]);
-    assert_eq!(shown[3].0.changes, paste);
-    for (plan, saved) in [&shown[5], &shown[6]] { assert!(saved.contains(&format!(r#""changes":[{}]"#, plan.changes.join(","))), "{}: {saved}", plan.kind); }
+    let expected = include_str!("fixtures/before_edit_main_pins.txt").lines().collect::<Vec<_>>();
+    let actual = plans().into_iter().enumerate().map(|(n, (plan, saved))| {
+        // `needs` is intentionally omitted; the next test covers it.
+        format!("PIN {} Planned {{ kind: {:?}, source: {:?}, tasks: {:?}, changes: {:?} }} || {saved}", n + 1, plan.kind, plan.source, plan.tasks, plan.changes)
+    }).collect::<Vec<_>>();
+    assert_eq!(actual, expected);
 }
 
 #[test]
