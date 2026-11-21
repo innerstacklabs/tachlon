@@ -6,7 +6,7 @@
 ## By hand
 
 {{#include ../../packages/gantt/guide/baseline.md:set}}
-On this page, press **Baseline** in the toolbar: the button's tooltip confirms it. The button stays pressed, and a **Clear baseline** button appears beside it. A P6 XER file opens with no baseline: press **Baseline**, or compare with an earlier file.
+On this page, press **Baseline** in the toolbar: the button's tooltip confirms it. The button stays pressed, and a **Clear baseline** button appears beside it. On that file, press **Baseline**, or compare with an earlier file.
 
 {{#include ../../packages/gantt/guide/baseline.md:compare}}
 On this page, open the **Open…** menu and choose **Compare with a file...**, then choose the earlier file. Four lists under the toolbar name the tasks and the links that are only in the earlier file and those only in this one (new work), for example `A1020 Pour slab` and `A1010 → A1020 (FS)` (a link is the same in both files when its two IDs and its type are), the first 200 of each and then `and N more`; close them with the ×.

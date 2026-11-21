@@ -17,7 +17,7 @@ Try it on the [50,000-task demo schedule](/?sample=demo-50k).
 On this page, the **Filters** button in the toolbar opens the Filters panel, which holds the filters and the Lookahead. Once a baseline is set (the toolbar's **Baseline** button keeps the dates as they are now), a **Slipped** button appears in the Filters panel and keeps only the tasks that finish later than the baseline, with their summaries; a task added since the baseline is not kept.
 
 {{#include ../../packages/gantt/guide/navigate.md:filters}}
-On this page, the Filters panel has an **Activity code** choice for such a file, and a **Clear** button appears in the panel while it is on and removes the activity-code restriction; a Lookahead window that is on, and any summaries you collapsed, stay as they are. The **Show moved** button is in the Filters panel from the start, disabled until an edit moves other tasks ([Change dates and see what moved](j7-change.md)). When filters are on, the Filters button shows how many, for example `Filters · 2` with a filter and the Lookahead on. The **Lookahead** toggle in the Filters panel, with its date box and weeks box, is the Lookahead.
+On this page, the Filters panel has an **Activity code** choice for such a file. The demo has no activity codes either, so it shows no such choice. A **Clear** button appears in the panel while it is on and removes the activity-code restriction; a Lookahead window that is on, and any summaries you collapsed, stay as they are. The **Show moved** button is in the Filters panel from the start, disabled until an edit moves other tasks ([Change dates and see what moved](j7-change.md)). When filters are on, the Filters button shows how many, for example `Filters · 2` with a filter and the Lookahead on. The **Lookahead** toggle in the Filters panel, with its date box and weeks box, is the Lookahead.
 
 {{#include ../../packages/gantt/guide/navigate.md:find}}
 On this page, Ctrl+F (Cmd+F) goes to the find box in the toolbar.
@@ -37,7 +37,7 @@ the project finish, for example `Longest path: Excavate to Handover · 14 activi
 {{#include ../../packages/gantt/guide/navigate.md:copy}}
 
 {{#include ../../packages/gantt/guide/navigate.md:export}}
-On this page, open the hosted page's **Open…** menu and choose **Export the list as CSV**. **Copy the list** in the same menu does the same as `Ctrl+C`, and **Export the list as Excel** is under the CSV item.
+On this page, open the hosted page's **Open…** menu and choose **Export the list as CSV**. **Copy the list** in the same menu does the same as `Ctrl+A` then `Ctrl+C`, and **Export the list as Excel** is under the CSV item.
 
 ## Where it is checked
 

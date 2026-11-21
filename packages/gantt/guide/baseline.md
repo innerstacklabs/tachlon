@@ -9,7 +9,7 @@
 <!-- needs: call:setBaseline -->
 
 <!-- ANCHOR: set -->
-1. **Set the baseline.** Setting the baseline keeps the dates as they are now for every task. The chart confirms it, for example `Baseline set at data date 14 Oct: 59 rows`, or `Baseline set: 59 rows` when it was set with no data date, or came with a Project file. Setting it again keeps the dates as they are then in its place: the text names the data date it was set at, so after a data date move you can see that the second call took. Ctrl+Z takes the second one back, and one more Ctrl+Z the first: on a schedule that had no baseline that clears it, and on a file that came with its own it returns to that one. A Project file that carries its own Baseline 0 opens with the baseline already set. A P6 XER file opens with no baseline.
+1. **Set the baseline.** Setting the baseline keeps the dates as they are now for every task. The chart confirms it, for example `Baseline set at data date 14 Oct: 59 rows`, or `Baseline set: 59 rows` when it was set with no data date, or came with a Project file. Setting it again keeps the dates as they are then in its place: the text names the data date it was set at, so after a data date move you can see that the second one took. Ctrl+Z takes the second one back, and one more Ctrl+Z the first: on a schedule that had no baseline that clears it, and on a file that came with its own it returns to that one. A Project file that carries its own Baseline 0 opens with the baseline already set. A P6 XER file opens with no baseline.
    <!-- control: setBaseline | keeps the dates as they are now as the baseline -->
 <!-- ANCHOR_END: set -->
 
@@ -42,7 +42,7 @@ Compare with last month's file instead. Give the chart the earlier XER or MS Pro
 <!-- needs: call:setFilter -->
 
 <!-- ANCHOR: slipped -->
-6. **Keep only what slipped.** Four filters appear once a baseline is set, and they work like the others in the page on finding your way around a big schedule, one at a time: Slipped (`Shift+S`) keeps the tasks that finish later than the baseline, Joined critical the tasks that are critical now and were not, Left critical the reverse, and Float lost the tasks with five or more working days less float than the baseline. A Project file's own baseline has no float, so Float lost cannot work with it; a baseline taken from a file carries float, so Float lost works with it. Clearing the baseline hides them.
+6. **Keep only what slipped.** Four filters appear once a baseline is set, and they work like the others in the page on finding your way around a big schedule, one at a time: Slipped (`Shift+S`) keeps the tasks that finish later than the baseline, Joined critical the tasks that are critical now and were not, Left critical the reverse, and Float lost the tasks with five or more working days less float than the baseline. A Project file's own baseline has no float, so Float lost cannot work with it; a baseline taken by comparing with an earlier file carries float, so Float lost works with it. Clearing the baseline hides them.
    <!-- control: setFilter | keeps only the tasks that slipped, joined the critical path, left it or lost float since the baseline -->
 <!-- ANCHOR_END: slipped -->
 
