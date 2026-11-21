@@ -1,5 +1,6 @@
 #![expect(clippy::unwrap_used, reason = "a test's unwrap is its assertion")]
 
+use crate::history::snapshot;
 use crate::link_gesture::{link, on, session};
 use crate::read_only::longer;
 use app::{Session, WhatIfError, edit::Edit, edit::EditError, history::Source, host::Planned};
@@ -140,6 +141,33 @@ fn a_discard_needing_a_missing_link_handler_keeps_history_and_the_whatif() {
     );
     assert_eq!((s.history_len(), s.whatif_summary()), before);
     assert_eq!(commits(&mut s), json!([]));
+}
+
+#[test]
+fn a_discard_is_one_commit_and_its_put_back_takes_back_every_step() {
+    let mut s = session();
+    s.begin_whatif().unwrap();
+    for task in [0, 1] {
+        s.edit(Edit::Delete { task: TaskId(task) }).unwrap();
+    }
+    let deleted = snapshot(&s);
+    s.take_commits();
+    s.discard_whatif().unwrap();
+    let sent = commits(&mut s);
+    let sent = sent.as_array().unwrap();
+    assert_eq!(sent.len(), 1);
+    assert_eq!(sent[0]["source"], "undo");
+    let creates = |op: &str| {
+        let changes = sent[0]["changes"].as_array().unwrap().iter();
+        changes
+            .filter(|c| c["record"] == "task" && c["op"] == op)
+            .count()
+    };
+    assert_eq!(creates("create"), 2);
+    assert_eq!(s.history_len(), (0, 2));
+    s.rollback_to(sent[0]["seq"].as_u64().unwrap()).unwrap();
+    assert_eq!(snapshot(&s), deleted);
+    assert_eq!(s.history_len(), (2, 0));
 }
 
 #[test]
