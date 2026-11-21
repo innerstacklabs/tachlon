@@ -180,3 +180,11 @@ test("a holiday on the critical path moves the finish one working day, counted o
   expect(finish([])).toEqual(["2027-01-06T18:00", "2027-01-07T18:00"]);
   expect(finish([{ date: "2027-01-05", working: false }])).toEqual(["2027-01-07T18:00", "2027-01-08T18:00"]);
 });
+
+test("a profile fits plain data to what the host stores, and leftOut lists each change", () => {
+  const data = { durationUnit: "minutes" as const, tasks: [{ id: "a", name: "A", start: "2027-01-04", duration: 90, snlt: "2027-01-08", fnlt: "2027-01-09" }] };
+  const fit = openHeadless(data, undefined, { perTask: 1, durationStep: "hours" });
+  expect(fit.leftOut).toHaveLength(2);
+  expect(fit.leftOut[0]).toBe("1 task had a second date limit, which this host does not store; the later one was dropped");
+  expect(fit.results()[0]!.finish).not.toBe(openHeadless(data).results()[0]!.finish);
+});

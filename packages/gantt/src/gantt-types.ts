@@ -114,7 +114,7 @@ export interface MountOptions<F extends Fields | undefined = undefined> {
   /** Start the chart read-only (`Gantt.setReadOnly`). Without it the chart can be edited.
    * @defaultValue `false` */
   readOnly?: boolean;
-  /** What the host's database can take (`HostCapabilities`, `Gantt.setCapabilities`). Without it the chart allows every kind of change. A member the chart does not have rejects `mount`. */
+  /** What the host's database can take (`HostCapabilities`, `Gantt.setCapabilities`). Without it the chart allows every kind of change. A file, document or plain data it opens is fitted to what the profile says the host stores (a task's later date limits, a duration that is not a whole step, a time of day on a date), and the notes the chart shows for the file list each kind of fit with its count. A member the chart does not have rejects `mount`. */
   capabilities?: HostCapabilities;
   /** A function the chart asks before each change a person makes; it can refuse the change with a reason the chart shows (README, "Control editing"). Without it every change goes ahead. */
   beforeEdit?: BeforeEdit;

@@ -7,6 +7,7 @@ import { say, type Vars } from "./messages.js";
 import type { OpenGuard } from "./open-guard.js";
 import { PRODUCT_NAME } from "./product.js";
 import { LoadedSchedule } from "./wasm/app.js";
+import type { MountOptions } from "./index.js";
 
 /** The largest file the page reads. A larger one gets a message and is not read at all. */
 export const MAX_OPEN_BYTES = 256 * 1024 * 1024;
@@ -110,6 +111,8 @@ export interface OpenContext {
   timed: (file: OpenedFile) => void;
   /** The schedule has changes since the last save or open, read now. An open over them is held until the person answers. */
   unsaved: () => boolean;
+  /** What the host stores, read when a file is opened: a file is fitted to it (`LoadedSchedule.conform`) before it is shown. */
+  capabilities: () => MountOptions["capabilities"];
   /** The token and the swap check `Gantt.load` shares. */
   guard: OpenGuard;
 }
@@ -212,6 +215,8 @@ export function installOpen(ctx: OpenContext): OpenControls { // oxlint-disable-
       }
       return;
     }
+    const profile = ctx.capabilities();
+    if (profile !== undefined) loaded.conform(JSON.stringify(profile));
     const format = loaded.format();
     const unsupported = loaded.unsupported() as string[];
     // `null` is Rust's mark for a value that is not a finite number: keep it invalid (NaN), do not default it.

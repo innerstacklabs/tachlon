@@ -38,6 +38,8 @@ export interface GanttParts {
   /** Mark these task slots as pending (`installTable`). */
   setPending: (slots: readonly number[]) => void;
   wrote: (slots: readonly number[]) => void;
+  /** What the host stores now; `load` fits a document or file to it. */
+  capabilities: () => MountOptions["capabilities"];
   /** The token and the swap check `load` shares with `openFile`. */
   guard: OpenGuard;
   /** The host's own reader of the view state (not the loop's). */
@@ -126,7 +128,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     },
     load: async (source: LoadSource): Promise<LoadResult> => {
       alive();
-      return loadSource(app, source, p.adopt, p.setName, p.guard);
+      return loadSource(app, source, p.adopt, p.setName, p.guard, p.capabilities);
     },
     newSchedule: async (): Promise<LoadResult> => {
       alive();
@@ -135,7 +137,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       if (p.hostView.read(shell.status()).unsaved && !window.confirm("Start a new schedule? The changes to the current schedule are not saved and will be lost.")) {
         return { ok: false, error: "Not started. The current schedule was kept." };
       }
-      return loadSource(app, { blank: true }, p.adopt, p.setName, p.guard);
+      return loadSource(app, { blank: true }, p.adopt, p.setName, p.guard, p.capabilities);
     },
     toDocument: () => {
       alive();

@@ -1,7 +1,7 @@
 //! The host capability profile (gantt#2090, decision 0019, rule 5): the gestures and groups of fields
 //! the host's database cannot take, told once at mount. Nothing is off until the host says so.
 
-mod values;
+pub(super) mod values;
 
 use self::values::Stores;
 use super::Plan;
@@ -72,14 +72,14 @@ pub(crate) fn not_allowed(what: &str) -> &'static Text {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) struct Capabilities {
     off: u16,
-    stores: Stores,
+    pub(super) stores: Stores,
 }
 
 impl Capabilities {
     /// The profile in `json`, `{"gestures":{"barMove":false},"editable":{"rows":false}}`: each
     /// member is on unless it says `false`. `kinds`, `perTask`, `durationStep`, `lagStep` and
     /// `dates` say what the host stores, and each is as unlimited as it can be when it is left out.
-    fn read(json: &str) -> Result<Self, String> {
+    pub(super) fn read(json: &str) -> Result<Self, String> {
         let root = parse_streaming(json, &mut |_, _, _, _, _| {})?;
         let values = ["kinds", "perTask", "durationStep", "lagStep", "dates"];
         fields_allowing(

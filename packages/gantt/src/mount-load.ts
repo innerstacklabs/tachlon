@@ -85,13 +85,20 @@ async function loadEngine(wasmUrl: string | URL | undefined): Promise<InitOutput
 }
 
 /** What a chart starts on: the schedule `mount` was given (`undefined` for its `tasks` and `links`), or the document of the one it held when it switched to WebGL2. */
-export type StartSource = MountOptions["schedule"] | { document: unknown } | { tasks: MountOptions["tasks"]; links: MountOptions["links"]; dataDate?: MountOptions["dataDate"]; mustFinishBy?: MountOptions["mustFinishBy"]; options?: MountOptions["options"]; calendars?: MountOptions["calendars"]; durationUnit?: MountOptions["durationUnit"]; lagCalendar?: MountOptions["lagCalendar"] };
+export type StartSource = MountOptions["schedule"] | { document: unknown; carried?: true } | { tasks: MountOptions["tasks"]; links: MountOptions["links"]; dataDate?: MountOptions["dataDate"]; mustFinishBy?: MountOptions["mustFinishBy"]; options?: MountOptions["options"]; calendars?: MountOptions["calendars"]; durationUnit?: MountOptions["durationUnit"]; lagCalendar?: MountOptions["lagCalendar"] };
 
 /**
- * Build or read the schedule `source` names.
+ * Build or read the schedule `source` names, fitted to what the host stores (`capabilities`) when it came from a file, a document or plain data: `unsupported` then lists what was changed. A document `carried` over from a chart that has been running is already fitted.
  * @internal
  */
-export async function load(source: NonNullable<StartSource>, groups = 0): Promise<{ schedule: LoadedSchedule; unsupported: string[] | undefined }> {
+export async function load(source: NonNullable<StartSource>, groups = 0, capabilities?: MountOptions["capabilities"]): Promise<{ schedule: LoadedSchedule; unsupported: string[] | undefined }> {
+  const read = await readSource(source, groups);
+  if (capabilities === undefined || read.unsupported === undefined || ("carried" in source && source.carried)) return read;
+  read.schedule.conform(JSON.stringify(capabilities));
+  return { schedule: read.schedule, unsupported: read.schedule.unsupported() as string[] };
+}
+
+async function readSource(source: NonNullable<StartSource>, groups: number): Promise<{ schedule: LoadedSchedule; unsupported: string[] | undefined }> {
   if ("tasks" in source) {
     let document: unknown;
     try {
@@ -99,7 +106,7 @@ export async function load(source: NonNullable<StartSource>, groups = 0): Promis
     } catch (err) {
       throw new MountError("schedule", err instanceof Error ? err.message : String(err), { cause: err, code: err instanceof PlainDataError ? codeFor("DATA_INVALID") : undefined });
     }
-    return load({ document });
+    return readSource({ document }, groups);
   }
   if ("document" in source) {
     try {
