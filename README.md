@@ -86,6 +86,8 @@ The package carries its own instructions, so your assistant works from the versi
 
 After a drag at 50,000 tasks, the engine reschedules in 17.8 ms, and 50,000 tasks load in 291.7 ms. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
 
+These figures are for generated schedules: no real person's schedule is held in the repository or was timed ([decision 0004](docs/decisions/0004-format-crates-licensed-separately.md): fixtures are public sample XERs or generated files).
+
 To time how long your own file takes to open, open it in the hosted app, click the chart and press `s` ([open time](docs/MEASURING.md#open-time-gs87-pr-5)).
 
 <details>
