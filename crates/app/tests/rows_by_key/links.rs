@@ -68,6 +68,9 @@ fn host_links_keep_history_revision_commits_and_selections() {
 fn refusals_name_the_member_and_change_nothing() {
     let mut s = keyed_links();
     rename(&mut s, A, "Mine");
+    let dep = DepId(1);
+    s.edit(Edit::RemoveLink { dep }).unwrap();
+    s.assign_key(KeyTarget::Link(dep), "l1").unwrap();
     let held = |s: &Session| (s.history_len(), s.schedule().dependencies().to_vec());
     let before = held(&s);
     #[rustfmt::skip]
@@ -77,9 +80,12 @@ fn refusals_name_the_member_and_change_nothing() {
         ["add", r#"{"succ":"t3"}"#, "noKey", "pred"],
         ["add", r#"{"key":"l0","pred":"t3","succ":"t5"}"#, "duplicateKey", "key"],
         ["add", r#"{"pred":"t2","succ":"t3"}"#, "alreadyLinked", ""],
-        ["add", r#"{"pred":"t3","succ":"t2"}"#, "linkCycle", ""],
-        ["add", r#"{"pred":"t0","succ":"t3"}"#, "linkToSummary", ""],
+        ["add", r#"{"key":42,"pred":"t3","succ":"t5"}"#, "badValue", "key"],
+        ["add", r#"{"key":"","pred":"t3","succ":"t5"}"#, "badValue", "key"],
+        ["set", r#"{"key":42,"lag":1}"#, "badValue", "key"],
         ["set", r#"{"key":"zz","lag":1}"#, "unknownKey", "key"],
+        ["set", r#"{"key":"l1","lag":1}"#, "unknownLink", ""],
+        ["remove", r#"{"key":""}"#, "badValue", "key"],
         ["set", r#"{"pred":"t3","succ":"t5","lag":1}"#, "unknownLink", ""],
         ["remove", r#"{"pred":"t5","succ":"t3"}"#, "unknownLink", ""],
         ["remove", "[1]", "badJson", ""],
@@ -106,6 +112,21 @@ fn undo_and_redo_after_a_host_link_add_never_stick() {
         .unwrap();
     assert!(s.schedule().is_dependency_live(dep));
     drain(&mut s);
+    assert!(s.schedule().is_dependency_live(dep));
+}
+
+#[test]
+fn a_host_add_forgets_the_undo_of_a_persons_remove_of_that_pair() {
+    let mut s = keyed_links();
+    rename(&mut s, A, "Mine");
+    let dep = DepId(0);
+    s.edit(Edit::RemoveLink { dep }).unwrap();
+    s.add_link_by_key(r#"{"key":"n","pred":"t2","succ":"t3"}"#)
+        .unwrap();
+    assert_eq!(s.undo(), Ok(true));
+    let live = s.schedule().live_dependencies();
+    let pair = live.filter(|(_, l)| (l.pred, l.succ) == (B, C));
+    assert_eq!((pair.count(), name(&s, A)), (1, "A"));
 }
 
 #[test]

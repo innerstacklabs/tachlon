@@ -4,8 +4,8 @@
 
 use super::{KeyTarget, update::UpdateError};
 use crate::document::json_read::{Value, parse};
-use crate::history::Gone;
-use crate::{Session, edit::EditError, json::quote, structure::NEW_TASK};
+use crate::history::{Gone, Step};
+use crate::{Session, edit::Edit, edit::EditError, json::quote, structure::NEW_TASK};
 use engine::{DepId, LinkType, Minutes, Pin, TaskId};
 use std::fmt::Write as _;
 
@@ -118,12 +118,9 @@ impl Session {
         let record = link_record(json)?;
         let (pred, succ) = self.link_ends(&record)?;
         let (kind, lag) = link_shape(&record)?;
-        let key = record.get("key").and_then(Value::as_str);
+        let key = text(&record, "key")?;
         if key.is_some_and(|key| self.host_keys().link(key).is_some()) {
             return Err(UpdateError::new("duplicateKey", None, Some("key")));
-        }
-        if key == Some("") {
-            return Err(UpdateError::new("noKey", None, Some("key")));
         }
         let (revision, selected) = (self.revision, self.links.selected);
         let added = self.run_add_link(pred, succ, kind.unwrap_or(LinkType::FS), lag.unwrap_or(0));
@@ -133,6 +130,15 @@ impl Session {
         if let Some(key) = key {
             self.assign_key(KeyTarget::Link(dep), key)
                 .map_err(|e| refuse(&e))?;
+        }
+        // A replay of a person's Undo of removing this pair's old link would leave two live links on it.
+        let links = self.schedule.dependencies();
+        let old =
+            |old: DepId| (links[old.0 as usize].pred, links[old.0 as usize].succ) == (pred, succ);
+        let stale =
+            |step: &Step| matches!(step.edit, Edit::RestoreLink { dep: d } if d != dep && old(d));
+        if self.history.forget(stale).0 > 0 {
+            self.host.pending.truncate(0);
         }
         Ok(dep)
     }
@@ -170,10 +176,7 @@ impl Session {
 
     fn link_ends(&self, record: &Value) -> Result<(TaskId, TaskId), UpdateError> {
         let end = |member| {
-            let key = record
-                .get(member)
-                .and_then(Value::as_str)
-                .filter(|key| !key.is_empty());
+            let key = text(record, member)?;
             let key = key.ok_or_else(|| UpdateError::new("noKey", None, Some(member)))?;
             self.task_for_key(key)
                 .ok_or_else(|| UpdateError::new("unknownKey", None, Some(member)))
@@ -191,7 +194,7 @@ impl Session {
 
     /// A key can name a removed link, so a repeated remove leaves its Undo intact.
     fn link_named(&self, record: &Value) -> Result<DepId, UpdateError> {
-        if let Some(key) = record.get("key").and_then(Value::as_str) {
+        if let Some(key) = text(record, "key")? {
             return self
                 .host_keys()
                 .link(key)
@@ -305,6 +308,15 @@ fn link_record(json: &str) -> Result<Value<'_>, UpdateError> {
         return Err(UpdateError::new("notUpdatable", None, Some(name)));
     }
     Ok(record)
+}
+
+/// The non-empty string member `member`, `None` when left out; any other value is `badValue`.
+fn text<'a>(record: &'a Value, member: &str) -> Result<Option<&'a str>, UpdateError> {
+    match record.get(member).map(Value::as_str) {
+        None => Ok(None),
+        Some(Some(text)) if !text.is_empty() => Ok(Some(text)),
+        _ => Err(UpdateError::new("badValue", None, Some(member))),
+    }
 }
 
 /// The `kind` and `lag` a link record sets, each `None` when it leaves the member out.
