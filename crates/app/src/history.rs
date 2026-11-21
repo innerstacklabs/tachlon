@@ -5,6 +5,7 @@ mod commit;
 mod forget;
 pub(crate) use forget::Gone;
 mod record;
+mod replay;
 mod rollback;
 
 use crate::whatif::Mark;
@@ -296,15 +297,17 @@ impl Session {
         }
     }
 
-    /// Undo the latest recorded edit. Returns false when none is available
-    /// or while a bar press or a link drag is in flight.
+    /// Undo the latest recorded edit. Returns false when none is available or while a bar press or
+    /// a link drag is in flight. A step the engine refuses now is dropped and the press goes on to
+    /// the next, so Undo never sticks.
     ///
     /// # Errors
-    /// The [`EditError`] of the recorded step's inverse when it is refused; the step stays recorded.
-    /// [`EditError::ReadOnly`] while the chart is read-only.
+    /// [`EditError::StepGone`] when the press dropped a step and found none left to undo, or the
+    /// gate's refusal ([`EditError::ReadOnly`] while the chart is read-only).
     pub fn undo(&mut self) -> Result<bool, EditError> {
-        self.gate(&Plan::Replay("undo", Source::Undo))?;
-        self.undo_step()
+        self.press(Source::Undo, |s| {
+            s.gate(&Plan::Replay("undo", Source::Undo))
+        })
     }
 
     /// [`Session::undo`] after the gate has run, for an action that undoes several steps.
@@ -323,24 +326,14 @@ impl Session {
         Ok(true)
     }
 
-    /// Redo the latest undone edit. Returns false when none is available
-    /// or while a bar press or a link drag is in flight.
+    /// Redo the latest undone edit: [`Session::undo`] for the redo list.
     ///
     /// # Errors
-    /// The [`EditError`] of the undone step when it is refused; the step stays undone.
+    /// As [`Session::undo`].
     pub fn redo(&mut self) -> Result<bool, EditError> {
-        self.gate(&Plan::Replay("redo", Source::Redo))?;
-        if self.busy() {
-            return Ok(false);
-        }
-        let Some(entry) = self.history.redo.last().cloned() else {
-            return Ok(false);
-        };
-        let row = task_of(&entry);
-        let (inverse, _) = self.run_entry(entry, true)?;
-        self.commit(inverse, Source::Redo);
-        self.reveal_changed(row);
-        Ok(true)
+        self.press(Source::Redo, |s| {
+            s.gate(&Plan::Replay("redo", Source::Redo))
+        })
     }
 
     /// Whether the undo, redo or discard `plan` describes replays a data-date step, which holds no
