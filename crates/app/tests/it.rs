@@ -173,6 +173,7 @@ mod resources_card;
 mod results;
 mod reveal;
 mod rollback;
+mod rows_by_key;
 mod save_needs;
 mod schedule;
 mod select;

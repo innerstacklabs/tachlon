@@ -14,6 +14,7 @@ mod pending;
 mod planned;
 mod read;
 mod results;
+mod rows;
 mod update;
 mod values;
 
