@@ -39,7 +39,7 @@ pub(crate) enum Plan<'a> {
 /// their commit writes (`values.rs`, read before the edit); an insert carries only the place and
 /// name the edit names, a baseline edit the `baseline` field though its commit writes no change. A
 /// plan of two or more of those (a group, a multi-step undo or redo), an undo or redo of a data-date
-/// edit and `discardWhatIf` carry only `kind` and the tasks they touch. `tasks` names them, both ends
+/// edit and `discardWhatIf` carry only `kind`, `needs` and the tasks they touch. `tasks` names them, both ends
 /// of a link included; an outline move names only the moved task, its siblings come with the values.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Planned {
@@ -50,6 +50,9 @@ pub struct Planned {
     pub tasks: Vec<u32>,
     /// One JSON object per task field that would change; `old` is what the session holds now.
     pub changes: Vec<String>,
+    /// The save handlers the plan's records may need, sorted with no repeats. The chart's own
+    /// gate reads them; the host's function is not shown them.
+    pub needs: Vec<&'static str>,
 }
 
 /// A task field a plan changes: the task, the field, what the session holds and what it would hold.
@@ -91,11 +94,25 @@ impl Session {
             _ => self.planned_changes(&edits),
         };
         changes.extend(self.created(plan));
+        let mut needs: BTreeSet<_> = edits
+            .iter()
+            .flat_map(|edit| self.save_needs(edit).iter().copied())
+            .collect();
+        if self.replays_data_date(plan) {
+            needs.insert("updateSchedule");
+        }
+        needs.extend(match plan {
+            Plan::Paste(_) => Some("createTask"),
+            Plan::Link(..) | Plan::Action("linkDrag", ..) => Some("createLink"),
+            Plan::Drag(_) => Some("updateTask"),
+            _ => None,
+        });
         Planned {
             kind,
             source,
             tasks: slots.into_iter().collect(),
             changes,
+            needs: needs.into_iter().collect(),
         }
     }
 
@@ -154,6 +171,33 @@ impl Session {
             Edit::SetBaseline { .. } => ("setBaseline", Vec::new()),
             Edit::ClearBaseline => ("clearBaseline", Vec::new()),
             Edit::SetDataDate { .. } => ("setDataDate", Vec::new()),
+        }
+    }
+
+    /// The save handlers an edit's records may need.
+    fn save_needs(&self, edit: &Edit) -> &'static [&'static str] {
+        let linked = |task| {
+            self.schedule
+                .dependencies()
+                .iter()
+                .any(|link| link.pred == task || link.succ == task)
+        };
+        match edit {
+            Edit::Move { .. }
+            | Edit::SetDuration { .. }
+            | Edit::Rename { .. }
+            | Edit::SetProgress { .. }
+            | Edit::SetLimit { .. }
+            | Edit::Reparent { .. } => &["updateTask"],
+            Edit::Delete { task } if linked(*task) => &["deleteTask", "deleteLink"],
+            Edit::Delete { .. } => &["deleteTask"],
+            Edit::Restore { task, .. } if linked(*task) => &["createTask", "createLink"],
+            Edit::Restore { .. } | Edit::Insert { .. } => &["createTask"],
+            Edit::AddLink { .. } | Edit::RestoreLink { .. } => &["createLink"],
+            Edit::RemoveLink { .. } => &["deleteLink"],
+            Edit::SetLink { .. } => &["updateLink"],
+            Edit::SetDataDate { .. } => &["updateSchedule"],
+            Edit::SetBaseline { .. } | Edit::ClearBaseline => &[],
         }
     }
 
