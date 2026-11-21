@@ -43,22 +43,6 @@ impl Step {
         }
     }
 
-    /// Whether this step adds, restores, sets or removes a link from `pred` to `succ` (`links` is every link slot).
-    pub(crate) fn names_link(&self, pred: TaskId, succ: TaskId, links: &[Dependency]) -> bool {
-        let pair = |dep: &engine::DepId| {
-            (links.get(dep.0 as usize)).is_some_and(|d| (d.pred, d.succ) == (pred, succ))
-        };
-        match &self.edit {
-            Edit::AddLink {
-                pred: p, succ: s, ..
-            } => (*p, *s) == (pred, succ),
-            Edit::RemoveLink { dep } | Edit::RestoreLink { dep } | Edit::SetLink { dep, .. } => {
-                pair(dep)
-            }
-            _ => false,
-        }
-    }
-
     /// Whether the host's add of `task` (now in `outline`) makes replaying this step impossible, or lets it delete
     /// or release that row: a delete, progress or link step of its parent, which is a summary now, or a counted
     /// reparent whose last children (release) or next siblings (adopt) now include it, or a restore that brings

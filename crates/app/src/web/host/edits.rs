@@ -95,6 +95,30 @@ impl App {
         }
     }
 
+    /// Add a host link record without an edit: `{"ok":true,"link":n}` or a record refusal.
+    pub fn add_link_by_key(&mut self, json: &str) -> String {
+        match self.session.add_link_by_key(json) {
+            Ok(dep) => format!(r#"{{"ok":true,"link":{}}}"#, dep.0),
+            Err(error) => record_refusal(error),
+        }
+    }
+
+    /// Set a host link record without an edit: `{"ok":true}` or a record refusal.
+    pub fn set_link_by_key(&mut self, json: &str) -> String {
+        match self.session.set_link_by_key(json) {
+            Ok(()) => r#"{"ok":true}"#.to_string(),
+            Err(error) => record_refusal(error),
+        }
+    }
+
+    /// Remove a host link without an edit: `{"ok":true}` or a record refusal; a person's removed link keeps its Undo.
+    pub fn remove_link_by_key(&mut self, json: &str) -> String {
+        match self.session.remove_link_by_key(json) {
+            Ok(()) => r#"{"ok":true}"#.to_string(),
+            Err(error) => record_refusal(error),
+        }
+    }
+
     /// `push_host_entry`, answered as JSON: `{"ok":true}` or `{"ok":false,"reason":r}` (`badToken`).
     pub fn try_push_host_entry(&mut self, token: &str) -> String {
         let pushed = self.session.push_host_entry(token);
