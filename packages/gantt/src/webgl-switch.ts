@@ -294,6 +294,7 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
     },
     snapshot: () => now().snapshot(),
     exportXer: () => now().exportXer(),
+    exportXerLeftOut: () => now().exportXerLeftOut(),
     exportMspdi: () => now().exportMspdi(),
     checks: () => now().checks(),
     backend: () => now().backend(),

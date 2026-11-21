@@ -7,6 +7,9 @@ use engine::{DepId, Dependency, Instant, Schedule, ScheduleOptions, Task, TaskId
 use import::{Exported, ImportError, Imported, ImportedTask, XerLayout, XerOptions};
 use std::collections::HashMap;
 
+mod xer_loss;
+pub use xer_loss::xer_left_out;
+
 /// The session as a Primavera XER file: the live tasks in outline order as the XER writer lays
 /// them out, edits included, a deleted task not written. The layout is [`XerLayout::FromXer`] when
 /// the opened file (`extras.source`) was an XER, else [`XerLayout::One`] (one project named
@@ -41,6 +44,7 @@ pub fn export_xer(session: &Session, extras: &Extras<'_>) -> Result<Exported, Im
     };
     let mut exported = import::export_xer(&imported, &options)?;
     note_keys(session, &mut exported);
+    exported.left_out.extend(xer_left_out(session));
     Ok(exported)
 }
 

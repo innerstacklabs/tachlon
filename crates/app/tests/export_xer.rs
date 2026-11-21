@@ -1,7 +1,9 @@
 //! Writing the session as a Primavera XER file (gs#703): the file carries the edits.
 
+use app::baseline::Baseline;
 use app::document::{Extras, Source, SourceFormat};
-use app::{Loaded, Session, edit::Edit, export::export_xer, fitted_timeline, load_bytes};
+use app::export::{export_xer, xer_left_out};
+use app::{Loaded, Session, edit::Edit, fitted_timeline, load_bytes};
 use engine::TaskId;
 use import::{ProjectSelection, parse_xer};
 
@@ -234,4 +236,55 @@ fn a_one_project_export_keeps_the_project_start() {
     let exported = export_xer(&dated, &extras).expect("exports");
     let again = load_bytes(&exported.bytes, &ProjectSelection::All, &|| 0.0).expect("reads back");
     assert_eq!(again.data_date, dated.data_date());
+}
+
+/// The generated XER's activity codes, a baseline of every task and two deadlines.
+fn lossy() -> Session {
+    let session = open(&xer::synth::write(&xer::synth::Spec::with_activities(7, 6)));
+    let baseline = Baseline::snapshot(session.schedule(), session.solution(), None);
+    let mut deadlines = vec![None; session.meta().len()];
+    deadlines[0] = Some(60);
+    deadlines[1] = Some(120);
+    session.with_baseline(baseline).with_deadlines(deadlines)
+}
+
+#[test]
+fn a_save_as_xer_lists_what_this_schedule_loses() {
+    let session = lossy();
+    let coded = (session.meta().iter())
+        .filter(|m| !m.activity_codes.is_empty())
+        .count();
+    let tasks = session.meta().len();
+    assert!(
+        coded > 0 && coded < tasks,
+        "{coded} of {tasks} tasks have codes"
+    );
+    let lines = xer_left_out(&session);
+    assert_eq!(
+        lines,
+        [
+            format!("the activity codes on {coded} tasks are not written"),
+            format!("the baselines on {tasks} tasks are not written"),
+            "the deadlines on 2 tasks are not written".to_string(),
+        ]
+    );
+    let extras = Extras {
+        name: "lossy",
+        notes: &[],
+        source: None,
+    };
+    let written = export_xer(&session, &extras).expect("exports");
+    let all_listed = lines.iter().all(|line| written.left_out.contains(line));
+    assert!(all_listed, "{:?}", written.left_out);
+}
+
+#[test]
+fn a_save_as_xer_lists_only_what_the_schedule_has_and_nothing_when_it_has_none() {
+    assert_eq!(xer_left_out(&open(MSPDI.as_bytes())), Vec::<String>::new());
+    let mut deadlines = vec![None; open(MSPDI.as_bytes()).meta().len()];
+    deadlines[0] = Some(60);
+    assert_eq!(
+        xer_left_out(&open(MSPDI.as_bytes()).with_deadlines(deadlines)),
+        ["the deadlines on 1 task are not written"]
+    );
 }

@@ -154,6 +154,10 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       return toExportResult(app.export_xer());
     },
+    exportXerLeftOut: () => {
+      alive();
+      return app.export_xer_left_out() as string[];
+    },
     exportMspdi: () => {
       alive();
       return toExportResult(app.export_mspdi());

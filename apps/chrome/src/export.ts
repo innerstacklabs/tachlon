@@ -35,7 +35,7 @@ function download(fileName: string, mime: string, bytes: Uint8Array<ArrayBuffer>
 /**
  * The Export… button (gs#703): it opens a small dialog with two formats, MS Project XML and P6 XER. Choosing one downloads `<name>.xml` or `<name>.xer`,
  * the name Save uses (`untitled` for a sample), and lists in the dialog what the file cannot carry; the XER line names the P6 version it is written as.
- * It reads `Gantt.exportMspdi` and `Gantt.exportXer`.
+ * Opening it lists what a P6 save leaves out of this schedule (`Gantt.exportXerLeftOut`). It reads `Gantt.exportMspdi` and `Gantt.exportXer`.
  */
 export function installExport(chrome: ChromeContext, tools: Piece, dialogs: Piece): void {
   const { gantt } = chrome;
@@ -50,8 +50,10 @@ export function installExport(chrome: ChromeContext, tools: Piece, dialogs: Piec
     list.hidden = lines.length === 0;
   };
   tools.part("export-button").addEventListener("click", () => {
-    result.hidden = true;
-    list.hidden = true;
+    // What a P6 save leaves out of this schedule, listed before anything is written.
+    const lost = gantt.exportXerLeftOut();
+    if (lost.length > 0) show(`Saving as P6 XER ${P6_VERSION} will leave out:`, lost);
+    else result.hidden = list.hidden = true;
     dialog.showModal();
   });
   dialogs.part("export-close").addEventListener("click", () => dialog.close());
