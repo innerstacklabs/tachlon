@@ -70,7 +70,7 @@ const stub = () => {
   const urls: string[] = [];
   let url = "";
   const page = { goto: async (u: string) => void urls.push((url = u)), on() {}, off() {}, waitForFunction: async () => ({ jsonValue: async () => ({ drag: { p50: 5, p95: url.includes("dragTarget=head") ? 11 : 7 }, dragResponseMs: { p50: 1, p95: 2 } }) }) };
-  const open = async () => ({ baseUrl: "http://mini/", browser: { contexts: () => [{ pages: () => [page] }] }, close: async () => {} }) as any;
+  const open = async () => ({ baseUrl: "http://host/", browser: { contexts: () => [{ pages: () => [page] }] }, close: async () => {} }) as any;
   return { urls, open };
 };
 const dragArgs = (out: string, ...more: string[]) => parseArgs(["--cell", "tree4-50", "--holder", "x", "--drag", "--runs", "2", "--out", out, ...more])!;
