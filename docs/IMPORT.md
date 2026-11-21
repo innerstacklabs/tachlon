@@ -2,6 +2,29 @@
 
 What the P6 XER and MS Project XML readers map, what they leave out, and how to open a file. The XER mapping itself is described in [ARCHITECTURE.md](ARCHITECTURE.md); the J1 chapter of the book ([../book/src/open-a-schedule.md](../book/src/open-a-schedule.md)) has the steps by hand.
 
+## What an open keeps and drops
+
+"Kept" reaches the schedule or the table; "Dropped" has no reader code. A dropped item the reader can name is in the unsupported panel (`Imported.unsupported`); the last column names the test or symbol that shows each line. The XER reader takes nine tables (`is_read_table` in `crates/xer/src/read/mod.rs`) and the MS Project reader takes the elements in `is_read` (`crates/import/src/dom.rs`); everything else is dropped.
+
+| What the file holds | P6 XER | MS Project XML | Shown by |
+|---|---|---|---|
+| Names, outline, WBS code | Kept | Kept | `xer_wbs_code.rs`, `a_task_carries_its_wbs_text_and_a_blank_or_missing_one_is_none` |
+| Links (FS, SS, FF, SF) and lag | Kept | Kept | `maps_all_types_and_lags_in_file_order` (`xer_links/tests.rs`), `link_kinds_and_lags_are_mapped` (`mspdi_mapping.rs`) |
+| Constraints | Kept: both date rules | Kept: one per task | `the_secondary_constraint_applies_beside_the_primary` (`xer_constraints.rs`), `mspdi_constraints.rs` |
+| Actual dates, remaining work | Kept | Kept | `xer_actuals.rs`, `mspdi_actuals.rs` |
+| Data date | Kept (`last_recalc_date`) | Kept (`StatusDate`) | `data_date` (`xer_import.rs`), `a_status_date_is_the_data_date` |
+| Calendars: weeks, holidays | Kept; a resource calendar is dropped and a base calendar's holidays are not applied, with a line each | Kept, including work weeks | `resource_calendar_is_not_built`, `a_base_calendars_holidays_are_not_inherited_and_say_so` (`xer_calendars/tests.rs`), `mspdi_work_week_base.rs` |
+| Activity codes | Kept; the Filters panel uses them | Dropped | `xer_activity_codes.rs`; `is_read` has no code element |
+| Resources | Dropped, listed as a table with its row count | Names only, one counted line | `synth_small_file_maps_every_row` (`xer.rs`), `a_task_keeps_the_names_of_its_resources_in_assignment_order` |
+| Costs | Dropped | Dropped, one counted line | `a_file_with_task_costs_gets_one_cost_note`; no cost field in the XER reader |
+| User-defined fields | Dropped | Dropped | `is_read_table`, `is_read` |
+| Task notes | Dropped | Dropped, one line | `a_document_with_a_task_note_says_the_notes_were_not_read_once` |
+| Baselines | Dropped | Baseline 0 start and finish only | `only_baseline_0_is_read` (`mspdi_baseline.rs`), `baseline_start` in `xer_activities.rs` |
+| Deadlines | Dropped | Kept for display | `a_task_keeps_its_deadline_and_no_date_moves` |
+| Scheduling options | Only the lag calendar, with a line | Dropped | `parse_xer` (`xer_import.rs`) |
+
+Saving as XER does not go back into P6 intact: it writes the project, calendars, WBS, activities, links and lag calendar as the session has them, and leaves out the activity codes, the tables the open did not read, and every baseline and deadline (`write` in `crates/import/src/export/xer.rs`), and no test opens the file in P6.
+
 The parser is `import::parse_mspdi` in `crates/import`; it depends only on `engine` and `quick-xml`.
 It maps task names, outline levels and parents, working-time durations, elapsed durations (a task whose duration unit is elapsed minutes, hours, days, weeks or months runs in a 24-hour, seven-day calendar, so it spans nights, weekends and holidays; gs#690), milestones, task constraints (`ConstraintType` 1 to 7, see below), task calendars, the project start and the status date.
 The project's `StatusDate` is the data date (gs#563): the app draws the data-date line at that date and time, as written in the file, so a late-evening time with a zone offset still shows the same day. A file with no `StatusDate` has no data-date line. A `StatusDate` that is not a date, or that falls before the Monday on or before the project start, is ignored and listed in `Imported.unsupported`, as the XER reader does for a bad data date (`crates/import/tests/mspdi_status_date.rs`). The file's data date, from an MS Project `StatusDate` or a P6 `last_recalc_date`, applies at open: unfinished work starts no earlier than it from the first schedule, before anyone edits (gs#736).
