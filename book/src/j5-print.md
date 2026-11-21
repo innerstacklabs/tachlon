@@ -11,19 +11,24 @@
 ## By hand
 
 {{#include ../../packages/gantt/guide/print.md:print}}
-On this page, you can also click **Open…** in the toolbar and choose **Print...**. The menu closes and the browser's print dialog opens.
+
+   On this page, you can also click **Open…** in the toolbar and choose **Print...**. The menu closes and the browser's print dialog opens.
 
 {{#include ../../packages/gantt/guide/print.md:pages}}
-To select a range of rows, see [Build a schedule from the keyboard](j6-build.md).
+
+   To select a range of rows, see [Build a schedule from the keyboard](j6-build.md).
 
 {{#include ../../packages/gantt/guide/print.md:paper}}
-On this page, click **Open…**, then **Print on A4...**; **Print...** in the same menu prints on US Letter.
+
+   On this page, click **Open…**, then **Print on A4...**; **Print...** in the same menu prints on US Letter.
 
 {{#include ../../packages/gantt/guide/print.md:image}}
-On this page, click **Open…**, then **Save image (PNG)**. The picture of the office fit-out sample is `office-fitout.png`.
+
+   On this page, click **Open…**, then **Save image (PNG)**. The picture of the office fit-out sample is `office-fitout.png`.
 
 {{#include ../../packages/gantt/guide/print.md:layout}}
-On this page, click **Open…**, then **Save layout...**, and type a name. This browser keeps it: the layouts stay in this browser only, and another browser or another person's computer has none. To put one back, click **Open…**, then **Apply layout...**, and type one of the names it lists.
+
+   On this page, click **Open…**, then **Save layout...**, and type a name. This browser keeps it: the layouts stay in this browser only, and another browser or another person's computer has none. To put one back on a schedule, click **Open…**, then **Apply layout...**, and type one of the names it lists.
 
 9. **What is not built.** Choosing a date range, and picking printed columns apart from the
    screen's, are on [What's coming](coming.md).

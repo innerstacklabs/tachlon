@@ -2,7 +2,7 @@
 <!-- needs: chart -->
 
 <!-- ANCHOR: goal -->
-**Goal:** open a schedule file and see all of it at once: the task list on the left, the timeline on the right, the critical path in red. Drop a P6 file (`.xer`), an MS Project file (`.xml`) or a `.gantt` file (the file `Ctrl+S` saves) on the chart, or click the Open… button.
+**Goal:** open a schedule file and see all of it at once: the task list on the left, the timeline on the right, the critical path in red. Drop a P6 file (`.xer`), an MS Project file (`.xml`) or a `.gantt` file (the file `Ctrl+S` saves) on the chart, or use the Open… button.
 <!-- ANCHOR_END: goal -->
 <!-- shot: open-toolbar | the toolbar with the Open… button marked -->
 <!-- shot: open-file-line | an opened XER file: the one line about the file in the toolbar marked, a red critical activity marked -->
@@ -35,7 +35,7 @@ In the Microsoft Project desktop program, save the project as an XML file:
 ## Steps
 
 <!-- ANCHOR: open -->
-1. Click the Open… button in the toolbar, or press `Ctrl+O`: the file chooser opens. You can also drop the file anywhere on the chart: a dashed outline and the words "Drop to open" show while the file is over it. A file dropped beside the chart is refused.
+1. Press `Ctrl+O` to open the file chooser, or drop the file anywhere on the chart: a dashed outline and the words "Drop to open" show while the file is over it. A file dropped beside the chart is refused.
 <!-- ANCHOR_END: open -->
 
 <!-- ANCHOR: read -->

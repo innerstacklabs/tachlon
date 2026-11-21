@@ -11,19 +11,30 @@
 ## By hand
 
 {{#include ../../packages/gantt/guide/save.md:save}}
-On this page, you can also click **Open…** in the toolbar and choose **Save**, and to reopen, choose **Open a file…**. The office fit-out's `office-fitout.xml` saves as `office-fitout.gantt`, and the tab's title reads `office-fitout.gantt - Tachlon`.
+
+   On this page, you can also click **Open…** in the toolbar and choose **Save**. The office fit-out's `office-fitout.xml` saves as `office-fitout.gantt`.
+
+{{#include ../../packages/gantt/guide/save.md:dot}}
+
+{{#include ../../packages/gantt/guide/save.md:reopen}}
+
+   On this page, to reopen, click **Open…** and choose **Open a file…**. The tab's title reads `office-fitout.gantt - Tachlon`.
+
+{{#include ../../packages/gantt/guide/save.md:unsaved}}
 
 {{#include ../../packages/gantt/guide/save.md:export}}
-On this page, on the office fit-out sample the P6 window lists `the baseline
-on 50 tasks was not written`, and the MS Project window lists the reader's own note, `not in the
-project, left out by the reader: 47 tasks have resource assignments; only the resource names were
-read, and no dates are affected.` On the sample, which has ten tasks under way, neither lists any of the actuals. Opening the exported `.xml` shows them:
-**Detailed design and specification**, which read `2027-01-22` as its start, comes back started,
-at `2027-01-22`. Opening the
-exported `.xer` shows 60 rows against the schedule's 59: the extra one is a summary row at the
-top, named `Project 1`, that holds all the phases.
+
+   On this page, on the office fit-out sample the P6 window lists `the baseline
+   on 50 tasks was not written`, and the MS Project window lists the reader's own note, `not in the
+   project, left out by the reader: 47 tasks have resource assignments; only the resource names were
+   read, and no dates are affected.` On the sample, which has ten tasks under way, neither lists any of the actuals. Opening the exported `.xml` shows them:
+   **Detailed design and specification**, which read `2027-01-22` as its start, comes back started,
+   at `2027-01-22`. Opening the
+   exported `.xer` shows 60 rows against the schedule's 59: the extra one is a summary row at the
+   top, named `Project 1`, that holds all the phases.
 
 {{#include ../../packages/gantt/guide/save.md:keep}}
+
 9. **What is not built.** **Save to cloud** and **Share a link** are in the **Open…** menu, grayed out
    as `Coming soon`. They are on [What's coming](coming.md).
 

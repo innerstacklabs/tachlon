@@ -38,7 +38,7 @@
 <!-- needs: call:layoutJson, call:applyLayout -->
 
 <!-- ANCHOR: layout -->
-8. **Keep a print setup.** A layout keeps the row filter, the Lookahead window and the list columns as the screen shows them (the **Columns** menu's hides and order, the **Progress** and **Variance** buttons), under a name. Another schedule, or the same one next month, opens with its own columns once you apply a layout by name. A line under the toolbar says what went in, and names any part the schedule could not take (a filter that needs a baseline it has not, or a column it has none of); a part not applied changes nothing. A layout does not hold the paper or a date range.
+8. **Keep a print setup.** A layout keeps the row filter, the Lookahead window and the list columns as the screen shows them (the **Columns** menu's hides and order, the **Progress** and **Variance** buttons), under a name. A schedule you open later, another one or the same one next month, starts with its own columns; applying a kept layout by name puts that setup back on it. A line under the toolbar says what went in, and names any part the schedule could not take (a filter that needs a baseline it has not, or a column it has none of); a part not applied changes nothing. A layout does not hold the paper or a date range.
    <!-- control: layoutJson | returns the print setup on screen as text, under a name -->
    <!-- control: applyLayout | puts a kept print setup back on the schedule and lists the parts it could not take -->
 <!-- ANCHOR_END: layout -->

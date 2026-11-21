@@ -19,8 +19,8 @@
 ## Steps
 
 {{#include ../../packages/gantt/guide/open.md:open}}
-On this page, the **Open…** button opens a menu with **New schedule** and **Open a file…** first; choose **Open a file…**.
-Pressing <kbd>Ctrl</kbd>+<kbd>O</kbd> opens the file chooser at once.
+
+   On this page, you can also click the **Open…** button in the toolbar: it opens a menu with **New schedule** and **Open a file…** first; choose **Open a file…**.
 
 {{#include ../../packages/gantt/guide/open.md:read}}
 
