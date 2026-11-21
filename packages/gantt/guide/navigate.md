@@ -30,12 +30,12 @@
 <!-- ANCHOR_END: filters -->
 
 ## Find
-<!-- needs: call:find, call:findNext -->
+<!-- needs: call:find, call:findGo -->
 
 <!-- ANCHOR: find -->
 6. **Find.** A find box selects the first task whose name, activity ID or WBS code contains the typed text (a name is matched with its ancestors' names); an activity ID that is exactly the typed text is selected first. Enter goes to the next match and Shift+Enter to the previous one.
-   <!-- control: find | selects the first task whose name, activity ID or WBS code contains the text -->
-   <!-- control: findNext | goes to the next match, or to the previous one -->
+   <!-- control: find | counts the tasks whose name, activity ID or WBS code contains the text -->
+   <!-- control: findGo | selects the match at one position in that list, which Enter and Shift+Enter step through -->
    <!-- shot: navigate-find | the find box holds a name and counts the matches, and the matching task is selected in the task list and on the chart -->
 <!-- ANCHOR_END: find -->
 
