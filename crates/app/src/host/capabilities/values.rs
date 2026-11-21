@@ -24,6 +24,30 @@ pub(super) struct Stores {
     whole_days: bool,
 }
 
+impl Stores {
+    /// `at`, a start a drag asks for, as a start the host stores: with whole days, the midnight
+    /// before a time of day that is not a calendar's opening.
+    pub(super) fn snap_start(self, calendar: &Calendar, at: Instant) -> Instant {
+        if self.whole_days && !whole_day(calendar, false, at) {
+            at - at.rem_euclid(DAY)
+        } else {
+            at
+        }
+    }
+
+    /// `minutes`, a duration a drag asks for, as a whole step of the host's: the nearest, a half
+    /// step up, and never none for some. `day` gives a day's minutes, asked only for a step of days.
+    pub(super) fn snap_length(self, minutes: i64, day: impl FnOnce() -> i64) -> i64 {
+        let unit = match self.steps[0] {
+            0 => return minutes,
+            1 => 60,
+            _ => day(),
+        };
+        let steps = (2 * minutes + unit) / (2 * unit);
+        (steps * unit).max(if minutes > 0 { unit } else { 0 })
+    }
+}
+
 /// The place in `words` of the string at `key` of `root`; 0 when `key` is absent.
 fn word(root: &Value, key: &str, words: &[&str]) -> Result<usize, String> {
     let Some(value) = root.get(key) else {

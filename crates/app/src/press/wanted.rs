@@ -13,11 +13,13 @@ impl Session {
         let wanted = b.wanted_start(&self.timeline().viewport).max(0);
         // A dropped task opens a working day of its calendar, so its
         // successors and summaries keep whole working days. A milestone keeps
-        // the pointer's minute: it may also sit at a working-period end. So
-        // does a pointer back at the press, which asks for no move: a start
-        // the file gave mid-day is not an ask to open the day.
-        if duration == 0 || wanted == press.es {
+        // the pointer's minute: it may also sit at a working-period end, unless
+        // the host stores whole days. A pointer back at the press asks for no
+        // move: a start the file gave mid-day is not an ask to open the day.
+        if wanted == press.es {
             wanted
+        } else if duration == 0 {
+            self.snap_move(task, wanted)
         } else {
             self.schedule.calendar_of(task).day_start_at(wanted)
         }
@@ -30,7 +32,9 @@ impl Session {
     )]
     pub(super) fn wanted_duration(&self, b: BarDrag, press: Press) -> Option<i64> {
         let at = self.timeline().viewport.t_of(b.x).floor() as i64;
-        self.duration_to_day_end(TaskId(b.task), at.max(press.es))
+        let task = TaskId(b.task);
+        let minutes = self.duration_to_day_end(task, at.max(press.es))?;
+        Some(self.snap_length(task, minutes))
     }
 
     /// The edit a frame at the pointer would make.
