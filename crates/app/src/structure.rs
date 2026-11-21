@@ -369,7 +369,7 @@ impl Session {
         let outline = match Outline::new(&self.meta, wbs, &self.schedule) {
             Ok(outline) => outline,
             Err(error) => {
-                rollback(self);
+                self.roll_back(rollback);
                 return Err(EditError::Outline(error));
             }
         };
@@ -377,7 +377,7 @@ impl Session {
         let solution = match self.schedule.compute() {
             Ok(solution) => solution,
             Err(error) => {
-                rollback(self);
+                self.roll_back(rollback);
                 return Err(error.into());
             }
         };

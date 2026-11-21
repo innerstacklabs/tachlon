@@ -77,7 +77,7 @@ export function installTable( // oxlint-disable-line max-lines-per-function -- e
   let taskNeed = 0; // measured once per opened file, below
   // With Progress on the CSS puts % complete and the other progress cells after Task, so the head is read in the order it shows (gs#974).
   const shown = (): HTMLElement | null => {
-    if (headCols === null || (tableEl.dataset["progress"] !== "true" && !tableEl.hasAttribute("data-resources") && !tableEl.hasAttribute("data-pred") && ![...HIDE_FLAGS, ORDER_FLAG].some((flag) => tableEl.hasAttribute(flag)))) return headCols;
+    if (headCols === null || (tableEl.dataset["progress"] !== "true" && tableEl.dataset["variance"] !== "true" && !tableEl.hasAttribute("data-resources") && !tableEl.hasAttribute("data-pred") && ![...HIDE_FLAGS, ORDER_FLAG].some((flag) => tableEl.hasAttribute(flag)))) return headCols;
     const order = (cell: Element): number => Number(getComputedStyle(cell).order) || 0;
     // A column the Columns menu hid has no track (table.css), so its head is not one of the columns the pane holds.
     const children = [...headCols.children].filter((cell) => !isHidden(tableEl, cell.classList[0] ?? "")).sort((a, b) => order(a) - order(b));

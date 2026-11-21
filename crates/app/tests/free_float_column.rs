@@ -6,8 +6,8 @@
 use crate::common;
 
 use app::{
-    Session,
-    edit::{Edit, format_float_days},
+    Place, Session,
+    edit::{Edit, EditError, format_float_days},
     meta::TaskMeta,
     outline::{Outline, demo_layout},
 };
@@ -244,4 +244,29 @@ fn a_hidden_column_writes_null_and_showing_it_redraws_the_table() {
     assert_eq!(s.stamp(), stamp + 1, "no change, no redraw");
     s.set_free_float_shown(false);
     assert!(slot(&rows(&s), 9).iter().all(Value::is_null));
+}
+
+#[test]
+fn a_refused_restore_leaves_a_shown_free_float_column_with_its_values() {
+    let tasks = [("P", None, 60), ("C", Some(0), 60), ("X", None, 60)];
+    let mut s = crate::links::build_with(&tasks, &[], |_| {});
+    let task = TaskId(1);
+    s.edit(Edit::Delete { task }).expect("deletes");
+    s.edit(Edit::AddLink {
+        pred: TaskId(0),
+        succ: TaskId(2),
+        kind: LinkType::FS,
+        lag: 0,
+    })
+    .expect("links the emptied parent");
+    s.set_free_float_shown(true);
+    let before = s.table_rows_json(0, u32::MAX);
+    assert!(!before.contains("null]"), "the column has values: {before}");
+    let place = Place {
+        parent: Some(TaskId(0)),
+        after: None,
+    };
+    let error = s.edit(Edit::Restore { task, place }).unwrap_err();
+    assert!(matches!(error, EditError::Outline(_)), "{error:?}");
+    assert_eq!(s.table_rows_json(0, u32::MAX), before);
 }
