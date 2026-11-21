@@ -9,8 +9,8 @@ use crate::texts::{
     HAS_CHILDREN_ONE, HAS_KEY, HAS_LINKS, INSERT_GROUPED, INVALID_NAME, KEY_TAKEN, LINK_TO_SUMMARY,
     NO_BASELINE, NO_LINK_SELECTED, NO_NEXT_SIBLING, NO_OUTLINE, NO_PREVIOUS_SIBLING, NO_SELECTION,
     NOT_IN_BASELINE, NOT_STORED, PROGRESS_ON_SUMMARY, READ_ONLY, REFUSED, REPARENT_FILTERED,
-    REPARENT_GROUPED, ROLLBACK_GONE, SEVERAL_ROWS, Texts, UNKNOWN_LINK, UNKNOWN_TASK, Worded,
-    english_display,
+    REPARENT_GROUPED, ROLLBACK_GONE, SEVERAL_ROWS, STEP_GONE, Texts, UNKNOWN_LINK, UNKNOWN_TASK,
+    Worded, english_display,
 };
 use engine::{DepId, ScheduleError, TaskId};
 
@@ -133,11 +133,33 @@ pub enum EditError {
     /// The host asked to go back to a change the chart can no longer go back to: it was saved, or the
     /// history or the unsaved list dropped it.
     RollbackGone,
+    /// An Undo or Redo press dropped a refused step and found no other to replay.
+    StepGone,
     /// The host's before-edit function threw or answered with something it must not (a promise): nothing changed.
     BeforeEditFailed,
 }
 
 impl EditError {
+    /// Whether the refusal is about the rows as they are now, so a history step it refuses cannot
+    /// apply until they change. A refusal of the view, the mode, a gesture or the host is not.
+    pub(crate) fn is_data(&self) -> bool {
+        matches!(
+            self,
+            Self::Schedule(_)
+                | Self::UnknownTask(_)
+                | Self::HasChildren { .. }
+                | Self::BadPlace
+                | Self::Outline(_)
+                | Self::LinkCycle { .. }
+                | Self::LinkToSummary { .. }
+                | Self::HasLinks { .. }
+                | Self::AlreadyLinked { .. }
+                | Self::UnknownLink(_)
+                | Self::HasActuals
+                | Self::ProgressOnSummary { .. }
+        )
+    }
+
     /// The reason as a name a program reads (`busy`, `noSelection`), one per variant. The host API
     /// (`packages/gantt/src/edit-result.ts`) maps these to its own names; the person's sentence is `Display`.
     #[must_use]
@@ -189,6 +211,7 @@ impl EditError {
             Self::Refused(_) => "refused",
             Self::BadToken => "badToken",
             Self::RollbackGone => "rollbackGone",
+            Self::StepGone => "stepGone",
             Self::BeforeEditFailed => "beforeEditFailed",
         }
     }
@@ -264,6 +287,7 @@ impl Worded for EditError {
             Self::Refused(_) => plain(&REFUSED),
             Self::BadToken => plain(&crate::texts::BAD_TOKEN),
             Self::RollbackGone => plain(&ROLLBACK_GONE),
+            Self::StepGone => plain(&STEP_GONE),
             Self::BeforeEditFailed => plain(&BEFORE_EDIT_FAILED),
         }
     }
