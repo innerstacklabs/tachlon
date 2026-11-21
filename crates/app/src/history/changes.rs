@@ -136,7 +136,7 @@ impl Session {
 
     /// The task records an inverse `step` puts back, after it ran. An inverse delete is a create
     /// (an insert, a paste, or the undo of a delete) and an inverse restore a delete; a reparent
-    /// is an update of `parent` and of `after` for the task and each sibling it adopted or released.
+    /// is an update of `parent` and `after` for the task, the siblings it adopted or released and each task that follows one.
     pub(crate) fn outline_changes(&self, step: &Step) -> Vec<String> {
         let head = |task: TaskId| {
             format!(
@@ -208,6 +208,7 @@ impl Session {
                 ..before
             };
         }
+        rows.extend(Place::followers(outline, &rows));
         let mut changes = Vec::new();
         for (t, was) in rows {
             let now = Place::of(outline, t);

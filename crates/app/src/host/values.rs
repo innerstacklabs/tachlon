@@ -143,7 +143,7 @@ impl Session {
     }
 
     /// The parent and after updates of a move of `task` to `new`, then of each sibling it adopts or
-    /// releases, in the order the commit writes them.
+    /// releases, then of each task that follows one, in the order the commit writes them.
     fn moved(&self, task: TaskId, new: Place, siblings: Siblings) -> Vec<String> {
         let outline = self.outline.as_ref().expect("checked");
         let old = Place::of(outline, task);
@@ -190,6 +190,10 @@ impl Session {
         for &t in moved {
             rows.push((t, was, now));
             (was.after, now.after) = (Some(t), Some(t));
+        }
+        let to: Vec<_> = rows.iter().map(|&(t, _, now)| (t, now)).collect();
+        for (t, now) in Place::followers(outline, &to) {
+            rows.push((t, Place::of(outline, t), now));
         }
         let mut out = Vec::new();
         for (t, was, now) in rows {
