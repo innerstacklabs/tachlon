@@ -404,6 +404,7 @@ export function Schedule({ tasks, links, reload }: { tasks: Task[]; links: Link[
 ```
 
 - **A `SaveRefused` puts that commit and every commit made after it back,** and the chart shows its `message` with the number of edits put back and fires `error` with the source `"save"`; read your data again there, as the example does. A `hostEdit` made after the refused commit goes back with it and `undone` counts it: your page sends it again.
+- **After the chart removes a row your data dropped (`App.remove_task`), a save that is later refused answers reload:** the person's steps that named the row are forgotten, nothing is put back, and `error` has `reload: true`, so read your data again.
 - **A batch endpoint is one request in place of the loop.** Send `changes` whole and make the one server transaction all or nothing, so a refusal puts back the whole commit.
 - **The chart reads the function it holds when it sends a commit,** so passing a new `save` between two edits is safe: the second edit goes to the new function. The React, Vue and Angular components do not mount the chart again for it.
 
