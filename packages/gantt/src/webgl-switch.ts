@@ -177,7 +177,7 @@ export async function mountSwitching( // oxlint-disable-line max-lines-per-funct
     let lostEdits = "";
     try {
       kept = old.gantt.toDocument();
-      if (unsaved || changed || source === undefined) source = { document: kept };
+      if (unsaved || changed || source === undefined) source = { document: kept, carried: true };
     } catch (err) {
       console.error("the schedule could not be kept for WebGL2", err);
       if (unsaved || changed) {

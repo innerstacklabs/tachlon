@@ -89,8 +89,8 @@ fn a_texts_that_is_not_a_table_of_known_sentences_changes_nothing() {
 fn the_english_table_is_what_a_host_hands_back_untranslated() {
     let table = app::english_json();
     let keys: serde_json::Value = serde_json::from_str(&table).unwrap();
-    assert_eq!(keys.as_object().unwrap().len(), 156);
-    assert!(include_str!("../../../docs/WASM_API.md").contains("156 in all"));
+    assert_eq!(keys.as_object().unwrap().len(), 162);
+    assert!(include_str!("../../../docs/WASM_API.md").contains("162 in all"));
     let (mut session, _) = common::demo_session(10);
     session
         .set_locale(&locale(r#"{"emptyName":"vide"}"#))

@@ -180,7 +180,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
   // The benchmark driver splits load here: the engine's code is loaded and can run (demos/bench/side.ts).
   performance.mark("library-ready");
   const started = performance.now();
-  const { schedule, unsupported } = await load(source, page?.groups);
+  const { schedule, unsupported } = await load(source, page?.groups, run.capabilities());
   const box = canvas.getBoundingClientRect();
   let app: PublicApp;
   try {
@@ -319,6 +319,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
     frames: () => status().frames,
     unsaved,
     guard,
+    capabilities: run.capabilities,
     timed: (file) => {
       if (file.timings !== undefined) info.open = { name: file.name, timings: file.timings };
     },
@@ -366,7 +367,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
 
   const gantt = createGantt({
     shell, reason, name: () => name, setName: (n) => { name = n; }, save, note, printOn, openFile: (f, options) => opener.openFile(f, options),
-    adopt, busy, guard, hostView, events, setData: hostData("tasks" in source ? source : {}, s0.epoch), setPending: table.setPending, wrote: table.wrote, speed: () => speedOf(info.open, metrics.view()), unit, dateForm, fields: names,
+    adopt, busy, guard, hostView, events, setData: hostData("tasks" in source ? source : {}, s0.epoch), setPending: table.setPending, wrote: table.wrote, speed: () => speedOf(info.open, metrics.view()), unit, dateForm, fields: names, capabilities: run.capabilities,
   });
   // The panel is written beside the chart, not in its root; the switch to WebGL2 takes it down with this start and writes a new one with no history.
   if (assistant !== undefined) disposers.push(mountAssistantPanel(assistant.into, assistant.send, gantt.commands, texts).destroy);

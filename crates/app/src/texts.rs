@@ -76,6 +76,12 @@ texts! {
     NOT_ALLOWED_PROGRESS "notAllowedProgress" "Changing progress and the data date is not allowed.";
     NOT_ALLOWED_BASELINE "notAllowedBaseline" "Changing the baseline is not allowed.";
     NOT_STORED "notStored" "Saving allows {what}.";
+    CONFORM_LIMITS_ONE "conformLimitsOne" "{count} task had a second date limit, which this host does not store; the later one was dropped";
+    CONFORM_LIMITS_MANY "conformLimitsMany" "{count} tasks had a second date limit, which this host does not store; the later ones were dropped";
+    CONFORM_DURATIONS_ONE "conformDurationsOne" "{count} task had a duration that is not a whole number of {unit}, which this host does not store; it was rounded to the nearest";
+    CONFORM_DURATIONS_MANY "conformDurationsMany" "{count} tasks had a duration that is not a whole number of {unit}, which this host does not store; each was rounded to the nearest";
+    CONFORM_DATES_ONE "conformDatesOne" "{count} task had a date limit with a time of day, which this host does not store; it was moved to the start of its day";
+    CONFORM_DATES_MANY "conformDatesMany" "{count} tasks had a date limit with a time of day, which this host does not store; each was moved to the start of its day";
     REFUSED "refused" "This change is not allowed.";
     BAD_TOKEN "badToken" "An entry for the host on the undo list needs a token of one or more characters.";
     ROLLBACK_GONE "rollbackGone" "The chart can no longer go back to before that change. Load the saved schedule again.";

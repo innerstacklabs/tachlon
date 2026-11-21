@@ -5,6 +5,7 @@ import { reason } from "./boot.js";
 import { documentText, type LoadResult, type LoadSource } from "./document.js";
 import type { OpenGuard } from "./open-guard.js";
 import type { OpenedFile } from "./open-schedule.js";
+import type { MountOptions } from "./index.js";
 
 /** Today's date in the page's time zone as days since 1970-01-01, which `LoadedSchedule.blank` turns into the Monday on or before it. */
 function today(): number {
@@ -19,6 +20,7 @@ export async function loadSource(
   adopt: (file: OpenedFile, lines: string[], ms: number, expected: readonly string[], fileName: string | null, unsaved?: boolean) => void,
   rename: (name: string) => void,
   guard: OpenGuard,
+  capabilities: () => MountOptions["capabilities"],
 ): Promise<LoadResult> {
   const busy = guard.busy();
   if (busy !== null) return { ok: false, error: guard.say("not-loaded", { why: busy }) };
@@ -45,6 +47,8 @@ export async function loadSource(
       fileName = source.file.name;
       size = bytes.length;
     }
+    const profile = capabilities();
+    if (profile !== undefined) loaded.conform(JSON.stringify(profile));
     const format = loaded.format();
     const lines = loaded.unsupported() as string[];
     // The read took time: a newer open or load may have started, and an edit or a drag may have begun.

@@ -16,6 +16,7 @@ import type { HealthResult } from "./health.js";
 import type { WhatIfResult } from "./what-if.js";
 import type { PlainCalendar, PlainLink, PlainTask } from "./adapters/plain.js";
 import type { ScheduleOptions } from "./adapters/dhtmlx.js";
+import type { HostCapabilities } from "./gantt-types.js";
 
 /** What `openHeadless` reads: the bytes of a file, the plain `{ tasks, links }` the chart takes, or a schedule document (`toDocument`). */
 export type HeadlessSource = Uint8Array | { tasks: readonly PlainTask[]; links?: readonly PlainLink[]; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions; calendars?: readonly PlainCalendar[]; durationUnit?: "days" | "hours" | "minutes"; lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string } } | { document: unknown };
@@ -43,7 +44,7 @@ export interface TaskResult {
 
 /** A schedule opened with no page. Each call reads the schedule and changes nothing, and answers as the chart's command of that name does (`results` has none). */
 export interface HeadlessSchedule {
-  /** The lines of the plain data that were not carried over, as `fromTasks` lists them; empty for a file or a document. */
+  /** The lines of the plain data that were not carried over, as `fromTasks` lists them, then one for each kind of change made to fit what the host stores (`capabilities`); empty for a file or a document opened with none. */
   readonly leftOut: readonly string[];
   /** What moves if each of `tasks` (up to 10) slips a week. */
   whatIf(tasks: readonly number[]): WhatIfResult;
@@ -66,7 +67,7 @@ export interface HeadlessSchedule {
  * `project` is `"all"` or a P6 `proj_id` for a file with several projects; with any other source it throws an `Error`.
  * Throws an `Error` with the reader's message when the file or document cannot be read, and the `PlainDataError` `fromTasks` throws for plain data it refuses (`name` is `"PlainDataError"`, `issues` lists the problems).
  */
-export function openHeadless(source: HeadlessSource, project?: string): HeadlessSchedule {
+export function openHeadless(source: HeadlessSource, project?: string, capabilities?: HostCapabilities): HeadlessSchedule {
   const file = source instanceof Uint8Array;
   if (project !== undefined && !file) throw new Error("project selects a project of a file; plain data and a document hold one schedule.");
   if (!engineLoaded) {
@@ -75,9 +76,12 @@ export function openHeadless(source: HeadlessSource, project?: string): Headless
   }
   const plain = file || (typeof source === "object" && source !== null && !("tasks" in source) && "document" in source) ? null : fromTasks(source as Parameters<typeof fromTasks>[0]); // `tasks` before `document`, as `load` in `mount-load.ts` reads them; the data goes in uncopied, so `validate` sees what the caller passed
   const loaded = file ? LoadedSchedule.parse_bytes(source, project) : LoadedSchedule.parse_document(JSON.stringify(plain ? plain.document : (source as { document: unknown }).document));
+  const read = (loaded.unsupported() as string[]).length;
+  if (capabilities !== undefined) loaded.conform(JSON.stringify(capabilities));
+  const fitted = (loaded.unsupported() as string[]).slice(read);
   const app = Headless.open(loaded);
   const schedule: HeadlessSchedule = Object.freeze({
-    leftOut: Object.freeze(plain ? plain.leftOut : []),
+    leftOut: Object.freeze([...(plain ? plain.leftOut : []), ...fitted]),
     whatIf: (tasks: readonly number[]) => whatIf(app, tasks),
     whatIfLonger: (task: number, days: number) => whatIfLonger(app, task, days),
     explain: (task: number) => explain(app, task),

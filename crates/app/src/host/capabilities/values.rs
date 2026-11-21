@@ -12,16 +12,16 @@ use engine::{Calendar, DAY, Instant, Limit, Pin, TaskId};
 const KINDS: [&str; 9] = [
     "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "alap", "so", "fo",
 ];
-const STEPS: [&str; 3] = ["minutes", "hours", "days"];
+pub(in crate::host) const STEPS: [&str; 3] = ["minutes", "hours", "days"];
 
 /// What the host stores beyond the groups it turned off; the default stores everything.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub(super) struct Stores {
-    not_kinds: u16,
-    per_task: Option<u32>,
+pub(in crate::host) struct Stores {
+    pub(in crate::host) not_kinds: u16,
+    pub(in crate::host) per_task: Option<u32>,
     /// Places in [`STEPS`]: a duration's, then a lag's.
-    steps: [usize; 2],
-    whole_days: bool,
+    pub(in crate::host) steps: [usize; 2],
+    pub(in crate::host) whole_days: bool,
 }
 
 impl Stores {
@@ -37,7 +37,7 @@ impl Stores {
 
     /// `minutes`, a duration a drag asks for, as a whole step of the host's: the nearest, a half
     /// step up, and never none for some. `day` gives a day's minutes, asked only for a step of days.
-    pub(super) fn snap_length(self, minutes: i64, day: impl FnOnce() -> i64) -> i64 {
+    pub(in crate::host) fn snap_length(self, minutes: i64, day: impl FnOnce() -> i64) -> i64 {
         let unit = match self.steps[0] {
             0 => return minutes,
             1 => 60,
@@ -83,7 +83,7 @@ impl Stores {
 }
 
 /// What `snet` and `limit` hold, in the order of [`KINDS`]; an `alap` holds 0.
-fn held(snet: Option<Instant>, limit: &Limit) -> [Option<Instant>; 7] {
+pub(in crate::host) fn held(snet: Option<Instant>, limit: &Limit) -> [Option<Instant>; 7] {
     let pin = |start| match limit.pin {
         Some(Pin::Start(at)) if start => Some(at),
         Some(Pin::Finish(at)) if !start => Some(at),
@@ -112,7 +112,7 @@ fn merged(kept: Limit, now: Limit, new: Limit) -> Limit {
 }
 
 /// Is `at` midnight, or its calendar's opening (a start) or closing (a finish) of a working day?
-fn whole_day(calendar: &Calendar, finish: bool, at: Instant) -> bool {
+pub(in crate::host) fn whole_day(calendar: &Calendar, finish: bool, at: Instant) -> bool {
     let closing = calendar.is_period_end(at) && calendar.next_working(at) / DAY > (at - 1) / DAY;
     at % DAY == 0 || (finish && closing) || (!finish && calendar.day_start_at(at) == at)
 }
@@ -120,7 +120,7 @@ fn whole_day(calendar: &Calendar, finish: bool, at: Instant) -> bool {
 /// The kinds among `held`, one bit each. A floor and a ceiling on one instant, `snet` with `snlt` or `fnet` with
 /// `fnlt`, are the one kind `so` or `fo` unless the host's `not_kinds` leaves it out, which then sees the two
 /// limits, as a host did before the pair had a name.
-fn kinds(held: &[Option<Instant>], not_kinds: u16) -> u16 {
+pub(in crate::host) fn kinds(held: &[Option<Instant>], not_kinds: u16) -> u16 {
     let bits =
         (held.iter().enumerate()).fold(0, |bits, (i, at)| bits | u16::from(at.is_some()) << i);
     [(0, 1, 7), (2, 3, 8)]

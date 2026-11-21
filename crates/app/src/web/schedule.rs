@@ -1,5 +1,7 @@
 //! Schedule loading and parsing for the wasm API.
 
+mod conform;
+
 use super::{install_panic_hook, now_ms, set, strings};
 use crate::baseline::Baseline;
 use crate::document::SourceFormat;

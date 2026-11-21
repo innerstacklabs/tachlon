@@ -43,6 +43,7 @@ mod commits;
 mod commits_outline;
 mod common;
 mod compare_file;
+mod conform;
 mod constraint_filter;
 mod critical_finished;
 mod critical_path;
