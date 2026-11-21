@@ -132,6 +132,50 @@ test("each call uses the object the chart holds at that moment", async () => {
   expect(app.log).toEqual(["ack 1", "ack 2"]);
 });
 
+const linkedRows = [
+  { record: "task", op: "create", key: "t2", task: 2, set: { name: "Two" } },
+  { record: "link", op: "create", key: "l1", link: 1, set: { from: "t2", to: "t3" } },
+  { record: "task", op: "create", key: "t3", task: 3, set: { name: "Three" } },
+] satisfies Commit["changes"];
+
+async function missingResult(save: ConstructorParameters<typeof SaveQueue>[1], changes: Commit["changes"], source: Commit["source"] = "typed", mounted = (): void => undefined): Promise<{ log: string[]; errors: unknown[] }> {
+  const app = fakeApp(); const errors: unknown[] = [];
+  const queue = new SaveQueue(app, save, (error) => errors.push(error));
+  mounted(); queue.add([{ ...commit(1, changes), source }]); await settle();
+  return { log: app.log, errors };
+}
+
+test("a handlers object supplied after mount refuses and puts back a record whose handler is missing", async () => {
+  let current: Handlers | undefined;
+  const got = await missingResult(liveSave(() => current), linkedRows, "typed", () => { current = { createTask: async () => undefined }; });
+  expect(got).toMatchObject({ log: ["rollback 1"], errors: [{ reason: "refused", message: "This page cannot save new links: it gave no createLink.", undone: 1 }] });
+});
+
+test("discarding a what-if that deleted linked tasks runs no partial handler and puts the edit back", async () => {
+  const calls: string[] = [];
+  const got = await missingResult({ createTask: async () => void calls.push("createTask") }, linkedRows, "undo");
+  expect(calls).toEqual([]);
+  expect(got).toMatchObject({ log: ["rollback 1"], errors: [{ reason: "refused", message: "This page cannot save new links: it gave no createLink." }] });
+});
+
+test("data-date undo and redo without updateSchedule are each refused and put back", async () => {
+  for (const source of ["undo", "redo"] as const) {
+    const got = await missingResult({}, [{ record: "schedule", op: "update", key: null, set: { dataDate: null } }], source);
+    expect(got, source).toMatchObject({ log: ["rollback 1"], errors: [{ reason: "refused", message: "This page cannot save changes to the schedule: it gave no updateSchedule." }] });
+  }
+});
+
+test("a host with every handler sees no refusal for records from any plan kind", async () => {
+  const app = fakeApp();
+  const errors: unknown[] = [];
+  const handlers = Object.fromEntries(["createTask", "updateTask", "deleteTask", "createLink", "updateLink", "deleteLink", "updateSchedule"].map((name) => [name, async () => undefined])) as Handlers;
+  const queue = new SaveQueue(app, handlers, (error) => errors.push(error));
+  queue.add([commit(1, linkedRows), { ...commit(2, linkedRows.map((c) => ({ ...c, op: "delete" as const, set: undefined }))), source: "undo" }, { ...commit(3, [{ record: "schedule", op: "update", key: null, set: { dataDate: null } }]), source: "redo" }]);
+  await settle();
+  expect(errors).toEqual([]);
+  expect(app.log).toEqual(["ack 1", "ack 2", "ack 3"]);
+});
+
 test("a handler's SaveRefused puts that commit and the ones behind it back, as one from a save function does", async () => {
   const app = fakeApp();
   const errors: unknown[] = [];

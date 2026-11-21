@@ -106,27 +106,31 @@ variants! {
         r#""field":"dataDate","old":null,"new":"2026-01-05T00:00""#, true;
 }
 
-/// Every plan of two or more edits, asked in turn (two typed links, their undo and redo, a paste of two rows and its undo, the end of a what-if), as `(kind, changes, needs)` with each record read `record.op`.
+/// Every plan kind this row changes, with the host's whole before-edit argument and the raw commits
+/// its save handlers receive. Reading after each action keeps the pairing byte for byte.
 #[rustfmt::skip]
-fn plans() -> Vec<(&'static str, String, String)> {
+fn plans() -> Vec<(Planned, String)> {
     let link = |pred, succ| Edit::AddLink { pred: TaskId(pred), succ: TaskId(succ), kind: LinkType::FS, lag: 0 };
     let mut s = session();
     let asked = watch(&mut s, false);
-    s.edit_group(vec![link(1, 2), link(0, 3)], Source::Typed).unwrap();
-    s.undo().unwrap(); s.redo().unwrap(); s.insert_many(&["X", "Y"]).unwrap(); s.undo().unwrap();
+    let mut out = Vec::new();
+    macro_rules! ran { ($call:expr) => {{ $call.unwrap(); out.push((asked.borrow().last().unwrap().clone(), s.take_commits())); }} }
+    ran!(s.edit_group(vec![link(1, 2), link(0, 3)], Source::Typed));
+    ran!(s.undo()); ran!(s.redo()); ran!(s.insert_many(&["X", "Y"])); ran!(s.undo());
     s.begin_whatif().unwrap();
-    s.edit(Edit::Delete { task: TaskId(2) }).unwrap(); s.edit(Edit::Delete { task: TaskId(3) }).unwrap();
-    s.discard_whatif().unwrap();
-    let of = |rows: &[String]| rows.iter().map(|r| r.parse::<Value>().unwrap()).map(|v| format!("{}.{}", v["record"].as_str().unwrap(), v["op"].as_str().unwrap())).collect::<Vec<_>>().join(" ");
-    asked.borrow().iter().map(|p| (p.kind, of(&p.changes), of(&p.needs))).collect()
+    ran!(s.edit(Edit::Delete { task: TaskId(2) })); ran!(s.edit(Edit::Delete { task: TaskId(3) })); ran!(s.discard_whatif());
+    out
 }
 
 #[test]
 #[rustfmt::skip]
-fn the_function_is_shown_the_same_changes_for_every_plan_as_before_needs_existed() {
-    let expected = [("group", ""), ("undo", ""), ("redo", ""), ("insertMany", "task.create task.create"), ("undo", ""), ("delete", "link.delete link.delete task.delete"), ("delete", "link.delete task.delete"), ("discardWhatIf", "")];
+fn each_whole_before_edit_argument_and_save_argument_stays_byte_for_byte_as_on_main() {
     let shown = plans();
-    assert_eq!(shown.iter().map(|(kind, changes, _)| (*kind, changes.as_str())).collect::<Vec<_>>(), expected);
+    let paste = [r#"{"record":"task","key":null,"task":6,"op":"create","fields":{"name":"X"}}"#, r#"{"record":"task","key":null,"task":7,"op":"create","fields":{"name":"Y"}}"#];
+    assert_eq!(shown.iter().map(|(p, _)| (p.kind, p.source, p.tasks.clone())).collect::<Vec<_>>(), [("group", Source::Typed, vec![0, 1, 2, 3]), ("undo", Source::Undo, vec![0, 1, 2, 3]), ("redo", Source::Redo, vec![0, 1, 2, 3]), ("insertMany", Source::Paste, vec![]), ("undo", Source::Undo, vec![6, 7]), ("delete", Source::Typed, vec![2]), ("delete", Source::Typed, vec![3]), ("discardWhatIf", Source::Undo, vec![2, 3])]);
+    assert_eq!(shown.iter().map(|(p, _)| p.changes.len()).collect::<Vec<_>>(), [0, 0, 0, 2, 0, 3, 2, 0]);
+    assert_eq!(shown[3].0.changes, paste);
+    for (plan, saved) in [&shown[5], &shown[6]] { assert!(saved.contains(&format!(r#""changes":[{}]"#, plan.changes.join(","))), "{}: {saved}", plan.kind); }
 }
 
 #[test]
@@ -135,5 +139,6 @@ fn a_plan_of_several_edits_names_each_record_it_saves_and_a_single_edit_names_no
     let (made, gone) = ("link.create link.create", "link.delete link.delete");
     let expected = [("group", made), ("undo", gone), ("redo", made), ("insertMany", ""), ("undo", "task.delete task.delete"), ("delete", ""), ("delete", ""), ("discardWhatIf", "task.create link.create task.create link.create")];
     let shown = plans();
-    assert_eq!(shown.iter().map(|(kind, _, needs)| (*kind, needs.as_str())).collect::<Vec<_>>(), expected);
+    let of = |rows: &[String]| rows.iter().map(|r| r.parse::<Value>().unwrap()).map(|v| format!("{}.{}", v["record"].as_str().unwrap(), v["op"].as_str().unwrap())).collect::<Vec<_>>().join(" ");
+    assert_eq!(shown.iter().map(|(p, _)| (p.kind, of(&p.needs).as_str().to_owned())).collect::<Vec<_>>(), expected.map(|(k, n)| (k, n.to_owned())));
 }

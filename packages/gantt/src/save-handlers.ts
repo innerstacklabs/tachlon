@@ -14,6 +14,12 @@ const answered = new WeakMap<ChangeSet, Map<string, string>>();
 /** A handler resolved with something the chart cannot read a key from (`keys: "server"`): the chart puts the edit back with the reason `"result"`. */
 export class BadResult extends Error {}
 
+/** A change set names a record for which its live handlers object has no handler. */
+export class MissingHandler extends Error {
+  readonly handler: string; readonly what: string;
+  constructor(handler: string, what: string) { super(`This page cannot save ${what}: it gave no ${handler}.`); this.handler = handler; this.what = what; }
+}
+
 /** The host's name for the key of a task and of a link, given when the server makes the keys. */
 export interface KeyNames { task: string; link: string }
 
@@ -49,14 +55,15 @@ async function keyOf(result: unknown, field: string, name: Name, change: Change)
 }
 
 async function runHandlers(handlers: Handlers, changeSet: ChangeSet, stopped: () => boolean, names?: KeyNames): Promise<SaveResult | Response | void> {
+  const missing = changeSet.changes.slice(resolved.get(changeSet) ?? 0).map(nameOf).find((name) => handlers[name] === undefined);
+  if (missing !== undefined) throw new MissingHandler(missing, WHAT[missing]);
   const keys = answered.get(changeSet) ?? new Map<string, string>();
   answered.set(changeSet, keys);
   for (let n = resolved.get(changeSet) ?? 0; n < changeSet.changes.length; n++) {
     if (stopped()) return;
     const change = changeSet.changes[n]!;
     const name = nameOf(change);
-    const handler = handlers[name] as ((...args: unknown[]) => Promise<unknown>) | undefined;
-    if (handler === undefined) throw new Error(`the save handlers have no ${name}`);
+    const handler = handlers[name] as (...args: unknown[]) => Promise<unknown>;
     const abort = new AbortController();
     const context: SaveContext = { once: change.once, signal: abort.signal, changeSet, ...(change.was === undefined ? {} : { was: change.was }) };
     const timer = setTimeout(() => abort.abort(), SIGNAL_AFTER);

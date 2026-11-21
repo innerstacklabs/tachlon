@@ -273,7 +273,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
       rows.refuse(error.reload || error.reason === "stopped" ? error.message : say(root, "put-back", { why: error.message, count: error.undone }));
       if (!error.reload && error.reason === "refused" && names) showRefusal(error);
       events.putBack(error);
-    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: hostName(names.tasks, "key"), link: hostName(names.links, "key") }, [hostName(names.tasks, "parent"), "after", hostName(names.links, "from"), hostName(names.links, "to")]), (count) => ((open.unsavedCommits = count), open.countMoves++), (tasks) => table.setUnsaved(tasks));
+    }, keyRules(app, hostKeys.keys, hostKeys.newKey, { task: hostName(names.tasks, "key"), link: hostName(names.links, "key") }, [hostName(names.tasks, "parent"), "after", hostName(names.links, "from"), hostName(names.links, "to")]), (count) => ((open.unsavedCommits = count), open.countMoves++), (tasks) => table.setUnsaved(tasks), (what, handler) => say(root, "cannot-save", { what, handler }));
     // The next edit of the person's clears a refusal's message; the put-back's own rollback commit does not.
     disposers.push(events.on("edit", ({ commits }) => (commits.some((c) => c.source !== "rollback" && c.source !== "host") && table.refuse(null), queue.add(commits))), () => queue.stop());
   }

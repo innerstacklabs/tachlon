@@ -3,7 +3,7 @@
 import type { Change, Commit } from "./events.js";
 import type { ChangeSet, Handlers, Save, SaveError, SaveResult } from "./gantt-types.js";
 import type { KeyNames } from "./save-handlers.js";
-import { BadResult, callSave, failedChange } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
+import { BadResult, callSave, failedChange, MissingHandler } from "./save-handlers.ts"; // `.ts`, so the Node tier can load this file
 import { judge } from "./save-status.ts";
 import type { Verdict } from "./save-status.js";
 
@@ -103,16 +103,18 @@ export class SaveQueue {
   private floor = 0;
   private readonly counted: (unsavedCommits: number) => void;
   private readonly dim: (tasks: readonly number[]) => void;
+  private readonly missing: (what: string, handler: string) => string;
   private told = 0;
 
   /** `failed` is told of each put-back once, after it. `counted` is told the number of unsaved commits each time it changes (`unsavedCommits` reads it), and `dim` the slots of the tasks those commits change, to show as unsaved. */
-  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError, names?: boolean) => void, keys: KeyRules = CHART_KEYS, counted: (unsavedCommits: number) => void = () => undefined, dim: (tasks: readonly number[]) => void = () => undefined) {
+  constructor(app: SaveApp, save: Save | Handlers, failed: (error: SaveError, names?: boolean) => void, keys: KeyRules = CHART_KEYS, counted: (unsavedCommits: number) => void = () => undefined, dim: (tasks: readonly number[]) => void = () => undefined, missing = (what: string, handler: string): string => `This page cannot save ${what}: it gave no ${handler}.`) {
     this.app = app;
     this.save = save;
     this.failed = failed;
     this.keys = keys;
     this.counted = counted;
     this.dim = dim;
+    this.missing = missing;
   }
 
   /** The commits the queue holds that no `save` call has settled: one whose call is running counts; one put back, dropped below the put-back's floor, or dropped by `stop` does not. */
@@ -200,6 +202,7 @@ export class SaveQueue {
           result = await callSave(save, head.set, () => this.stopped, this.keys.mode === "server" ? this.keys.names : undefined);
         } catch (err) {
           if (this.stopped) return;
+          if (err instanceof MissingHandler) { await this.putBack({ message: this.missing(err.what, err.handler) }, head); continue; }
           if (err instanceof BadResult) {
             await this.putBack({ message: err.message }, head, "result");
             continue;
