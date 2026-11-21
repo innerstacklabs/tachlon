@@ -168,6 +168,13 @@ impl Session {
         Ok(())
     }
 
+    /// Run `rollback`, then rebuild the graph it dropped: the free float column reads it, and a
+    /// failed edit must not leave that column blank until the next solve.
+    pub(crate) fn roll_back(&mut self, rollback: impl FnOnce(&mut Session)) {
+        rollback(self);
+        let _ = self.schedule.topological_order();
+    }
+
     /// Full solve after a link change, then everything that follows a changed solution, the move
     /// report included: the old early dates are kept, the tasks whose dates differ become the
     /// moved list, and the report is the one a duration edit makes (no task is the edited one, so
@@ -192,7 +199,7 @@ impl Session {
             Ok(solution) => solution,
             Err(error) => {
                 self.forget_critical();
-                rollback(self);
+                self.roll_back(rollback);
                 return Err(error.into());
             }
         };

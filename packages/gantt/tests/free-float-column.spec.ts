@@ -144,3 +144,18 @@ test("with Progress on, a file with IDs opened after Free float was shown keeps 
   const [free, pred] = [await headAndFirstCell(page, "free-float"), await headAndFirstCell(page, "pred")];
   expect(free.head!, "Free float stays left of Predecessors, as the rows have them").toBeLessThan(pred.head!);
 });
+
+test("the Task fit is the same whether Free float or the baseline was shown first", async ({ g }) => {
+  await g.page.setViewportSize({ width: 900, height: 800 });
+  const fit = async (freeFirst: boolean): Promise<string> => {
+    await g.open({ n: 200 });
+    if (freeFirst) await toggle(g);
+    await g.page.locator("#baseline-set").click();
+    await g.nextFrame(3);
+    if (!freeFirst) await toggle(g);
+    return g.page.evaluate(() => document.getElementById("app")!.style.getPropertyValue("--gantt-task-fit"));
+  };
+  const free = await fit(true);
+  expect(free, "the fit is set at this width").toMatch(/^\d+px$/);
+  expect(free, "the head is read in screen order, not in the order the cells were added").toBe(await fit(false));
+});
