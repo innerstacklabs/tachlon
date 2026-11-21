@@ -35,6 +35,9 @@ export function liveSave(get: () => Save | Handlers | undefined): Save {
   return Object.assign((changeSet: ChangeSet) => callSave(get()!, changeSet), { [LIVE]: get });
 }
 
+/** Whether a host's `save` lets a person draw a link: a handlers object needs `createLink` (`profileFor`). A wrapper sets the profile again when this changes (tl#2091). */
+export const drawsLinks = (save: Save | Handlers | undefined): boolean => typeof save !== "object" || save.createLink !== undefined;
+
 /** The function or object the host holds now: what `save` is, or what a wrapper's `liveSave` asks for. */
 const current = (save: Save | Handlers): Save | Handlers | undefined => {
   const live = (save as { [LIVE]?: () => Save | Handlers | undefined })[LIVE];

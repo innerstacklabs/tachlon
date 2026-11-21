@@ -2,7 +2,7 @@
 // mount options as props and the chart's events as callbacks. It uses only what the entry exports, `mount` and its types, imported by relative path, so
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
-import { liveSave } from "./save-queue.js";
+import { drawsLinks, liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions, type UpdateResult } from "./index.js";
 export type { ChangeSet, Handlers, Save, SaveContext, SaveError, SaveResult } from "./index.js";
 
@@ -111,7 +111,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
 
   // `readOnly` switches the chart that is mounted and never mounts it again; a chart that mounts later starts on the latest value.
   useEffect(() => live.current?.chart.setReadOnly(readOnly === true), [readOnly]);
-  useEffect(() => live.current?.chart.setCapabilities(capabilities), [capabilities]);
+  useEffect(() => live.current?.chart.setCapabilities(capabilities), [capabilities, drawsLinks(props.save)]);
   useEffect(() => sendRecords(live.current?.chart, latest.current, applied), [records]);
 
   // Only the events that have a handler are listened for, since a handler for some of them changes what a key does.
