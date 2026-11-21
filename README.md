@@ -16,6 +16,8 @@ Watch the narrated overview at [tachlon.com](https://tachlon.com).
 <!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-11-17 from branch `agent/screencast-rerecord` based on `2908360` -->
 <!-- screencast:end -->
 
+Needs a browser with WebGPU or WebGL2 and hardware acceleration on: a current Chrome, Edge, Firefox or Safari. Measured in Chrome.
+
 ## Why Tachlon
 
 - **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (17.8 ms on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured)
@@ -84,7 +86,7 @@ The package carries its own instructions, so your assistant works from the versi
 
 After a drag at 50,000 tasks, the engine reschedules in 17.8 ms, and 50,000 tasks load in 291.7 ms. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
 
-To time a file on your own machine, click the chart in the hosted app and press `s` ([open time](docs/MEASURING.md#open-time-gs87-pr-5)).
+To time how long your own file takes to open, open it in the hosted app, click the chart and press `s` ([open time](docs/MEASURING.md#open-time-gs87-pr-5)).
 
 <details>
 <summary>The measurements, next to three other charts</summary>
