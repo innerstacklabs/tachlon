@@ -4,8 +4,6 @@
 
 [Website](https://tachlon.com) · [Live demo](https://app.tachlon.com) · [Guide](https://app.tachlon.com/book/) · [npm](https://www.npmjs.com/package/tachlon)
 
-Use a current Chrome, Edge, Firefox or Safari with hardware acceleration on. A browser without WebGPU still works when it has WebGL2: the chart draws with WebGL2, and if you hold the pointer over the toolbar it reads "Drawing with WebGL2" instead of "Drawing with WebGPU". On a Dell laptop with Intel graphics (Chromium 152 on Linux), WebGL2 kept a 50,000-task chart in step with a 60 Hz display; whether it is slower than WebGPU on the same graphics chip is not measured, and Windows is not measured yet.
-
 [![npm version](https://img.shields.io/npm/v/tachlon)](https://www.npmjs.com/package/tachlon) [![MIT license](https://img.shields.io/npm/l/tachlon)](LICENSE)
 
 <!-- screencast:begin (written by demos/screencast/run.sh; do not edit by hand) -->
@@ -17,6 +15,8 @@ Watch the narrated overview at [tachlon.com](https://tachlon.com).
 <!-- screencast: the GIF stands in until docs/media/screencast.mp4 (4.9 MB) is uploaded as a GitHub attachment; its URL on a line of its own then replaces the image -->
 <!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-11-17 from branch `agent/screencast-rerecord` based on `2908360` -->
 <!-- screencast:end -->
+
+Needs a browser with WebGPU or WebGL2 and hardware acceleration on: a current Chrome, Edge, Firefox or Safari. Measured in Chrome.
 
 ## Why Tachlon
 
