@@ -138,8 +138,7 @@ export async function loadSide(probe: string): Promise<Side> {
 }
 
 /** Playwright's chromium, from whichever of the repo's two packages has it installed. */
-export function chromium(): any {
-  const root = resolve(here, "../..");
+export function chromium(root = resolve(here, "../..")): any {
   for (const pkg of ["apps/hosted", "packages/gantt"]) {
     if (!existsSync(join(root, pkg, "node_modules", "@playwright", "test"))) continue;
     return createRequire(join(root, pkg, "package.json"))("@playwright/test").chromium;
