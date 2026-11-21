@@ -214,13 +214,13 @@ impl Session {
                 }
             }
             Edit::Insert { place, name } => self
-                .run_insert(place, &name)
+                .run_insert(place, &name, true)
                 .map(|(inverse, ms)| (inverse.edit, ms)),
             Edit::Delete { task } => self
                 .run_delete(task, None)
                 .map(|(inverse, ms)| (inverse.edit, ms)),
             Edit::Restore { task, place } => self
-                .run_restore(task, place, None)
+                .run_restore(task, place, None, true)
                 .map(|(inverse, ms)| (inverse.edit, ms)),
             Edit::Reparent {
                 task,

@@ -277,7 +277,7 @@ impl Session {
     fn run_step(&mut self, step: Step, replay: bool) -> Result<(Step, f64), EditError> {
         match step.edit {
             Edit::Delete { task } => self.run_delete(task, step.meta),
-            Edit::Restore { task, place } => self.run_restore(task, place, step.meta),
+            Edit::Restore { task, place } => self.run_restore(task, place, step.meta, true),
             Edit::Reparent {
                 task,
                 place,

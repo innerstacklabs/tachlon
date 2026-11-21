@@ -1,12 +1,13 @@
-//! A host removes a task by key (tl#2087): no undo step and no commit, and the person's undo and redo steps
-//! that named the row are forgotten, so their Undo reaches the steps before them.
+//! A host adds and removes a task by key (tl#2087): no undo step and no commit, and the person's undo and redo
+//! steps that named the row are forgotten, so their Undo reaches the steps before them.
 
 #![expect(clippy::unwrap_used, reason = "a test's unwrap is its assertion")]
 
 use crate::link_gesture::on;
 use crate::reparent::build;
-use app::{Place, Session, Siblings, edit::Edit, history::Source, host::KeyTarget};
-use engine::{DepId, LinkType, TaskId};
+use app::edit::{Edit, EditError};
+use app::{Place, Session, Siblings, history::Source, host::KeyTarget};
+use engine::{DepId, Limit, LinkType, Pin, TaskId};
 use serde_json::Value;
 
 const P: TaskId = TaskId(0);
@@ -266,4 +267,225 @@ fn an_undone_insert_after_the_removed_row_loses_its_redo_steps() {
     assert_eq!((s.redo(), s.history_len()), (Ok(false), (1, 0)));
     assert_eq!(s.undo(), Ok(true));
     assert_eq!(name(&s, A), "A");
+}
+
+fn add(s: &mut Session, json: &str, parent: Option<&str>, after: Option<&str>) -> TaskId {
+    s.add_task_by_key(json, parent, after).unwrap()
+}
+
+/// The refusal's kind and member.
+fn refused(
+    s: &mut Session,
+    json: &str,
+    parent: Option<&str>,
+    after: Option<&str>,
+) -> (&'static str, Option<String>) {
+    let error = s.add_task_by_key(json, parent, after).unwrap_err();
+    (error.kind, error.member)
+}
+
+#[test]
+fn adding_by_key_leaves_the_undo_list_the_revision_the_outbox_and_the_selection() {
+    let mut s = keyed();
+    rename(&mut s, A, "Mine");
+    s.take_commits();
+    assert!(s.select_task(E.0));
+    let (history, revision) = (s.history_len(), s.revision());
+    let task = add(&mut s, r#"{"key":"n1"}"#, None, None);
+    assert_eq!(s.task_for_key("n1"), Some(task));
+    assert_eq!((s.history_len(), s.revision()), (history, revision));
+    assert_eq!(s.selection().map(|selected| selected.task), Some(E.0));
+    let out: Value = serde_json::from_str(&s.take_commits()).unwrap();
+    assert_eq!(out["commits"].as_array().unwrap().len(), 0, "no commit");
+    assert_eq!(s.undo(), Ok(true));
+    assert_eq!((name(&s, A), s.task_for_key("n1")), ("A", Some(task)));
+}
+
+#[test]
+fn adding_by_key_places_the_row_by_parent_and_after_keys_and_sets_the_record() {
+    let mut s = keyed();
+    let set = r#"{"key":"n1","name":"A2","duration":120}"#;
+    let a2 = add(&mut s, set, Some("t0"), Some("t1"));
+    assert_eq!(
+        (name(&s, a2), s.schedule().tasks()[a2.0 as usize].duration),
+        ("A2", 120)
+    );
+    let last = add(&mut s, r#"{"key":"n2"}"#, Some("t0"), None);
+    let after_b = add(&mut s, r#"{"key":"n3"}"#, None, Some("t2"));
+    let root = add(&mut s, r#"{"key":"n4"}"#, None, None);
+    let outline = s.outline().unwrap();
+    assert_eq!(outline.children(P), [A, a2, B, after_b, last]);
+    assert_eq!(outline.roots(), [P, C, D, E, root]);
+}
+
+#[test]
+fn adding_by_key_while_a_filter_or_grouping_is_on_is_taken_and_a_typed_insert_is_still_refused() {
+    let mut s = keyed();
+    assert!(s.set_critical_only(true));
+    add(&mut s, r#"{"key":"n1"}"#, None, None);
+    assert_eq!(s.insert_below_selection(), Err(EditError::FilterActive));
+    assert!(s.set_critical_only(false) && s.set_group_by(Some("Zone")));
+    add(&mut s, r#"{"key":"n2"}"#, None, None);
+    assert_eq!(s.insert_below_selection(), Err(EditError::InsertGrouped));
+    assert_eq!(s.task_count(), 8);
+}
+
+#[test]
+fn a_duplicate_unknown_or_bad_record_is_refused_by_name_and_changes_nothing() {
+    let mut s = keyed();
+    rename(&mut s, A, "a1");
+    let held = |s: &Session| {
+        (
+            s.history_len(),
+            s.revision(),
+            s.task_count(),
+            s.solution().dates[..6].to_vec(),
+        )
+    };
+    let before = held(&s);
+    let named = |kind, member: Option<&str>| (kind, member.map(str::to_owned));
+    let cases = [
+        (
+            r#"{"key":"t3"}"#,
+            None,
+            None,
+            named("duplicateKey", Some("key")),
+        ),
+        (r#"{"name":"x"}"#, None, None, named("noKey", Some("key"))),
+        ("[1]", None, None, named("badJson", None)),
+        (
+            r#"{"key":"n1"}"#,
+            Some("nobody"),
+            None,
+            named("unknownKey", Some("parent")),
+        ),
+        (
+            r#"{"key":"n1"}"#,
+            None,
+            Some("nobody"),
+            named("unknownKey", Some("after")),
+        ),
+        (
+            r#"{"key":"n1","duration":-1}"#,
+            None,
+            None,
+            named("badValue", Some("duration")),
+        ),
+        (
+            r#"{"key":"n1","alap":true}"#,
+            None,
+            None,
+            named("notUpdatable", Some("alap")),
+        ),
+    ];
+    for (json, parent, after, refusal) in cases {
+        assert_eq!(refused(&mut s, json, parent, after), refusal, "{json}");
+        assert_eq!(held(&s), before, "{json} changes nothing");
+    }
+    assert_eq!(
+        s.host_keys().task("n1"),
+        None,
+        "a late refusal frees the key"
+    );
+    let task = add(&mut s, r#"{"key":"n1"}"#, None, None);
+    assert_eq!(s.task_for_key("n1"), Some(task));
+}
+
+#[test]
+fn a_busy_press_refuses_an_add_as_busy() {
+    let mut s = keyed();
+    let (x, y) = on(&s, C.0);
+    s.pointer_down(x, y, false);
+    assert_eq!(
+        refused(&mut s, r#"{"key":"t3"}"#, None, None).0,
+        "busy",
+        "before any other refusal"
+    );
+    assert_eq!(refused(&mut s, r#"{"key":"n1"}"#, None, None).0, "busy");
+    assert_eq!((s.host_keys().task("n1"), s.task_count()), (None, 6));
+}
+
+#[test]
+fn task_members_read_back_into_update_tasks_change_nothing() {
+    let mut s = keyed();
+    s.edit(Edit::Move {
+        task: C,
+        snet: Some(600),
+    })
+    .unwrap();
+    let limit = Limit {
+        snlt: Some(3_000),
+        fnet: Some(2_000),
+        fnlt: Some(9_000),
+        ..Limit::default()
+    };
+    s.edit(Edit::SetLimit { task: C, limit }).unwrap();
+    let limit = Limit {
+        pin: Some(Pin::Finish(4_000)),
+        ..Limit::default()
+    };
+    s.edit(Edit::SetLimit { task: E, limit }).unwrap();
+    let held = |s: &Session| {
+        (
+            s.schedule().tasks().to_vec(),
+            s.meta()[3].name.clone(),
+            s.history_len(),
+            s.solution().dates.clone(),
+        )
+    };
+    let before = held(&s);
+    for key in ["t3", "t5"] {
+        let record = s.task_members(key).unwrap();
+        let read: Value = serde_json::from_str(&record).unwrap();
+        assert_eq!(
+            (read["key"].as_str(), read["name"].as_str()),
+            (Some(key), Some(name(&s, s.task_for_key(key).unwrap())))
+        );
+        assert!(
+            ["duration", "snet", "snlt", "fnet", "fnlt", "mso", "mfo"]
+                .iter()
+                .all(|m| read.get(m).is_some()),
+            "{record}"
+        );
+        s.update_tasks(&format!("[{record}]")).unwrap();
+        assert_eq!(held(&s), before, "{record}");
+    }
+    let read: Value = serde_json::from_str(&s.task_members("t5").unwrap()).unwrap();
+    assert!(read["mfo"].is_string() && read["mso"].is_null());
+    s.remove_task_by_key("t4").unwrap();
+    assert_eq!(s.task_members("t4").unwrap_err().kind, "unknownKey");
+}
+
+#[test]
+fn an_add_that_restores_a_deleted_row_forgets_the_persons_restore_step() {
+    let mut s = keyed();
+    rename(&mut s, A, "a1");
+    rename(&mut s, E, "e1");
+    s.edit(Edit::Delete { task: E }).unwrap();
+    let task = add(&mut s, r#"{"key":"t5","name":"E2"}"#, None, Some("t3"));
+    assert_eq!(
+        (task, s.task_for_key("t5"), name(&s, E)),
+        (E, Some(E), "E2")
+    );
+    assert_eq!(s.outline().unwrap().roots(), [P, C, E, D]);
+    assert_eq!(
+        s.history_len(),
+        (1, 0),
+        "the rename and the delete of E are forgotten"
+    );
+    assert_eq!(s.undo(), Ok(true));
+    assert_eq!(
+        (name(&s, A), s.task_for_key("t5"), name(&s, E)),
+        ("A", Some(E), "E2")
+    );
+}
+
+#[test]
+fn a_key_freed_by_a_remove_can_be_added_again() {
+    let mut s = keyed();
+    s.remove_task_by_key("t4").unwrap();
+    let task = add(&mut s, r#"{"key":"t4","name":"D2"}"#, None, None);
+    assert_ne!(task, D);
+    assert_eq!((s.task_for_key("t4"), name(&s, task)), (Some(task), "D2"));
+    assert!(s.schedule().is_deleted(D));
 }
