@@ -104,6 +104,71 @@ fn a_discard_is_one_commit_and_a_host_entry_in_it_keeps_its_own() {
     assert_eq!(session.history_len(), (0, 5));
 }
 
+/// The changes of the one commit a discard sends.
+fn discard_changes(session: &mut Session) -> Vec<serde_json::Value> {
+    outbox(session);
+    session.discard_whatif().unwrap();
+    let out: serde_json::Value = serde_json::from_str(&session.take_commits()).unwrap();
+    assert_eq!(out["commits"].as_array().unwrap().len(), 1);
+    out["commits"][0]["changes"].as_array().unwrap().clone()
+}
+
+/// The first task with no task under it in the outline: a delete takes it alone.
+fn leaf_of(meta: &[app::meta::TaskMeta]) -> TaskId {
+    let at = (0..meta.len() - 1).find(|&i| meta[i + 1].outline_level <= meta[i].outline_level);
+    TaskId(u32::try_from(at.unwrap()).unwrap())
+}
+
+#[test]
+fn a_task_edited_then_deleted_comes_back_with_the_values_it_had_before_the_edit() {
+    let (mut session, meta) = common::outline_session(30);
+    let leaf = leaf_of(&meta);
+    session.begin_whatif().unwrap();
+    let name = "Renamed in the what-if".to_string();
+    session.edit(Edit::Rename { task: leaf, name }).unwrap();
+    session.edit(Edit::Delete { task: leaf }).unwrap();
+    let changes = discard_changes(&mut session);
+    let made = changes
+        .iter()
+        .find(|c| c["record"] == "task" && c["op"] == "create");
+    assert_eq!(
+        made.unwrap()["fields"]["name"],
+        meta[leaf.0 as usize].name.as_str()
+    );
+}
+
+#[test]
+fn a_task_made_then_deleted_in_the_what_if_leaves_no_change() {
+    let mut session = common::outline_session(30).0;
+    session.begin_whatif().unwrap();
+    let made = session.insert_many(&["Footing"]).unwrap()[0];
+    session.edit(Edit::Delete { task: made }).unwrap();
+    let changes = discard_changes(&mut session);
+    let of_task = |c: &&serde_json::Value| c["record"] == "task" && c["task"] == made.0;
+    assert!(changes.iter().find(of_task).is_none(), "{changes:#?}");
+}
+
+#[test]
+fn a_field_changed_twice_in_the_what_if_is_one_change_from_its_value_before_the_discard() {
+    let mut session = common::demo_session(60).0;
+    let task = TaskId(2);
+    session.begin_whatif().unwrap();
+    let start = session.schedule().tasks()[2].duration;
+    for minutes in [start + 480, start + 960] {
+        session.edit(Edit::SetDuration { task, minutes }).unwrap();
+    }
+    let longest = session.schedule().tasks()[2].duration;
+    let changes = discard_changes(&mut session);
+    assert_eq!(session.schedule().tasks()[2].duration, start);
+    let ours: Vec<_> = changes
+        .iter()
+        .filter(|c| c["task"] == 2 && c["field"] == "duration")
+        .collect();
+    assert_eq!(ours.len(), 1, "{changes:#?}");
+    assert_ne!(longest, start);
+    assert_ne!(ours[0]["old"], ours[0]["new"]);
+}
+
 #[test]
 fn a_put_back_of_a_discard_the_cap_dropped_is_refused_whole() {
     let mut session = common::demo_session(200).0;
