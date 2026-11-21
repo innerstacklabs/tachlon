@@ -17,6 +17,8 @@ export interface Args {
   groups: number;
   /** `--before-edit` (with `--drag`): the drag page hands the chart a before-edit function that allows every change (the page's `?beforeEdit`). */
   beforeEdit: boolean;
+  /** `--critical-only` (with `--drag`): skip the open measurement and the head-task drag; only the critical-path drag runs. */
+  criticalOnly: boolean;
   /** `--build-only`: build the bundles, print where they are and stop; nothing runs on the mini. */
   buildOnly: boolean;
   /** `--holder <name>`: the name this task took the mini's lock under; the command runs on the mini only while that is the lock's holder. */
@@ -32,12 +34,12 @@ export const lockProblem = (who: string, holder: string | null): string | undefi
 
 const DEFAULTS = { ghosts: "0", groups: "0", runs: "3", out: "profile-out", host: "mini", chrome: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", seed: "20261020" };
 
-/** `--cell <shape>-<size>` plus optional `--runs --compare --out --host --chrome --seed` `--ghosts` `--groups` and the flags `--memory-infra`, `--build-only`, `--drag` and `--before-edit`; undefined for anything else. */
+/** `--cell <shape>-<size>` plus optional `--runs --compare --out --host --chrome --seed` `--ghosts` `--groups` and the flags `--memory-infra`, `--build-only`, `--drag`, `--before-edit` and `--critical-only`; undefined for anything else. */
 export function parseArgs(argv: string[]): Args | undefined {
   const got = new Map<string, string>();
   const flags = new Set<string>();
   for (let i = 0; i < argv.length; i += 2) {
-    if (argv[i] === "--memory-infra" || argv[i] === "--drag" || argv[i] === "--before-edit" || argv[i] === "--build-only") {
+    if (argv[i] === "--memory-infra" || argv[i] === "--drag" || argv[i] === "--before-edit" || argv[i] === "--critical-only" || argv[i] === "--build-only") {
       if (flags.has(argv[i])) return undefined;
       flags.add(argv[i]);
       i--; // the flag has no value: the loop's step of 2 then moves on by one
@@ -51,8 +53,8 @@ export function parseArgs(argv: string[]): Args | undefined {
   }
   const cell = got.get("cell");
   const o = { ...DEFAULTS, ...Object.fromEntries(got) };
-  if (!cell || !/^[a-z0-9]+-\d+$/.test(cell) || !/^[1-9]\d*$/.test(o.runs) || !/^\d+$/.test(o.seed) || !/^\d+$/.test(o.ghosts) || !/^[1-9]\d*$/.test(got.get("groups") ?? "1") || ((got.has("groups") || flags.has("--before-edit")) && !flags.has("--drag"))) return undefined;
-  return { cell, runs: Number(o.runs), compare: got.get("compare") ?? null, out: o.out, host: o.host, chrome: o.chrome, seed: o.seed, memoryInfra: flags.has("--memory-infra"), drag: flags.has("--drag"), ghosts: Number(o.ghosts), groups: Number(o.groups), beforeEdit: flags.has("--before-edit"), buildOnly: flags.has("--build-only"), holder: got.get("holder") ?? null };
+  if (!cell || !/^[a-z0-9]+-\d+$/.test(cell) || !/^[1-9]\d*$/.test(o.runs) || !/^\d+$/.test(o.seed) || !/^\d+$/.test(o.ghosts) || !/^[1-9]\d*$/.test(got.get("groups") ?? "1") || ((got.has("groups") || flags.has("--before-edit") || flags.has("--critical-only")) && !flags.has("--drag"))) return undefined;
+  return { cell, runs: Number(o.runs), compare: got.get("compare") ?? null, out: o.out, host: o.host, chrome: o.chrome, seed: o.seed, memoryInfra: flags.has("--memory-infra"), drag: flags.has("--drag"), ghosts: Number(o.ghosts), groups: Number(o.groups), beforeEdit: flags.has("--before-edit"), criticalOnly: flags.has("--critical-only"), buildOnly: flags.has("--build-only"), holder: got.get("holder") ?? null };
 }
 
 /**
@@ -183,17 +185,17 @@ export function pairedLine(before: Run[], after: Run[]): string {
 export interface Drag { interval: [number, number]; response: [number, number] }
 /** The two drags `--drag` runs on each side: the head task's, and the first critical task's (the page's `dragTarget`). */
 export const DRAGS = [["head", "head-task drag"], ["critical", "critical-path drag"]] as const;
-export type DragRun = Record<(typeof DRAGS)[number][0], Drag>;
+export interface DragRun { head?: Drag; critical: Drag }
 
 /** One or two sets of drag runs (two: interleaved when taken): per drag and measure, each side's median p50 and median p95 (with the min to max of the runs' p95) and, with two, whether the second side's median p95 lies inside the first's spread. */
 export function dragTable(before: DragRun[], after: DragRun[] | undefined, labels: [string, string?]): string {
   const side = (runs: DragRun[], key: keyof DragRun, m: keyof Drag) => {
-    const p95 = runs.map((r) => r[key][m][1]);
-    return { p50: median(runs.map((r) => r[key][m][0])), p95: median(p95), min: Math.min(...p95), max: Math.max(...p95) };
+    const p95 = runs.map((r) => r[key]![m][1]);
+    return { p50: median(runs.map((r) => r[key]![m][0])), p95: median(p95), min: Math.min(...p95), max: Math.max(...p95) };
   };
   const sets = after === undefined ? [before] : [before, after];
   const head = ["drag (ms)", "runs", ...sets.flatMap((_, i) => [`${labels[i]} p50`, `${labels[i]} p95 (spread)`]), ...(after === undefined ? [] : [`${labels[1]} p95 vs ${labels[0]} spread`])];
-  const rows = DRAGS.flatMap(([key, name]) => (["interval", "response"] as const).map((m) => {
+  const rows = DRAGS.filter(([key]) => before[0]?.[key] !== undefined).flatMap(([key, name]) => (["interval", "response"] as const).map((m) => {
     const s = sets.map((runs) => side(runs, key, m));
     const cell = (x: (typeof s)[0]) => `${fmt(x.p50)} | ${fmt(x.p95)} (${fmt(x.min)} to ${fmt(x.max)})`;
     const verdict = s.length === 2 ? [s[1].p95 >= s[0].min && s[1].p95 <= s[0].max ? "within" : "outside"] : [];
