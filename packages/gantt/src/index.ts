@@ -136,7 +136,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
   const given = { tasks: names.custom.take("tasks", options.tasks), links: names.custom.take("links", options.links) };
   given.tasks.commit();
   given.links.commit();
-  let plain: StartSource = options.document === undefined ? { tasks: given.tasks.rows && names.tasks.rows(given.tasks.rows), links: given.links.rows && names.links.rows(given.links.rows), dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
+  let plain: StartSource = options.document === undefined ? { tasks: given.tasks.rows && names.tasks.rows(given.tasks.rows), links: given.links.rows && names.links.rows(given.links.rows), projectStart: options.projectStart, dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
   const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, dateForm, save } = options;
   const { keys, newKey } = options;
   const mistake = !hasSave(save) || schedule !== undefined || options.document !== undefined ? undefined : keyMistake("task", given.tasks.rows && names.tasks.rows(given.tasks.rows)) ?? keyMistake("link", given.links.rows && names.links.rows(given.links.rows));

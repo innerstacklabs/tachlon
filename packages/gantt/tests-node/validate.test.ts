@@ -69,6 +69,8 @@ const shapes: [string, unknown, boolean][] = [
   ["an unknown option", { tasks: [t], options: { startedLate: "p6" } }, false],
   ["an option set to false", { tasks: [t], options: { unstartedRemaining: false } }, false],
   ["options an array", { tasks: [t], options: [] }, false],
+  ["a project start and a task with no start", { tasks: [{ id: 1, name: "A" }], projectStart: "2026-03-02" }, true],
+  ["a project start that is text", { tasks: [t], projectStart: "soon" }, false],
   ["every progress key and a data date", { tasks: [{ ...t, actualStart: "2026-03-02", actualFinish: "2026-03-03T10:00", remaining: 0, resume: "2026-03-02" }], dataDate: "2026-03-02" }, true],
   ["calendars, a unit and a lag calendar", { tasks: [{ ...t, calendar: "a" }], calendars: [cal, { key: "b", week: [[[480, 1020]], [], [], [], [], [], []], exceptions: [{ date: "2026-12-25", working: false }] }], durationUnit: "hours", lagCalendar: { calendar: "b" } }, true],
   ["a calendar with no key", { tasks: [t], calendars: [{ workDays: [1], hoursPerDay: 8 }] }, false],
@@ -123,6 +125,7 @@ const faults: [string, unknown, string][] = [
   ["a_link_from_a_task_to_itself", { tasks: [t], links: [{ from: 1, to: 1 }] }, "links[0].to"],
   ["progress_and_remaining_on_one_task", { tasks: [{ ...t, actualStart: "2026-03-02", progress: 0, remaining: 1 }] }, "tasks[0].remaining"],
   ["an_actual_finish_before_the_actual_start", { tasks: [{ ...t, actualStart: "2026-03-03T10:00", actualFinish: "2026-03-03T09:00" }] }, "tasks[0].actualFinish"],
+  ["a_project_start_that_is_not_a_date", { tasks: [t], projectStart: "2026-02-31" }, "projectStart"],
   ["a_data_date_that_is_not_a_date", { tasks: [t], dataDate: "2026-02-31" }, "dataDate"],
   ["an_actual_finish_before_a_date_alone_start_on_the_tasks_own_week", { tasks: [{ ...t, calendar: "pm", actualStart: "2026-03-02", actualFinish: "2026-03-02T12:00" }], calendars: [{ key: "pm", week: [[[780, 1020]], [], [], [], [], [], []] }] }, "tasks[0].actualFinish"], // a date alone starts at 13:00 there
   ["a_duration_unit_that_is_not_one", { tasks: [t], durationUnit: "weeks" }, "durationUnit"],

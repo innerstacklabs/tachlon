@@ -220,6 +220,7 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
   const add = (path: string, expected: string, got: string, fix: string) => {
     if (issues.length < MAX) issues.push({ path, expected, got, fix });
   };
+  let dated = false; // `projectStart` is a date, so a task needs no `start`
   const keys = { tasks: new Map<string, number>(), links: new Map<string, number>() };
   const keyed = (kind: "tasks" | "links", item: unknown, i: number) => { // a key is unique among the records of its kind and is not empty (decision 0016)
     const key = (item as { key?: unknown } | null)?.key;
@@ -236,7 +237,7 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
     for (const [name, f] of table) {
       const v = rec[name];
       if (v === undefined) {
-        if (f.required && !(name === "start" && (rec.constraint !== undefined || summary))) add(`${path}.${name}`, `a ${name}`, "nothing", `Add ${name}, for example ${EXAMPLE[f.kind]}.`);
+        if (f.required && !(name === "start" && (rec.constraint !== undefined || summary || dated))) add(`${path}.${name}`, `a ${name}`, "nothing", `Add ${name}, for example ${EXAMPLE[f.kind]}.`);
       } else if (!fine(f, v)) {
         const p = problem(name, f, v);
         add(`${path}.${name}`, p.expected, show(v), p.fix);
@@ -247,12 +248,14 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
     add("", 'an object with a "tasks" array', show(data), 'Pass { "tasks": [...], "links": [...] }.');
     return { issues, ids };
   }
-  const { tasks, links, dataDate, mustFinishBy, options } = data as { tasks?: unknown; links?: unknown; dataDate?: unknown; mustFinishBy?: unknown; options?: unknown };
+  const { tasks, links, projectStart, dataDate, mustFinishBy, options } = data as { tasks?: unknown; links?: unknown; projectStart?: unknown; dataDate?: unknown; mustFinishBy?: unknown; options?: unknown };
   if (options !== undefined) optionIssues(options, add);
   const before = issues.length;
   const calendarKeys = calendarIssues(data as Record<string, unknown>, add);
   const read = issues.length === before && before < MAX && Array.isArray((data as { calendars?: unknown }).calendars) ? readCalendars((data as { calendars: PlainCalendar[] }).calendars) : undefined; // the calendars as `fromTasks` reads them, to read a date alone on the task's own week
   const unstarted = (options as { unstartedRemaining?: unknown } | null)?.unstartedRemaining === "on"; // `remaining` alone is then a task's length before it starts
+  dated = projectStart !== undefined && fine(TASK.end!, projectStart);
+  if (projectStart !== undefined && !dated) add("projectStart", "a date as YYYY-MM-DD or YYYY-MM-DDTHH:mm", show(projectStart), `Write projectStart as a date, for example ${EXAMPLE.date}.`);
   if (dataDate !== undefined && !fine(TASK.end!, dataDate)) add("dataDate", "a date as YYYY-MM-DD or YYYY-MM-DDTHH:mm", show(dataDate), `Write dataDate as a date, for example ${EXAMPLE.date}.`);
   if (mustFinishBy !== undefined && !fine(TASK.end!, mustFinishBy)) add("mustFinishBy", "a date as YYYY-MM-DD or YYYY-MM-DDTHH:mm", show(mustFinishBy), `Write mustFinishBy as a date, for example ${EXAMPLE.date}.`);
   if (!Array.isArray(tasks)) add("tasks", "an array of tasks", show(tasks), 'Pass the tasks as an array: { "tasks": [{ "id": 1, "name": "Task", "start": "2026-03-02" }] }.');

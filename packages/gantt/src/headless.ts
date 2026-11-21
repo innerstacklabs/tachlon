@@ -19,7 +19,7 @@ import type { ScheduleOptions } from "./adapters/dhtmlx.js";
 import type { HostCapabilities } from "./gantt-types.js";
 
 /** What `openHeadless` reads: the bytes of a file, the plain `{ tasks, links }` the chart takes, or a schedule document (`toDocument`). */
-export type HeadlessSource = Uint8Array | { tasks: readonly PlainTask[]; links?: readonly PlainLink[]; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions; calendars?: readonly PlainCalendar[]; durationUnit?: "days" | "hours" | "minutes"; lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string } } | { document: unknown };
+export type HeadlessSource = Uint8Array | { tasks: readonly PlainTask[]; links?: readonly PlainLink[]; projectStart?: string; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions; calendars?: readonly PlainCalendar[]; durationUnit?: "days" | "hours" | "minutes"; lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string } } | { document: unknown };
 
 /** Where the engine is: the file beside this script, which Node reads (the page fetches it instead). */
 const ENGINE = new URL("./wasm/app_bg.wasm", import.meta.url);

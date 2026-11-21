@@ -84,8 +84,8 @@ function countUnread(item: object, known: Set<string>, counts: Map<string, numbe
   for (const key of Object.keys(item)) if (!known.has(key) && !key.startsWith("$")) counts.set(key, (counts.get(key) ?? 0) + 1);
 }
 
-/** Read plain tasks and links, the schedule's `dataDate` (a date, 00:00 of the day when it is a date alone) its `mustFinishBy` (a date; the end of that day when it is a date alone) and its `options` (passed through as one object, `validate` having checked its members), its `calendars`, its `durationUnit` (`"days"` by default, `"hours"` or `"minutes"`: what every `duration`, `remaining` and `lag` counts) and its `lagCalendar` (`"successor"` by default, `"predecessor"`, `"24h"` or `{ calendar: key }`: the calendar a lag day is counted on), into a document v1. Throws a `PlainDataError` that lists every problem (see `validate`) before it reads anything. */
-export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions; calendars?: PlainCalendar[]; durationUnit?: "days" | "hours" | "minutes"; lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string } }, options: PlainOptions = {}): PlainResult { // oxlint-disable-line max-lines-per-function -- existing, over cap
+/** Read plain tasks and links, the schedule's `projectStart` (a date, 00:00 of the day when it is a date alone: no task starts earlier, and a task's `start` is optional) its `dataDate` (a date, 00:00 of the day when it is a date alone) its `mustFinishBy` (a date; the end of that day when it is a date alone) and its `options` (passed through as one object, `validate` having checked its members), its `calendars`, its `durationUnit` (`"days"` by default, `"hours"` or `"minutes"`: what every `duration`, `remaining` and `lag` counts) and its `lagCalendar` (`"successor"` by default, `"predecessor"`, `"24h"` or `{ calendar: key }`: the calendar a lag day is counted on), into a document v1. Throws a `PlainDataError` that lists every problem (see `validate`) before it reads anything. */
+export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; projectStart?: string; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions; calendars?: PlainCalendar[]; durationUnit?: "days" | "hours" | "minutes"; lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string } }, options: PlainOptions = {}): PlainResult { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const { issues, ids } = inspect(data);
   if (issues.length > 0) throw new PlainDataError(issues);
   const { tasks } = data;
@@ -117,6 +117,7 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
   const place: number[] = [];
   order.forEach((i, at) => (place[i] = at));
 
+  const projectStart = data.projectStart === undefined ? null : dateAt(data.projectStart);
   const leftOut: string[] = [];
   const unreadTask = new Map<string, number>();
   const starts: (number | null)[] = [];
@@ -152,7 +153,8 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
       progress.push(null);
       return { ...base, duration: 0, snet: null, progress: 0 };
     }
-    const floor = constrained ? lim.snet : (lim.snet ?? start);
+    const ownFloor = constrained ? lim.snet : (lim.snet ?? start);
+    const floor = projectStart === null ? ownFloor : Math.max(ownFloor ?? projectStart, projectStart);
     starts.push(floor);
     const act = readActuals(task, week, (value) => toMinutes(value, data.durationUnit, day)); progress.push(act);
     limitDates.push(...lim.dates, ...act.dates);
@@ -170,7 +172,7 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; dataD
   // The origin is the Monday on or before the earliest start (1970-01-01 was a Thursday); starts become minutes from it.
   const dataDate = data.dataDate === undefined ? null : dateAt(data.dataDate);
   const finishBy = data.mustFinishBy === undefined ? null : minutesOf(data.mustFinishBy)! + (data.mustFinishBy.length === 10 ? DAY : 0); // a finish date alone is the end of that day (decision 0017, rule 6)
-  const known = [...starts.filter((start): start is number => start !== null), ...limitDates, ...(dataDate === null ? [] : [dataDate])];
+  const known = [...starts.filter((start): start is number => start !== null), ...limitDates, ...(dataDate === null ? [] : [dataDate]), ...(projectStart === null ? [] : [projectStart])];
   const first = known.length > 0 ? Math.floor(Math.min(...known) / DAY) : Math.floor(Date.UTC(2026, 0, 5) / 86_400_000);
   const origin = first - ((first + 3) % 7);
   const shift = (at: number | null): number | null => (at === null ? null : at - origin * DAY);

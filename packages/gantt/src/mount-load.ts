@@ -85,7 +85,7 @@ async function loadEngine(wasmUrl: string | URL | undefined): Promise<InitOutput
 }
 
 /** What a chart starts on: the schedule `mount` was given (`undefined` for its `tasks` and `links`), or the document of the one it held when it switched to WebGL2. */
-export type StartSource = MountOptions["schedule"] | { document: unknown; carried?: true } | { tasks: MountOptions["tasks"]; links: MountOptions["links"]; dataDate?: MountOptions["dataDate"]; mustFinishBy?: MountOptions["mustFinishBy"]; options?: MountOptions["options"]; calendars?: MountOptions["calendars"]; durationUnit?: MountOptions["durationUnit"]; lagCalendar?: MountOptions["lagCalendar"] };
+export type StartSource = MountOptions["schedule"] | { document: unknown; carried?: true } | { tasks: MountOptions["tasks"]; links: MountOptions["links"]; projectStart?: MountOptions["projectStart"]; dataDate?: MountOptions["dataDate"]; mustFinishBy?: MountOptions["mustFinishBy"]; options?: MountOptions["options"]; calendars?: MountOptions["calendars"]; durationUnit?: MountOptions["durationUnit"]; lagCalendar?: MountOptions["lagCalendar"] };
 
 /**
  * Build or read the schedule `source` names, fitted to what the host stores (`capabilities`) when it came from a file, a document or plain data: `unsupported` then lists what was changed. A document `carried` over from a chart that has been running is already fitted.
@@ -102,7 +102,7 @@ async function readSource(source: NonNullable<StartSource>, groups: number): Pro
   if ("tasks" in source) {
     let document: unknown;
     try {
-      document = fromTasks({ tasks: source.tasks ?? [], links: source.links, dataDate: source.dataDate, mustFinishBy: source.mustFinishBy, options: source.options, calendars: source.calendars, durationUnit: source.durationUnit, lagCalendar: source.lagCalendar }).document;
+      document = fromTasks({ tasks: source.tasks ?? [], links: source.links, projectStart: source.projectStart, dataDate: source.dataDate, mustFinishBy: source.mustFinishBy, options: source.options, calendars: source.calendars, durationUnit: source.durationUnit, lagCalendar: source.lagCalendar }).document;
     } catch (err) {
       throw new MountError("schedule", err instanceof Error ? err.message : String(err), { cause: err, code: err instanceof PlainDataError ? codeFor("DATA_INVALID") : undefined });
     }
