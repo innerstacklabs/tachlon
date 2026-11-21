@@ -5,6 +5,7 @@ use super::{KeyTarget, update::UpdateError};
 use crate::document::json_read::{Value, parse};
 use crate::{Session, edit::EditError, json::quote, structure::NEW_TASK};
 use engine::{Pin, TaskId};
+use std::fmt::Write as _;
 
 impl Session {
     /// Add the task `json` describes, one record as `update_tasks` takes it (its `key` and the members it sets), under
@@ -125,7 +126,7 @@ impl Session {
             Some(Pin::Finish(at)) if finish => Some(at),
             _ => None,
         };
-        let dates = [
+        let members = [
             ("snet", task.snet),
             ("snlt", limit.snlt),
             ("fnet", limit.fnet),
@@ -133,9 +134,10 @@ impl Session {
             ("mso", pin(false)),
             ("mfo", pin(true)),
         ];
-        let dates: String = (dates.iter())
-            .map(|(member, at)| format!(r#","{member}":{}"#, self.date(*at)))
-            .collect();
+        let mut dates = String::new();
+        for (member, at) in members {
+            let _ = write!(dates, r#","{member}":{}"#, self.date(at));
+        }
         let (key, duration) = (quote(key), task.duration);
         Ok(format!(
             r#"{{"key":{key},"name":{name},"duration":{duration}{dates}}}"#
