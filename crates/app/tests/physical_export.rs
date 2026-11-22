@@ -88,6 +88,25 @@ fn a_fraction_is_written_in_an_xer_file_and_left_out_of_an_ms_project_file() {
 }
 
 #[test]
+fn a_physical_percent_that_rounds_to_zero_is_left_out_of_an_ms_project_file() {
+    let count =
+        |out: &Exported, needle: &str| out.left_out.iter().filter(|l| l.contains(needle)).count();
+    for cell in ["0.4", "0"] {
+        let out = exports(file(cell).as_bytes(), true);
+        assert_eq!(count(&out, "reads back as none"), 1, "{cell}");
+        assert_eq!(count(&out, "has a fraction"), 0, "{cell}");
+        let text = xml(out);
+        assert!(text.contains("<PhysicalPercentComplete>0</PhysicalPercentComplete>"));
+        assert_eq!(pour(&parse_mspdi(&text).expect("reads back")).0, None);
+    }
+    let out = exports(file("0.5").as_bytes(), true);
+    assert_eq!(count(&out, "has a fraction"), 1);
+    assert_eq!(count(&out, "reads back as none"), 0);
+    let read = parse_mspdi(&xml(out)).expect("reads back");
+    assert_eq!(pour(&read).0, Some(100));
+}
+
+#[test]
 fn a_task_with_no_physical_percent_writes_what_it_wrote_before() {
     let xer = exports(file("").as_bytes(), false);
     let read = parse_xer(&xer.bytes, &ProjectSelection::Unspecified).expect("reads back");

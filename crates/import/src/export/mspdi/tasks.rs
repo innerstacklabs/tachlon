@@ -156,13 +156,16 @@ fn task_notes(plan: &Plan<'_>, index: usize, uid: u32, left_out: &mut Vec<String
             ));
         }
     }
-    if meta
-        .physical
-        .is_some_and(|hundredths| hundredths % 100 != 0)
-    {
-        left_out.push(format!(
-            "task {uid}: its physical percent complete has a fraction, so it is written as a whole number"
-        ));
+    if let Some(hundredths) = meta.physical {
+        if (hundredths + 50) / 100 == 0 {
+            left_out.push(format!(
+                "task {uid}: its physical percent complete rounds to 0, which reads back as none"
+            ));
+        } else if hundredths % 100 != 0 {
+            left_out.push(format!(
+                "task {uid}: its physical percent complete has a fraction, so it is written as a whole number"
+            ));
+        }
     }
     let summary = plan.summary.get(index).copied().unwrap_or(false);
     if summary && task.snet != imported.project_start {
