@@ -81,6 +81,7 @@ fn is_read(name: &str) -> bool {
             | "OutlineLevel"
             | "PercentComplete"
             | "Period"
+            | "PhysicalPercentComplete"
             | "PredecessorLink"
             | "PredecessorUID"
             | "Project"

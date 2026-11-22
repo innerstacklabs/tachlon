@@ -97,6 +97,24 @@ impl Session {
         format!("{percent}%")
     }
 
+    /// The physical percent complete of task `i` beside the derived one (`task_percent`): `50%`,
+    /// `12.5%` or `12.35%`, or an empty string for a task with none, a summary and a task that is
+    /// absent or deleted.
+    pub fn task_physical(&self, i: u32) -> String {
+        let physical = self
+            .live_task(i)
+            .and_then(|_| self.meta().get(i as usize))
+            .and_then(|meta| meta.physical);
+        let Some(hundredths) = physical else {
+            return String::new();
+        };
+        if self.outline().is_some_and(|o| o.is_summary(TaskId(i))) {
+            return String::new();
+        }
+        let text = format!("{}.{:02}", hundredths / 100, hundredths % 100);
+        format!("{}%", text.trim_end_matches('0').trim_end_matches('.'))
+    }
+
     /// Whether the open schedule carries progress: a live task with an actual start, an actual
     /// finish. A remaining alone (an XER states one on tasks not yet started, whose cells stay
     /// empty) does not count, nor does a percent complete alone (the timeline's display value,

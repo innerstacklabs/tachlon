@@ -36,6 +36,7 @@ fn meta(name: &str, code: Option<&str>, wbs_code: Option<&str>, level: u8) -> Im
         baseline_start: None,
         baseline_finish: None,
         progress: None,
+        physical: None,
         activity_codes: Vec::new(),
         wbs_code: wbs_code.map(str::to_owned),
         floor: None,

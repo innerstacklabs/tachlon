@@ -48,6 +48,24 @@ fn percentages_do_not_move_any_date_or_duration() {
 }
 
 #[test]
+fn a_physical_percent_complete_of_zero_reads_as_none() {
+    let task = |uid: u32, physical: &str| {
+        format!(
+            "<Task><UID>{uid}</UID><Name>T</Name><Duration>PT1H</Duration>\
+             <PhysicalPercentComplete>{physical}</PhysicalPercentComplete></Task>"
+        )
+    };
+    let xml = format!(
+        "<Project><Tasks>{}{}</Tasks></Project>",
+        task(1, "40"),
+        task(2, "0")
+    );
+    let imported = parse_mspdi(&xml).expect("imports");
+    let physical: Vec<_> = imported.tasks.iter().map(|task| task.physical).collect();
+    assert_eq!(physical, [Some(4000), None]);
+}
+
+#[test]
 fn a_percentage_outside_zero_to_one_hundred_is_clamped_and_noted_once() {
     let xml = PERCENT
         .replace("<PercentComplete>50<", "<PercentComplete>250<")

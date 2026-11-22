@@ -59,6 +59,7 @@ fn meta(leaf: &Leaf) -> ImportedTask {
         baseline_start: None,
         baseline_finish: None,
         progress: leaf.progress,
+        physical: None,
         activity_codes: Vec::new(),
         wbs_code: None,
         floor: None,

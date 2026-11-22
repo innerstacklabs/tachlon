@@ -3,6 +3,8 @@
 
 use crate::common;
 
+use crate::document_round_trip::session_of;
+use app::Session;
 use common::xer_text::{loaded, rewrite, text};
 use import::{ProjectSelection, parse_xer};
 use xer::synth::Spec;
@@ -142,4 +144,47 @@ fn percentages_change_no_computed_date() {
     assert!(without.progress.iter().all(|&p| p == 0));
     assert_eq!(with.solution.dates, without.solution.dates);
     assert_eq!(with.order, without.order);
+}
+
+/// Seven activities, `A1-6` the active one: ten days of work with eight left (a day is 8 hours),
+/// and `cell` as its physical percent. The session, that task and the open's notes.
+fn started(cell: &str) -> (Session, u32, Vec<String>) {
+    let mut file = text(&Spec::with_activities(3, 7));
+    for (column, value) in [
+        ("target_drtn_hr_cnt", "80"),
+        ("remain_drtn_hr_cnt", "64"),
+        ("phys_complete_pct", cell),
+    ] {
+        file = rewrite(&file, "TASK", column, |row, _| {
+            (row == 5).then(|| value.to_owned())
+        });
+    }
+    let opened = loaded(file.as_bytes(), &ProjectSelection::Unspecified);
+    let notes = opened.unsupported.clone();
+    let task = opened
+        .meta
+        .iter()
+        .position(|meta| meta.code.as_deref() == Some("A1-6"))
+        .expect("A1-6 is a task");
+    let task = u32::try_from(task).expect("a small index");
+    (session_of(opened), task, notes)
+}
+
+#[test]
+fn a_physical_percent_sits_beside_the_percent_derived_from_the_remaining_work() {
+    for (cell, shown) in [
+        ("50", "50%"),
+        ("", ""),
+        ("12.345", "12.35%"),
+        ("100.4", "100%"),
+    ] {
+        let (session, task, notes) = started(cell);
+        assert_eq!(session.task_physical(task), shown, "cell {cell:?}");
+        assert_eq!(session.task_percent(task), "20%", "cell {cell:?}");
+        let clamped = notes
+            .iter()
+            .filter(|note| note.contains("outside 0 to 100"))
+            .count();
+        assert_eq!(clamped, usize::from(cell == "100.4"), "{cell:?}: {notes:?}");
+    }
 }
