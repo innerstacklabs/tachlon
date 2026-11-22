@@ -19,6 +19,7 @@ use tasks::Layout;
 mod calendars;
 mod constraint;
 mod links;
+mod percent;
 mod rows;
 mod source;
 mod start;

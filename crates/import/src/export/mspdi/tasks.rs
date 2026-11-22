@@ -156,6 +156,14 @@ fn task_notes(plan: &Plan<'_>, index: usize, uid: u32, left_out: &mut Vec<String
             ));
         }
     }
+    if meta
+        .physical
+        .is_some_and(|hundredths| hundredths % 100 != 0)
+    {
+        left_out.push(format!(
+            "task {uid}: its physical percent complete has a fraction, so it is written as a whole number"
+        ));
+    }
     let summary = plan.summary.get(index).copied().unwrap_or(false);
     if summary && task.snet != imported.project_start {
         left_out.push(format!(
@@ -256,6 +264,10 @@ fn write_task(
     }
     if let Some(deadline) = meta.deadline {
         xml.leaf("Deadline", &stamp(origin_day, deadline, "Deadline")?);
+    }
+    if let Some(hundredths) = meta.physical {
+        let whole = (hundredths + 50) / 100;
+        xml.leaf("PhysicalPercentComplete", &whole.to_string());
     }
     let mut foreign = 0;
     write_links(xml, plan, links, &mut foreign)?;

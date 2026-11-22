@@ -9,6 +9,7 @@ use xer::{Cell, Writer};
 use engine::{Instant, Limit, Minutes};
 
 use super::constraint::{Constraints, constraints};
+use super::percent::cell;
 use super::rows::{absolute, cell_error};
 use super::start::project_starts;
 use super::{XerLayout, XerOptions};
@@ -75,6 +76,7 @@ struct Activity {
     duration: Minutes,
     snet: Option<Instant>,
     progress: Option<u8>,
+    physical: Option<u16>,
     /// The source task's actual start, actual finish and remaining work, as `ImportedTask`
     /// holds them.
     actual_start: Option<Instant>,
@@ -184,6 +186,7 @@ impl Layout {
                 duration: schedule.tasks()[index].duration,
                 snet: schedule.tasks()[index].snet,
                 progress: task.progress,
+                physical: task.physical,
                 actual_start: task.actual_start,
                 actual_finish: task.actual_finish,
                 remaining: task.remaining,
@@ -344,7 +347,7 @@ impl Layout {
                 (None, true) => "TK_Active",
                 (None, false) => "TK_NotStart",
             };
-            let percent = activity.progress.map(|value| value.to_string());
+            let percent = cell(activity.physical, activity.progress);
             let mut slots = [("", String::new()), ("", String::new())];
             for (slot, (kind, at)) in slots.iter_mut().zip(self.constraints(activity).pairs) {
                 let date = at.map_or_else(|| Ok(String::new()), |at| absolute(origin_day, at))?;
@@ -368,7 +371,7 @@ impl Layout {
                     Cell::Text(status),
                     Cell::Text(&target),
                     Cell::Text(&remaining),
-                    Cell::Text(percent.as_deref().unwrap_or_default()),
+                    Cell::Text(&percent),
                     Cell::Text(slots[0].0),
                     Cell::Text(&slots[0].1),
                     Cell::Text(slots[1].0),
