@@ -41,7 +41,7 @@ export interface Plan {
 /** Why `init` cannot run in `project`, or undefined. */
 export function refusal(project: Project, o: Pick<Options, "explicitDir" | "plain">): string | undefined {
   if (project.workspace && !o.explicitDir) return `${project.dir} is a workspace root; pass --dir <the package to add it to>`;
-  if (project.bundler === undefined && !o.plain) return `init supports Vite and found ${project.otherBundler ?? "no bundler"} instead; pass --plain to write a chart module that needs no bundler`;
+  if (project.bundler === undefined && !o.plain) return `init supports Vite and found ${project.otherBundler ?? "no bundler"} instead; pass --plain to write a chart module that needs no framework (it imports the package by name and its stylesheet, which a page resolves only through a bundler or an import map and a stylesheet link)`;
   if (project.bundler === "next" && project.routerRoot === undefined) return "this is a Next.js project with neither an app/ nor a pages/ folder (looked in the project folder and src/); create an app/ or pages/ folder, then run init again";
   return undefined;
 }
