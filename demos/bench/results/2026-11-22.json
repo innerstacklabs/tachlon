@@ -1,6 +1,6 @@
 {
   "date": "2026-11-22",
-  "story": "Tachlon main (45f38c4) against DHTMLX Gantt 10.0.3",
+  "story": "main (45f38c4), to be released as 0.4.1, against DHTMLX Gantt 10.0.3",
   "machine": "Mac mini (see ../versions.json)",
   "harness": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
   "ours": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
