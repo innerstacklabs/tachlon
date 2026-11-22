@@ -5,6 +5,7 @@
 // and 13:00 to 17:00, so a day is 480 working minutes.
 import { readFileSync } from "node:fs";
 import { fromBryntum } from "../src/adapters/bryntum.ts";
+import { openHeadless } from "../src/headless.ts";
 import { test } from "node:test";
 import { expect } from "@playwright/test";
 
@@ -38,6 +39,18 @@ test("start_dates_become_the_earliest_start_only_where_the_data_fixes_one", () =
   // Operate has a start-no-earlier-than constraint on 2026-02-02, 28 days on.
   expect(document.tasks.map((t) => t.snet)).toEqual([null, 0, null, null, null, 28 * 1440, null, null]);
   expect(document.origin).toBe(Date.UTC(2026, 0, 5) / 86_400_000);
+});
+
+test("the_engine_schedules_the_fixture_to_the_dates_the_calendar_gives", () => {
+  const schedule = openHeadless({ document: read().document });
+  try {
+    const days = Object.fromEntries(schedule.results().map((r) => [r.code, [r.start.slice(0, 10), r.finish.slice(0, 10)]]));
+    expect(days["2"]).toEqual(["2026-01-05", "2026-01-07"]); // Design
+    expect(days["3"]).toEqual(["2026-01-08", "2026-01-21"]); // Build
+    expect(days["6"]).toEqual(["2026-02-02", "2026-02-06"]); // Operate, floored by its start-no-earlier-than constraint
+  } finally {
+    schedule.free();
+  }
 });
 
 test("links_keep_their_type_and_lag", () => {
