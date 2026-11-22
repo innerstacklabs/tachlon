@@ -20,6 +20,7 @@ export function chartModule(kind: Kind, ts: boolean, name: string, next = false)
   const options = next ? `{ tasks, links, wasmUrl: "/app_bg.wasm" }` : "{ tasks, links }";
   if (kind === "plain") {
     return `${use}// Draws the chart in a div with the class "gantt" and a height. Call it once the page has the div; keep what it returns and call that to remove the chart.
+// It needs no framework, but its two imports below resolve only through a bundler or an import map for "${name}" (with a <link rel="stylesheet"> for ${name}/gantt.css on the page).
 import { mount } from "${name}";
 import "${name}/gantt.css";
 

@@ -131,16 +131,26 @@ function imports(text: string, needle: string): boolean {
   return text.split("\n").some((l) => !COMMENT.test(l.trim()) && [...l.matchAll(SPECIFIER)].some((m) => m[1] === needle));
 }
 
-/** Whether some source file under `dir` imports `needle`; node_modules, build output and dot folders are not source. */
-function mentions(dir: string, needle: string): boolean {
+/** Whether `test` holds for the text of some source file (its name too) under `dir`; node_modules, build output and dot folders are not source. */
+function anySource(dir: string, test: (text: string, name: string) => boolean): boolean {
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name.startsWith(".")) continue;
     const path = join(dir, e.name);
     if (e.isDirectory()) {
-      if (!SKIPPED_FOLDERS.has(e.name) && mentions(path, needle)) return true;
-    } else if (e.isFile() && SOURCE.test(e.name) && statSync(path).size < 1e6 && imports(readFileSync(path, "utf8"), needle)) return true;
+      if (!SKIPPED_FOLDERS.has(e.name) && anySource(path, test)) return true;
+    } else if (e.isFile() && SOURCE.test(e.name) && statSync(path).size < 1e6 && test(readFileSync(path, "utf8"), e.name)) return true;
   }
   return false;
+}
+const mentions = (dir: string, needle: string): boolean => anySource(dir, (text) => imports(text, needle));
+
+const script = (type: string) => new RegExp(`<script\\b[^>]*\\btype\\s*=\\s*["']?${type}\\b`, "i");
+/** A browser resolves no bare name or CSS import by itself: with no bundler, a page that loads a module script whose source imports the package by name needs an import map. */
+function unresolvableFinding(project: Project, name: string): Finding[] {
+  if (project.bundler !== undefined || project.otherBundler !== undefined) return [];
+  const html = (re: RegExp) => anySource(project.dir, (text, file) => file.endsWith(".html") && re.test(text));
+  if (!html(script("module")) || html(script("importmap")) || !mentions(project.dir, name)) return [];
+  return [fail("MODULE_NOT_RESOLVABLE", `the project has no bundler, a page loads a module script, and a source file imports "${name}" by name, but no page holds an import map, so a browser cannot resolve "${name}" or ${name}/gantt.css and the chart never draws`, `Add a bundler such as Vite, or add a <script type="importmap"> that maps "${name}" to its file and a <link rel="stylesheet"> for ${name}/gantt.css to the page.`)];
 }
 
 /** `validate()` on the JSON in `file`: one finding for each issue. A file that cannot be read is a refusal (exit 2); one that is not JSON is a finding. */
@@ -184,6 +194,7 @@ export function diagnose(project: Project, own: Own, c: Checks): Finding[] {
   if (c.probe) out.push(...servedFindings(c.probe, next && copies.length > 0 ? join(copies[0], "dist-lib", "app_bg.wasm") : undefined, next));
   const css = `${own.name}/gantt.css`;
   out.push(mentions(project.dir, css) ? pass("STYLESHEET_OK", `a source file imports ${css}`) : fail("STYLESHEET_MISSING", `no source file imports ${css}`, `Add \`import "${css}";\` to the module that mounts the chart, or the chart draws unstyled.`));
+  out.push(...unresolvableFinding(project, own.name));
   if (c.data !== undefined) out.push(...dataFindings(c.data));
   out.push(gpuFinding(typeof c.gpu === "function" ? c.gpu() : c.gpu));
   return out;
