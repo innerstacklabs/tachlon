@@ -12,25 +12,30 @@ use std::fmt::Write as _;
 impl Session {
     /// Add the task `json` describes, one record as `update_tasks` takes it (its `key` and the members it sets), under
     /// the task keyed `parent` (none: the parent of `after`, else the top level) and after the one keyed `after`
-    /// (none: last under that parent). The row starts as a person's insert makes it, then takes the record's values;
-    /// it is taken while a row filter or a grouping is on, and the selection stays. A key whose row a person deleted
-    /// brings that row back there, its links with it, and forgets every step that names it, as a remove does: their
-    /// old Undo of the delete is gone. Answers the task.
+    /// (none: last under that parent); with `first` it is the first row under that parent instead. The row starts as
+    /// a person's insert makes it, then takes the record's values; it is taken while a row filter or a grouping is on,
+    /// and the selection stays. A key whose row a person deleted brings that row back there, its links with it, and
+    /// forgets every step that names it, as a remove does: their old Undo of the delete is gone. Answers the task.
     ///
     /// # Errors
     ///
     /// An [`UpdateError`]: `busy`, `noOutline`, `badJson` (not one object), `noKey`, `duplicateKey` (a live task holds
     /// the key), `unknownKey` with the member `parent` or `after`, a place a person's insert refuses (`badPlace`,
-    /// `outline`), or the record's refusal as `update_tasks` answers it, with no `record`. Nothing changes then.
+    /// `outline`), `badValue` with the member `after` (`first` with an `after`), or the record's refusal as
+    /// `update_tasks` answers it, with no `record`. Nothing changes then.
     pub fn add_task_by_key(
         &mut self,
         json: &str,
         parent: Option<&str>,
         after: Option<&str>,
+        first: bool,
     ) -> Result<TaskId, UpdateError> {
         let refuse = |error: EditError| UpdateError::new(error.kind(), None, None);
         let fail = |kind, member| UpdateError::new(kind, None, Some(member));
         self.check_structural().map_err(refuse)?;
+        if first && after.is_some() {
+            return Err(fail("badValue", "after"));
+        }
         let record = parse(json).ok().filter(|r| matches!(r, Value::Object(_)));
         let record = record.ok_or_else(|| UpdateError::new("badJson", None, None))?;
         let key = record.get("key").and_then(Value::as_str).unwrap_or("");
@@ -47,7 +52,7 @@ impl Session {
             };
             key.map(task).transpose()
         };
-        let place = self.host_place(task_of("parent", parent)?, task_of("after", after)?);
+        let place = self.host_place(task_of("parent", parent)?, task_of("after", after)?, first);
         let revision = self.revision;
         #[expect(
             clippy::cast_possible_truncation,
