@@ -439,7 +439,6 @@ test("the chrome's find box searches through the host's find, goes only to its o
   const tasks = [];
   for (let k = 0; k < 2; k++) tasks.push(taskOf(await host(page, "a", (api) => api.commands.insertRow())));
   expect(await host(page, "a", (api) => api.commands.find("New task"))).toBe(2);
-
   // The find box (apps/chrome) searches for another task's name through `commands.find`, so the search is now the box's.
   const leaf = await firstLeaf(page);
   const name = await page.evaluate((t) => window.charts.a.hook.app.task_label(t), leaf);
@@ -455,11 +454,12 @@ test("the chrome's find box searches through the host's find, goes only to its o
   await part(page, "a", "find-input").press("Enter");
   const boxPick = await selected();
   expect(await page.evaluate((t) => window.charts.a.hook.app.task_name(t!), boxPick), "Enter goes to a box match").toContain(name);
+  await part(page, "a", "find-input").fill("");
   expect(await host(page, "a", (api) => api.commands.find("New task"))).toBe(2);
   expect(await host(page, "a", (api) => api.commands.findNext())).toBe(0);
   expect(await selected(), "findNext goes to the host's first match").toBe(tasks[0]);
 
-  // A structure edit changes the matches: the host's count follows it.
+  // A structure edit changes the matches: the host's count follows it. The box was cleared above: one with text searches again two frames after an edit and takes the host's query.
   expect(await host(page, "a", (api) => api.commands.deleteRow())).toEqual({ ok: true, task: tasks[0] });
   expect(await host(page, "a", (api) => api.commands.findNext()), "one match is left, and findNext goes to it").toBe(0);
   expect(await selected()).toBe(tasks[1]);
