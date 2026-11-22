@@ -28,6 +28,9 @@ const sh = (cwd: string, cmd: string, args: string[], env: NodeJS.ProcessEnv = p
 /** The commit sha `ref` names (a tag gives its commit, not the tag object), in `dir`: read once before any cell is built, so no cell compares against a later `origin/main`. Throws for a ref git does not know. */
 export const baseline = (ref: string, dir = repo): string => execFileSync("git", ["-C", dir, "rev-parse", "--verify", `${ref}^{commit}`], { encoding: "utf8" }).trim();
 
+/** Minutes the mini is held by a `--drag` run: about 4 per session, one session per run on each side (`--compare` gives two sides); null without `--drag`. Size `--expect-min` of the mini lock from it. */
+export const expectedMinutes = (a: Args): number | null => (a.drag ? 4 * a.runs * (a.compare === null ? 1 : 2) : null);
+
 /** The one line that fixes what this run needs and `env` or `root` lacks (null: nothing): `wasm-bindgen` on PATH, and `@playwright/test` resolvable from `root`. `main` asks before `build`, which takes minutes of the mini's queue. */
 export function missingNeed(env: NodeJS.ProcessEnv = process.env, root = repo): string | null {
   if (spawnSync("wasm-bindgen", ["--version"], { stdio: "ignore", env }).error) return 'wasm-bindgen is not on PATH: run `export PATH="$HOME/.cargo/bin:$PATH"`, or install the version scripts/build-web.sh names';
@@ -232,6 +235,8 @@ async function main(argv: string[]): Promise<number> {
   // The ref is resolved to a sha once, here, before anything is built or run, and printed: pass that sha as `--compare` to compare another cell against the same code.
   const base = a.compare === null ? null : baseline(a.compare);
   if (base !== null) say(`baseline: ${a.compare} = ${base}`);
+  const expected = expectedMinutes(a);
+  if (expected !== null) say(`expected about ${expected} minutes: runs x sides x about 4 minutes per --drag session`);
   const bundles: [string, string][] = base === null ? [["run", build(null, a)]] : [["before", build(base, a)], ["after", build(null, a)]];
   if (a.buildOnly) return bundles.forEach(([label, bundle]) => console.log(`${label}: ${bundle}`)), 0;
   // Only the task that holds the mini's lock measures on it (lifeos `scripts/mini-lock.ts`): a lock that is free, another task's or unreadable stops the run before anything is copied there.
