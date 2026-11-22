@@ -5,7 +5,7 @@ Keys act only while focus is inside the chart. The page starts with focus on the
 <!-- ANCHOR: keys -->
 | Key | Action |
 |---|---|
-| `Ctrl`+wheel or a trackpad pinch; wheel; drag | Zoom at the cursor, from years down to hours; scroll the rows; pan both axes. The **Fit** button fits the project |
+| `Ctrl`+wheel or a trackpad pinch; wheel; drag | Zoom at the cursor, from years down to hours; scroll the rows; pan both axes. The toolbar's Zoom group holds the Zoom out (`-`) and Zoom in (`+`) buttons and then the **Fit** button, after the Baseline and Progress groups, the Columns menu and the row buttons and before the empty space that pushes the notices and readouts to the right; **Fit** fits the project |
 | `Ctrl+F` (`Cmd+F`) | Go to the find box. `Enter` and `Shift+Enter` step through the matches, `Escape` clears the box; a whole `YYYY-MM-DD` date goes to that day on `Enter` |
 | `c` | Jump to the next critical task (not while the cell cursor is in the list, see below) |
 | `Shift+C` | Critical only on or off (same exception) |
