@@ -340,6 +340,7 @@ fn imported(
                 baseline_start: baseline.map(|b| b.es),
                 baseline_finish: baseline.map(|b| b.ef),
                 progress: percent(task, shown.get(old.0 as usize).copied()),
+                physical: meta.physical,
                 activity_codes: meta.activity_codes.clone(),
                 wbs_code: meta.wbs_code.clone(),
                 deadline: session.deadline(old),
