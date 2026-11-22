@@ -86,6 +86,7 @@ texts! {
     BAD_TOKEN "badToken" "An entry for the host on the undo list needs a token of one or more characters.";
     ROLLBACK_GONE "rollbackGone" "The chart can no longer go back to before that change. Load the saved schedule again.";
     STEP_GONE "stepGone" "A step could no longer be undone or redone, so the chart dropped it from the list.";
+    STEP_GONE_MANY "stepGoneMany" "{count} steps could no longer be undone or redone, so the chart dropped them from the list.";
     BEFORE_EDIT_FAILED "beforeEditFailed" "This change was not made: the page's before-edit function failed.";
     LINK_CYCLE "linkCycle" "\"{pred}\" to \"{succ}\" would make a loop: {chain}.";
     LINK_CYCLE_ELIDED "linkCycleElided" "{first} → {second} → {third} → … ({count} tasks) → {last} → {first}";

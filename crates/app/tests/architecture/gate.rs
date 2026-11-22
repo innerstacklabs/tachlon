@@ -8,7 +8,7 @@
 use crate::architecture::support::*;
 use syn::{ExprMethodCall, ImplItemFn, ItemFn, visit::Visit};
 
-const GATED: &str = "discard_whatif edit edit_group insert_many link_release pointer_down pointer_move redo set_task_fields undo";
+const GATED: &str = "discard_whatif edit edit_group insert_many link_release pointer_down pointer_move redo_counted set_task_fields undo_counted";
 
 #[derive(Default)]
 struct Calls(Vec<String>, Vec<String>);
@@ -70,7 +70,7 @@ fn a_gate_call_in_run_or_a_missing_one_fails() {
         "impl S { fn run(&mut self) { self.gate(p)?; } fn edit(&mut self) { self.gate(p)?; } }";
     let failures = check_gate_calls(&[file("crates/app/src/history.rs", text)]);
     one(&failures, "history.rs::run calls gate, and is no action");
-    one(&failures, "undo does not call gate");
+    one(&failures, "undo_counted does not call gate");
     assert_eq!(failures.len(), GATED.split(' ').count());
 }
 

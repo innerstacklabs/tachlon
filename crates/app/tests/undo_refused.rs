@@ -171,3 +171,68 @@ fn a_view_refusal_returns_and_the_step_stays_until_the_view_is_off() {
     assert!(s.set_critical_only(false));
     assert_eq!(s.redo(), Ok(true));
 }
+
+#[test]
+fn two_dropped_steps_then_an_applied_one_report_once_and_carry_two() {
+    let mut s = built();
+    set_progress(&mut s, A);
+    set_progress(&mut s, E);
+    give_child(&mut s, A);
+    give_child(&mut s, E);
+    let texts = r#"{"stepGoneMany":"{count} Schritte gingen verloren"}"#;
+    let locale = format!(
+        r#"{{"months":{:?},"weekdays":{:?},"weekStart":0,"texts":{texts}}}"#,
+        ["m"; 12], ["d"; 7]
+    );
+    s.set_locale(&locale).unwrap();
+
+    let pressed = s.undo_counted().unwrap();
+    assert!(pressed.applied);
+    assert_eq!(pressed.dropped, 2);
+    assert_eq!(
+        pressed.report,
+        Some("2 Schritte gingen verloren".to_string())
+    );
+    assert_eq!(s.meta()[E.0 as usize].name, "E");
+
+    let pressed = s.redo_counted().unwrap();
+    assert!(pressed.applied);
+    assert_eq!(pressed.dropped, 0);
+    assert_eq!(pressed.report, None);
+}
+
+#[test]
+fn a_press_that_drops_nothing_reports_nothing_and_carries_zero() {
+    let mut s = built();
+    let pressed = s.undo_counted().unwrap();
+    assert!(pressed.applied);
+    assert_eq!(pressed.dropped, 0);
+    assert_eq!(pressed.report, None);
+
+    let pressed = s.redo_counted().unwrap();
+    assert!(pressed.applied);
+    assert_eq!(pressed.dropped, 0);
+    assert_eq!(pressed.report, None);
+}
+
+#[test]
+fn a_press_with_nothing_left_still_answers_step_gone_through_the_counted_press() {
+    let mut s = built();
+    s.clear_history();
+    set_progress(&mut s, A);
+    give_child(&mut s, A);
+    assert_eq!(s.undo_counted().unwrap_err().kind(), "stepGone");
+}
+
+#[test]
+fn a_baseline_cleared_outside_the_history_does_not_stick_undo() {
+    let mut s = built();
+    s.edit(Edit::SetBaseline { baseline: None }).unwrap();
+    s.apply(Edit::ClearBaseline).unwrap();
+
+    let pressed = s.undo_counted().unwrap();
+    assert!(pressed.applied);
+    assert_eq!(pressed.dropped, 1);
+    assert_eq!(s.meta()[E.0 as usize].name, "E");
+    assert_eq!(s.history_len(), (0, 1));
+}
