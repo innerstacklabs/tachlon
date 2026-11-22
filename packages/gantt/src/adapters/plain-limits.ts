@@ -5,6 +5,9 @@ import type { ReadCalendar } from "./plain-calendars.ts";
 
 /** The finish limits: a date alone on one is the end of the last working minute of that day on the task's calendar, and on any other limit the first working minute (decision 0017, rule 6; `day_edge` in `crates/app/src/host/read.rs`). */
 const FINISH = new Set(["fnet", "fnlt", "mfo"]);
+const LIMIT_ENTRIES = Object.entries(LIMIT_KEYS) as [keyof typeof LIMIT_KEYS, (typeof LIMIT_KEYS)[keyof typeof LIMIT_KEYS]][];
+/** What a task with none of the limit keys gives; shared, so its `dates` is never written. */
+const NO_LIMITS = Object.freeze({ snet: null, dates: Object.freeze([]) as readonly number[] });
 
 /** The working periods of `calendar` on the day `day` (days since 1970): its exception for the date, else its weekday's (1970-01-01 was a Thursday). */
 function periodsOn(calendar: ReadCalendar, day: number): [number, number][] {
@@ -23,7 +26,8 @@ function limitAt(text: string, finish: boolean, calendar: ReadCalendar): number 
 }
 
 /** What the limit keys of `task` give, read on its `calendar`: `snet`, the start floor in place of `start`; the document `limit`; and `dates`, every date they hold (minutes since 1970). `validate` has already checked the dates. */
-export function readLimits(task: Record<string, unknown>, calendar: ReadCalendar): { snet: number | null; limit?: DocumentLimit; dates: number[] } {
+export function readLimits(task: Record<string, unknown>, calendar: ReadCalendar): { snet: number | null; limit?: DocumentLimit; dates: readonly number[] } {
+  if (task.snet === undefined && task.snlt === undefined && task.fnet === undefined && task.fnlt === undefined && task.mso === undefined && task.mfo === undefined && task.alap === undefined && task.milestone === undefined) return NO_LIMITS;
   const dates: number[] = [];
   const read = (key: string): number | null => {
     const text = task[key];
@@ -34,7 +38,7 @@ export function readLimits(task: Record<string, unknown>, calendar: ReadCalendar
   };
   const limit: DocumentLimit = task.alap === true ? { alap: true } : {};
   if (task.milestone === "start" || task.milestone === "finish") limit.milestone = task.milestone;
-  for (const [key, field] of Object.entries(LIMIT_KEYS)) {
+  for (const [key, field] of LIMIT_ENTRIES) {
     const at = read(key);
     if (at !== null) limit[field] = at;
   }

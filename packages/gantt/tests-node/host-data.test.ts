@@ -104,6 +104,15 @@ test("a chart with no rows of the host's, or a schedule opened since, refuses", 
   expect(give({ tasks: rows() }, 1)).toMatchObject({ ok: false, reason: "rowsChanged" });
 });
 
+test("rows without a key for every task read no task's parent and no link at the start, and setData still refuses them by name", () => {
+  let reads = 0;
+  const counted = <T extends object>(row: T, name: string): T => Object.defineProperty(row, name, { enumerable: true, get: () => { reads += 1; return 1; } });
+  const set = hostData({ tasks: [counted(task(1), "parent"), counted(task(2, { key: undefined }), "parent")], links: [counted({ to: 2 }, "from") as PlainLink] }, 0);
+  expect(reads, "the start reads no parent or link member").toBe(0);
+  const apply = (): UpdateResult => { throw new Error("nothing is set"); };
+  expect(set({ tasks: rows() }, 0, apply)).toEqual({ ok: false, reason: "rowsChanged", message: "Nothing changed: the chart holds no rows of yours to compare with (every task needs its own text key)." });
+});
+
 test("a data date that differs from the one given reaches the chart once, with the rows it came with, and the day it was given sets nothing", () => {
   const { calls, days, give } = chart();
   expect(give({ dataDate: "2026-03-02" }), "the day of the one mounted with, whose time of day is dropped").toEqual({ ok: true, updated: 0 });

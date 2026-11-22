@@ -37,9 +37,10 @@ const dayOf = (text: unknown): string | undefined => {
 
 const weak = (list: object | undefined): WeakRef<object> | undefined => list && new WeakRef(list);
 
-/** Remember the rows a start of the chart was given, at schedule `epoch`; the function answers `setData` against what it last accepted. The page's own arrays are held weakly (the chart lets them go once it has started), only to skip the same array again. */
+/** Remember the rows a start of the chart was given, at schedule `epoch`; the function answers `setData` against what it last accepted. The page's own arrays are held weakly (the chart lets them go once it has started), only to skip the same array again. Rows without a key for every task can only be refused, so their shape and links are not read. */
 export function hostData(first: HostRows, epoch: number): SetData {
-  let kept = { epoch, tasks: weak(first.tasks), byKey: first.tasks && membersByKey(first.tasks), shape: shapeOf(first.tasks ?? []), links: weak(first.links), linkTexts: linkTexts(first.links ?? []), day: first.dataDate?.slice(0, 10) };
+  const keyed = first.tasks && membersByKey(first.tasks);
+  let kept = { epoch, tasks: weak(first.tasks), byKey: keyed, shape: keyed ? shapeOf(first.tasks ?? []) : [], links: weak(first.links), linkTexts: keyed ? linkTexts(first.links ?? []) : [], day: first.dataDate?.slice(0, 10) };
   return (next, now, apply) => {
     const old = kept.byKey;
     if (old === undefined) return rowsChanged("the chart holds no rows of yours to compare with (every task needs its own text key).");

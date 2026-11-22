@@ -13,7 +13,7 @@
 Watch the narrated overview at [tachlon.com](https://tachlon.com).
 
 <!-- screencast: the GIF stands in until docs/media/screencast.mp4 (4.9 MB) is uploaded as a GitHub attachment; its URL on a line of its own then replaces the image -->
-<!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-11-17 from branch `agent/screencast-rerecord` based on `2908360` -->
+<!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-11-22 from branch `agent/tl384sc` based on `eb47143` -->
 <!-- screencast:end -->
 
 Needs a browser with WebGPU or WebGL2 and hardware acceleration on: a current Chrome, Edge, Firefox or Safari. Measured in Chrome.

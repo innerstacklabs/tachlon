@@ -142,7 +142,9 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; proje
     const own = task.calendar === undefined ? 0 : calendars.at.get(task.calendar)!;
     calendarAt[i] = own;
     const { day, week } = calendars.list[own]!;
-    const base = { ...barLook(task, unreadTask, true), ...(task.key === undefined ? {} : { key: task.key }), calendar: own, actual_start: null, actual_finish: null, remaining: null, name, parent: parentAt, outline_level: level[i]!, code: id, wbs_code: null, activity_codes: [] } satisfies Omit<DocumentTask, "duration" | "snet" | "progress">;
+    const look: Pick<DocumentTask, "label" | "color" | "key"> = barLook(task, unreadTask, true);
+    if (task.key !== undefined) look.key = task.key;
+    const base = { ...look, calendar: own, actual_start: null, actual_finish: null, remaining: null, name, parent: parentAt, outline_level: level[i]!, code: id, wbs_code: null, activity_codes: [] } satisfies Omit<DocumentTask, "duration" | "snet" | "progress">;
     const start = date(task.start, "start_date", id);
     const end = date(task.end, "end_date", id);
     const lim = readLimits(task, calendars.list[own]!);
@@ -166,7 +168,8 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; proje
       else noDuration += 1;
       if (duration < 0) throw new Error(`DHTMLX data: task ${id} has a negative duration`);
     }
-    return { ...base, duration: Math.round(duration), snet: floor, ...(limit === undefined ? {} : { limit }), progress: Math.round(Math.min(1, Math.max(0, fraction)) * 100) };
+    const percent = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
+    return limit === undefined ? { ...base, duration: Math.round(duration), snet: floor, progress: percent } : { ...base, duration: Math.round(duration), snet: floor, limit, progress: percent };
   });
 
   // The origin is the Monday on or before the earliest start (1970-01-01 was a Thursday); starts become minutes from it.
