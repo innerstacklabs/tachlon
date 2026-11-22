@@ -4,6 +4,8 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+## 0.4.1
+
 ### Breaking changes
 
 - **Under `dateForm: "day"`, `update`, `hostEdit` and `setData` refuse a date with a time of day as `badValue`.** They took either form whatever `dateForm` was; send `YYYY-MM-DD`, the form the chart wrote to you, which is read on the task's calendar (a start is its first working minute, a finish the end of its last).
@@ -20,6 +22,14 @@ What changed in each npm release, newest first. Each entry says what you must ch
 - The host overlay bar (`setOverlay`) stays inside its own row at the default 24 px row height, with 2 px of the row left under it, where it lay on the line between two rows; the task bar does not move.
 - Under `keys: "server"`, a restored row (the undo of a delete, the redo of a create) may be answered with another key, and the chart takes it; a different key was put back with `reason: "result"` before. A member of the change set that names a restored row is now `{ ref }`, as for a new row, so a `save` function puts the `key` of each create that has one in its ref map before it reads the creates that name it.
 - `Gantt.snapshot()` and `toPlain` return each link's `key`, as they return each task's; a link with no `key` comes back with none.
+- A large schedule opens faster: `inspect` checks dates by their digits and the parents in one walk, `fromTasks` skips the limit read for a task with no limits, and a date is parsed by its characters.
+- Dragging a bar with the Predecessors column shown does less work on every frame, so a large tree drags more smoothly: the chart no longer builds an index of every task's links for each frame.
+
+### Fixed
+
+- The React file that `init` writes passes Vite's default lint with no warning.
+- `doctor` finds the Chromium that Playwright installed, or says in one line how to point it at a browser.
+- The assistant prompt in the README is the same on npm and on GitHub.
 
 ## 0.4.0
 
