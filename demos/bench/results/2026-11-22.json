@@ -2,8 +2,11 @@
   "date": "2026-11-22",
   "story": "main (45f38c4), to be released as 0.4.1, against DHTMLX Gantt 10.0.3",
   "machine": "Mac mini (see ../versions.json)",
-  "harness": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
-  "ours": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
+  "harnessCommit": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
+  "measuredBuild": {
+    "commit": "45f38c4fba474794cc4aafa69fd764deaf74fa7e",
+    "bundleSha256": "e934750d6a0da86a06df4f073ff5588092d4afe605ef6f74833b4b6835d8f414"
+  },
   "command": "the side command of demos/bench/run.ts, once per side, 4 rounds over tree4:10000,chain:10000,tree4:50000,chain:50000 with the sides interleaved and the order rotated by round and cell, --dnf-s 120, --memory-at-s 20, quiet cap load1 under 4",
   "driverOptions": "the driver's defaults, the same for both sides (--dnf-s 120, --memory-at-s 20)",
   "method": "One generator run gives every side the same tasks, links and dates, and each side loads its own file of that data in its own shape (DHTMLX its own file; ours the ours.json that it hands to mount(el, { tasks, links }) on demos/bench/sides/ours-page.html). Memory is the browser total 20 s after the navigation, the page idle. The comparison is load and draw: DHTMLX community cannot schedule, and ours solves the schedule on open. The harness of the 0.4.0 release (7ecb106, the harness and ours fields above) drove every run of both sides; the ours page is built from main at 45f38c4 (its bundleSha256 is in each side.json). A third page, an earlier build, ran interleaved in the same session as a check on the machine; its runs are not in this file.",
@@ -20,29 +23,29 @@
     },
     "chain-50000": {
       "datasetSha256": "63cfc51f34c00c52d25003cfc67577c987bce10868adc637096bc44c08742eac",
-      "pairsRun": 4,
-      "matched": 3,
+      "pairsRun": 6,
+      "matched": 5,
       "note": "pair 3 not matched: load1 means differ by 1.14 (limit 0.5), or a result refused or swap grew; kept and listed, not counted"
     },
     "tree4-10000": {
       "datasetSha256": "fc82758fdeb5b146fc92dc13f289b41ccce4b77e48c894a833a102e3b07d5da8",
-      "pairsRun": 4,
-      "matched": 3,
-      "note": "pair 4 not matched: load1 means differ by 0.76 (limit 0.5), or a result refused or swap grew; kept and listed, not counted"
+      "pairsRun": 6,
+      "matched": 4,
+      "note": "pair 4 not matched: load1 means differ by 0.76 (limit 0.5), or a result refused or swap grew; kept and listed, not counted; pair 6 not matched: load1 means differ by 0.56 (limit 0.5), or a result refused or swap grew; kept and listed, not counted"
     },
     "tree4-50000": {
       "datasetSha256": "b0bc8dbbc39c7c4a9d8cc96c7c5e8d5d0d8fa51c1f77c9b8cab2448825960458",
-      "pairsRun": 4,
-      "matched": 3,
-      "note": "pair 3 not matched: load1 means differ by 0.82 (limit 0.5), or a result refused or swap grew; kept and listed, not counted"
+      "pairsRun": 6,
+      "matched": 4,
+      "note": "pair 3 not matched: load1 means differ by 0.82 (limit 0.5), or a result refused or swap grew; kept and listed, not counted; pair 5 not matched: load1 means differ by 0.60 (limit 0.5), or a result refused or swap grew; kept and listed, not counted"
     }
   },
   "box": {
     "quietCap": "load1 under 4 before each run (--max-load 4, not raised)",
     "load1Samples": {
-      "count": 839,
-      "min": 1.67,
-      "mean": 2.6,
+      "count": 1157,
+      "min": 1.62,
+      "mean": 2.56,
       "max": 4.72
     },
     "highestLoad1AtStart": 4,
@@ -77,79 +80,79 @@
     },
     "chain-50000": {
       "dhtmlx": {
-        "loadMedianMs": 791.5,
-        "libraryMedianMs": 23.8,
+        "loadMedianMs": 790.6,
+        "libraryMedianMs": 23.7,
         "dataToReadyMedianMs": 753.8,
         "scrollYP95Ms": 18.7,
         "scrollXP95Ms": 18.7,
-        "dragP95Ms": 18.3,
-        "longestFrameMaxMs": 33.4,
-        "scrollMaxMs": 33.4,
-        "memoryFootprintMB": 405.3,
+        "dragP95Ms": 18.6,
+        "longestFrameMaxMs": 35.4,
+        "scrollMaxMs": 35.4,
+        "memoryFootprintMB": 405.8,
         "inputBytes": 9244533
       },
       "ours": {
-        "loadMedianMs": 307.8,
-        "libraryMedianMs": 36.2,
-        "dataToReadyMedianMs": 268.8,
+        "loadMedianMs": 308.6,
+        "libraryMedianMs": 38.4,
+        "dataToReadyMedianMs": 270.2,
         "scrollYP95Ms": 18.6,
         "scrollXP95Ms": 18.7,
         "dragP95Ms": 18.7,
         "longestFrameMaxMs": 18.8,
         "scrollMaxMs": 18.8,
-        "memoryFootprintMB": 450.7,
+        "memoryFootprintMB": 449.9,
         "inputBytes": 7505595
       }
     },
     "tree4-10000": {
       "dhtmlx": {
-        "loadMedianMs": 105.1,
-        "libraryMedianMs": 21.5,
-        "dataToReadyMedianMs": 68.8,
+        "loadMedianMs": 105.7,
+        "libraryMedianMs": 22.8,
+        "dataToReadyMedianMs": 69.4,
         "scrollYP95Ms": 18.7,
         "scrollXP95Ms": 18.7,
         "dragP95Ms": 18.7,
         "longestFrameMaxMs": 35.4,
         "scrollMaxMs": 35.4,
-        "memoryFootprintMB": 343.2,
+        "memoryFootprintMB": 343.4,
         "inputBytes": 1780297
       },
       "ours": {
-        "loadMedianMs": 142.5,
-        "libraryMedianMs": 38.6,
-        "dataToReadyMedianMs": 105.5,
-        "scrollYP95Ms": 18.6,
+        "loadMedianMs": 143.3,
+        "libraryMedianMs": 36.8,
+        "dataToReadyMedianMs": 107.3,
+        "scrollYP95Ms": 18.5,
         "scrollXP95Ms": 18.7,
-        "dragP95Ms": 18.7,
+        "dragP95Ms": 18.6,
         "longestFrameMaxMs": 18.8,
         "scrollMaxMs": 18.8,
-        "memoryFootprintMB": 414.5,
+        "memoryFootprintMB": 415,
         "inputBytes": 1454430
       }
     },
     "tree4-50000": {
       "dhtmlx": {
-        "loadMedianMs": 336.7,
-        "libraryMedianMs": 21.2,
-        "dataToReadyMedianMs": 301.7,
+        "loadMedianMs": 335.9,
+        "libraryMedianMs": 20.9,
+        "dataToReadyMedianMs": 301.6,
         "scrollYP95Ms": 18.7,
         "scrollXP95Ms": 18.7,
         "dragP95Ms": 18.6,
-        "longestFrameMaxMs": 35.3,
-        "scrollMaxMs": 35.3,
-        "memoryFootprintMB": 380.4,
+        "longestFrameMaxMs": 35.4,
+        "scrollMaxMs": 35.4,
+        "memoryFootprintMB": 380,
         "inputBytes": 9101049
       },
       "ours": {
-        "loadMedianMs": 305.3,
-        "libraryMedianMs": 38,
-        "dataToReadyMedianMs": 263.3,
+        "loadMedianMs": 298.5,
+        "libraryMedianMs": 38.4,
+        "dataToReadyMedianMs": 259.1,
         "scrollYP95Ms": 18.7,
         "scrollXP95Ms": 18.7,
         "dragP95Ms": 18.7,
         "longestFrameMaxMs": 18.8,
         "scrollMaxMs": 18.8,
-        "memoryFootprintMB": 451.2,
+        "memoryFootprintMB": 450.3,
         "inputBytes": 7432833
       }
     }

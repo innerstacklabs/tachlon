@@ -88,7 +88,7 @@ The package carries its own instructions, so your assistant works from the versi
 
 ## Measured
 
-After a drag at 50,000 tasks, the engine reschedules in 18.0 ms or less, and 50,000 tasks open in 305 ms (tree) and 308 ms (chain), with the schedule calculated. These are medians of 3 runs of Tachlon main, to be released as 0.4.1 (build 45f38c4), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
+After a drag at 50,000 tasks, the engine reschedules in 18.0 ms or less, and 50,000 tasks open in 299 ms (tree) and 309 ms (chain), with the schedule calculated. These are medians of 4 or more load-matched runs of Tachlon main, to be released as 0.4.1 (build 45f38c4), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
 
 These figures are measured on generated schedules. The repository holds no private schedule: every fixture is a public sample file or a generated one.
 
@@ -97,16 +97,16 @@ To time how long your own file takes to open, open it in the hosted app, click t
 <details>
 <summary>The measurements, next to DHTMLX Gantt</summary>
 
-Each cell reads "Tachlon / DHTMLX community 10.0.3" in milliseconds (the last row in MB): the median of the load-matched runs of each (4 for the 10,000-task chain, 3 in the other cells), Tachlon main, to be released as 0.4.1 (build 45f38c4), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The faster figure is in bold.
+Each cell reads "Tachlon / DHTMLX community 10.0.3" in milliseconds (the last row in MB): the median of the load-matched runs of each (4 per cell, 5 for the 50,000-task chain), Tachlon main, to be released as 0.4.1 (build 45f38c4), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The faster figure is in bold.
 
 | | `tree4` | `chain` |
 |---|---|---|
-| Open, 10,000 tasks | 142.5 / **105.1** | **146.1** / 174.9 |
-| Open, 50,000 tasks | **305.3** / 336.7 | **307.8** / 791.5 |
-| Slowest scroll frame, 50,000 tasks (longest of 3 runs) | **18.8** / 35.3 | **18.8** / 33.4 |
-| Drag frame, 50,000 tasks (p95) | 18.7 / **18.6** | 18.7 / **18.3** |
-| Drag commit, 50,000 tasks | **18.0** / 49.2 | **17.2** / 49.3 |
-| Memory, 50,000 tasks (MB) | 451.2 / **380.4** | 450.7 / **405.3** |
+| Open, 10,000 tasks | 143.3 / **105.7** | **146.1** / 174.9 |
+| Open, 50,000 tasks | **298.5** / 335.9 | **308.6** / 790.6 |
+| Slowest scroll frame, 50,000 tasks (longest of the matched runs) | **18.8** / 35.4 | **18.8** / 35.4 |
+| Drag frame, 50,000 tasks (p95) | 18.7 / **18.6** | 18.7 / **18.6** |
+| Drag commit, 50,000 tasks | **18.0** / 56.4 | **17.1** / 49.3 |
+| Memory, 50,000 tasks (MB) | 450.3 / **380.0** | 449.9 / **405.8** |
 
 - A drag frame is the interval between two frames while the first leaf in view is dragged, and p95 means 95 of 100 of those intervals were this short or shorter ([Driving any Gantt the same way](docs/MEASURING.md#driving-any-gantt-the-same-way-gs1199)).
 - A drag commit is the time from the release to the chart's commit, once what follows the dragged task is rescheduled: ours when the schedule's revision changes ([the drag commit](docs/MEASURING.md#bryntum-8-community-against-ours-and-the-drag-commit-gantt1949)).
