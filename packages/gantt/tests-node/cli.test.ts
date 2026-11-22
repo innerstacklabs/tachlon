@@ -61,6 +61,13 @@ test("Next gets a client component and the engine copy; the router folder decide
   refused(project(next), /neither an app\/.*create an app\/ or pages\/ folder, then run init again/);
 });
 
+test("the refusal that offers --plain says what the module needs, not that it needs no bundler", () => {
+  const r = plan(project({ dependencies: { react: "19.0.0" } }));
+  assert.equal(r.code, 2);
+  assert.match(r.err, /found no bundler instead; pass --plain/);
+  assert.doesNotMatch(r.err, /needs no bundler/);
+});
+
 test("it refuses, exit 2 and nothing on stdout, when it cannot tell what to write or would overwrite", () => {
   refused(project(null), /no package\.json/);
   refused(project({ workspaces: ["a"], ...vite }), /workspace root/, true);
@@ -342,6 +349,7 @@ test("--plain writes the framework-free module, for an unknown bundler or a Reac
   const other = project({ devDependencies: { webpack: "5.0.0" } });
   assert.equal(write(other, "--no-install", "--plain").code, 0);
   assert.match(readFileSync(join(other, `${NAME}-chart.js`), "utf8"), /export async function mountChart/);
+  assert.match(readFileSync(join(other, `${NAME}-chart.js`), "utf8"), /bundler or an import map/);
   const react = project(viteReact, { "src/main.tsx": "" });
   assert.equal(write(react, "--no-install", "--plain").code, 0);
   assert.deepEqual(readdirSync(join(react, "src")).sort(), ["main.tsx", `${NAME}-chart.ts`]);
@@ -415,6 +423,21 @@ test("doctor exits 1 when no source file imports the stylesheet, and ignores a s
   const dir = installed({ css: false });
   writeFileSync(join(dir, "node_modules", NAME, "x.js"), `import "${NAME}/gantt.css";`);
   assert.deepEqual(problems(dir).map((f) => f.code), ["STYLESHEET_MISSING"]);
+});
+
+// A page with no bundler: its module script imports the package by name, which a browser resolves only through an import map.
+function bare(map = "", bundler = false): string {
+  const dir = installed({ files: { "index.html": `<div class="gantt"></div>${map}<script type="module" src="/src/chart.js"></script>`, "src/chart.js": `import { mount } from "${NAME}";\n` } });
+  if (!bundler) writeFileSync(join(dir, "package.json"), JSON.stringify({ dependencies: { [NAME]: "1.2.3" } }));
+  return dir;
+}
+
+test("doctor exits 1 for a no-bundler page whose module imports the package by name and has no import map, and passes with an import map or a bundler", () => {
+  const [f, ...rest] = problems(bare());
+  assert.deepEqual([f.code, rest.length], ["MODULE_NOT_RESOLVABLE", 0]);
+  assert.match(f.what, new RegExp(`"${NAME}".*import map`));
+  assert.equal(doctor(bare(`<script type="importmap">{"imports":{"${NAME}":"/x.js"}}</script>`)).code, 0);
+  assert.equal(doctor(bare("", true)).code, 0);
 });
 
 test("doctor exits 1 when the stylesheet is only named in a comment, and accepts each import form", () => {
