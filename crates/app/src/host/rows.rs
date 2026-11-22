@@ -6,7 +6,7 @@ use super::{KeyTarget, update::UpdateError};
 use crate::document::json_read::{Value, parse};
 use crate::history::{Gone, Step};
 use crate::{Session, edit::Edit, edit::EditError, json::quote, structure::NEW_TASK};
-use engine::{DepId, LinkType, Minutes, Pin, TaskId};
+use engine::{DepId, LinkType, MAX_LAG, Minutes, Pin, TaskId};
 use std::fmt::Write as _;
 
 impl Session {
@@ -112,6 +112,7 @@ impl Session {
     }
 
     /// Add a host link (`pred`, `succ`, optional `key`, `kind` default FS, `lag` default 0); keep history and selections.
+    /// A `key` a person's removal left on this pair brings that link back, rolled back if refused.
     /// # Errors
     /// `badJson`, `notUpdatable`, `badValue`, `noKey`, `unknownKey`, `duplicateKey`, `busy`, `alreadyLinked`, `linkCycle`, `linkToSummary`, `schedule`.
     pub fn add_link_by_key(&mut self, json: &str) -> Result<DepId, UpdateError> {
@@ -119,27 +120,37 @@ impl Session {
         let (pred, succ) = self.link_ends(&record)?;
         let (kind, lag) = link_shape(&record)?;
         let key = text(&record, "key")?;
-        if key.is_some_and(|key| self.host_keys().link(key).is_some()) {
+        // A key a person's removal left on this pair names the link to bring back; any other holder keeps it.
+        let held = key.and_then(|key| self.host_keys().link(key));
+        let back = held.map(|dep| {
+            let link = self.schedule.dependencies()[dep.0 as usize];
+            (link.pred, link.succ) == (pred, succ) && !self.schedule.is_dependency_live(dep)
+        });
+        if back == Some(false) {
             return Err(UpdateError::new("duplicateKey", None, Some("key")));
         }
+        let (kind, lag) = (kind.unwrap_or(LinkType::FS), lag.unwrap_or(0));
         let (revision, selected) = (self.revision, self.links.selected);
-        let added = self.run_add_link(pred, succ, kind.unwrap_or(LinkType::FS), lag.unwrap_or(0));
+        let added = match held {
+            Some(dep) => self.restore_link_as(dep, kind, lag),
+            None => self.run_add_link(pred, succ, kind, lag).map(|_| ()),
+        };
         (self.revision, self.links.selected) = (revision, selected);
         added.map_err(|e| refuse(&e))?;
         let dep = self.link_between(pred, succ)?;
-        if let Some(key) = key {
+        if let (None, Some(key)) = (held, key) {
             self.assign_key(KeyTarget::Link(dep), key)
                 .map_err(|e| refuse(&e))?;
         }
-        // A person's older link on this pair stays dead: every step on it is forgotten, as a replay of the
-        // Undo of its removal would leave two live links on the pair.
+        // A person's older link on this pair stays dead, or is the one just restored: every step on it is
+        // forgotten, as a replay of the Undo of its removal would leave two live links on the pair.
         let links = self.schedule.dependencies();
         let old =
             |old: DepId| (links[old.0 as usize].pred, links[old.0 as usize].succ) == (pred, succ);
         let stale = |step: &Step| match step.edit {
             Edit::RestoreLink { dep: d }
             | Edit::RemoveLink { dep: d }
-            | Edit::SetLink { dep: d, .. } => d != dep && old(d),
+            | Edit::SetLink { dep: d, .. } => old(d),
             _ => false,
         };
         if self.history.forget(stale).0 > 0 {
@@ -177,6 +188,21 @@ impl Session {
         (self.revision, self.links.selected) = (revision, selected.filter(|&was| was != dep));
         self.free_link_key(dep);
         Ok(())
+    }
+
+    /// Bring link `dep` back with `kind` and `lag`; a refusal of them takes it out again.
+    fn restore_link_as(
+        &mut self,
+        dep: DepId,
+        kind: LinkType,
+        lag: Minutes,
+    ) -> Result<(), EditError> {
+        self.run_restore_link(dep, false)?;
+        let set = self.run_set_link(dep, kind, lag, false);
+        if set.is_err() {
+            let _ = self.run_remove_link(dep);
+        }
+        set.map(|_| ())
     }
 
     fn link_ends(&self, record: &Value) -> Result<(TaskId, TaskId), UpdateError> {
@@ -335,8 +361,11 @@ fn link_shape(record: &Value) -> Result<(Option<LinkType>, Option<Minutes>), Upd
         Some(Some("SF")) => Some(LinkType::SF),
         Some(_) => return Err(bad("kind")),
     };
-    let lag = record
-        .get("lag")
-        .map(|lag| lag.as_int().ok_or_else(|| bad("lag")));
+    let lag = record.get("lag").map(|lag| {
+        let lag = lag
+            .as_int()
+            .filter(|n| n.unsigned_abs() <= MAX_LAG.unsigned_abs());
+        lag.ok_or_else(|| bad("lag"))
+    });
     Ok((kind, lag.transpose()?))
 }
