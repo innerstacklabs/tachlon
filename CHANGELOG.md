@@ -4,9 +4,13 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+## 0.5.0
+
+Read "Breaking changes" first.
+
 ### Breaking changes
 
-- **Under `dateForm: "day"`, `update`, `hostEdit` and `setData` refuse a date with a time of day as `badValue`.** They took either form whatever `dateForm` was; send `YYYY-MM-DD`, the form the chart wrote to you, which is read on the task's calendar (a start is its first working minute, a finish the end of its last).
+- **Under `dateForm: "day"`, `update`, `hostEdit` and `setData` refuse a date with a time of day as `badValue`.** They took either form whatever `dateForm` was; a host that sends a date with a time of day must send `YYYY-MM-DD`, the form the chart wrote to it, which is read on the task's calendar (a start is its first working minute, a finish the end of its last).
 
 ### New
 
@@ -20,6 +24,27 @@ What changed in each npm release, newest first. Each entry says what you must ch
 - The host overlay bar (`setOverlay`) stays inside its own row at the default 24 px row height, with 2 px of the row left under it, where it lay on the line between two rows; the task bar does not move.
 - Under `keys: "server"`, a restored row (the undo of a delete, the redo of a create) may be answered with another key, and the chart takes it; a different key was put back with `reason: "result"` before. A member of the change set that names a restored row is now `{ ref }`, as for a new row, so a `save` function puts the `key` of each create that has one in its ref map before it reads the creates that name it.
 - `Gantt.snapshot()` and `toPlain` return each link's `key`, as they return each task's; a link with no `key` comes back with none.
+- A bar drag and a resize snap to the step the host stores (a whole day, a whole hour, a date with no time of day) instead of being refused. A drag that would add a date limit the host does not store is still refused.
+- A file, `document` or plain data opened in a chart whose `capabilities` say the host stores less is fitted to what the host stores before the chart shows it: a task's later date limits are dropped, a duration goes to the nearest whole step, and a date with a time of day goes to the start of its day. The chart's notes for the file list each kind of change with its task count.
+- Plain data takes `projectStart` (a date, read as 00:00 of that day) beside `tasks` and `dataDate`, so a host no longer puts its project start into the data date. No task starts earlier, and a task's `start` is then optional. It does the same through `mount`, `openHeadless`, `fromTasks` and the React, Vue and Angular components, and `validate` refuses one that is not a date.
+- `App.add_task` adds a row from the host's own data without mounting the chart again, under the `parent` and after the `after` you name, or first among its siblings with `first: true`, and `App.task_members` returns the record `update_tasks` takes back. `App.remove_task` removes a row the host dropped, with its links. `App.add_link_by_key`, `App.set_link_by_key` and `App.remove_link_by_key` add, change and drop a link by its `key`, or by the two tasks it joins. None of them is an edit: no undo step is made and `revision` stays. A key or a task the chart does not have, and a `lag` out of range, are refused by name and change nothing; a `key` that names a link a person removed, between the same two tasks, brings that link back.
+- Undo never sticks after a host change: a step on a person's undo or redo list that a host add or remove makes impossible is forgotten, and so is the person's undo of a link removal when the host then adds a link between the same two tasks.
+- An Undo or Redo step the schedule can no longer apply (a task that now has children, progress on a summary, a link to a summary, a baseline that is gone) is dropped and the same press goes on to the next step; when it dropped steps and then applied one, the page says so once, with the count, in a sentence you can change in `texts` (`stepGone`, `stepGoneMany`). It was refused each time and the press stuck.
+- Every task that an indent, an outdent or a move re-parents or re-orders, including each task that follows one of them, is in that step's change set, so a host that saves through its own API hears of all of them.
+- An XER or MS Project file's physical percent complete (`phys_complete_pct`, `PhysicalPercentComplete`) is read into the task, kept in a saved document under `physical_percent`, and written back by an XER save (up to two decimals) and an MS Project save (a whole percent). The MS Project save lists in `leftOut` a fraction it rounds, and a value that rounds to 0, which reads back as none. A task with none writes what it wrote before.
+- `init --plain` says that its module needs no framework, and that its imports of the package and its stylesheet resolve only through a bundler or through an import map and a stylesheet link; `doctor` gives one finding, `MODULE_NOT_RESOLVABLE`, for a page that loads such a module in a project with neither.
+- Opening a large schedule is faster: checking its dates, reading its date limits and parsing its dates each take less time, and a chart started with rows that have no key for every task does less work at the start.
+- Dragging a bar with the Predecessors column shown no longer drops frames on a large tree.
+
+### Fixed
+
+- A task dialog that changes the start and the finish together under `durationStep: "hours"` is checked on the duration between the new start and the new finish, where it was checked from the old start.
+- Copy, CSV, XLSX and print write an empty Float cell for a finished task, as the table shows, where they wrote `0d`.
+- The note for a date out of range in an XER file counts tasks, where a task with two such dates counted twice.
+- A host that gives `save` a handler for `createLink` after the chart is mounted gets link drawing back on in the React, Vue and Angular components; it stayed off until `capabilities` changed.
+- The React file that `init` writes passes the default lint with no warning.
+- `doctor` finds the Chromium that Playwright installed, or says in one line how to point it at a browser.
+- The assistant prompt in the README is the same on npm and on GitHub.
 
 ## 0.4.0
 
