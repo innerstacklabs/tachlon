@@ -225,6 +225,28 @@ fn a_press_with_nothing_left_still_answers_step_gone_through_the_counted_press()
 }
 
 #[test]
+fn a_press_that_drops_steps_hands_its_report_to_the_alert_line_once() {
+    let mut s = built();
+    set_progress(&mut s, A);
+    set_progress(&mut s, E);
+    give_child(&mut s, A);
+    give_child(&mut s, E);
+    assert_eq!(s.link_refusal(), None);
+
+    assert_eq!(s.undo(), Ok(true));
+    let report =
+        "2 steps could no longer be undone or redone, so the chart dropped them from the list.";
+    assert_eq!(s.link_refusal(), Some(report));
+
+    assert_eq!(s.redo(), Ok(true));
+    assert_eq!(
+        s.link_refusal(),
+        None,
+        "a press that drops none hands over none"
+    );
+}
+
+#[test]
 fn a_baseline_cleared_outside_the_history_does_not_stick_undo() {
     let mut s = built();
     s.edit(Edit::SetBaseline { baseline: None }).unwrap();

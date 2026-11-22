@@ -109,9 +109,14 @@ impl Session {
     }
 
     /// Why the last link drag added nothing: the engine's message for a loop, a repeat or a
-    /// summary. Cleared by the next press.
+    /// summary; or the report of an Undo or Redo that dropped steps. Cleared by the next press.
     pub fn link_refusal(&self) -> Option<&str> {
         self.links.refusal.as_deref()
+    }
+
+    /// Hand the alert line what an Undo or Redo press dropped, or nothing, in place of an earlier text.
+    pub(crate) fn say_refusal(&mut self, text: Option<String>) {
+        self.links.refusal = text;
     }
 
     /// How many times a link drag has searched for a loop, once per target it reached.

@@ -77,6 +77,7 @@ impl Session {
                                 &[("count", &dropped.to_string())],
                             )
                         });
+                        self.say_refusal(report.clone());
                         Pressed {
                             applied,
                             dropped,
