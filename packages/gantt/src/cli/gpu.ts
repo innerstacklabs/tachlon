@@ -1,7 +1,7 @@
 // What `doctor` asks a real browser about the GPU: it opens a page of its own, headless, in a Chrome, Edge or Chromium found on this machine, and reads the answer the page writes.
 // Only this file starts a browser; `doctor.ts` turns what it returns into a finding.
 import { spawn } from "node:child_process";
-import { accessSync, constants, mkdtempSync, writeFileSync } from "node:fs";
+import { accessSync, constants, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, join } from "node:path";
@@ -15,6 +15,7 @@ export type Gpu = { api: "webgpu" | "webgl2" | "none"; adapter: string; /** True
 export const BROWSER_VARIABLE = `${PRODUCT_NAME.toUpperCase()}_BROWSER`;
 const NAMES = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge"];
 const APPS = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"];
+const PLAYWRIGHT_PROGRAMS = ["chrome-linux64/chrome", "chrome-linux/chrome", "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing", "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing", "chrome-win64/chrome.exe", "chrome-win/chrome.exe"];
 const TIMEOUT_MS = 30_000;
 /** The page: it asks as `mount` does, and writes the answer into its title, which `--dump-dom` prints. A file address is a secure context, where `navigator.gpu` exists. */
 const PAGE = `<!doctype html><title></title><script>
@@ -30,19 +31,35 @@ const PAGE = `<!doctype html><title></title><script>
 
 const why = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/\s+/g, " ").slice(0, 200);
 
-/** The browser to ask: the one the environment variable names, else the first of the usual names on the path, else the usual place of an app on a Mac. */
+const runnable = (file: string) => {
+  try {
+    accessSync(file, constants.X_OK);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** A Chromium Playwright installed: the newest `chromium-<build>` folder of its cache (`PLAYWRIGHT_BROWSERS_PATH`, else its usual place on Linux, a Mac or Windows) that holds the program. */
+function playwrightChromium(env: NodeJS.ProcessEnv): string | undefined {
+  const home = env.HOME ?? env.USERPROFILE ?? "";
+  const caches = env.PLAYWRIGHT_BROWSERS_PATH ? [env.PLAYWRIGHT_BROWSERS_PATH] : [join(home, ".cache/ms-playwright"), join(home, "Library/Caches/ms-playwright"), join(env.LOCALAPPDATA ?? home, "ms-playwright")];
+  const builds = caches.flatMap((cache) => {
+    try {
+      return readdirSync(cache).filter((d) => /^chromium-\d+$/.test(d)).map((d) => join(cache, d));
+    } catch {
+      return [];
+    }
+  });
+  const number = (build: string) => Number(build.slice(build.lastIndexOf("-") + 1));
+  return builds.sort((a, b) => number(b) - number(a)).flatMap((b) => PLAYWRIGHT_PROGRAMS.map((p) => join(b, p))).find(runnable);
+}
+
+/** The browser to ask: the one the environment variable names, else the first of the usual names on the path, else the usual place of an app on a Mac, else a Chromium Playwright installed. */
 function findBrowser(env: NodeJS.ProcessEnv): string | undefined {
   if (env[BROWSER_VARIABLE]) return env[BROWSER_VARIABLE];
-  const runnable = (file: string) => {
-    try {
-      accessSync(file, constants.X_OK);
-      return true;
-    } catch {
-      return false;
-    }
-  };
   const onPath = (env.PATH ?? "").split(delimiter).filter(Boolean).flatMap((d) => NAMES.map((n) => join(d, n)));
-  return [...onPath, ...APPS].find(runnable);
+  return [...onPath, ...APPS].find(runnable) ?? playwrightChromium(env);
 }
 
 /** The first line `stderr` holds, the one that says why a browser failed to start. */
@@ -75,7 +92,7 @@ function output(browser: string, args: string[], ms: number): Promise<string> {
 /** Opens the page in the browser `env` leads to and returns what it said; no browser, one that fails or does not answer in `timeoutMs`, or one that prints no report is `unavailable`, with the reason. It never throws. */
 export async function askBrowser(env: NodeJS.ProcessEnv = process.env, timeoutMs = TIMEOUT_MS): Promise<Gpu> {
   const browser = findBrowser(env);
-  if (!browser) return { unavailable: `no Chrome, Edge or Chromium was found on this machine (name one with ${BROWSER_VARIABLE})` };
+  if (!browser) return { unavailable: `no Chrome, Edge or Chromium was found on this machine or in Playwright's cache (set ${BROWSER_VARIABLE} to the path of one)` };
   let dir: string | undefined;
   try {
     const folder = (dir = mkdtempSync(join(tmpdir(), "doctor-gpu-")));

@@ -1,7 +1,7 @@
 // `doctor` asks a real browser which graphics path the chart takes (gantt#1249): one finding for each answer, and the skip when no browser answered.
 // `run` and `runAsync` are given the browser's answer, so no browser starts, except in the last tests, which start a stand-in program.
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
@@ -96,6 +96,16 @@ async function inTmp<T>(folder: string, body: () => Promise<T>): Promise<T> {
   }
 }
 const said = (g: Gpu) => ("unavailable" in g ? g.unavailable : g.adapter);
+
+test("askBrowser falls back to the newest Chromium in Playwright's cache when none is on the path, and says how to name one when there is none", async () => {
+  const cache = join(root, "ms-playwright");
+  for (const [build, adapter] of [["999", "old"], ["1200", "new"]]) {
+    mkdirSync(join(cache, `chromium-${build}/chrome-linux64`), { recursive: true });
+    copyFileSync(browser(`console.log(${JSON.stringify(answer({ api: "webgl2", adapter }))});`)[`${NAME.toUpperCase()}_BROWSER`] as string, join(cache, `chromium-${build}/chrome-linux64/chrome`));
+  }
+  assert.equal(said(await askBrowser({ PATH: "", PLAYWRIGHT_BROWSERS_PATH: cache })), "new");
+  assert.match(said(await askBrowser({ PATH: "", HOME: join(root, "no-home") })), new RegExp(`Playwright.*${NAME.toUpperCase()}_BROWSER`));
+});
 
 test("askBrowser says why when it cannot make its folder, and never throws", async () => {
   const got = await inTmp(join(root, "no-such-folder"), () => askBrowser(browser(`console.log(${JSON.stringify(answer({ api: "none", adapter: "" }))});`)));
