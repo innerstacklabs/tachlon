@@ -25,6 +25,17 @@ test("plain_in_document_out_is_plain_again", () => {
   expect(out.links).toEqual([{ from: "strip", to: "walls", type: "SS", lag: 1 }, { from: "walls", to: "7", type: "FS", lag: 0 }]);
 });
 
+test("a_link_key_comes_back_and_a_link_without_one_has_none", () => {
+  const { document } = fromTasks({
+    tasks: [{ id: "a", name: "A", start: "2026-03-02", duration: 1 }, { id: "b", name: "B", start: "2026-03-02", duration: 1 }, { id: "c", name: "C", start: "2026-03-02", duration: 1 }],
+    links: [{ from: "a", to: "b", key: "l-1" }, { from: "b", to: "c" }],
+  });
+  const out = toPlain(document, ["2026-03-02 08:00", "2026-03-03 08:00", "2026-03-04 08:00"]);
+  expect(out.links[0]!.key).toBe("l-1");
+  expect(out.links[1]).not.toHaveProperty("key");
+  expect(fromTasks(out).document.links.map((link) => link.key)).toEqual(["l-1", undefined]);
+});
+
 test("a_linked_task_takes_the_date_passed_in_not_its_own_start", () => {
   const { document } = fromTasks({ tasks: [{ id: "a", name: "A", start: "2026-03-02", duration: 3 }, { id: "b", name: "B", start: "2026-03-02", duration: 2 }], links: [{ from: "a", to: "b" }] });
   const out = toPlain(document, ["2026-03-02 08:00", "2026-03-05 08:00"]);

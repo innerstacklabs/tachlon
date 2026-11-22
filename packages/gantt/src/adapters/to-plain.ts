@@ -7,7 +7,7 @@ import type { PlainLink, PlainTask } from "./plain.ts";
 interface Saved {
   origin: number; data_date: number | null;
   tasks: { name: string; code: string | null; parent: number | null; duration: number; progress: number; calendar: number; label?: string; color?: string; key?: string; snet: number | null; limit?: DocumentLimit; actual_start: number | null; actual_finish: number | null; remaining: number | null; wbs_code: string | null; activity_codes: unknown[] }[];
-  links: { pred: number; succ: number; kind: PlainLink["type"]; lag: number }[];
+  links: { pred: number; succ: number; kind: PlainLink["type"]; lag: number; key?: string }[];
   calendars: unknown[];
   baseline: unknown;
   notes: string[];
@@ -64,7 +64,7 @@ export function toPlain(document: Saved, dates: readonly string[]): { tasks: Pla
     ...(task.color === undefined ? {} : { color: task.color }),
     ...(task.key === undefined ? {} : { key: task.key }),
   }));
-  const links = document.links.map((link): PlainLink => ({ from: ids[link.pred]!, to: ids[link.succ]!, type: link.kind, lag: link.lag / WORKING_DAY }));
+  const links = document.links.map((link): PlainLink => ({ from: ids[link.pred]!, to: ids[link.succ]!, type: link.kind, lag: link.lag / WORKING_DAY, ...(link.key === undefined ? {} : { key: link.key }) }));
   const count = (test: (task: Saved["tasks"][number]) => boolean): number => document.tasks.filter(test).length;
   const left: [number, string][] = [
     [count((task) => task.actual_start === null && task.actual_finish !== null), "an actual finish with no actual start"],
