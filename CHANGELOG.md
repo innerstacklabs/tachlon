@@ -19,6 +19,7 @@ What changed in each npm release, newest first. Each entry says what you must ch
 - The time-scale header no longer draws the name of a period the right edge cuts too short to hold it, and the progress view's Task column leaves room for the Predecessors or Resources column, so the last column is whole at the end of a sideways scroll.
 - The host overlay bar (`setOverlay`) stays inside its own row at the default 24 px row height, with 2 px of the row left under it, where it lay on the line between two rows; the task bar does not move.
 - Under `keys: "server"`, a restored row (the undo of a delete, the redo of a create) may be answered with another key, and the chart takes it; a different key was put back with `reason: "result"` before. A member of the change set that names a restored row is now `{ ref }`, as for a new row, so a `save` function puts the `key` of each create that has one in its ref map before it reads the creates that name it.
+- `Gantt.snapshot()` and `toPlain` return each link's `key`, as they return each task's; a link with no `key` comes back with none.
 
 ## 0.4.0
 
