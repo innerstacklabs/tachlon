@@ -203,6 +203,36 @@ test("holes_in_a_sparse_array_are_skipped_not_reported", () => {
   expect(v.ok ? [] : v.issues.map((i) => i.path)).toEqual(["tasks[1].id", "tasks[1].name", "tasks[1].start", "links[1].from", "links[1].to"]);
 });
 
+test("the_date_check_agrees_with_a_pattern_and_date_parse_on_days_that_do_not_exist_and_dates_written_wrong", () => {
+  const pattern = /^(?!00)\d{4}-\d{2}-\d{2}(T([01]\d|2[0-3]):[0-5]\d)?$/;
+  const real = (day: string) => { const ms = Date.parse(day); return ms === ms && new Date(ms).toISOString().startsWith(day); };
+  const reference = (s: string) => pattern.test(s) && real(s.slice(0, 10));
+  const dates = [
+    "2026-02-28", "2026-02-29", "2026-02-30", "2026-04-30", "2026-04-31", "2026-12-31", "2026-13-01", "2026-00-10", "2026-01-00", "2026-01-32",
+    "2023-02-29", "2024-02-29", "2000-02-29", "1900-02-29", "2100-02-29", "0099-12-31", "0100-01-01", "0000-01-01", "9999-12-31",
+    "2026-2-03", "2026-02-3", "26-02-03", "2026-02-03T8:00", "2026-02-03T08:0", "2026/02/03", "2026-02-03 08:00",
+    "2026-02-03T00:00", "2026-02-03T23:59", "2026-02-03T24:00", "2026-02-03T08:60", "2026-02-30T08:00",
+    "2026-02-03x", "2026-02-03T08:00Z", "2026-02-03T08:00:00", "2026-02-03 ", " 2026-02-03", "2026-02-03\n", "", "２０２６-02-03",
+  ];
+  const agree = dates.map((s) => [s, validate({ tasks: [{ id: 1, name: "A", start: s }] }).ok]);
+  expect(agree).toEqual(dates.map((s) => [s, reference(s)]));
+  expect(agree.filter(([, ok]) => ok).length).toBe(9);
+});
+
+test("each_task_and_link_field_with_a_wrong_value_is_named_by_its_own_path", () => {
+  const paths = (data: unknown) => { const v = validate(data); return v.ok ? [] : v.issues.map((i) => i.path); };
+  const unchecked = ["color", "label"];
+  for (const name of Object.keys(schema.$defs.task.properties).filter((n) => !unchecked.includes(n))) expect(paths({ tasks: [{ ...t, [name]: [] }] })).toContain(`tasks[0].${name}`);
+  for (const name of Object.keys(schema.$defs.link.properties)) expect(paths({ tasks: [t, { ...t, id: 2 }], links: [{ from: 1, to: 2, [name]: [] }] })).toContain(`links[0].${name}`);
+});
+
+test("a_number_id_and_the_same_id_as_text_repeat_in_either_order", () => {
+  const repeats = (...list: (string | number)[]) => { const v = validate({ tasks: list.map((id) => ({ ...t, id })) }); return v.ok ? [] : v.issues.map((i) => `${i.path} ${i.got}`); };
+  expect(repeats(1, "1")).toEqual(['tasks[1].id string "1", also tasks[0].id']);
+  expect(repeats("1", 1)).toEqual(["tasks[1].id number 1, also tasks[0].id"]);
+  expect(repeats("a", 2, 2)).toEqual(["tasks[2].id number 2, also tasks[1].id"]);
+});
+
 test("an_unknown_option_member_or_value_is_refused_by_name_and_remaining_alone_needs_the_option_on", () => {
   const paths = (options: unknown) => { const v = validate({ tasks: [t], options }); return v.ok ? [] : v.issues.map((i) => i.path); };
   expect(paths({ startedLate: "p6", unstartedRemaining: false, startedLateStart: "actual" })).toEqual(["options.startedLate", "options.unstartedRemaining", "options.startedLateStart"]);
