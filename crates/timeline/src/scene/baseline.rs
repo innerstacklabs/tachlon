@@ -26,7 +26,9 @@ const ROW_FLOOR_PX: f64 = 2.0;
 /// baseline finish; a task whose baseline equals its dates gets the same strip under its bar.
 /// `strip` is the slot and the color: slot 0 is the strip under the bar, and each slot after it
 /// sits `HEIGHT_PX + GAP_PX` lower, but is lifted until `ROW_FLOOR_PX` of its row is left under it
-/// (never above slot 0): in a 24 px row every later slot shares slot 0's place.
+/// (never above slot 0): in a 24 px row every later slot shares slot 0's place. `other_held(task)`
+/// says whether the task holds the other strip too: then in that row slot 0 takes the upper
+/// `HEIGHT_PX - 1` of the place and the later slot the last pixel, so both show.
 pub fn add_comparison_bars(
     scene: &mut Scene,
     v: &Viewport,
@@ -34,7 +36,7 @@ pub fn add_comparison_bars(
     summaries: &Summaries,
     order: &[u32],
     baseline_of: impl Fn(u32) -> Option<(Instant, Instant)>,
-    (slot, color): (u32, [f32; 4]),
+    (slot, color, other_held): (u32, [f32; 4], impl Fn(u32) -> bool),
 ) {
     let bh = bar_height(v);
     let mut b = Builder {
@@ -62,7 +64,13 @@ pub fn add_comparison_bars(
         let y = (first + f64::from(slot) * (HEIGHT_PX + GAP_PX))
             .min(floor)
             .max(first);
-        b.rect(x0, y, x1, y + HEIGHT_PX, color);
+        let split = floor <= first && other_held(task);
+        let (y, h) = match (split, slot) {
+            (false, _) => (y, HEIGHT_PX),
+            (true, 0) => (y, HEIGHT_PX - 1.0),
+            (true, _) => (y + HEIGHT_PX - 1.0, 1.0),
+        };
+        b.rect(x0, y, x1, y + h, color);
     }
     let rects: Vec<Rect> = b.scene.rects;
     if !rects.is_empty() {
