@@ -24,7 +24,7 @@ P6 baselines are not read yet; MS Project XML baselines are (baseline 0, start a
 
 ## Why Tachlon
 
-- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (a median of 18.0 ms or less in Tachlon main, to be released as 0.4.1, on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured) The headline figure is from a Mac; Windows, tablets and phones are not measured yet.
+- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (a median of 18.0 ms or less in Tachlon 0.5.0, on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured) The headline figure is from a Mac; Windows, tablets and phones are not measured yet.
 - **AI first.** Built for developers who work with an AI assistant. Your assistant installs it from one prompt, reads the guide that ships inside the package, asks the package what it can do, and checks its own work. [For your assistant](#for-your-assistant)
 - **Free and open source.** MIT. Every feature, with no paid tier, license key, trial or watermark.
 - **Powerful.** Auto-scheduling, critical path, constraints, calendars, baselines and progress, with Primavera P6 and MS Project files opened and saved in the browser. [What it does](#what-it-does)
@@ -88,7 +88,7 @@ The package carries its own instructions, so your assistant works from the versi
 
 ## Measured
 
-After a drag at 50,000 tasks, the engine reschedules in 18.0 ms or less, and 50,000 tasks open in 299 ms (tree) and 309 ms (chain), with the schedule calculated. These are medians of 4 or more load-matched runs of Tachlon main, to be released as 0.4.1 (build 45f38c4), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
+After a drag at 50,000 tasks, the engine reschedules in 18.0 ms or less, and 50,000 tasks open in 299 ms (tree) and 309 ms (chain), with the schedule calculated. These are medians of 4 or more load-matched runs of Tachlon 0.5.0 (build 45f38c4, the same code as 0.5.0), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
 
 These figures are measured on generated schedules. The repository holds no private schedule: every fixture is a public sample file or a generated one.
 
@@ -97,7 +97,7 @@ To time how long your own file takes to open, open it in the hosted app, click t
 <details>
 <summary>The measurements, next to DHTMLX Gantt</summary>
 
-Each cell reads "Tachlon / DHTMLX community 10.0.3" in milliseconds (the last row in MB): the median of the load-matched runs of each (4 per cell, 5 for the 50,000-task chain), Tachlon main, to be released as 0.4.1 (build 45f38c4), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The faster figure is in bold.
+Each cell reads "Tachlon / DHTMLX community 10.0.3" in milliseconds (the last row in MB): the median of the load-matched runs of each (4 per cell, 5 for the 50,000-task chain), Tachlon 0.5.0 (build 45f38c4, the same code as 0.5.0), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The faster figure is in bold.
 
 | | `tree4` | `chain` |
 |---|---|---|

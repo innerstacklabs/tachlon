@@ -7,9 +7,9 @@
     "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)"
   },
   "ours": {
-    "release": "main, to be released as 0.4.1",
+    "release": "0.5.0",
     "commit": "45f38c4fba474794cc4aafa69fd764deaf74fa7e",
-    "build": "the bench page (demos/bench/sides/ours-page.html) built on the hub from that commit of main, after 0.4.0 and to be released as 0.4.1: scripts/build-web.sh --no-bundle, then vite build with demos/bench/sides/ours-vite.config.ts in apps/hosted; bundleSha256 e934750d6a0da86a06df4f073ff5588092d4afe605ef6f74833b4b6835d8f414",
+    "build": "the bench page (demos/bench/sides/ours-page.html) built on the hub from that commit of main, which has the same engine, page and package code as the 0.5.0 release (the later commits change the docs, one test and the version number only): scripts/build-web.sh --no-bundle, then vite build with demos/bench/sides/ours-vite.config.ts in apps/hosted; bundleSha256 e934750d6a0da86a06df4f073ff5588092d4afe605ef6f74833b4b6835d8f414",
     "backend": "WebGPU"
   },
   "dhtmlx": {
