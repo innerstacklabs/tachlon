@@ -21,6 +21,20 @@ impl Schedule {
             .map(|(i, d)| (DepId(i as u32), d))
     }
 
+    /// The links in force into `task`, in slot order as [`Schedule::live_dependencies`] gives them,
+    /// read from the cached graph: `None` when no graph is cached (a change since the last compute).
+    #[must_use]
+    pub fn cached_links_into(&self, task: TaskId) -> Option<impl Iterator<Item = DepId> + '_> {
+        let graph = self.graph.as_ref()?;
+        let i = task.0 as usize;
+        let (from, to) = (*graph.pred_start.get(i)?, *graph.pred_start.get(i + 1)?);
+        Some(
+            graph.pred_deps[from as usize..to as usize]
+                .iter()
+                .map(|&d| DepId(d)),
+        )
+    }
+
     /// The links to or from `task` that were not removed on their own, whether an end is deleted
     /// or not: the ones a delete of `task` takes out of force and a restore can bring back.
     #[expect(

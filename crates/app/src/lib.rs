@@ -120,6 +120,7 @@ mod tests {
     use engine::TaskId;
     use timeline::{Theme, Timeline};
     mod before;
+    mod predecessors_memo;
     mod reopen_fields;
 
     fn test_clock() -> f64 {

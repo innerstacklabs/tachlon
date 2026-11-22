@@ -45,7 +45,7 @@ type Kept = ((u32, u32), Vec<Vec<DepId>>);
 
 /// The links kept by a [`Session`], so a table of rows reads them once.
 #[derive(Debug, Default)]
-pub(crate) struct Memo(Mutex<Option<Kept>>);
+pub(crate) struct Memo(pub(crate) Mutex<Option<Kept>>);
 
 impl Session {
     /// The edits that make `task` follow exactly the tasks `text` lists (`3, 5SS+1d`: an Activity ID,
@@ -131,7 +131,8 @@ impl Session {
     /// The tasks `task` follows as [`Session::set_predecessors_text`] reads them back (`3, 5 SS+1d`: a space
     /// keeps an ID that is another ID plus a type, `A5SS` beside `A5`, the task it is),
     /// in the order the links were made. `None` for a task that is not live or one that follows a
-    /// task with no Activity ID. The links are kept per `(revision, stamp)`.
+    /// task with no Activity ID. The links come from the engine's cached graph, which only a link
+    /// change drops; without one they are kept per `(revision, stamp)`.
     #[must_use]
     pub fn predecessors_text(&self, task: TaskId) -> Option<String> {
         if !self.is_live(task) {
@@ -143,17 +144,23 @@ impl Session {
             .0
             .lock()
             .unwrap_or_else(PoisonError::into_inner);
-        if cached.as_ref().is_none_or(|(kept, _)| *kept != key) {
-            let mut into = vec![Vec::new(); self.schedule.tasks().len()];
-            for (dep, link) in self.schedule.live_dependencies() {
-                into[link.succ.0 as usize].push(dep);
+        let deps: Vec<DepId> = if let Some(deps) = self.schedule.cached_links_into(task) {
+            deps.collect()
+        } else {
+            if cached.as_ref().is_none_or(|(kept, _)| *kept != key) {
+                let mut into = vec![Vec::new(); self.schedule.tasks().len()];
+                for (dep, link) in self.schedule.live_dependencies() {
+                    into[link.succ.0 as usize].push(dep);
+                }
+                *cached = Some((key, into));
             }
-            *cached = Some((key, into));
-        }
-        let deps = cached.as_ref().map(|(_, into)| &into[task.0 as usize])?;
+            cached
+                .as_ref()
+                .map(|(_, into)| into[task.0 as usize].clone())?
+        };
         let items: Option<Vec<String>> = deps
-            .iter()
-            .map(|&dep| {
+            .into_iter()
+            .map(|dep| {
                 let link = self.schedule.dependencies()[dep.0 as usize];
                 let code = self.meta[link.pred.0 as usize].code.as_deref()?;
                 let kind = match (link.kind, link.lag) {

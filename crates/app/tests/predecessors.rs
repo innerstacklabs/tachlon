@@ -125,6 +125,29 @@ fn link_changes(session: &mut Session) -> Vec<Vec<String>> {
 }
 
 #[test]
+fn each_link_edit_and_its_undo_and_redo_change_the_text_read_back() {
+    let mut session = schedule(true);
+    let text = |s: &Session, task: u32| s.predecessors_text(TaskId(task)).unwrap();
+    assert_eq!(
+        (text(&session, 4), text(&session, 5)),
+        (String::new(), "9".into())
+    );
+    for (typed, read) in [("3", "3"), ("5", "5"), ("5 SS", "5 SS"), ("", "")] {
+        session.set_predecessors_text(TARGET, typed).unwrap();
+        assert_eq!(text(&session, 4), read, "after typing {typed:?}");
+    }
+    session.set_predecessors_text(TaskId(5), "").unwrap();
+    assert_eq!(text(&session, 5), "");
+    for read in ["9", "5 SS", "5", "3", ""] {
+        let task = if read == "9" { 5 } else { 4 };
+        assert!(session.undo().unwrap());
+        assert_eq!(text(&session, task), read, "after an undo");
+    }
+    assert!(session.redo().unwrap());
+    assert_eq!(text(&session, 4), "3", "after a redo");
+}
+
+#[test]
 fn a_typed_list_makes_changes_and_removes_links_in_one_undo_step() {
     let mut session = schedule(true);
     session.set_predecessors_text(TARGET, "3, 5").unwrap();
