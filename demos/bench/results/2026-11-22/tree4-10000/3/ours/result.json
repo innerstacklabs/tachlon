@@ -1,9 +1,9 @@
 {
   "tool": "drive",
-  "url": "http://127.0.0.1:57242/ours-page.html?cell=tree4-10000-20261020",
+  "url": "http://127.0.0.1:62736/ours-page.html?cell=tree4-10000-20261020",
   "side": "ours",
   "rows": 10000,
-  "date": "2026-11-22T08:14:24.257Z",
+  "date": "2026-11-22T15:03:48.952Z",
   "environment": {
     "chrome": "156.0.8078.4",
     "gpu": {
@@ -48,9 +48,9 @@
   "phases": {
     "load": {
       "dnf": false,
-      "ms": 156.6,
-      "libraryMs": 34.4,
-      "dataToReadyMs": 122.2,
+      "ms": 139.5,
+      "libraryMs": 34,
+      "dataToReadyMs": 105.5,
       "spotChecked": false,
       "settledMs": null,
       "dataToSettledMs": null
@@ -63,7 +63,7 @@
       "p95": 18.6,
       "longGaps": 0,
       "droppedFrames": 0,
-      "max": 18.8,
+      "max": 18.7,
       "steps": 120,
       "stepPx": 333.3333333333333,
       "wheelEvents": {
@@ -100,13 +100,13 @@
     "drag": {
       "dnf": false,
       "verified": true,
-      "frames": 130,
+      "frames": 134,
       "p50": 16.7,
-      "p95": 18.6,
+      "p95": 18.7,
       "longGaps": 0,
       "droppedFrames": 0,
       "max": 18.7,
-      "commitMs": 14.1,
+      "commitMs": 18,
       "days": 10,
       "steps": 60,
       "afterFrames": 10,
@@ -127,18 +127,18 @@
       "dnf": false,
       "afterLoad": {
         "kind": "footprint",
-        "chromeBytes": 417647616,
-        "rendererBytes": 170498048,
-        "gpuProcessBytes": 127926272,
-        "jsHeapUsedBytes": 3386196,
-        "readAtS": 19.999
+        "chromeBytes": 411567104,
+        "rendererBytes": 169450496,
+        "gpuProcessBytes": 122578944,
+        "jsHeapUsedBytes": 2566572,
+        "readAtS": 20.002
       },
       "afterScripts": {
         "kind": "footprint",
-        "chromeBytes": 595382272,
-        "rendererBytes": 190840832,
-        "gpuProcessBytes": 284374016,
-        "jsHeapUsedBytes": 3837092
+        "chromeBytes": 603559936,
+        "rendererBytes": 197865472,
+        "gpuProcessBytes": 285422592,
+        "jsHeapUsedBytes": 3023236
       }
     }
   }

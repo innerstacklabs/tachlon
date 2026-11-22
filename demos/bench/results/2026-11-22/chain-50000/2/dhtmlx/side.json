@@ -1,1 +1,1 @@
-{"name":"dhtmlx","probe":"demos/bench/sides/dhtmlx.ts","path":"?cell={shape}-{size}-{seed}","bundleSha256":"c66ce80c445e507db6564acf425a9be4764b44664d9b9552404285bd9efd5786","harness":"1b94b49d89a24116c0cb4353df8aa44252086cf4"}
+{"name":"dhtmlx","probe":"demos/bench/sides/dhtmlx.ts","path":"?cell={shape}-{size}-{seed}","bundleSha256":"c66ce80c445e507db6564acf425a9be4764b44664d9b9552404285bd9efd5786","harness":"7ecb10663bc208d9543e7deb30fe503ee46c44cc"}

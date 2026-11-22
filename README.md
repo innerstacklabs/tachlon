@@ -24,7 +24,7 @@ P6 baselines are not read yet; MS Project XML baselines are (baseline 0, start a
 
 ## Why Tachlon
 
-- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (18.1 ms or less in Tachlon 0.4.0 on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured)
+- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (a median of 18.0 ms or less in Tachlon main, to be released as 0.4.1, on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured)
 - **AI first.** Built for developers who work with an AI assistant. Your assistant installs it from one prompt, reads the guide that ships inside the package, asks the package what it can do, and checks its own work. [For your assistant](#for-your-assistant)
 - **Free and open source.** MIT. Every feature, with no paid tier, license key, trial or watermark.
 - **Powerful.** Auto-scheduling, critical path, constraints, calendars, baselines and progress, with Primavera P6 and MS Project files opened and saved in the browser. [What it does](#what-it-does)
@@ -88,7 +88,7 @@ The package carries its own instructions, so your assistant works from the versi
 
 ## Measured
 
-After a drag at 50,000 tasks, the engine reschedules in 18.1 ms or less, and 50,000 tasks open in 386 ms (tree) and 402 ms (chain), with the schedule calculated. These are medians of 3 runs of Tachlon 0.4.0 (build 7ecb106) on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
+After a drag at 50,000 tasks, the engine reschedules in 18.0 ms or less, and 50,000 tasks open in 305 ms (tree) and 308 ms (chain), with the schedule calculated. These are medians of 3 runs of Tachlon main, to be released as 0.4.1 (build 45f38c4), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The engine is Rust compiled to WebAssembly, the GPU draws only the rows on screen, and the engine and the renderer share one block of memory, so a drag recomputes the schedule and redraws it without copying it.
 
 These figures are measured on generated schedules. The repository holds no private schedule: every fixture is a public sample file or a generated one.
 
@@ -97,22 +97,22 @@ To time how long your own file takes to open, open it in the hosted app, click t
 <details>
 <summary>The measurements, next to DHTMLX Gantt</summary>
 
-Each cell reads "Tachlon / DHTMLX community 10.0.3" in milliseconds (the last row in MB): the median of 3 runs of each, Tachlon 0.4.0 (build 7ecb106), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The faster figure is in bold.
+Each cell reads "Tachlon / DHTMLX community 10.0.3" in milliseconds (the last row in MB): the median of the load-matched runs of each (4 for the 10,000-task chain, 3 in the other cells), Tachlon main, to be released as 0.4.1 (build 45f38c4), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The faster figure is in bold.
 
 | | `tree4` | `chain` |
 |---|---|---|
-| Open, 10,000 tasks | 169.8 / **106.3** | **171.7** / 176.6 |
-| Open, 50,000 tasks | 385.8 / **338.2** | **402.4** / 790.0 |
-| Slowest scroll frame, 50,000 tasks (longest of 3 runs) | **18.8** / 35.4 | **18.8** / 35.4 |
-| Drag frame, 50,000 tasks (p95) | **18.6** / 18.7 | 18.6 / **18.2** |
-| Drag commit, 50,000 tasks | **18.1** / 63.9 | **16.9** / 49.3 |
-| Memory, 50,000 tasks (MB) | 453.6 / **379.3** | 453.6 / **405.3** |
+| Open, 10,000 tasks | 142.5 / **105.1** | **146.1** / 174.9 |
+| Open, 50,000 tasks | **305.3** / 336.7 | **307.8** / 791.5 |
+| Slowest scroll frame, 50,000 tasks (longest of 3 runs) | **18.8** / 35.3 | **18.8** / 33.4 |
+| Drag frame, 50,000 tasks (p95) | 18.7 / **18.6** | 18.7 / **18.3** |
+| Drag commit, 50,000 tasks | **18.0** / 49.2 | **17.2** / 49.3 |
+| Memory, 50,000 tasks (MB) | 451.2 / **380.4** | 450.7 / **405.3** |
 
 - A drag frame is the interval between two frames while the first leaf in view is dragged, and p95 means 95 of 100 of those intervals were this short or shorter ([Driving any Gantt the same way](docs/MEASURING.md#driving-any-gantt-the-same-way-gs1199)).
 - A drag commit is the time from the release to the chart's commit, once what follows the dragged task is rescheduled: ours when the schedule's revision changes ([the drag commit](docs/MEASURING.md#bryntum-8-community-against-ours-and-the-drag-commit-gantt1949)).
 - For a chart that does not reschedule, DHTMLX here, the commit is the write of the dragged task's start to its store ([the drag commit](docs/MEASURING.md#bryntum-8-community-against-ours-and-the-drag-commit-gantt1949)).
 
-<sub>DHTMLX opens the tree sooner at both sizes and uses less memory. The run's results are in [demos/bench/results/2026-11-22.json](demos/bench/results/2026-11-22.json); the method and how to rerun it are in [docs/MEASURING.md](docs/MEASURING.md).</sub>
+<sub>DHTMLX opens the 10,000-task tree sooner and uses less memory. The drag commit is the median of the same runs' per-run files. The run's results are in [demos/bench/results/2026-11-22.json](demos/bench/results/2026-11-22.json); the method and how to rerun it are in [docs/MEASURING.md](docs/MEASURING.md).</sub>
 
 </details>
 

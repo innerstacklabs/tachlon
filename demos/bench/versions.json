@@ -7,9 +7,9 @@
     "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)"
   },
   "ours": {
-    "release": "0.4.0",
-    "commit": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
-    "build": "the bench page (demos/bench/sides/ours-page.html) built on the hub from that commit, the one npm records as the gitHead of the published 0.4.0: scripts/build-web.sh --no-bundle, then vite build with demos/bench/sides/ours-vite.config.ts in apps/hosted; bundleSha256 546ef384c9bb28ea115997844dd08e67489d8c60c83d420b92809f8936881c0b",
+    "release": "main, to be released as 0.4.1",
+    "commit": "45f38c4fba474794cc4aafa69fd764deaf74fa7e",
+    "build": "the bench page (demos/bench/sides/ours-page.html) built on the hub from that commit of main, after 0.4.0 and to be released as 0.4.1: scripts/build-web.sh --no-bundle, then vite build with demos/bench/sides/ours-vite.config.ts in apps/hosted; bundleSha256 e934750d6a0da86a06df4f073ff5588092d4afe605ef6f74833b4b6835d8f414",
     "backend": "WebGPU"
   },
   "dhtmlx": {
@@ -18,7 +18,7 @@
     "license": "MIT (community edition), installed from npm by demos/bench/sides/dhtmlx-setup.ts into a directory outside any work tree"
   },
   "harness": {
-    "commit": "7ecb10663bc208d9543e7deb30fe503ee46c44cc for ours, 1b94b49d89a24116c0cb4353df8aa44252086cf4 for DHTMLX",
+    "commit": "7ecb10663bc208d9543e7deb30fe503ee46c44cc (the 0.4.0 release) for both sides",
     "node": "v26.12.1 (the mini's /opt/homebrew/bin/node)",
     "driverOptions": "the driver defaults (--dnf-s 120), the same for both sides",
     "seed": "20261020"

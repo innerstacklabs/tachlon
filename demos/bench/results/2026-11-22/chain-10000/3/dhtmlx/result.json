@@ -1,9 +1,9 @@
 {
   "tool": "drive",
-  "url": "http://127.0.0.1:57331/?cell=chain-10000-20261020",
+  "url": "http://127.0.0.1:62790/?cell=chain-10000-20261020",
   "side": "dhtmlx",
   "rows": 10000,
-  "date": "2026-11-22T08:20:16.533Z",
+  "date": "2026-11-22T15:08:01.351Z",
   "environment": {
     "chrome": "156.0.8078.4",
     "gpu": {
@@ -48,17 +48,17 @@
   "phases": {
     "load": {
       "dnf": false,
-      "ms": 179.3,
-      "libraryMs": 19.3,
-      "dataToReadyMs": 146.2,
+      "ms": 172.6,
+      "libraryMs": 20.1,
+      "dataToReadyMs": 138.6,
       "spotChecked": true,
-      "settledMs": 185.9,
-      "dataToSettledMs": 152.8
+      "settledMs": 186.5,
+      "dataToSettledMs": 152.5
     },
     "scroll-y": {
       "dnf": false,
       "verified": true,
-      "frames": 2676,
+      "frames": 2681,
       "p50": 16.7,
       "p95": 18.7,
       "longGaps": 0,
@@ -100,13 +100,13 @@
     "drag": {
       "dnf": false,
       "verified": true,
-      "frames": 136,
+      "frames": 132,
       "p50": 16.7,
       "p95": 18.7,
       "longGaps": 0,
       "droppedFrames": 0,
       "max": 18.7,
-      "commitMs": 32.5,
+      "commitMs": 30.6,
       "days": 10,
       "steps": 60,
       "afterFrames": 10,
@@ -127,18 +127,18 @@
       "dnf": false,
       "afterLoad": {
         "kind": "footprint",
-        "chromeBytes": 353893376,
-        "rendererBytes": 148896768,
-        "gpuProcessBytes": 84934656,
-        "jsHeapUsedBytes": 13678232,
-        "readAtS": 20.001
+        "chromeBytes": 347812864,
+        "rendererBytes": 149002240,
+        "gpuProcessBytes": 85668864,
+        "jsHeapUsedBytes": 13698560,
+        "readAtS": 20.003
       },
       "afterScripts": {
         "kind": "footprint",
-        "chromeBytes": 381892608,
-        "rendererBytes": 169974784,
-        "gpuProcessBytes": 96364544,
-        "jsHeapUsedBytes": 14296800
+        "chromeBytes": 380214272,
+        "rendererBytes": 174377984,
+        "gpuProcessBytes": 97203200,
+        "jsHeapUsedBytes": 14311420
       }
     }
   }
