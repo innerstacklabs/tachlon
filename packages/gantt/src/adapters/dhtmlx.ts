@@ -136,14 +136,46 @@ const LINK_FIELDS = new Set(["id", "source", "target", "type", "lag"]);
 
 /** Minutes since 1970-01-01 00:00 of the wall-clock time `text` names, or null. Reads `YYYY-MM-DD[ T]HH:mm[:ss]` (a trailing `Z` is not converted) and `DD-MM-YYYY[ HH:mm]`. */
 export function minutesOf(text: string): number | null {
-  const iso = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?Z?)?$/.exec(text.trim());
-  const dmy = /^(\d{2})-(\d{2})-(\d{4})(?: (\d{2}):(\d{2}))?$/.exec(text.trim());
-  const found = iso !== null ? [iso[1], iso[2], iso[3], iso[4], iso[5]] : dmy !== null ? [dmy[3], dmy[2], dmy[1], dmy[4], dmy[5]] : null;
-  if (found === null) return null;
-  const [year, month, day, hour, minute] = found.map((part) => (part === undefined ? 0 : Number(part))) as [number, number, number, number, number];
+  const s = text.trim();
+  const iso = s.charCodeAt(4) === 45; // a `-` after four digits: YYYY-MM-DD, else DD-MM-YYYY
+  const at = iso ? 5 : 3; // where the month starts
+  const year = digitsAt(s, iso ? 0 : 6, 4);
+  const month = digitsAt(s, at, 2);
+  const day = digitsAt(s, iso ? 8 : 0, 2);
+  if (year < 0 || month < 0 || day < 0 || s.charCodeAt(at - 1) !== 45 || s.charCodeAt(at + 2) !== 45) return null;
+  let hour = 0;
+  let minute = 0;
+  if (s.length !== 10) {
+    const gap = s.charCodeAt(10);
+    if (!(gap === 32 || (iso && gap === 84)) || s.charCodeAt(13) !== 58) return null; // ` ` (or `T` in ISO), then HH:mm
+    hour = digitsAt(s, 11, 2);
+    minute = digitsAt(s, 14, 2);
+    if (hour < 0 || minute < 0 || (iso ? isoTailEnd(s) : 16) !== s.length) return null;
+  }
   const date = new Date(Date.UTC(year, month - 1, day));
   if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day || hour > 23 || minute > 59) return null;
   return date.getTime() / 60_000 + hour * 60 + minute;
+}
+
+/** The `count` ASCII digits of `s` from `from` as a number, or -1 when one is not a digit or `s` ends first. */
+function digitsAt(s: string, from: number, count: number): number {
+  let n = 0;
+  for (let i = from; i < from + count; i++) {
+    const digit = s.charCodeAt(i) - 48; // NaN past the end
+    if (!(digit >= 0 && digit <= 9)) return -1;
+    n = n * 10 + digit;
+  }
+  return n;
+}
+
+/** Where an ISO time's optional `:ss`, `.fraction` (after seconds only) and `Z` end, read from after its `HH:mm`. */
+function isoTailEnd(s: string): number {
+  let i = 16;
+  if (s.charCodeAt(i) === 58 && digitsAt(s, i + 1, 2) >= 0) {
+    i += 3;
+    if (s.charCodeAt(i) === 46 && digitsAt(s, i + 1, 1) >= 0) for (i += 2; digitsAt(s, i, 1) >= 0; i++);
+  }
+  return s.charCodeAt(i) === 90 ? i + 1 : i;
 }
 
 /** A finite number from a number or a numeric string, else null. */
