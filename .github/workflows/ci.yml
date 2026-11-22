@@ -26,6 +26,7 @@ env:
   RUSTDOCFLAGS: -D warnings
   WEB_ROOT: packages/gantt  # the chart's folder; scripts/lib/web-root.ts names it for the scripts
   WASM_HANDOFF: .cache/tachlon-ci-handoff/${{ github.run_id }}-${{ github.run_attempt }}  # under $HOME: where `wasm` keeps this run's bindings (gantt#1878)
+  BOOK_HANDOFF: .cache/tachlon-ci-handoff/book-${{ github.run_id }}-${{ github.run_attempt }}  # where `book` keeps this run's book beside them
 
 jobs:
   # Decides once which tier this run is (scripts/lib/ci-tier.ts: fast, full, nightly or deploy) and whether the code jobs (rust, wasm, web,
@@ -593,7 +594,11 @@ jobs:
         run: pnpm exec playwright install chromium
       # The book spec (book-next-arrow) reads a built book from BOOK_DIR and fails when it is unset (gs#703). It is the `book` job's build,
       # which holds the API reference; this job does not build mdbook.
-      - uses: actions/download-artifact@v4
+      - id: book-disk
+        run: |
+          [ -n "$BOOK_HANDOFF" ] || { echo "BOOK_HANDOFF is empty, downloading the artifact"; exit 0; }; mkdir -p "$RUNNER_TEMP/book" && cp -r "$HOME/$BOOK_HANDOFF/." "$RUNNER_TEMP/book/" && echo "hit=true" >> "$GITHUB_OUTPUT" && echo "book read from $HOME/$BOOK_HANDOFF, no download" || echo "book is not on this disk, downloading the artifact"
+      - if: steps.book-disk.outputs.hit != 'true'
+        uses: actions/download-artifact@v4
         with: {name: book, path: "${{ runner.temp }}/book"}
       - run: echo "BOOK_DIR=$RUNNER_TEMP/book" >> "$GITHUB_ENV"
       # Runners that share a host each get their own preview port (as in `web`).
@@ -689,7 +694,11 @@ jobs:
           node --test tests-node/book-*.test.ts
       # The built book is kept for one day, and only when a job that reads it runs: hosted-browser (the book spec) and deploy (publishes it to
       # Pages). hosted-browser runs when code or browser is 'true' (its own `if:`); deploy needs hosted, which needs code, so a docs-only run
-      # that changes no contents page uploads none.
+      # that changes no contents page uploads none. It is also kept on this disk for hosted-browser when it lands here (gantt#1878); a failure only makes it download the artifact.
+      - name: keep the book on this disk
+        if: ${{ env.CODE == 'true' || env.BROWSER == 'true' }}
+        run: |
+          [ -n "$BOOK_HANDOFF" ] || { echo "::warning::BOOK_HANDOFF is empty, the book was not kept on this disk"; exit 0; }; d="$HOME/$BOOK_HANDOFF"; mkdir -p "${d%/*}" && find "${d%/*}" -mindepth 1 -maxdepth 1 -mtime +1 -exec rm -rf {} + && rm -rf "$d" "$d.tmp" && cp -r book/book "$d.tmp" && mv "$d.tmp" "$d" || echo "::warning::the book was not kept on this disk"
       - uses: actions/upload-artifact@v4
         if: ${{ env.CODE == 'true' || env.BROWSER == 'true' }}
         with:
