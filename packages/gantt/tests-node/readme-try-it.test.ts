@@ -27,3 +27,13 @@ test("the first code block is the assistant prompt the package README carries, a
   expect(Math.max(...block![1].split("\n").map((line) => line.length)), "no prompt line is wider than GitHub's code box").toBeLessThanOrEqual(90);
   expect(readme.indexOf("npm install"), "the manual install follows the prompt").toBeGreaterThan(firstFence + block![0].length);
 });
+
+test("both READMEs lead into the same prompt with the same line, and the lead-in comes before npm install", () => {
+  const lead = "Using an AI assistant? Paste this:";
+  const words = (text: string): string => text.split(/\s+/).filter(Boolean).join(" ");
+  for (const [name, text] of [["README.md", readme], ["packages/gantt/README.md", packageReadme]]) {
+    expect(text.split("\n"), `${name} has the lead-in on a line by itself`).toContain(lead);
+    expect(text.indexOf(lead), `${name}: the lead-in comes before npm install`).toBeLessThan(text.indexOf("npm install"));
+    expect(words(agentPrompt(text)), `${name} carries the same prompt`).toBe(words(agentPrompt(packageReadme)));
+  }
+});

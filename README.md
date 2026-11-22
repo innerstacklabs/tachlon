@@ -32,7 +32,7 @@ P6 baselines are not read yet; MS Project XML baselines are (baseline 0, start a
 
 ## Add it
 
-Paste this prompt into your AI assistant:
+Using an AI assistant? Paste this:
 
 ```text
 Add a Tachlon Gantt chart to this app. Install the npm package tachlon and follow the
