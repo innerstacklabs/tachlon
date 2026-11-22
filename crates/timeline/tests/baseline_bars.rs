@@ -59,7 +59,15 @@ fn add(
     n: usize,
     of: impl Fn(u32) -> Option<(Instant, Instant)>,
 ) {
-    scene::add_comparison_bars(s, v, 1.0, sums, &order(n), of, (0, THEME.baseline));
+    scene::add_comparison_bars(
+        s,
+        v,
+        1.0,
+        sums,
+        &order(n),
+        of,
+        (0, THEME.baseline, |_| false),
+    );
 }
 
 fn comparison(s: &Scene) -> Vec<Rect> {
@@ -190,7 +198,7 @@ fn a_later_slot_in_its_own_color(v: &Viewport) -> (Scene, Rect) {
     let mut s = bars(v, 40, &sums);
     let teal = [0.0, 0.5, 0.5, 1.0];
     let of = |t| (t == 1).then_some((5 * DAY, 7 * DAY));
-    scene::add_comparison_bars(&mut s, v, 1.0, &sums, &order(40), of, (1, teal));
+    scene::add_comparison_bars(&mut s, v, 1.0, &sums, &order(40), of, (1, teal, |_| false));
     let got: Vec<_> = s.rects.iter().filter(|r| r.color == teal).collect();
     assert_eq!(got.len(), 1);
     let strip = *got[0];
@@ -228,4 +236,47 @@ fn in_a_taller_row_a_later_slot_still_sits_one_strip_lower() {
     let row = AXIS_HEIGHT + 48.0;
     // The 24 px bar is 12 px from the row's top; slot 0 is 1 px under it and 3 px tall, so slot 1 starts 4 px lower.
     assert_eq!(f64::from(strip.pos[1]), row + 12.0 + 24.0 + 1.0 + 4.0);
+}
+
+/// Task 1's baseline (days 5 to 7) and overlay (days 8 to 9); `held` says each knows the other.
+fn two_strips(v: &Viewport, held: bool) -> (Rect, Rect) {
+    let (sums, o, teal) = (Summaries::new(40), order(40), [0.0, 0.5, 0.5, 1.0]);
+    let mut s = bars(v, 40, &sums);
+    let mut add = |slot, color, (d0, d1): (i64, i64)| {
+        let of = |t| (t == 1).then_some((d0 * DAY, d1 * DAY));
+        scene::add_comparison_bars(&mut s, v, 1.0, &sums, &o, of, (slot, color, |_| held));
+    };
+    add(0, THEME.baseline, (5, 7));
+    add(1, teal, (8, 9));
+    let pick = |c| *s.rects.iter().find(|r| r.color == c).expect("a strip");
+    (pick(THEME.baseline), pick(teal))
+}
+
+#[test]
+fn in_a_24_px_row_a_task_with_both_strips_shows_both() {
+    let v = view(20, 40);
+    let (base, over) = two_strips(&v, true);
+    assert_eq!((base.size[1], over.size[1]), (2.0, 1.0));
+    assert_eq!(
+        base.pos[1] + base.size[1],
+        over.pos[1],
+        "no overlap, the 3 px place filled"
+    );
+    assert_eq!(f64::from(over.pos[0]), span_extent(&v, 8 * DAY, 9 * DAY).0);
+}
+
+#[test]
+fn a_task_with_one_strip_keeps_the_3_px_strip_in_a_24_px_row() {
+    let (base, over) = two_strips(&view(20, 40), false);
+    assert_eq!((base.size[1], over.size[1]), (3.0, 3.0));
+    assert_eq!(base.pos[1], over.pos[1], "the shared place, as before");
+}
+
+#[test]
+fn in_a_40_px_row_two_strips_stay_one_strip_apart() {
+    let mut v = view(20, 40);
+    v.row_height = 40.0;
+    let (base, over) = two_strips(&v, true);
+    assert_eq!((base.size[1], over.size[1]), (3.0, 3.0));
+    assert_eq!(over.pos[1], base.pos[1] + 4.0);
 }
