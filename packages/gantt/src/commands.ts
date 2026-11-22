@@ -150,9 +150,10 @@ export function createCommands({ canvas, app, status, root }: Shell, report: (er
     return slot !== null && slot !== undefined && app.select_task(slot);
   };
   const history = (name: "undo" | "redo"): boolean => {
-    rows.rearm();
     try {
-      return app[name]();
+      const done = app[name]();
+      rows.rearm();
+      return done;
     } catch (err) {
       rows.refuse(err);
       return false;

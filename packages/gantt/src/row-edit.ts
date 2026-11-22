@@ -19,7 +19,7 @@ export interface RowEdit {
   refuse: (err: unknown) => void;
   /** Show a hint that is not a failure in the alert line, in its info style; cleared the same way as a refusal. */
   hint: (message: string) => void;
-  /** Forget the link refusal last seen, before an Undo or Redo press: its report shows again when it is worded as the one before. Two presses inside one frame show only the second. */
+  /** Forget the link refusal last seen, after an Undo or Redo press that did not throw: its report shows again when it is worded as the one before. Two presses inside one frame show only the second. */
   rearm: () => void;
   /** Clear a refusal once the schedule changed or another file opened. */
   sync: (s: Status) => void;

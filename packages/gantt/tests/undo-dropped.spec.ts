@@ -1,6 +1,6 @@
 import { expect, test, type Gantt } from "./support/gantt";
 
-// gantt#2087: Ctrl+Z drops a step the engine refuses and says so once in the alert line; a press with no step left below it says the same.
+// gantt#2087: Ctrl+Z drops a step the engine refuses and says so once in the alert line; a press the engine or the view refuses shows its own reason.
 test.use({ webgl: true });
 
 const NOTICE = "A step could no longer be undone or redone, so the chart dropped it from the list.";
@@ -47,12 +47,6 @@ test("a step the engine refuses is dropped by Ctrl+Z, the notice shows once, and
   await expect(alert, "the notice does not show again").toBeHidden();
 });
 
-test("a press that drops a step and finds none below shows the same sentence", async ({ g }) => {
-  await refuseOneStep(g, 2);
-  for (let i = 0; i < 4; i += 1) await press(g);
-  await expect(g.page.locator("#edit-error-text")).toHaveText(NOTICE);
-});
-
 test("two presses in a row that each drop a step and undo one show the notice after each", async ({ g }) => {
   await g.open({ n: 60 });
   await build(g, 3, "a");
@@ -66,5 +60,7 @@ test("two presses in a row that each drop a step and undo one show the notice af
   await expect(notice, "the first drop is said").toHaveText(NOTICE);
   await press(g);
   await expect(notice, "the second drop, worded the same, is said too").toHaveText(NOTICE);
-  await expect(g.page.locator("#edit-error")).toBeVisible();
+  await g.page.evaluate(() => { const app = window.gantt!.app; app.select_task(5); app.insert_task(); app.insert_task(); app.indent_selected(); app.set_critical_only(true); });
+  await press(g);
+  await expect(notice, "a press the filter refuses shows its reason, not the last report").toHaveText("Clear the row filter or window to indent, outdent or move a row.");
 });
