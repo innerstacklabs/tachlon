@@ -35,6 +35,8 @@ export interface GanttParts {
   openFile: (file: File, options?: OpenOptions) => Promise<void>;
   adopt: (file: OpenedFile, lines: string[], ms: number, expected: readonly string[], fileName: string | null, unsaved?: boolean) => void;
   busy: () => boolean;
+  /** Show a refusal in the alert line (`RowEdit.refuse`). */
+  refuse: (err: unknown) => void;
   /** Mark these task slots as pending (`installTable`). */
   setPending: (slots: readonly number[]) => void;
   wrote: (slots: readonly number[]) => void;
@@ -75,7 +77,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     if (answer.ok) taken?.commit();
     return answer;
   };
-  const commands = guardCommands(createCommands(shell, p.reason, p.busy), () => destroyed);
+  const commands = guardCommands(createCommands(shell, p.reason, p.busy, p.refuse), () => destroyed);
   return {
     commands,
     open: async (file, options) => {

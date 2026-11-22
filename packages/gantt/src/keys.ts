@@ -109,8 +109,7 @@ export function installKeys( // oxlint-disable-line max-lines-per-function -- ex
         if (undo) app.undo();
         else app.redo();
       } catch (err) {
-        if (app.read_only()) rows.refuse(err);
-        else console.warn(`gantt: ${undo ? "undo" : "redo"} failed: ${reason(err)}`);
+        rows.refuse(err);
       }
       return;
     }

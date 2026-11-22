@@ -140,10 +140,10 @@ export interface Commands {
 }
 
 /**
- * Build the commands over the chart's shell. `report` turns a thrown value into one line for the console; `busy` is `Gantt.busy()`.
+ * Build the commands over the chart's shell. `report` turns a thrown value into one line for the console; `busy` is `Gantt.busy()`; `refuse` shows a thrown refusal in the alert line.
  * @internal
  */
-export function createCommands({ canvas, app, status, root }: Shell, report: (err: unknown) => string, busy: () => boolean): Commands {
+export function createCommands({ canvas, app, status, root }: Shell, report: (err: unknown) => string, busy: () => boolean, refuse: (err: unknown) => void): Commands {
   const select = (task: number | string): boolean => {
     const slot = typeof task === "string" ? (JSON.parse(app.task_slots([task])) as (number | null)[])[0] : task;
     return slot !== null && slot !== undefined && app.select_task(slot);
@@ -152,7 +152,7 @@ export function createCommands({ canvas, app, status, root }: Shell, report: (er
     try {
       return app[name]();
     } catch (err) {
-      console.warn(`${name} failed: ${report(err)}`);
+      refuse(err);
       return false;
     }
   };
