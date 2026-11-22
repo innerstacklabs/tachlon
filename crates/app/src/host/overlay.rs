@@ -31,7 +31,10 @@ impl Session {
             tl.summaries(),
             tl.rows(),
             |task| overlay.task(TaskId(task)).map(|t| (t.es, t.ef)),
-            (1, self.theme().overlay),
+            (1, self.theme().overlay, |task| {
+                let base = self.baseline.as_ref();
+                base.is_some_and(|b| b.task(TaskId(task)).is_some())
+            }),
         );
     }
 }

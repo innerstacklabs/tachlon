@@ -24,7 +24,7 @@ P6 baselines are not read yet; MS Project XML baselines are (baseline 0, start a
 
 ## Why Tachlon
 
-- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (a median of 18.0 ms or less in Tachlon main, to be released as 0.4.1, on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured)
+- **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (a median of 18.0 ms or less in Tachlon main, to be released as 0.4.1, on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured) The headline figure is from a Mac; Windows, tablets and phones are not measured yet.
 - **AI first.** Built for developers who work with an AI assistant. Your assistant installs it from one prompt, reads the guide that ships inside the package, asks the package what it can do, and checks its own work. [For your assistant](#for-your-assistant)
 - **Free and open source.** MIT. Every feature, with no paid tier, license key, trial or watermark.
 - **Powerful.** Auto-scheduling, critical path, constraints, calendars, baselines and progress, with Primavera P6 and MS Project files opened and saved in the browser. [What it does](#what-it-does)
@@ -195,6 +195,7 @@ Tachlon next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt on scheduling, 
 
 - Split tasks, editing resource assignments, a resource workload view and custom bar templates (rows 10, 12, 13 and 36 above).
 - Native `.mpp` files: save as MS Project XML. P6 baselines are not read yet, and XER files have been tried on P6 version 19.12 only ([docs/IMPORT.md](docs/IMPORT.md)).
+- Resource leveling: Tachlon moves no task to fix an overload, and a P6 open reads no resources. When a file opens, one line in the panel of what was not read counts the in-progress activities whose dates in the file differ from the dates Tachlon computes; the repository records no such count for a real P6 schedule.
 - Speed is measured on Apple machines and one Dell laptop so far; Windows, tablets and phones are not measured yet.
 - The [open issues](https://github.com/innerstacklabs/tachlon/issues) list the work.
 

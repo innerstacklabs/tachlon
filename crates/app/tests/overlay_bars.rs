@@ -53,3 +53,28 @@ fn the_overlay_is_drawn_at_its_dates_and_null_removes_it() {
     session.set_overlay_records(None).unwrap();
     assert_eq!(drawn(&session).len(), 0);
 }
+
+#[test]
+fn each_strip_is_split_by_whether_the_task_holds_the_other_set() {
+    let (mut session, _) = outline_session(80);
+    let outline = session.outline().expect("an outline");
+    let leaves = (outline.preorder().iter()).filter(|&&t| !outline.is_summary(t));
+    let tasks: Vec<_> = leaves.take(3).copied().collect();
+    for (n, &task) in tasks.iter().enumerate() {
+        let key = format!("t{}", n + 1);
+        session.assign_key(KeyTarget::Task(task), &key).unwrap();
+    }
+    session.fit(0.0, 40.0 * 1440.0);
+    let baseline = format!("[{},{}]", rec("t1"), rec("t2"));
+    session.set_baseline_records(&baseline).unwrap();
+    let overlay = format!("[{},{}]", rec("t1"), rec("t3"));
+    session.set_overlay_records(Some(&overlay)).unwrap();
+    let scene = session.frame_scene(|_, _, _| 8.0);
+    let heights = |color| {
+        let rects = scene.rects.iter().filter(|r| r.color == color);
+        rects.map(|r| r.size[1]).collect::<Vec<_>>()
+    };
+    let theme = session.theme();
+    assert_eq!(heights(theme.baseline), [2.0, 3.0], "t1 split, t2 alone");
+    assert_eq!(heights(theme.overlay), [1.0, 3.0], "t1 split, t3 alone");
+}

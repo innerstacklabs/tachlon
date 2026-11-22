@@ -7,6 +7,7 @@ import { explain } from "./explain.ts";
 import { health } from "./health.ts";
 import { whatIf, whatIfLonger } from "./what-if.ts";
 import { fromTasks } from "./adapters/plain.ts";
+import { dayOf } from "./change-form.ts";
 import { callTool as run, toolDefinitions as definitions } from "./ai-tools.ts"; // the assistant's tools run over a `HeadlessSchedule` as over `chart.commands`; it has no `propose`, which answers `"unknownTool"`
 export type { ToolDefinition, ToolResult } from "./ai-tools.js";
 import type { ToolDefinition, ToolResult } from "./ai-tools.js";
@@ -19,7 +20,7 @@ import type { ScheduleOptions } from "./adapters/dhtmlx.js";
 import type { HostCapabilities } from "./gantt-types.js";
 
 /** What `openHeadless` reads: the bytes of a file, the plain `{ tasks, links }` the chart takes, or a schedule document (`toDocument`). */
-export type HeadlessSource = Uint8Array | { tasks: readonly PlainTask[]; links?: readonly PlainLink[]; projectStart?: string; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions; calendars?: readonly PlainCalendar[]; durationUnit?: "days" | "hours" | "minutes"; lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string } } | { document: unknown };
+export type HeadlessSource = Uint8Array | { tasks: readonly PlainTask[]; links?: readonly PlainLink[]; projectStart?: string; dataDate?: string; mustFinishBy?: string; options?: ScheduleOptions; calendars?: readonly PlainCalendar[]; durationUnit?: "days" | "hours" | "minutes"; lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string }; dateForm?: "minute" | "day" } | { document: unknown };
 
 /** Where the engine is: the file beside this script, which Node reads (the page fetches it instead). */
 const ENGINE = new URL("./wasm/app_bg.wasm", import.meta.url);
@@ -34,7 +35,7 @@ export const callTool = (schedule: HeadlessSchedule, name: string, args: unknown
   freed.has(schedule) ? Object.freeze({ ok: false, reason: "destroyed", message: "The schedule has been freed." }) : run(schedule, name, args);
 /**
  * One task's answer from `results()`, in decision 0017's names. `task` is the session slot, valid until the next open, so match an answer by `key` (the host's, or `null`); `code` is the Activity ID or `null`.
- * The dates are `YYYY-MM-DDTHH:mm`, the early `start` and `finish` and the late `lateStart` and `lateFinish`; `float` and `freeFloat` are working days of the task's calendar, `float` negative when a late limit cannot be met.
+ * The dates are `YYYY-MM-DDTHH:mm`, the early `start` and `finish` and the late `lateStart` and `lateFinish`; opened with `dateForm: "day"` they are `YYYY-MM-DD`, a start its own day and a finish at `T00:00` the day before, as `mount` writes a change; `float` and `freeFloat` are working days of the task's calendar, `float` negative when a late limit cannot be met.
  */
 export interface TaskResult {
   readonly task: number; readonly key: string | null; readonly code: string | null;
@@ -74,7 +75,9 @@ export function openHeadless(source: HeadlessSource, project?: string, capabilit
     initSync({ module: readFileSync(new URL(ENGINE)) });
     engineLoaded = true;
   }
-  const plain = file || (typeof source === "object" && source !== null && !("tasks" in source) && "document" in source) ? null : fromTasks(source as Parameters<typeof fromTasks>[0]); // `tasks` before `document`, as `load` in `mount-load.ts` reads them; the data goes in uncopied, so `validate` sees what the caller passed
+  const dateForm = (source as { dateForm?: "minute" | "day" } | null)?.dateForm;
+  const data = dateForm === undefined ? source : Object.fromEntries(Object.entries(source).filter(([name]) => name !== "dateForm")); // the key is the host's form, not the schedule's
+  const plain = file || (typeof source === "object" && source !== null && !("tasks" in source) && "document" in source) ? null : fromTasks(data as Parameters<typeof fromTasks>[0]); // `tasks` before `document`, as `load` in `mount-load.ts` reads them; the data goes in uncopied, so `validate` sees what the caller passed
   const loaded = file ? LoadedSchedule.parse_bytes(source, project) : LoadedSchedule.parse_document(JSON.stringify(plain ? plain.document : (source as { document: unknown }).document));
   const read = (loaded.unsupported() as string[]).length;
   if (capabilities !== undefined) loaded.conform(JSON.stringify(capabilities));
@@ -87,7 +90,7 @@ export function openHeadless(source: HeadlessSource, project?: string, capabilit
     explain: (task: number) => explain(app, task),
     health: () => health(app),
     criticalPath: () => criticalPath(app),
-    results: () => Object.freeze((JSON.parse(app.results()) as TaskResult[]).map((row) => Object.freeze(row))),
+    results: () => Object.freeze((JSON.parse(app.results()) as TaskResult[]).map((row) => Object.freeze(plain && dateForm === "day" ? { ...row, start: dayOf(row.start, false), finish: dayOf(row.finish, true), lateStart: dayOf(row.lateStart, false), lateFinish: dayOf(row.lateFinish, true) } : row))),
     free: () => (freed.add(schedule), app.free()),
   });
   return schedule;
