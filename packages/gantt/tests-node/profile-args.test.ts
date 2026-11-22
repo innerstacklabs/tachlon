@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { readFileSync } from "node:fs";
 import { allocatorTable, clusterTable, compareTable, foldStacks, holdGhosts, isOwnDir, lockProblem, memoryDump, ownPids, pairedLine, parseArgs, phaseRows, type Run } from "../../../demos/bench/profile-format.ts";
+import { expectedMinutes } from "../../../demos/bench/profile.ts";
 
 const run = (ready: number, peak = 100 * 1048576): Run => ({ marks: { "library-ready": 300, "data-start": 301, "mount-start": 500 }, readyMs: ready, peakLive: peak, allocations: 5000, memoryBuffer: 256 * 1048576, gpuProcess: 64 * 1048576 });
 
@@ -162,4 +163,9 @@ test("a state that lasts a few runs is in both runs of a pair, so the paired med
   assert.match(compareTable(before, after, ["a", "b"]), /\| mount to ready frame \| 500 \(300 to 700\) \| 300 \(300 to 700\) \| -40% \|/);
   assert.match(pairedLine(before, after), /median of the ratios \+0% over 6 pairs/);
   assert.match(pairedLine(before, opens(770, 770, 330, 330, 330, 330)), /\+10% over 6 pairs/);
+});
+
+test("a --drag run's expected time is about 4 minutes per session on each side, and a run without --drag has none", () => {
+  const minutes = (...argv: string[]) => expectedMinutes(parseArgs(["--cell", "tree4-50000", ...argv])!);
+  assert.deepEqual([minutes("--drag", "--compare", "main", "--runs", "10"), minutes("--drag", "--runs", "10"), minutes("--runs", "10")], [80, 40, null]);
 });
