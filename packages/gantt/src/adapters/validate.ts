@@ -223,9 +223,9 @@ function calendarIssues(data: Record<string, unknown>, add: Add): Set<string> {
   return keys;
 }
 
-/** A record's fields in order, each field's place in that order by name, and the names it requires. */
-interface Table { entries: [string, Field][]; at: Map<string, number>; required: string[] }
-const table = (fields: Record<string, Field>): Table => ({ entries: Object.entries(fields), at: new Map(Object.keys(fields).map((name, k) => [name, k])), required: Object.keys(fields).filter((name) => fields[name]!.required) });
+/** A record's fields in order, and the names it requires. */
+interface Table { entries: [string, Field][]; required: string[] }
+const table = (fields: Record<string, Field>): Table => ({ entries: Object.entries(fields), required: Object.keys(fields).filter((name) => fields[name]!.required) });
 const TASK_TABLE = table(TASK);
 const LINK_TABLE = table(LINK);
 /** Each task field's bit in the mask `fields` returns of the fields with a wrong value: its place in `TASK`. */
@@ -257,23 +257,16 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
   let parents: Set<string> | undefined; // the ids tasks name as parent ("" and null are no parent), read only when a task's start or end needs it
   const named = (id: string | undefined) => id !== undefined && (parents ??= new Set((data as { tasks: unknown[] }).tasks.flatMap((t) => { const p = (t as { parent?: unknown } | null)?.parent; return isId(p) && p !== "" ? [String(p)] : []; }))).has(id);
   /** The fields' problems, and the mask of the fields with a wrong value by their place in `table`: all bits for an entry that is no object. A task whose `id` other tasks name as parent takes its dates from them. */
-  const fields = (item: unknown, path: string, { entries, at, required }: Table, id?: string): number => {
+  const fields = (item: unknown, path: string, { entries, required }: Table, id?: string): number => {
     if (typeof item !== "object" || item === null || Array.isArray(item)) {
       add(path, "an object", show(item), "Write each entry as an object in braces, with its fields.");
       return -1;
     }
     const rec = item as Record<string, unknown>;
     let bad = 0;
-    if (Object.getPrototypeOf(rec) === Object.prototype) { // a plain object's fields are its enumerable keys, so read only the fields it has
-      for (const name in rec) {
-        const k = at.get(name), v = rec[name];
-        if (k !== undefined && v !== undefined && !fine(entries[k]![1], v)) bad |= 1 << k;
-      }
-    } else {
-      for (let k = 0; k < entries.length; k++) {
-        const v = rec[entries[k]![0]];
-        if (v !== undefined && !fine(entries[k]![1], v)) bad |= 1 << k;
-      }
+    for (let k = 0; k < entries.length; k++) {
+      const v = rec[entries[k]![0]];
+      if (v !== undefined && !fine(entries[k]![1], v)) bad |= 1 << k;
     }
     let complete = true;
     for (const name of required) if (rec[name] === undefined) complete = false;
@@ -306,8 +299,9 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
   if (mustFinishBy !== undefined && !fine(TASK.end!, mustFinishBy)) add("mustFinishBy", "a date as YYYY-MM-DD or YYYY-MM-DDTHH:mm", show(mustFinishBy), `Write mustFinishBy as a date, for example ${EXAMPLE.date}.`);
   if (!Array.isArray(tasks)) add("tasks", "an array of tasks", show(tasks), 'Pass the tasks as an array: { "tasks": [{ "id": 1, "name": "Task", "start": "2026-03-02" }] }.');
   if (links !== undefined && !Array.isArray(links)) add("links", "an array of links", show(links), 'Pass links as an array: [{ "from": 1, "to": 2 }], or leave links out.');
+  const nums = new Map<number, number>(); // `ids` of the tasks with a number id, so a number is found without `String`
+  const has = (v: string | number) => (typeof v === "number" ? nums.has(v) || ids.has(String(v)) : ids.has(v));
   if (Array.isArray(tasks)) {
-    const nums = new Map<number, number>(); // `ids` of the tasks with a number id, so a number is found without `String`
     const late = new Uint8Array(tasks.length); // late[i]: an end before the start on a leaf whose end `fromTasks` reads
     for (let i = 0; i < tasks.length; i++) {
       if (!(i in tasks)) continue;
@@ -361,10 +355,10 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
       fields(l, `links[${i}]`, LINK_TABLE);
       keyed("links", l, i);
       const { from, to } = (l ?? {}) as { from?: unknown; to?: unknown };
-      if (isId(from) && isId(to) && String(from) === String(to)) add(`links[${i}].to`, "a task other than from", show(to), "Link two different tasks: a task cannot depend on itself.");
+      if (isId(from) && isId(to) && (typeof from === typeof to ? from === to || (from !== from && to !== to) : String(from) === String(to))) add(`links[${i}].to`, "a task other than from", show(to), "Link two different tasks: a task cannot depend on itself.");
       for (const end of ["from", "to"]) {
         const v = (l as Record<string, unknown> | null)?.[end];
-        if (Array.isArray(tasks) && isId(v) && !ids.has(String(v))) add(`links[${i}].${end}`, "the id of a task in tasks", show(v), `Use the id of a task in tasks for ${end}, or remove this link.`);
+        if (Array.isArray(tasks) && isId(v) && !has(v)) add(`links[${i}].${end}`, "the id of a task in tasks", show(v), `Use the id of a task in tasks for ${end}, or remove this link.`);
       }
     }
   }
