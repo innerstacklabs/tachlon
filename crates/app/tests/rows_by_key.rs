@@ -270,7 +270,7 @@ fn an_undone_insert_after_the_removed_row_loses_its_redo_steps() {
 }
 
 fn add(s: &mut Session, json: &str, parent: Option<&str>, after: Option<&str>) -> TaskId {
-    s.add_task_by_key(json, parent, after).unwrap()
+    s.add_task_by_key(json, parent, after, false).unwrap()
 }
 
 /// The refusal's kind and member.
@@ -280,7 +280,7 @@ fn refused(
     parent: Option<&str>,
     after: Option<&str>,
 ) -> (&'static str, Option<String>) {
-    let error = s.add_task_by_key(json, parent, after).unwrap_err();
+    let error = s.add_task_by_key(json, parent, after, false).unwrap_err();
     (error.kind, error.member)
 }
 
@@ -490,5 +490,6 @@ fn a_key_freed_by_a_remove_can_be_added_again() {
     assert!(s.schedule().is_deleted(D));
 }
 
+mod first;
 mod forget;
 mod links;

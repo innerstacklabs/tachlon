@@ -70,8 +70,9 @@ impl App {
         json: &str,
         parent: Option<String>,
         after: Option<String>,
+        first: bool,
     ) -> String {
-        match (self.session).add_task_by_key(json, parent.as_deref(), after.as_deref()) {
+        match (self.session).add_task_by_key(json, parent.as_deref(), after.as_deref(), first) {
             Ok(task) => format!(r#"{{"ok":true,"task":{}}}"#, task.0),
             Err(error) => record_refusal(error),
         }

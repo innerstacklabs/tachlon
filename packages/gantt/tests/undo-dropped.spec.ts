@@ -16,7 +16,7 @@ async function build(g: Gantt, inserts: number, tag: string): Promise<void> {
     app.insert_task();
     app.assign_task_key(selected(), `parent${key}`);
     app.outdent_selected();
-    app.add_task(JSON.stringify({ key: `child${key}`, name: "Child" }), `parent${key}`, null);
+    app.add_task(JSON.stringify({ key: `child${key}`, name: "Child" }), `parent${key}`, null, false);
   }, [inserts, tag] as const);
 }
 

@@ -81,7 +81,7 @@ fn an_undo_goes_past_the_delete_of_a_row_an_outdent_left_a_child() {
     s.assign_key(KeyTarget::Task(p), "x").unwrap();
     s.select_task(p.0);
     s.outdent_selected().unwrap();
-    s.add_task_by_key(N1, Some("x"), None).unwrap();
+    s.add_task_by_key(N1, Some("x"), None, false).unwrap();
     assert_eq!(undo_all(&mut s), 4, "the delete of G is dropped on the way");
     assert_eq!(s.meta()[E.0 as usize].name, "E");
 }
@@ -100,7 +100,7 @@ fn an_undo_goes_past_a_delete_left_when_an_add_forgot_an_outdent() {
     below(&mut s, y);
     s.select_task(y.0);
     s.outdent_selected().unwrap();
-    s.add_task_by_key(N1, Some("y"), None).unwrap();
+    s.add_task_by_key(N1, Some("y"), None, false).unwrap();
     undo_all(&mut s);
     assert_eq!(s.meta()[E.0 as usize].name, "E");
 }

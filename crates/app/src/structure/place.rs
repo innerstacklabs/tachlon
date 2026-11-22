@@ -82,14 +82,19 @@ impl Session {
     }
 
     /// Where a host's add goes: under `parent` (none: the parent of `after`, else the top level), after `after`
-    /// (none: the last row under that parent).
-    pub(crate) fn host_place(&self, parent: Option<TaskId>, after: Option<TaskId>) -> Place {
+    /// (none: the last row under that parent); with `first` no row is before it, and `after` is none.
+    pub(crate) fn host_place(
+        &self,
+        parent: Option<TaskId>,
+        after: Option<TaskId>,
+        first: bool,
+    ) -> Place {
         let Some(outline) = self.outline.as_ref() else {
             return Place { parent, after };
         };
         let parent = parent.or_else(|| after.and_then(|after| outline.parent(after)));
         let siblings = parent.map_or(outline.roots(), |parent| outline.children(parent));
-        let after = after.or_else(|| siblings.last().copied());
+        let after = after.or_else(|| siblings.last().copied().filter(|_| !first));
         Place { parent, after }
     }
 }
