@@ -157,7 +157,8 @@ test("init in a Vite and React project writes a component that destroys the char
     assert.match(text, /className="gantt"/);
     assert.equal(ext === "tsx", /useRef<HTMLDivElement>/.test(text));
     assert.match(text, /function Chart\(\{ onReady \}/, "the component takes onReady (gantt#1522)");
-    assert.match(text, /onReady\?\.\(made\)/, "and calls it with the chart `mount` resolved to");
+    assert.match(text, /ready\.current\?\.\(made\)/, "and calls it with the chart `mount` resolved to");
+    assert.match(text, /useRef\(onReady\)/, "reading it through a ref keeps react-hooks/exhaustive-deps quiet in a Vite app (tl#36)");
     assert.equal(ext === "tsx", /onReady\?: \(chart: Gantt\) => void/.test(text));
     const done = snapshot(dir);
     assert.match(write(dir, "--no-install").out, /already set up, nothing changed/);

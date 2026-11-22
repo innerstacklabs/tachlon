@@ -40,6 +40,8 @@ import "${name}/gantt.css";
 ${SAMPLE}
 export default function Chart({ onReady }${ts ? ": { onReady?: (chart: Gantt) => void }" : ""}) {
   const element = useRef${ts ? "<HTMLDivElement>" : ""}(null);
+  const ready = useRef(onReady);
+  useEffect(() => { ready.current = onReady; });
   useEffect(() => {
     let chart${ts ? ": Gantt | undefined" : ""};
     let unmounted = false;
@@ -47,7 +49,7 @@ export default function Chart({ onReady }${ts ? ": { onReady?: (chart: Gantt) =>
       if (unmounted) made.destroy();
       else {
         chart = made;
-        onReady?.(made);
+        ready.current?.(made);
       }
     }).catch((error) => console.error(error.message, error.fix));
     return () => {
