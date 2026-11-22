@@ -18,6 +18,8 @@ Watch the narrated overview at [tachlon.com](https://tachlon.com).
 
 Needs a browser with WebGPU or WebGL2 and hardware acceleration on: a current Chrome, Edge, Firefox or Safari. Measured in Chrome.
 
+**Try your own file.** Open the [live demo](https://app.tachlon.com), press Open… in the toolbar and choose your .xer or .xml file; it needs no install and no sign-in, and the file is read in your browser and sent nowhere. To read how long the open took, click the chart and press `s`.
+
 ## Why Tachlon
 
 - **Blazingly fast.** The engine is Rust compiled to WebAssembly, and the GPU draws the timeline. After a drag, 50,000 tasks reschedule in under 20 milliseconds (17.8 ms on a Mac mini with an Apple M4 chip, in Chrome 156). [Measured](#measured)
