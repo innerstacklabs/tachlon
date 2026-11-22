@@ -11,7 +11,8 @@
     "ours",
     "dhtmlx"
   ],
-  "tree": "The per-run files of this run are not kept in this repository; the medians below are of the 3 runs of each side in each cell. dataset.json is not kept: node demos/bench/dataset.ts --shape <shape> --size <n> --seed 20261020 --out <dir> rebuilds it byte for byte, and its SHA-256 is in each cell above.",
+  "assembled": "The two sides ran on different harness commits, so this results file was assembled from the per-run files in demos/bench/results/2026-11-22/ instead of being written by results-file.ts.",
+  "tree": "The runs are the directories in 2026-11-22/ beside this file: <cell>/<run>/<side>/{result.json,side.json,load.log,wait.log}; the medians below are of the 3 runs of each side in each cell. dataset.json is not kept: node demos/bench/dataset.ts --shape <shape> --size <n> --seed 20261020 --out <dir> rebuilds it byte for byte, and its SHA-256 is in each cell above.",
   "cells": {
     "chain-10000": {
       "datasetSha256": "a77d52f761b82124715e273c76ada383acc98093350b205bb83637d5da720474",
@@ -60,6 +61,7 @@
         "dragP95Ms": 18.7,
         "dragCommitMedianMs": 16.6,
         "longestFrameMaxMs": 18.8,
+        "scrollMaxMs": 18.8,
         "memoryFootprintMB": 414.2,
         "inputBytes": 1465596
       },
@@ -72,6 +74,7 @@
         "dragP95Ms": 18.7,
         "dragCommitMedianMs": 32.5,
         "longestFrameMaxMs": 35.3,
+        "scrollMaxMs": 35.3,
         "memoryFootprintMB": 353.7,
         "inputBytes": 1804535
       }
@@ -86,6 +89,7 @@
         "dragP95Ms": 18.6,
         "dragCommitMedianMs": 16.9,
         "longestFrameMaxMs": 18.8,
+        "scrollMaxMs": 18.8,
         "memoryFootprintMB": 453.6,
         "inputBytes": 7505595
       },
@@ -98,6 +102,7 @@
         "dragP95Ms": 18.2,
         "dragCommitMedianMs": 49.3,
         "longestFrameMaxMs": 35.4,
+        "scrollMaxMs": 35.4,
         "memoryFootprintMB": 405.3,
         "inputBytes": 9244533
       }
@@ -112,6 +117,7 @@
         "dragP95Ms": 18.7,
         "dragCommitMedianMs": 18,
         "longestFrameMaxMs": 18.8,
+        "scrollMaxMs": 18.8,
         "memoryFootprintMB": 416.8,
         "inputBytes": 1454430
       },
@@ -124,6 +130,7 @@
         "dragP95Ms": 18.7,
         "dragCommitMedianMs": 30.5,
         "longestFrameMaxMs": 35.4,
+        "scrollMaxMs": 35.4,
         "memoryFootprintMB": 341,
         "inputBytes": 1780297
       }
@@ -138,6 +145,7 @@
         "dragP95Ms": 18.6,
         "dragCommitMedianMs": 18.1,
         "longestFrameMaxMs": 32.3,
+        "scrollMaxMs": 18.8,
         "memoryFootprintMB": 453.6,
         "inputBytes": 7432833
       },
@@ -150,6 +158,7 @@
         "dragP95Ms": 18.7,
         "dragCommitMedianMs": 63.9,
         "longestFrameMaxMs": 35.4,
+        "scrollMaxMs": 35.4,
         "memoryFootprintMB": 379.3,
         "inputBytes": 9101049
       }

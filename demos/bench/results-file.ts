@@ -24,12 +24,14 @@ import { median, type DriveResult } from "./results.ts";
 export const USAGE = "usage: node demos/bench/results-file.ts --runs <dir> --head <commit> --date <YYYY-MM-DD> --notes <notes.json> --out <file>\n";
 const max = (v: number[]) => Math.max(...v);
 const frames = (r: DriveResult) => max((["scroll-y", "scroll-x", "drag"] as const).map((p) => r.phases[p]?.max ?? NaN));
+const scroll = (r: DriveResult) => max((["scroll-y", "scroll-x"] as const).map((p) => r.phases[p]?.max ?? NaN));
 /** Each median the page reads: its key, the number one run gives (NaN when its phase timed out or did not run: the file says null), and how the matched runs combine. */
 const KEYS: [string, (r: DriveResult) => number, (v: number[]) => number][] = [
   ["loadMedianMs", (r) => r.phases.load?.ms ?? NaN, median], ["libraryMedianMs", (r) => r.phases.load?.libraryMs ?? NaN, median],
   ["dataToReadyMedianMs", (r) => r.phases.load?.dataToReadyMs ?? NaN, median], ["scrollYP95Ms", (r) => r.phases["scroll-y"]?.p95 ?? NaN, median],
   ["scrollXP95Ms", (r) => r.phases["scroll-x"]?.p95 ?? NaN, median], ["dragP95Ms", (r) => r.phases.drag?.p95 ?? NaN, median],
-  ["longestFrameMaxMs", frames, max], ["memoryFootprintMB", (r) => (r.phases.memory?.afterLoad?.chromeBytes ?? NaN) / 1e6, median], ["inputBytes", (r) => r.inputBytes ?? NaN, median],
+  ["longestFrameMaxMs", frames, max], ["scrollMaxMs", scroll, max],
+  ["memoryFootprintMB", (r) => (r.phases.memory?.afterLoad?.chromeBytes ?? NaN) / 1e6, median], ["inputBytes", (r) => r.inputBytes ?? NaN, median],
 ];
 const PROSE = ["story", "machine", "command", "driverOptions", "method", "tree"];
 const dirs = (p: string) => readdirSync(p, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort();

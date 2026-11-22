@@ -97,16 +97,16 @@ To time how long your own file takes to open, open it in the hosted app, click t
 <details>
 <summary>The measurements, next to DHTMLX Gantt</summary>
 
-Each cell reads "Tachlon / DHTMLX community 10.0.3" in milliseconds (the last row in MB): the median of 3 runs of each, Tachlon 0.4.0 (build 7ecb106), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22.
+Each cell reads "Tachlon / DHTMLX community 10.0.3" in milliseconds (the last row in MB): the median of 3 runs of each, Tachlon 0.4.0 (build 7ecb106), on a Mac mini (Apple M4) in Chrome 156, on 2026-11-22. The faster figure is in bold.
 
 | | `tree4` | `chain` |
 |---|---|---|
-| Open, 10,000 tasks | 169.8 / 106.3 | 171.7 / 176.6 |
-| Open, 50,000 tasks | 385.8 / 338.2 | 402.4 / 790.0 |
-| Slowest frame, 50,000 tasks (longest of 3 runs) | 32.3 / 35.4 | 18.8 / 35.4 |
-| Drag frame, 50,000 tasks (p95) | 18.6 / 18.7 | 18.6 / 18.2 |
-| Drag commit, 50,000 tasks | 18.1 / 63.9 | 16.9 / 49.3 |
-| Memory, 50,000 tasks (MB) | 453.6 / 379.3 | 453.6 / 405.3 |
+| Open, 10,000 tasks | 169.8 / **106.3** | **171.7** / 176.6 |
+| Open, 50,000 tasks | 385.8 / **338.2** | **402.4** / 790.0 |
+| Slowest scroll frame, 50,000 tasks (longest of 3 runs) | **18.8** / 35.4 | **18.8** / 35.4 |
+| Drag frame, 50,000 tasks (p95) | **18.6** / 18.7 | 18.6 / **18.2** |
+| Drag commit, 50,000 tasks | **18.1** / 63.9 | **16.9** / 49.3 |
+| Memory, 50,000 tasks (MB) | 453.6 / **379.3** | 453.6 / **405.3** |
 
 - A drag frame is the interval between two frames while the first leaf in view is dragged, and p95 means 95 of 100 of those intervals were this short or shorter ([Driving any Gantt the same way](docs/MEASURING.md#driving-any-gantt-the-same-way-gs1199)).
 - A drag commit is the time from the release to the chart's commit, once what follows the dragged task is rescheduled: ours when the schedule's revision changes ([the drag commit](docs/MEASURING.md#bryntum-8-community-against-ours-and-the-drag-commit-gantt1949)).
