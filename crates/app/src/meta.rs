@@ -48,6 +48,10 @@ pub struct TaskMeta {
     /// The opaque key the host gave the task, such as a database id. The app never reads it. Only
     /// plain data and a saved document give one.
     pub key: Option<String>,
+    /// The physical percent complete, in hundredths of a percent (`1250` is 12.5%), that a file
+    /// stated or a person typed, beside the percent derived from the remaining work. `None` when
+    /// there is none.
+    pub physical: Option<u16>,
 }
 
 impl TaskMeta {

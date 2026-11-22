@@ -151,6 +151,7 @@ mod outline_contracts;
 mod overlay_bars;
 mod percent_edit;
 mod percent_edit_rounding;
+mod physical_percent;
 mod plan_text;
 mod predecessors;
 mod print_columns;

@@ -29,6 +29,15 @@ const TASK: [&str; 13] = [
     "progress",
 ];
 
+const OPTIONAL: [&str; 6] = [
+    "floor",
+    "limit",
+    "color",
+    "label",
+    "key",
+    "physical_percent",
+];
+
 fn periods(value: &Value) -> Field<Vec<DayPeriod>> {
     let bad = || "expected [[from, to], ...] in minutes of the day".to_string();
     let mut out = Vec::new();
@@ -101,11 +110,18 @@ pub(super) fn read_task(value: &Value) -> Field<(Task, TaskMeta, u8)> {
         wbs_code,
         codes,
         progress,
-    ] = fields_allowing(value, &TASK, &["floor", "limit", "color", "label", "key"])?;
+    ] = fields_allowing(value, &TASK, &OPTIONAL)?;
     let parent: Option<u32> = opt(parent, |v| small(v, "parent"))?;
     let percent: u8 = small(progress, "progress")?;
     if percent > 100 {
         return Err(format!("progress: {percent} is over 100"));
+    }
+    let physical: Option<u16> = value
+        .get("physical_percent")
+        .map(|v| small(v, "physical_percent"))
+        .transpose()?;
+    if let Some(over) = physical.filter(|&hundredths| hundredths > 10_000) {
+        return Err(format!("physical_percent: {over} is over 10000"));
     }
     let mut activity_codes = Vec::new();
     for entry in list(codes, "activity_codes")? {
@@ -142,6 +158,7 @@ pub(super) fn read_task(value: &Value) -> Field<(Task, TaskMeta, u8)> {
             .map(|v| text_of(v, "label"))
             .transpose()?,
         key: key_of(value)?.map(str::to_string),
+        physical,
     };
     Ok((task, meta, percent))
 }

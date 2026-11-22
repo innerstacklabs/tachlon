@@ -88,6 +88,7 @@ pub fn demo_layout(n: usize) -> DemoLayout {
             color: None,
             label: None,
             key: None,
+            physical: None,
             parent: task.parent.map(|parent| wbs[parent.0 as usize]),
         });
     }

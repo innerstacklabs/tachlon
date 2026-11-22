@@ -255,6 +255,7 @@ pub fn load_bytes(
             color: None,
             label: None,
             key: None,
+            physical: task.physical,
         })
         .collect();
     let built = now();

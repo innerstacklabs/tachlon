@@ -113,6 +113,10 @@ pub struct ImportedTask {
     /// the declared type, MSPDI `PercentComplete`. `None` when the file states none, and for XER
     /// summaries.
     pub progress: Option<u8>,
+    /// The physical percent complete in hundredths of a percent (`1250` is 12.5%), for display
+    /// only: XER `phys_complete_pct` whatever the declared type, MSPDI `PhysicalPercentComplete`
+    /// with 0 read as none. `None` when the file states none, and for XER summaries.
+    pub physical: Option<u16>,
     /// The P6 activity codes assigned to the task, in the order the file lists them. Empty for
     /// MSPDI tasks, XER summaries and activities with no activity code row.
     pub activity_codes: Vec<ActivityCode>,

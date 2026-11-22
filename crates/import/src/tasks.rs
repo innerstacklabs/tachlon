@@ -197,15 +197,25 @@ fn task_notes(
     Ok(())
 }
 
+/// The task's `PhysicalPercentComplete` in hundredths of a percent. MS Project writes a 0 on tasks
+/// that have none, so a 0 reads as none.
+fn physical_percent(node: &Node, notes: &mut Notes) -> Result<Option<u16>, ImportError> {
+    let percent = percent_element(node, "PhysicalPercentComplete", notes)?;
+    Ok(percent
+        .filter(|&percent| percent > 0)
+        .map(|percent| u16::from(percent) * 100))
+}
+
 /// The task's `PercentComplete`, clamped to 0 to 100 with one note; display only.
 fn percent_complete(node: &Node, notes: &mut Notes) -> Result<Option<u8>, ImportError> {
-    let Some(text) = node
-        .child_text("PercentComplete")
-        .filter(|text| !text.is_empty())
-    else {
+    percent_element(node, "PercentComplete", notes)
+}
+
+fn percent_element(node: &Node, name: &str, notes: &mut Notes) -> Result<Option<u8>, ImportError> {
+    let Some(text) = node.child_text(name).filter(|text| !text.is_empty()) else {
         return Ok(None);
     };
-    let value: i64 = text.parse().map_err(|_| invalid("PercentComplete", text))?;
+    let value: i64 = text.parse().map_err(|_| invalid(name, text))?;
     if !(0..=100).contains(&value) {
         notes.line(
             "A percent complete outside 0 to 100 was changed to the nearest limit; no dates are affected."
@@ -312,6 +322,7 @@ fn read_task(
         baseline_start,
         baseline_finish,
         progress: percent_complete(node, notes)?,
+        physical: physical_percent(node, notes)?,
         activity_codes: Vec::new(),
         wbs_code: node
             .child_text("WBS")

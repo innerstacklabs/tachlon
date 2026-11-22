@@ -123,7 +123,12 @@ pub fn write(session: &Session, extras: &Extras<'_>) -> String {
             let _ = write!(out, "[{},{}]", quote(&code.code_type), quote(&code.value));
         }
         let percent = progress.get(old.0 as usize).copied().unwrap_or(0);
-        let _ = write!(out, "],\"progress\":{percent}}}");
+        let _ = write!(out, "],\"progress\":{percent}");
+        // Only when set, as the keys above: a document with none keeps its text.
+        if let Some(physical) = meta.physical {
+            let _ = write!(out, ",\"physical_percent\":{physical}");
+        }
+        out.push('}');
     }
 
     out.push_str("],\"links\":[");

@@ -241,6 +241,7 @@ impl Session {
             color: None,
             label: None,
             key: None,
+            physical: None,
         });
         self.collapsed.push(false);
         let elapsed = self.rebuild_structure(&wbs, |s| {
@@ -412,6 +413,7 @@ mod tests {
                 color: None,
                 label: None,
                 key: None,
+                physical: None,
             });
         }
         let link = Dependency {

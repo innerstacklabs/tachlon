@@ -61,7 +61,7 @@ pub(crate) fn percent(
     }
     let value = value?;
     if !(0.0..=100.0).contains(&value) {
-        notes.line("A percent complete outside 0 to 100 was changed to the nearest limit; no dates are affected.".to_owned());
+        notes.line(CLAMPED.to_owned());
     }
     #[expect(
         clippy::cast_possible_truncation,
@@ -71,6 +71,26 @@ pub(crate) fn percent(
     let percent = value.clamp(0.0, 100.0).round() as u8;
     Some(percent)
 }
+
+/// The activity's `phys_complete_pct` in hundredths of a percent, whatever type the file declares:
+/// `percent` shows the type's own column, and this keeps the physical one beside it. An empty cell
+/// gives none, and a value outside 0 to 100 is clamped with the note `percent` gives.
+pub(crate) fn physical(task: &TaskRow, notes: &mut Notes) -> Option<u16> {
+    let value = task.phys_complete_pct.filter(|value| value.is_finite())?;
+    if !(0.0..=100.0).contains(&value) {
+        notes.line(CLAMPED.to_owned());
+    }
+    #[expect(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "the value is clamped to 0.0..=100.0 and scaled by 100 before the cast, so it is not negative and fits u16"
+    )]
+    let hundredths = (value.clamp(0.0, 100.0) * 100.0).round() as u16;
+    Some(hundredths)
+}
+
+const CLAMPED: &str =
+    "A percent complete outside 0 to 100 was changed to the nearest limit; no dates are affected.";
 
 fn is_other(kind: &str) -> bool {
     ["cp_drtn", "cp_units", "ct_drtn", "ct_units"]

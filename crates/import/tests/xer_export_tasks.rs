@@ -115,6 +115,7 @@ fn meta(name: &str, code: Option<&str>, level: u8) -> ImportedTask {
         baseline_start: None,
         baseline_finish: None,
         progress: None,
+        physical: None,
         activity_codes: Vec::new(),
         wbs_code: None,
         floor: None,

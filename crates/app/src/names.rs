@@ -170,6 +170,7 @@ pub fn generate(seed: u64, n: usize) -> Vec<TaskMeta> {
                 color: None,
                 label: None,
                 key: None,
+                physical: None,
             });
         } else if level_three_slots == 0 {
             level_two_id = id;
@@ -188,6 +189,7 @@ pub fn generate(seed: u64, n: usize) -> Vec<TaskMeta> {
                 color: None,
                 label: None,
                 key: None,
+                physical: None,
             });
         } else {
             let activities = PHASES[level_two_phase].1;
@@ -205,6 +207,7 @@ pub fn generate(seed: u64, n: usize) -> Vec<TaskMeta> {
                 color: None,
                 label: None,
                 key: None,
+                physical: None,
             });
         }
     }
