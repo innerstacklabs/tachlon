@@ -17,8 +17,27 @@ export interface PlainIssue {
 export type PlainValidation = { ok: true } | { ok: false; issues: PlainIssue[] };
 
 const MAX = 50;
-const DATE = /^(?!00)\d{4}-\d{2}-\d{2}(T([01]\d|2[0-3]):[0-5]\d)?$/; // the dates `fromTasks` reads: from year 0100, hours 00 to 23
-const real = (day: string) => { const t = Date.parse(day); return t === t && new Date(t).toISOString().startsWith(day); }; // 2026-02-31 rolls over to March, so it differs
+/** The number the `count` digits at `at` of `s` write, or -1 when one of them is not a digit 0 to 9. */
+function digits(s: string, at: number, count: number): number {
+  let n = 0;
+  for (let i = at; i < at + count; i++) {
+    const d = s.charCodeAt(i) - 48;
+    if (!(d >= 0 && d <= 9)) return -1;
+    n = n * 10 + d;
+  }
+  return n;
+}
+const MONTH_DAYS = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+/** Whether `v` is a date `fromTasks` reads, YYYY-MM-DD or YYYY-MM-DDTHH:mm from year 0100 and hours 00 to 23, on a day its month has: February 29 only in a year 4 divides, and of the years 100 divides only those 400 divides. */
+function isDate(v: string): boolean {
+  if (v.length === 16) {
+    const h = digits(v, 11, 2), m = digits(v, 14, 2);
+    if (v[10] !== "T" || v[13] !== ":" || h < 0 || h > 23 || m < 0 || m > 59) return false;
+  } else if (v.length !== 10) return false;
+  const y = digits(v, 0, 4), mo = digits(v, 5, 2), d = digits(v, 8, 2);
+  if (v[4] !== "-" || v[7] !== "-" || y < 100 || mo < 1 || mo > 12 || d < 1 || d > MONTH_DAYS[mo - 1]!) return false;
+  return mo !== 2 || d < 29 || (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0));
+}
 const TYPES = ["FS", "SS", "FF", "SF"];
 
 /** What `fromTasks` throws for data `validate` refuses; `issues` is the list, `message` is the list as lines. */
@@ -99,7 +118,7 @@ function fine(f: Field, v: unknown): boolean {
     case "text":
       return typeof v === "string";
     case "date":
-      return typeof v === "string" && DATE.test(v) && real(v.slice(0, 10));
+      return typeof v === "string" && isDate(v);
     case "type":
       return typeof v === "string" && TYPES.includes(v);
     case "flag":
@@ -140,10 +159,10 @@ function problem(name: string, f: Field, v: unknown): Pick<PlainIssue, "expected
 }
 
 /** The problems of a task's progress keys that no one field shows: `remaining` with `progress`, a key that needs an `actualStart`, and an actual finish before the start. */
-function progressIssues(t: Record<string, unknown>, path: string, add: Add, unstarted = false, week?: [number, number][][]): void {
+function progressIssues(t: Record<string, unknown>, path: string, add: Add, unstarted: boolean, week: [number, number][][] | undefined, bad: number): void {
   if (t.remaining !== undefined && t.progress !== undefined) add(`${path}.remaining`, "remaining or progress, not both", show(t.remaining), "Keep remaining (the working days left) and remove progress, which the chart derives from it, or keep progress and remove remaining.");
   for (const key of ["actualFinish", "remaining", "resume"]) if (t[key] !== undefined && t.actualStart === undefined && !(unstarted && key === "remaining")) add(`${path}.${key}`, "an actualStart on the same task", "nothing", `Add actualStart, or remove ${key}: it describes a task that has started (remaining alone is read when options.unstartedRemaining is "on").`);
-  if (fine(TASK.actualStart!, t.actualStart) && fine(TASK.actualFinish!, t.actualFinish) && dateAt(t.actualFinish as string, "finish", week) < dateAt(t.actualStart as string, "start", week)) add(`${path}.actualFinish`, "an actual finish on or after the actual start", show(t.actualFinish), "Move actualFinish to the actualStart or later, or swap them.");
+  if (t.actualStart !== undefined && t.actualFinish !== undefined && (bad & (BIT.actualStart! | BIT.actualFinish!)) === 0 && dateAt(t.actualFinish as string, "finish", week) < dateAt(t.actualStart as string, "start", week)) add(`${path}.actualFinish`, "an actual finish on or after the actual start", show(t.actualFinish), "Move actualFinish to the actualStart or later, or swap them.");
 }
 
 /** The schedule options of decision 0018 and the values each takes: the names the document and the engine use. */
@@ -204,8 +223,13 @@ function calendarIssues(data: Record<string, unknown>, add: Add): Set<string> {
   return keys;
 }
 
-const TASK_ENTRIES = Object.entries(TASK);
-const LINK_ENTRIES = Object.entries(LINK);
+/** A record's fields in order, each field's place in that order by name, and the names it requires. */
+interface Table { entries: [string, Field][]; at: Map<string, number>; required: string[] }
+const table = (fields: Record<string, Field>): Table => ({ entries: Object.entries(fields), at: new Map(Object.keys(fields).map((name, k) => [name, k])), required: Object.keys(fields).filter((name) => fields[name]!.required) });
+const TASK_TABLE = table(TASK);
+const LINK_TABLE = table(LINK);
+/** Each task field's bit in the mask `fields` returns of the fields with a wrong value: its place in `TASK`. */
+const BIT: Record<string, number> = Object.fromEntries(Object.keys(TASK).map((name, k) => [name, 1 << k]));
 
 /** Check plain task data and name every problem, up to 50. */
 export function validate(data: unknown): PlainValidation {
@@ -230,19 +254,41 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
     else if (typeof key === "string" && first === undefined) keys[kind].set(key, i);
     else if (first !== undefined) add(`${kind}[${i}].key`, `a key no other ${one} has`, `${show(key)}, also ${kind}[${first}].key`, `Give each ${one} its own key.`);
   };
-  const fields = (item: unknown, path: string, table: [string, Field][], parents?: Set<string>) => {
-    if (typeof item !== "object" || item === null || Array.isArray(item)) return add(path, "an object", show(item), "Write each entry as an object in braces, with its fields.");
+  let parents: Set<string> | undefined; // the ids tasks name as parent ("" and null are no parent), read only when a task's start or end needs it
+  const named = (id: string | undefined) => id !== undefined && (parents ??= new Set((data as { tasks: unknown[] }).tasks.flatMap((t) => { const p = (t as { parent?: unknown } | null)?.parent; return isId(p) && p !== "" ? [String(p)] : []; }))).has(id);
+  /** The fields' problems, and the mask of the fields with a wrong value by their place in `table`: all bits for an entry that is no object. A task whose `id` other tasks name as parent takes its dates from them. */
+  const fields = (item: unknown, path: string, { entries, at, required }: Table, id?: string): number => {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
+      add(path, "an object", show(item), "Write each entry as an object in braces, with its fields.");
+      return -1;
+    }
     const rec = item as Record<string, unknown>;
-    const summary = parents !== undefined && isId(rec.id) && parents.has(String(rec.id)); // a task other tasks name as parent takes its dates from them
-    for (const [name, f] of table) {
+    let bad = 0;
+    if (Object.getPrototypeOf(rec) === Object.prototype) { // a plain object's fields are its enumerable keys, so read only the fields it has
+      for (const name in rec) {
+        const k = at.get(name), v = rec[name];
+        if (k !== undefined && v !== undefined && !fine(entries[k]![1], v)) bad |= 1 << k;
+      }
+    } else {
+      for (let k = 0; k < entries.length; k++) {
+        const v = rec[entries[k]![0]];
+        if (v !== undefined && !fine(entries[k]![1], v)) bad |= 1 << k;
+      }
+    }
+    let complete = true;
+    for (const name of required) if (rec[name] === undefined) complete = false;
+    if (bad === 0 && complete) return 0;
+    for (let k = 0; k < entries.length; k++) { // the problems in the table's order
+      const [name, f] = entries[k]!;
       const v = rec[name];
       if (v === undefined) {
-        if (f.required && !(name === "start" && (rec.constraint !== undefined || summary || dated))) add(`${path}.${name}`, `a ${name}`, "nothing", `Add ${name}, for example ${EXAMPLE[f.kind]}.`);
-      } else if (!fine(f, v)) {
+        if (f.required && !(name === "start" && (rec.constraint !== undefined || dated || named(id)))) add(`${path}.${name}`, `a ${name}`, "nothing", `Add ${name}, for example ${EXAMPLE[f.kind]}.`);
+      } else if ((bad & (1 << k)) !== 0) {
         const p = problem(name, f, v);
         add(`${path}.${name}`, p.expected, show(v), p.fix);
       }
     }
+    return bad;
   };
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
     add("", 'an object with a "tasks" array', show(data), 'Pass { "tasks": [...], "links": [...] }.');
@@ -261,15 +307,14 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
   if (!Array.isArray(tasks)) add("tasks", "an array of tasks", show(tasks), 'Pass the tasks as an array: { "tasks": [{ "id": 1, "name": "Task", "start": "2026-03-02" }] }.');
   if (links !== undefined && !Array.isArray(links)) add("links", "an array of links", show(links), 'Pass links as an array: [{ "from": 1, "to": 2 }], or leave links out.');
   if (Array.isArray(tasks)) {
-    const parents = new Set<string>(); // the ids named as parent: "" and null are no parent
-    for (const t of tasks) {
-      const p = (t as { parent?: unknown } | null)?.parent;
-      if (isId(p) && p !== "") parents.add(String(p));
-    }
+    const nums = new Map<number, number>(); // `ids` of the tasks with a number id, so a number is found without `String`
+    const late = new Uint8Array(tasks.length); // late[i]: an end before the start on a leaf whose end `fromTasks` reads
     for (let i = 0; i < tasks.length; i++) {
       if (!(i in tasks)) continue;
       const t = tasks[i];
-      fields(t, `tasks[${i}]`, TASK_ENTRIES, parents);
+      const id = (t as { id?: unknown } | null)?.id;
+      const name = isId(id) ? String(id) : undefined;
+      const bad = fields(t, `tasks[${i}]`, TASK_TABLE, name);
       keyed("tasks", t, i);
       const calendar = (t as { calendar?: unknown } | null)?.calendar;
       if (typeof calendar === "string" && !calendarKeys.has(calendar)) add(`tasks[${i}].calendar`, "the key of a calendar in calendars", show(calendar), "Use the key of a calendar in calendars, or leave calendar out for the first.");
@@ -277,37 +322,43 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
       if (twice !== undefined) add(`tasks[${i}].${twice}`, "constraint or this member, not both", show((t as Record<string, unknown>)[twice]), `Keep constraint, or the limit members snet to mfo, and remove the other: they are two spellings of one date limit.`);
       const pins = t as { mso?: unknown; mfo?: unknown } | null;
       if (pins?.mso !== undefined && pins.mfo !== undefined) add(`tasks[${i}].mfo`, "one pin, mso or mfo, not both", show(pins.mfo), "Keep mso (must start on) or mfo (must finish on), and remove the other.");
-      if (typeof t === "object" && t !== null) progressIssues(t as Record<string, unknown>, `tasks[${i}]`, add, unstarted, read?.list[typeof calendar === "string" ? read.at.get(calendar) ?? 0 : 0]?.week);
-      const id = (t as { id?: unknown } | null)?.id;
-      if (!isId(id)) continue;
-      if (String(id) === "0") add(`tasks[${i}].id`, "an id other than 0", show(id), "Use another id: 0 is the root of the data, not a task.");
-      const first = ids.get(String(id));
-      if (first === undefined) ids.set(String(id), i);
-      else add(`tasks[${i}].id`, "an id no other task has", `${show(id)}, also tasks[${first}].id`, "Give each task its own id.");
+      if (typeof t === "object" && t !== null) progressIssues(t as Record<string, unknown>, `tasks[${i}]`, add, unstarted, read?.list[typeof calendar === "string" ? read.at.get(calendar) ?? 0 : 0]?.week, bad);
+      const first = name === undefined ? undefined : ids.get(name);
+      if (name !== undefined) {
+        if (name === "0") add(`tasks[${i}].id`, "an id other than 0", show(id), "Use another id: 0 is the root of the data, not a task.");
+        if (first === undefined) {
+          ids.set(name, i);
+          if (typeof id === "number") nums.set(id, i);
+        } else add(`tasks[${i}].id`, "an id no other task has", `${show(id)}, also tasks[${first}].id`, "Give each task its own id.");
+      }
+      // `fromTasks` reads an end only of a leaf (not the first task of an id named as parent) with no duration and no milestone type; a date alone is read as 00:00
+      const { start, end, duration, type } = (t ?? {}) as { start?: unknown; end?: unknown; duration?: unknown; type?: unknown };
+      if (duration !== undefined || type === "milestone" || start === undefined || end === undefined || (bad & (BIT.start! | BIT.end!)) !== 0) continue;
+      const s = start as string, e = end as string;
+      if ((s.length === e.length ? e < s : (e.length === 10 ? `${e}T00:00` : e) < (s.length === 10 ? `${s}T00:00` : s)) && !(first === undefined && named(name))) late[i] = 1;
     }
-    for (let i = 0; i < tasks.length; i++) {
-      if (!(i in tasks)) continue;
-      const parent = (tasks[i] as { parent?: unknown } | null)?.parent;
-      if (isId(parent) && !ids.has(String(parent))) add(`tasks[${i}].parent`, "the id of a task in tasks", show(parent), "Use the id of a task in tasks, or leave parent out.");
-    }
+    const ROOT = -1, MISSING = -2, UNREAD = -3; // what `up` gives besides the index of a parent; a missing parent is a root to walk up from
+    const above = new Int32Array(tasks.length).fill(UNREAD);
+    const up = (i: number) => { // parent "" is a root, as `fromTasks` reads it, and missing unless a task has the id ""
+      if (above[i] === UNREAD) { const p = (tasks[i] as { parent?: unknown } | null)?.parent; const at = typeof p === "number" ? nums.get(p) ?? ids.get(String(p)) : typeof p === "string" ? ids.get(p) : undefined; above[i] = at === undefined ? (isId(p) ? MISSING : ROOT) : p === "" ? ROOT : at; }
+      return above[i]!;
+    };
     const seen = new Int32Array(tasks.length); // one walk up from each task; seen[t] is the last walk (i + 1) to reach t, so a walk that meets itself found a loop
-    const up = (i: number) => { const p = (tasks[i] as { parent?: unknown } | null)?.parent; return isId(p) && p !== "" ? ids.get(String(p)) : undefined; }; // parent "" is a root, as `fromTasks` reads it
-    const kids = new Set(tasks.map((_, i) => up(i))); // the tasks that have a child: `fromTasks` reads no dates of those
+    const after: Parameters<Add>[] = []; // the end and loop problems, which come after every missing parent
     for (let i = 0; i < tasks.length; i++) {
-      // `fromTasks` reads an end only of a leaf with no duration and no milestone type; a date alone is read as 00:00
-      const { start, end, duration, type } = (tasks[i] ?? {}) as { start?: unknown; end?: unknown; duration?: unknown; type?: unknown };
-      const pad = (d: string) => (d.length === 10 ? `${d}T00:00` : d);
-      if (!kids.has(i) && duration === undefined && type !== "milestone" && fine(TASK.start!, start) && fine(TASK.end!, end) && pad(end as string) < pad(start as string)) add(`tasks[${i}].end`, "an end on or after the start", show(end), "Move end to the start or later, or swap start and end.");
-      let at: number | undefined = i;
-      for (; at !== undefined && seen[at] === 0; at = up(at)) seen[at] = i + 1;
-      if (at !== undefined && seen[at] === i + 1) add(`tasks[${at}].parent`, "a parent that is not below the task", show((tasks[at] as { parent?: unknown }).parent), "Change parent so the parents do not loop back to the task.");
+      if (up(i) === MISSING) add(`tasks[${i}].parent`, "the id of a task in tasks", show((tasks[i] as { parent: unknown }).parent), "Use the id of a task in tasks, or leave parent out.");
+      if (late[i] === 1 && after.length < MAX) after.push([`tasks[${i}].end`, "an end on or after the start", show((tasks[i] as { end: unknown }).end), "Move end to the start or later, or swap start and end."]);
+      let at = i;
+      for (; at >= 0 && seen[at] === 0; at = up(at)) seen[at] = i + 1;
+      if (at >= 0 && seen[at] === i + 1 && after.length < MAX) after.push([`tasks[${at}].parent`, "a parent that is not below the task", show((tasks[at] as { parent?: unknown }).parent), "Change parent so the parents do not loop back to the task."]);
     }
+    for (const a of after) add(...a);
   }
   if (Array.isArray(links)) {
     for (let i = 0; i < links.length; i++) {
       if (!(i in links)) continue;
       const l = links[i];
-      fields(l, `links[${i}]`, LINK_ENTRIES);
+      fields(l, `links[${i}]`, LINK_TABLE);
       keyed("links", l, i);
       const { from, to } = (l ?? {}) as { from?: unknown; to?: unknown };
       if (isId(from) && isId(to) && String(from) === String(to)) add(`links[${i}].to`, "a task other than from", show(to), "Link two different tasks: a task cannot depend on itself.");
