@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 import { PRODUCT_NAME } from "../../packages/gantt/src/product.ts";
 
 interface Medians { [key: string]: number }
-export interface Results { date: string; command: string; machine: string; cells: Record<string, { datasetSha256: string }>; medians: Record<string, Record<string, Medians>> }
-export interface Versions { machine: { model: string }; dhtmlx: { version: string } }
+export interface Results { date: string; command: string; machine: string; cells: Record<string, { datasetSha256: string; matched: number }>; medians: Record<string, Record<string, Medians>> }
+export interface Versions { machine: { model: string }; ours: { release: string; commit: string }; dhtmlx: { version: string } }
 
 // [row heading, tasks, the key in the results file]. A time shows in seconds to two decimals, memory in MB; the drag (dragP95Ms) is in the notes.
 const ROWS: [string, number, string][] = [
@@ -57,7 +57,8 @@ ${rows.join("\n")}
 
 /** The method paragraph: the machine, the date, the dataset hashes and the run command, all from the results file. */
 export function methodBlock(r: Results, v: Versions): string {
-  return `<p>Each cell is the median over matched pairs on a ${SHAPES[0]} schedule, then on a ${SHAPES[1]} schedule (${SHAPES.join(" / ")}). Measured ${r.date} on a ${esc(v.machine.model)}, against DHTMLX Gantt ${v.dhtmlx.version}. We have not measured SVAR Gantt yet. Memory is the whole browser's total, 20 seconds after the page loads. Dataset SHA-256 (${SHAPES.join(" / ")}): ${perCell((c) => `<code>${r.cells[c]!.datasetSha256}</code>`)}. Each side loads its own file of it, in bytes: ${PRODUCT_NAME} ${perCell((c) => median(r, c, "ours", "inputBytes").toLocaleString("en-US"))}; DHTMLX ${perCell((c) => median(r, c, "dhtmlx", "inputBytes").toLocaleString("en-US"))}. The run command was <code>${esc(r.command)}</code>. A script writes every figure on this page from that run's results file, demos/bench/results/${r.date}.json. Nobody types them in.</p>`;
+  const runs = Math.min(...Object.values(r.cells).map((c) => c.matched));
+  return `<p>Each cell is the median of ${runs} runs of each side on a ${SHAPES[0]} schedule, then on a ${SHAPES[1]} schedule (${SHAPES.join(" / ")}). Measured ${r.date} on a ${esc(v.machine.model)}: ${PRODUCT_NAME} ${v.ours.release} (build ${v.ours.commit.slice(0, 7)}), against DHTMLX Gantt ${v.dhtmlx.version}. We have not measured SVAR Gantt yet. Memory is the whole browser's total, 20 seconds after the page loads. Dataset SHA-256 (${SHAPES.join(" / ")}): ${perCell((c) => `<code>${r.cells[c]!.datasetSha256}</code>`)}. Each side loads its own file of it, in bytes: ${PRODUCT_NAME} ${perCell((c) => median(r, c, "ours", "inputBytes").toLocaleString("en-US"))}; DHTMLX ${perCell((c) => median(r, c, "dhtmlx", "inputBytes").toLocaleString("en-US"))}. The runs were made with <code>${esc(r.command)}</code>. A script writes every figure on this page from that run's results file, demos/bench/results/${r.date}.json. Nobody types them in.</p>`;
 }
 
 /** The three headline numbers of the speed section: the open time at 50,000 tasks (the mean of the two shapes, one figure), the slowest scroll frame, and how much faster the chain opens. */
@@ -98,7 +99,11 @@ export function finePrint(r: Results): string {
   const fiveUp = (v: number): number => Math.ceil(v / 5) * 5;
   const [chainO, chainD] = [get("chain-50000", "ours", "loadMedianMs"), get("chain-50000", "dhtmlx", "loadMedianMs")];
   const times = Math.floor((chainD / chainO) * 10) / 10;
-  const [frameO, frameD] = [Math.max(...all("ours", "longestFrameMaxMs")), Math.min(...all("dhtmlx", "longestFrameMaxMs"))];
+  const frame = (c: string, side: string): number => get(c, side, "longestFrameMaxMs");
+  const halfCells = cells.filter((c) => frame(c, "ours") / frame(c, "dhtmlx") >= 0.4 && frame(c, "ours") / frame(c, "dhtmlx") <= 0.6);
+  const rest = cells.filter((c) => !halfCells.includes(c));
+  const [frameO, frameD] = [Math.max(...halfCells.map((c) => frame(c, "ours"))), Math.min(...halfCells.map((c) => frame(c, "dhtmlx")))];
+  const where = (c: string): string => `${Number(c.split("-")[1]).toLocaleString("en-US")}-task ${c.startsWith("tree4") ? "tree" : "chain"}`;
   const [treeO, treeD] = [get("tree4-10000", "ours", "loadMedianMs"), get("tree4-10000", "dhtmlx", "loadMedianMs")];
   const less = (key: string): boolean => cells.every((c) => get(c, "dhtmlx", key) < get(c, "ours", key));
   const [memO, memD] = [all("ours", "memoryFootprintMB"), all("dhtmlx", "memoryFootprintMB")];
@@ -111,13 +116,14 @@ export function finePrint(r: Results): string {
   const s3 = (x: number): string => sec(x, 3);
   const [tree5O, tree5D] = [get("tree4-50000", "ours", "loadMedianMs"), get("tree4-50000", "dhtmlx", "loadMedianMs")];
   const tree5 = tree5O < tree5D ? `, and the 50,000-task tree a little faster (${fig("tree50O", s2(tree5O))} s against ${fig("tree50D", s2(tree5D))} s)` : "";
-  const open = times >= 2 ? `${PRODUCT_NAME} opens the 50,000-task chain ${fig("times", times.toFixed(1))} times faster than DHTMLX (${fig("chainO", s2(chainO))} s against ${fig("chainD", s2(chainD))} s)${tree5}.` : "";
-  const half = frameO / frameD >= 0.4 && frameO / frameD <= 0.6 ? `${open ? "Its" : `${PRODUCT_NAME}'s`} slowest frame in every test is about half of DHTMLX's (${fig("frameO", s3(frameO))} s against ${fig("frameD", s3(frameD))} s).` : "";
+  const open = times > 1 ? `${PRODUCT_NAME} opens the 50,000-task chain ${fig("times", times.toFixed(1))} times faster than DHTMLX (${fig("chainO", s2(chainO))} s against ${fig("chainD", s2(chainD))} s)${tree5}.` : "";
+  const except = rest.map((c, i) => `the ${where(c)} (${fig(`frame${i}O`, s3(frame(c, "ours")))} s against ${fig(`frame${i}D`, s3(frame(c, "dhtmlx")))} s)`).join(" or ");
+  const half = halfCells.length ? `${open ? "Its" : `${PRODUCT_NAME}'s`} slowest frame is about half of DHTMLX's ${rest.length ? `in ${halfCells.length} of ${cells.length} tests` : "in every test"} (${fig("frameO", s3(frameO))} s against ${fig("frameD", s3(frameD))} s)${except && `, but not for ${except}`}.` : "";
   const all50 = (side: string, key: string): number[] => SHAPES.map((s) => get(`${s}-50000`, side, key));
   const [dragO, dragD] = [Math.max(...all50("ours", "dragP95Ms")), all50("dhtmlx", "dragP95Ms")];
   const drag = dragD.every((d) => Math.abs(d - dragO) / dragO <= 0.05) ? `Dragging a task at 50,000 is even (${fig("dragO", s3(dragO))} s against ${range("dragD", dragD, s3, s3)} s).` : "";
   const behind = [
-    treeD < treeO ? `opens the 10,000-task tree faster (${fig("treeD", s2(treeD))} s against ${fig("treeO", s2(treeO))} s)` : "",
+    treeD < treeO ? `opens the 10,000-task tree faster (${fig("treeD", s2(treeD))} s against ${fig("treeO", s2(treeO))} s)${tree5D < tree5O ? ` and the 50,000-task tree faster (${fig("tree50D", s2(tree5D))} s against ${fig("tree50O", s2(tree5O))} s)` : ""}` : "",
     less("libraryMedianMs") ? `loads its library faster (${range("libD", all("dhtmlx", "libraryMedianMs"), s2, s2)} s against ${range("libO", all("ours", "libraryMedianMs"), s2, s2)} s)` : "",
     less("memoryFootprintMB") ? `uses less memory (about ${range("memD", memD, five, five)} MB against ${range("memO", memO, fiveUp, fiveUp)} MB)` : "",
   ].filter(Boolean);
@@ -133,7 +139,7 @@ export function finePrint(r: Results): string {
 export function withBenchTable(html: string, r: Results, v: Versions): string {
   const releases = JSON.parse(readFileSync(new URL("../../packages/gantt/releases.json", import.meta.url), "utf8")) as { version: string; date: string }[];
   // run: the run's date in the line under the stats; release: the items under "Latest releases", all from packages/gantt/releases.json.
-  const regions: Record<string, string> = { hero: heroBlock(r), stats: statsBlock(r), table: tableBlock(r), ahead: finePrint(r), method: methodBlock(r, v), run: r.date, release: releases.map((x, i) => `<li><span class="ver">${x.version}</span>${x.date}${i === 0 ? ` <span class="latest">Latest</span>` : ""}</li>`).join(" ") };
+  const regions: Record<string, string> = { hero: heroBlock(r), stats: statsBlock(r), table: tableBlock(r), ahead: finePrint(r), method: methodBlock(r, v), run: `${r.date} (${PRODUCT_NAME} ${v.ours.release})`, release: releases.map((x, i) => `<li><span class="ver">${x.version}</span>${x.date}${i === 0 ? ` <span class="latest">Latest</span>` : ""}</li>`).join(" ") };
   return html.replace(/(<!-- bench:(\w+) -->)[\s\S]*?(<!-- \/bench:\2 -->)/g, (_all, open: string, name: string, close: string) => {
     if (!(name in regions)) throw new Error(`no bench region named ${name}`);
     return `${open}${regions[name]}${close}`;

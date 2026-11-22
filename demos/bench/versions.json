@@ -1,14 +1,15 @@
 {
-  "measuredOn": "2026-11-05",
+  "measuredOn": "2026-11-22",
   "machine": {
     "model": "Mac mini, Apple M4, 16 GB",
     "os": "macOS 26.7 (25G229), darwin 25.6.0",
-    "display": "1920x1080 at 60 Hz (system_profiler on the mini), measured 59.9 Hz by the driver on all 38 runs; headed, logged-in console session",
+    "display": "1920x1080 at 60 Hz (system_profiler on the mini), measured 59.9 Hz by the driver; headed, logged-in console session",
     "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)"
   },
   "ours": {
-    "commit": "af17939d103252ab3828bebeecf993d9cd3013d9",
-    "build": "the bench page (demos/bench/sides/ours-page.html) built on the hub from that commit: scripts/build-web.sh --no-bundle, then vite build with demos/bench/sides/ours-vite.config.ts in apps/hosted; bundleSha256 41d14d3dc8a7ae486dce2c85854449162d6e0faa5d9287d4cfdf3496823d0f7a",
+    "release": "0.4.0",
+    "commit": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
+    "build": "the bench page (demos/bench/sides/ours-page.html) built on the hub from that commit, the one npm records as the gitHead of the published 0.4.0: scripts/build-web.sh --no-bundle, then vite build with demos/bench/sides/ours-vite.config.ts in apps/hosted; bundleSha256 546ef384c9bb28ea115997844dd08e67489d8c60c83d420b92809f8936881c0b",
     "backend": "WebGPU"
   },
   "dhtmlx": {
@@ -17,13 +18,13 @@
     "license": "MIT (community edition), installed from npm by demos/bench/sides/dhtmlx-setup.ts into a directory outside any work tree"
   },
   "harness": {
-    "commit": "af17939d103252ab3828bebeecf993d9cd3013d9",
+    "commit": "7ecb10663bc208d9543e7deb30fe503ee46c44cc for ours, 1b94b49d89a24116c0cb4353df8aa44252086cf4 for DHTMLX",
     "node": "v26.12.1 (the mini's /opt/homebrew/bin/node)",
     "driverOptions": "the driver defaults (--dnf-s 120), the same for both sides",
     "seed": "20261020"
   },
   "browser": {
     "name": "Chromium 156.0.8078.4",
-    "source": "Playwright chromium-1248 from @playwright/test 1.64.1, headed"
+    "source": "Playwright, headed"
   }
 }

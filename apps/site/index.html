@@ -78,10 +78,10 @@
         <p class="ask-note"><a class="go" href="https://app.tachlon.com/?sample=demo-50k">Open the 50,000-task demo</a></p>
       </div>
       <!-- bench:hero --><figure class="speed">
-        <p style="--t:0.3"><b>0.3 s</b><span>to open 50,000 tasks, with the schedule calculated</span></p>
-        <p style="--t:0.14"><b>0.14 s</b><span>to open 10,000 tasks</span></p>
-        <p style="--t:0.019"><b>0.019 s</b><span>slowest frame while scrolling 50,000 tasks</span></p>
-        <figcaption><span class="axis" aria-hidden="true"><i>0</i><i>1 second</i></span>Medians from our run of 2026-11-05. <a href="#benchmark">See the full table</a></figcaption>
+        <p style="--t:0.4"><b>0.4 s</b><span>to open 50,000 tasks, with the schedule calculated</span></p>
+        <p style="--t:0.17"><b>0.17 s</b><span>to open 10,000 tasks</span></p>
+        <p style="--t:0.032"><b>0.032 s</b><span>slowest frame while scrolling 50,000 tasks</span></p>
+        <figcaption><span class="axis" aria-hidden="true"><i>0</i><i>1 second</i></span>Medians from our run of 2026-11-22. <a href="#benchmark">See the full table</a></figcaption>
       </figure><!-- /bench:hero -->
     </div>
 
@@ -141,16 +141,16 @@
       <article class="feature" id="speed">
         <div>
           <p class="kicker">Fast at scale</p>
-          <h2>50,000 tasks open in about 0.3 seconds</h2>
+          <h2>50,000 tasks open in about 0.4 seconds</h2>
           <p class="intro">Hospitals, airports and power plants are scheduled in 10,000 to 50,000 activities. Tachlon is built and measured at that size.</p>
           <!-- bench:stats --><div class="stats">
-            <div class="stat"><b>0.3 s</b><span>to open 50,000 tasks, with the schedule calculated</span></div>
-            <div class="stat"><b>0.019 s</b><span>slowest frame while scrolling 50,000 tasks. DHTMLX: 0.035 s</span></div>
-            <div class="stat"><b>2.5&times;</b><span>faster than DHTMLX on a 50,000-task chain: 0.31 s against 0.79 s</span></div>
+            <div class="stat"><b>0.4 s</b><span>to open 50,000 tasks, with the schedule calculated</span></div>
+            <div class="stat"><b>0.032 s</b><span>slowest frame while scrolling 50,000 tasks. DHTMLX: 0.035 s</span></div>
+            <div class="stat"><b>1.9&times;</b><span>faster than DHTMLX on a 50,000-task chain: 0.40 s against 0.79 s</span></div>
           </div><!-- /bench:stats -->
           <ul> <li>A 50,000-task schedule scrolls, zooms and replans as smoothly as a 50-task one.</li> <li>Open the demo, click the chart and press <code>s</code> to see the open time and frame times on your own machine.</li> </ul>
           <a class="btn primary" href="https://app.tachlon.com/?sample=demo-50k">Open the 50,000-task demo</a>
-          <p class="fine">Medians from our run of <!-- bench:run -->2026-11-05<!-- /bench:run --> on a Mac mini, Apple M4. <a href="#benchmark">See the full table</a>, including the rows where DHTMLX is ahead.</p>
+          <p class="fine">Medians from our run of <!-- bench:run -->2026-11-22 (Tachlon 0.4.0)<!-- /bench:run --> on a Mac mini, Apple M4. <a href="#benchmark">See the full table</a>, including the rows where DHTMLX is ahead.</p>
         </div>
         <figure class="shot">
           <img src="shots/speed-50k.webp" width="2360" height="1400" alt="Tachlon with 50,000 rows open: the task table with durations, dates and float beside the bars and their dependency lines.">
@@ -303,15 +303,15 @@ const chart = await mount(el, { tasks, links });</pre>
               <caption class="visually-hidden">Tachlon against DHTMLX Gantt at 50,000 and 10,000 tasks; lower is better</caption>
               <thead><tr><th scope="col">Tree schedule / chain schedule</th><th scope="col">Tachlon</th><th scope="col">DHTMLX Gantt (free edition)</th></tr></thead>
               <tbody>
-                <tr><th scope="row">Open 50,000 tasks</th><td class="win">0.30 s / 0.31 s</td><td>0.34 s / 0.79 s</td></tr>
-                <tr><th scope="row">Scroll 50,000 tasks, slowest frame</th><td class="win">0.02 s / 0.02 s</td><td>0.04 s / 0.04 s</td></tr>
-                <tr><th scope="row">Open 10,000 tasks</th><td class="win">0.14 s / 0.14 s</td><td>0.11 s / 0.18 s</td></tr>
-                <tr><th scope="row">Whole-browser memory at 50,000 tasks</th><td class="win">483.5 MB / 482.1 MB</td><td>380.0 MB / 405.0 MB</td></tr>
+                <tr><th scope="row">Open 50,000 tasks</th><td class="win">0.39 s / 0.40 s</td><td>0.34 s / 0.79 s</td></tr>
+                <tr><th scope="row">Scroll 50,000 tasks, slowest frame</th><td class="win">0.03 s / 0.02 s</td><td>0.04 s / 0.04 s</td></tr>
+                <tr><th scope="row">Open 10,000 tasks</th><td class="win">0.17 s / 0.17 s</td><td>0.11 s / 0.18 s</td></tr>
+                <tr><th scope="row">Whole-browser memory at 50,000 tasks</th><td class="win">453.6 MB / 453.6 MB</td><td>379.3 MB / 405.3 MB</td></tr>
               </tbody>
             </table>
           </div><!-- /bench:table -->
           <div class="bench-notes">
-            <!-- bench:ahead --><p data-fine-print><strong>Where Tachlon is ahead, and where it isn't yet.</strong> Tachlon opens the 50,000-task chain <span data-fine="times">2.5</span> times faster than DHTMLX (<span data-fine="chainO">0.31</span> s against <span data-fine="chainD">0.79</span> s), and the 50,000-task tree a little faster (<span data-fine="tree50O">0.30</span> s against <span data-fine="tree50D">0.34</span> s). Its slowest frame in every test is about half of DHTMLX's (<span data-fine="frameO">0.019</span> s against <span data-fine="frameD">0.035</span> s). Dragging a task at 50,000 is even (<span data-fine="dragO">0.019</span> s against <span data-fine="dragDLo">0.018</span> to <span data-fine="dragDHi">0.019</span> s). DHTMLX opens the 10,000-task tree faster (<span data-fine="treeD">0.11</span> s against <span data-fine="treeO">0.14</span> s), loads its library faster (<span data-fine="libD">0.02</span> s against <span data-fine="libO">0.03</span> s), and uses less memory (about <span data-fine="memDLo">345</span> to <span data-fine="memDHi">405</span> MB against <span data-fine="memOLo">400</span> to <span data-fine="memOHi">485</span> MB). We're working on all three, and we re-run this table when a change moves one of its numbers beyond normal run-to-run variation; the date above is the last run.</p><!-- /bench:ahead -->
+            <!-- bench:ahead --><p data-fine-print><strong>Where Tachlon is ahead, and where it isn't yet.</strong> Tachlon opens the 50,000-task chain <span data-fine="times">1.9</span> times faster than DHTMLX (<span data-fine="chainO">0.40</span> s against <span data-fine="chainD">0.79</span> s). Its slowest frame is about half of DHTMLX's in 3 of 4 tests (<span data-fine="frameO">0.019</span> s against <span data-fine="frameD">0.035</span> s), but not for the 50,000-task tree (<span data-fine="frame0O">0.032</span> s against <span data-fine="frame0D">0.035</span> s). Dragging a task at 50,000 is even (<span data-fine="dragO">0.019</span> s against <span data-fine="dragDLo">0.018</span> to <span data-fine="dragDHi">0.019</span> s). DHTMLX opens the 10,000-task tree faster (<span data-fine="treeD">0.11</span> s against <span data-fine="treeO">0.17</span> s) and the 50,000-task tree faster (<span data-fine="tree50D">0.34</span> s against <span data-fine="tree50O">0.39</span> s), loads its library faster (<span data-fine="libD">0.02</span> s against <span data-fine="libOLo">0.03</span> to <span data-fine="libOHi">0.04</span> s), and uses less memory (about <span data-fine="memDLo">340</span> to <span data-fine="memDHi">405</span> MB against <span data-fine="memOLo">415</span> to <span data-fine="memOHi">455</span> MB). We're working on all three, and we re-run this table when a change moves one of its numbers beyond normal run-to-run variation; the date above is the last run.</p><!-- /bench:ahead -->
           </div>
         </div>
         <div>
@@ -325,7 +325,7 @@ const chart = await mount(el, { tasks, links });</pre>
       </div>
       <details class="method">
         <summary>Method, machine and dataset hashes</summary>
-        <!-- bench:method --><p>Each cell is the median over matched pairs on a tree4 schedule, then on a chain schedule (tree4 / chain). Measured 2026-11-05 on a Mac mini, Apple M4, 16 GB, against DHTMLX Gantt 10.0.3. We have not measured SVAR Gantt yet. Memory is the whole browser's total, 20 seconds after the page loads. Dataset SHA-256 (tree4 / chain): 10,000 tasks <code>fc82758fdeb5b146fc92dc13f289b41ccce4b77e48c894a833a102e3b07d5da8</code> / <code>a77d52f761b82124715e273c76ada383acc98093350b205bb83637d5da720474</code>, 50,000 tasks <code>b0bc8dbbc39c7c4a9d8cc96c7c5e8d5d0d8fa51c1f77c9b8cab2448825960458</code> / <code>63cfc51f34c00c52d25003cfc67577c987bce10868adc637096bc44c08742eac</code>. Each side loads its own file of it, in bytes: Tachlon 10,000 tasks 1,454,430 / 1,465,596, 50,000 tasks 7,432,833 / 7,505,595; DHTMLX 10,000 tasks 1,780,297 / 1,804,535, 50,000 tasks 9,101,049 / 9,244,533. The run command was <code>node demos/bench/run.ts --sides sides.json --cells tree4:10000,chain:10000,tree4:50000,chain:50000 --pairs 8 --max-load 4 --out results</code>. A script writes every figure on this page from that run's results file, demos/bench/results/2026-11-05.json. Nobody types them in.</p><!-- /bench:method -->
+        <!-- bench:method --><p>Each cell is the median of 3 runs of each side on a tree4 schedule, then on a chain schedule (tree4 / chain). Measured 2026-11-22 on a Mac mini, Apple M4, 16 GB: Tachlon 0.4.0 (build 7ecb106), against DHTMLX Gantt 10.0.3. We have not measured SVAR Gantt yet. Memory is the whole browser's total, 20 seconds after the page loads. Dataset SHA-256 (tree4 / chain): 10,000 tasks <code>fc82758fdeb5b146fc92dc13f289b41ccce4b77e48c894a833a102e3b07d5da8</code> / <code>a77d52f761b82124715e273c76ada383acc98093350b205bb83637d5da720474</code>, 50,000 tasks <code>b0bc8dbbc39c7c4a9d8cc96c7c5e8d5d0d8fa51c1f77c9b8cab2448825960458</code> / <code>63cfc51f34c00c52d25003cfc67577c987bce10868adc637096bc44c08742eac</code>. Each side loads its own file of it, in bytes: Tachlon 10,000 tasks 1,454,430 / 1,465,596, 50,000 tasks 7,432,833 / 7,505,595; DHTMLX 10,000 tasks 1,780,297 / 1,804,535, 50,000 tasks 9,101,049 / 9,244,533. The runs were made with <code>the side command of demos/bench/run.ts, once per side, 3 rounds over tree4:10000,chain:10000,tree4:50000,chain:50000 with ours and DHTMLX interleaved, --dnf-s 120, --memory-at-s 20, quiet cap load1 under 4</code>. A script writes every figure on this page from that run's results file, demos/bench/results/2026-11-22.json. Nobody types them in.</p><!-- /bench:method -->
       </details>
     </div>
   </section>

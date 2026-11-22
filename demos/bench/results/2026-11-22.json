@@ -1,0 +1,158 @@
+{
+  "date": "2026-11-22",
+  "story": "the 0.4.0 release against DHTMLX Gantt 10.0.3",
+  "machine": "Mac mini (see ../versions.json)",
+  "harness": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
+  "ours": "7ecb10663bc208d9543e7deb30fe503ee46c44cc",
+  "command": "the side command of demos/bench/run.ts, once per side, 3 rounds over tree4:10000,chain:10000,tree4:50000,chain:50000 with ours and DHTMLX interleaved, --dnf-s 120, --memory-at-s 20, quiet cap load1 under 4",
+  "driverOptions": "the driver's defaults, the same for both sides (--dnf-s 120, --memory-at-s 20)",
+  "method": "One generator run gives every side the same tasks, links and dates, and each side loads its own file of that data in its own shape (DHTMLX its own file; ours the ours.json that it hands to mount(el, { tasks, links }) on demos/bench/sides/ours-page.html). Memory is the browser total 20 s after the navigation, the page idle. The comparison is load and draw: DHTMLX community cannot schedule, and ours solves the schedule on open. Ours is the published release 0.4.0 (build 7ecb106). The DHTMLX side is driven by the harness of a later commit; the load, scroll and memory phases are the same in both.",
+  "sides": [
+    "ours",
+    "dhtmlx"
+  ],
+  "tree": "The per-run files of this run are not kept in this repository; the medians below are of the 3 runs of each side in each cell. dataset.json is not kept: node demos/bench/dataset.ts --shape <shape> --size <n> --seed 20261020 --out <dir> rebuilds it byte for byte, and its SHA-256 is in each cell above.",
+  "cells": {
+    "chain-10000": {
+      "datasetSha256": "a77d52f761b82124715e273c76ada383acc98093350b205bb83637d5da720474",
+      "pairsRun": 3,
+      "matched": 3,
+      "note": "3 runs of each side, interleaved in one session; every run counts, with no load-matching filter"
+    },
+    "chain-50000": {
+      "datasetSha256": "63cfc51f34c00c52d25003cfc67577c987bce10868adc637096bc44c08742eac",
+      "pairsRun": 3,
+      "matched": 3,
+      "note": "3 runs of each side, interleaved in one session; every run counts, with no load-matching filter"
+    },
+    "tree4-10000": {
+      "datasetSha256": "fc82758fdeb5b146fc92dc13f289b41ccce4b77e48c894a833a102e3b07d5da8",
+      "pairsRun": 3,
+      "matched": 3,
+      "note": "3 runs of each side, interleaved in one session; every run counts, with no load-matching filter"
+    },
+    "tree4-50000": {
+      "datasetSha256": "b0bc8dbbc39c7c4a9d8cc96c7c5e8d5d0d8fa51c1f77c9b8cab2448825960458",
+      "pairsRun": 3,
+      "matched": 3,
+      "note": "3 runs of each side, interleaved in one session; every run counts, with no load-matching filter"
+    }
+  },
+  "box": {
+    "quietCap": "load1 under 4 before each run (--max-load 4, not raised)",
+    "load1Samples": {
+      "count": 625,
+      "min": 1.63,
+      "mean": 2.54,
+      "max": 3.8
+    },
+    "highestLoad1AtStart": 3.8,
+    "wallClock": "2026-11-22 00:32 to 01:30 MST, 3 runs per cell and side; two users were logged in"
+  },
+  "medians": {
+    "chain-10000": {
+      "ours": {
+        "loadMedianMs": 171.7,
+        "libraryMedianMs": 33.9,
+        "dataToReadyMedianMs": 134.7,
+        "scrollYP95Ms": 18.6,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "dragCommitMedianMs": 16.6,
+        "longestFrameMaxMs": 18.8,
+        "memoryFootprintMB": 414.2,
+        "inputBytes": 1465596
+      },
+      "dhtmlx": {
+        "loadMedianMs": 176.6,
+        "libraryMedianMs": 20.9,
+        "dataToReadyMedianMs": 141.4,
+        "scrollYP95Ms": 18.7,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "dragCommitMedianMs": 32.5,
+        "longestFrameMaxMs": 35.3,
+        "memoryFootprintMB": 353.7,
+        "inputBytes": 1804535
+      }
+    },
+    "chain-50000": {
+      "ours": {
+        "loadMedianMs": 402.4,
+        "libraryMedianMs": 34.5,
+        "dataToReadyMedianMs": 368.1,
+        "scrollYP95Ms": 18.6,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.6,
+        "dragCommitMedianMs": 16.9,
+        "longestFrameMaxMs": 18.8,
+        "memoryFootprintMB": 453.6,
+        "inputBytes": 7505595
+      },
+      "dhtmlx": {
+        "loadMedianMs": 790,
+        "libraryMedianMs": 21.5,
+        "dataToReadyMedianMs": 752.3,
+        "scrollYP95Ms": 18.7,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.2,
+        "dragCommitMedianMs": 49.3,
+        "longestFrameMaxMs": 35.4,
+        "memoryFootprintMB": 405.3,
+        "inputBytes": 9244533
+      }
+    },
+    "tree4-10000": {
+      "ours": {
+        "loadMedianMs": 169.8,
+        "libraryMedianMs": 34.4,
+        "dataToReadyMedianMs": 134,
+        "scrollYP95Ms": 18.6,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "dragCommitMedianMs": 18,
+        "longestFrameMaxMs": 18.8,
+        "memoryFootprintMB": 416.8,
+        "inputBytes": 1454430
+      },
+      "dhtmlx": {
+        "loadMedianMs": 106.3,
+        "libraryMedianMs": 21.1,
+        "dataToReadyMedianMs": 71.5,
+        "scrollYP95Ms": 18.7,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "dragCommitMedianMs": 30.5,
+        "longestFrameMaxMs": 35.4,
+        "memoryFootprintMB": 341,
+        "inputBytes": 1780297
+      }
+    },
+    "tree4-50000": {
+      "ours": {
+        "loadMedianMs": 385.8,
+        "libraryMedianMs": 37.1,
+        "dataToReadyMedianMs": 353.6,
+        "scrollYP95Ms": 18.6,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.6,
+        "dragCommitMedianMs": 18.1,
+        "longestFrameMaxMs": 32.3,
+        "memoryFootprintMB": 453.6,
+        "inputBytes": 7432833
+      },
+      "dhtmlx": {
+        "loadMedianMs": 338.2,
+        "libraryMedianMs": 21,
+        "dataToReadyMedianMs": 304.6,
+        "scrollYP95Ms": 18.7,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "dragCommitMedianMs": 63.9,
+        "longestFrameMaxMs": 35.4,
+        "memoryFootprintMB": 379.3,
+        "inputBytes": 9101049
+      }
+    }
+  }
+}
