@@ -194,6 +194,7 @@ Tachlon next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt on scheduling, 
 
 - Split tasks, editing resource assignments, a resource workload view and custom bar templates (rows 10, 12, 13 and 36 above).
 - Native `.mpp` files: save as MS Project XML. P6 baselines are not read yet, and XER files have been tried on P6 version 19.12 only ([docs/IMPORT.md](docs/IMPORT.md)).
+- Resource leveling: Tachlon moves no task to fix an overload, and a P6 open reads no resources. When a file opens, one line in the panel of what was not read counts the in-progress activities whose dates in the file differ from the dates Tachlon computes; the repository records no such count for a real P6 schedule.
 - Speed is measured on Apple machines and one Dell laptop so far; Windows, tablets and phones are not measured yet.
 - The [open issues](https://github.com/innerstacklabs/tachlon/issues) list the work.
 
