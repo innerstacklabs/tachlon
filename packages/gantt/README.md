@@ -197,7 +197,7 @@ When the chart does not draw, run `npx tachlon doctor` in the project. It reads 
 
 `--data <file>` also runs `validate()` on a task data file, with one `DATA_INVALID` finding for each problem, or `DATA_NOT_JSON` when the file is not JSON.
 
-`doctor` also asks a real browser which graphics path the chart will use, because a Node process has no WebGPU or WebGL2 of its own. It opens a page of its own, headless, in the first Chrome, Edge or Chromium it finds (`TACHLON_BROWSER` names one; otherwise it looks for `google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser` and `microsoft-edge` on the path, then for the Chrome and Edge apps on a Mac) and reports one finding. The chart tries WebGPU first and falls back to WebGL2, and so does the page:
+`doctor` also asks a real browser which graphics path the chart will use, because a Node process has no WebGPU or WebGL2 of its own. It opens a page of its own, headless, in the first Chrome, Edge or Chromium it finds (`TACHLON_BROWSER` names one; otherwise it looks for `google-chrome`, `google-chrome-stable`, `chromium`, `chromium-browser` and `microsoft-edge` on the path, then for the Chrome and Edge apps on a Mac, then for a Chromium that Playwright installed in its cache folder, `PLAYWRIGHT_BROWSERS_PATH` or its usual place) and reports one finding. The chart tries WebGPU first and falls back to WebGL2, and so does the page:
 
 - `GPU_WEBGPU` (`ok`) when the browser has a WebGPU adapter, with the adapter's name.
 - `GPU_WEBGL2` (`ok`) when it has no WebGPU adapter but has WebGL2, with the renderer's name.
