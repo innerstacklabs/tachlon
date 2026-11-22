@@ -194,6 +194,12 @@ const DAYS = {
   calendars: [{ key: "std", workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 }, { key: "round", week: Array.from({ length: 7 }, (): [number, number][] => [[0, 1440]]), exceptions: [] }],
   tasks: [{ id: "work", name: "Work", start: "2027-01-04", duration: 1, calendar: "std" }, { id: "night", name: "Night", start: "2027-01-04", duration: 1, calendar: "round" }],
 };
+// "spare" drives "tail" beside the three-day "long", so it has two days of float: its late dates are 2027-01-06 where its early ones are 2027-01-04.
+const FLOAT = {
+  calendars: [DAYS.calendars[0]!],
+  tasks: [["spare", 1], ["long", 3], ["tail", 1]].map(([id, duration]) => ({ id: id as string, name: id as string, start: "2027-01-04", duration: duration as number, calendar: "std" })),
+  links: [{ from: "spare", to: "tail" }, { from: "long", to: "tail" }],
+};
 const answer = (chart: ReturnType<typeof openHeadless>, code: string) => chart.results().find((t) => t.code === code)!;
 
 test("dateForm day answers a finish at 16:00 as its own day and a finish at T00:00 as the day before, lateStart and lateFinish too", () => {
@@ -202,6 +208,11 @@ test("dateForm day answers a finish at 16:00 as its own day and a finish at T00:
   expect(answer(openHeadless(DAYS), "work")).toMatchObject({ finish: "2027-01-04T16:00", lateFinish: "2027-01-04T16:00" });
   expect(answer(chart, "work")).toMatchObject({ start: "2027-01-04", finish: "2027-01-04", lateStart: "2027-01-04", lateFinish: "2027-01-04" });
   expect(answer(chart, "night")).toMatchObject({ start: "2027-01-04", finish: "2027-01-04", lateStart: "2027-01-04", lateFinish: "2027-01-04" });
+});
+
+test("dateForm day answers each date from its own member: a task with float has late days that differ from its early days", () => {
+  expect(answer(openHeadless(FLOAT), "spare")).toMatchObject({ start: "2027-01-04T08:00", finish: "2027-01-04T16:00", lateStart: "2027-01-06T08:00", lateFinish: "2027-01-06T16:00" });
+  expect(answer(openHeadless({ ...FLOAT, dateForm: "day" }), "spare")).toMatchObject({ start: "2027-01-04", finish: "2027-01-04", lateStart: "2027-01-06", lateFinish: "2027-01-06" });
 });
 
 test("with no dateForm, or minute, the answers are the minutes form", () => {
