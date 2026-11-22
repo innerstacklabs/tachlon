@@ -1,9 +1,9 @@
 {
   "tool": "drive",
-  "url": "http://127.0.0.1:51687/?cell=tree4-10000-20261020",
+  "url": "http://127.0.0.1:55905/?cell=tree4-10000-20261020",
   "side": "dhtmlx",
   "rows": 10000,
-  "date": "2026-11-05T16:40:52.288Z",
+  "date": "2026-11-22T06:35:23.014Z",
   "environment": {
     "chrome": "156.0.8078.4",
     "gpu": {
@@ -48,17 +48,17 @@
   "phases": {
     "load": {
       "dnf": false,
-      "ms": 109.6,
-      "libraryMs": 17,
-      "dataToReadyMs": 79.9,
+      "ms": 94.4,
+      "libraryMs": 18,
+      "dataToReadyMs": 63.3,
       "spotChecked": true,
-      "settledMs": 109.2,
-      "dataToSettledMs": 79.5
+      "settledMs": 108.6,
+      "dataToSettledMs": 77.5
     },
     "scroll-y": {
       "dnf": false,
       "verified": true,
-      "frames": 2662,
+      "frames": 2661,
       "p50": 16.7,
       "p95": 18.7,
       "longGaps": 1,
@@ -100,13 +100,13 @@
     "drag": {
       "dnf": false,
       "verified": true,
-      "frames": 132,
+      "frames": 133,
       "p50": 16.7,
       "p95": 18.7,
       "longGaps": 0,
       "droppedFrames": 0,
       "max": 18.8,
-      "commitMs": 3.1,
+      "commitMs": 30.6,
       "days": 10,
       "steps": 60,
       "afterFrames": 10,
@@ -127,18 +127,18 @@
       "dnf": false,
       "afterLoad": {
         "kind": "footprint",
-        "chromeBytes": 341730304,
-        "rendererBytes": 143025152,
-        "gpuProcessBytes": 84934656,
-        "jsHeapUsedBytes": 9301864,
-        "readAtS": 20
+        "chromeBytes": 344770560,
+        "rendererBytes": 144388096,
+        "gpuProcessBytes": 85458944,
+        "jsHeapUsedBytes": 9298928,
+        "readAtS": 20.003
       },
       "afterScripts": {
         "kind": "footprint",
-        "chromeBytes": 373922816,
-        "rendererBytes": 167667712,
-        "gpuProcessBytes": 96888832,
-        "jsHeapUsedBytes": 10016060
+        "chromeBytes": 389964800,
+        "rendererBytes": 176999424,
+        "gpuProcessBytes": 102340608,
+        "jsHeapUsedBytes": 10017024
       }
     }
   }

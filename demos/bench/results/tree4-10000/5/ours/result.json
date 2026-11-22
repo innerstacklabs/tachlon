@@ -1,9 +1,9 @@
 {
   "tool": "drive",
-  "url": "http://127.0.0.1:51673/ours-page.html?cell=tree4-10000-20261020",
+  "url": "http://127.0.0.1:55887/ours-page.html?cell=tree4-10000-20261020",
   "side": "ours",
   "rows": 10000,
-  "date": "2026-11-05T16:39:20.018Z",
+  "date": "2026-11-22T06:33:49.214Z",
   "environment": {
     "chrome": "156.0.8078.4",
     "gpu": {
@@ -48,9 +48,9 @@
   "phases": {
     "load": {
       "dnf": false,
-      "ms": 141.5,
-      "libraryMs": 32.2,
-      "dataToReadyMs": 109.3,
+      "ms": 156.4,
+      "libraryMs": 29.3,
+      "dataToReadyMs": 127.1,
       "spotChecked": false,
       "settledMs": null,
       "dataToSettledMs": null
@@ -60,7 +60,7 @@
       "verified": true,
       "frames": 720,
       "p50": 16.7,
-      "p95": 18.4,
+      "p95": 18.6,
       "longGaps": 0,
       "droppedFrames": 0,
       "max": 18.8,
@@ -100,13 +100,13 @@
     "drag": {
       "dnf": false,
       "verified": true,
-      "frames": 133,
+      "frames": 134,
       "p50": 16.7,
       "p95": 18.7,
       "longGaps": 0,
       "droppedFrames": 0,
       "max": 18.7,
-      "commitMs": 14.3,
+      "commitMs": 15.6,
       "days": 10,
       "steps": 60,
       "afterFrames": 10,
@@ -127,18 +127,18 @@
       "dnf": false,
       "afterLoad": {
         "kind": "footprint",
-        "chromeBytes": 398668800,
-        "rendererBytes": 173224960,
-        "gpuProcessBytes": 106954752,
-        "jsHeapUsedBytes": 3560128,
-        "readAtS": 20
+        "chromeBytes": 413453312,
+        "rendererBytes": 170184704,
+        "gpuProcessBytes": 123312128,
+        "jsHeapUsedBytes": 3408632,
+        "readAtS": 20.002
       },
       "afterScripts": {
         "kind": "footprint",
-        "chromeBytes": 555219968,
-        "rendererBytes": 189582336,
-        "gpuProcessBytes": 246415360,
-        "jsHeapUsedBytes": 3903340
+        "chromeBytes": 595696640,
+        "rendererBytes": 190002176,
+        "gpuProcessBytes": 284898304,
+        "jsHeapUsedBytes": 3862324
       }
     }
   }

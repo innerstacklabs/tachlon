@@ -1,0 +1,147 @@
+{
+  "date": "2026-11-21",
+  "story": "gantt#1284",
+  "machine": "Mac mini (see ../versions.json)",
+  "harness": "3394b80d80bb13e596b2c3af223594e30a6b83b4",
+  "ours": "3394b80d80bb13e596b2c3af223594e30a6b83b4",
+  "command": "node demos/bench/run.ts --sides sides.json --cells tree4:10000,chain:10000,tree4:50000,chain:50000 --pairs 8 --max-load 4 --out results",
+  "driverOptions": "the driver's defaults, the same for both sides (--dnf-s 120, --memory-at-s 20)",
+  "method": "One generator run gives every side the same tasks, links and dates, and each side loads its own file of that data in its own shape (DHTMLX its own file; ours the ours.json that it hands to mount(el, { tasks, links }) on demos/bench/sides/ours-page.html). Memory is the browser total 20 s after the navigation, the page idle. The comparison is load and draw: DHTMLX community cannot schedule, and ours solves the schedule on open.",
+  "sides": [
+    "ours",
+    "dhtmlx"
+  ],
+  "tree": "The runs are the directories beside this file: <cell>/<pair>/<side>/{result.json,side.json,load.log,wait.log} and <cell>/dataset.json.sha256. dataset.json is not kept: node demos/bench/dataset.ts --shape <shape> --size <n> --seed 20261020 --out <dir> rebuilds it byte for byte, and its SHA-256 is in dataset.json.sha256. Print the table with: node demos/dhtmlx-compare/table.ts demos/bench/results",
+  "cells": {
+    "chain-10000": {
+      "datasetSha256": "a77d52f761b82124715e273c76ada383acc98093350b205bb83637d5da720474",
+      "pairsRun": 4,
+      "matched": 4
+    },
+    "chain-50000": {
+      "datasetSha256": "63cfc51f34c00c52d25003cfc67577c987bce10868adc637096bc44c08742eac",
+      "pairsRun": 4,
+      "matched": 4
+    },
+    "tree4-10000": {
+      "datasetSha256": "fc82758fdeb5b146fc92dc13f289b41ccce4b77e48c894a833a102e3b07d5da8",
+      "pairsRun": 6,
+      "matched": 4,
+      "note": "pair 2 not matched: load1 means differ by 0.92 (limit 0.5), or a result refused or swap grew; kept and listed, not counted; pair 3 not matched: load1 means differ by 0.54 (limit 0.5), or a result refused or swap grew; kept and listed, not counted"
+    },
+    "tree4-50000": {
+      "datasetSha256": "b0bc8dbbc39c7c4a9d8cc96c7c5e8d5d0d8fa51c1f77c9b8cab2448825960458",
+      "pairsRun": 4,
+      "matched": 4
+    }
+  },
+  "box": {
+    "quietCap": "load1 under 4 before each side (--max-load 4, not raised)",
+    "load1Samples": {
+      "count": 951,
+      "min": 1.49,
+      "mean": 2.51,
+      "max": 3.64
+    },
+    "highestLoad1AtStart": 3.5,
+    "wallClock": "2026-11-21 23:22 to 2026-11-22 00:10 MST, up to 8 attempts per cell; at the start no Chrome for Testing process was running and no cargo, rustc or Playwright process was on the mini (pgrep), and two users were logged in; pairs that were not matched are kept and listed under cells"
+  },
+  "medians": {
+    "chain-10000": {
+      "dhtmlx": {
+        "loadMedianMs": 174.1,
+        "libraryMedianMs": 20,
+        "dataToReadyMedianMs": 141,
+        "scrollYP95Ms": 18.7,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "longestFrameMaxMs": 35.3,
+        "memoryFootprintMB": 348.7,
+        "inputBytes": 1804535
+      },
+      "ours": {
+        "loadMedianMs": 167.4,
+        "libraryMedianMs": 28.4,
+        "dataToReadyMedianMs": 140.9,
+        "scrollYP95Ms": 18.6,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "longestFrameMaxMs": 18.8,
+        "memoryFootprintMB": 413.7,
+        "inputBytes": 1465596
+      }
+    },
+    "chain-50000": {
+      "dhtmlx": {
+        "loadMedianMs": 775,
+        "libraryMedianMs": 18.5,
+        "dataToReadyMedianMs": 742.5,
+        "scrollYP95Ms": 18.7,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.6,
+        "longestFrameMaxMs": 35.4,
+        "memoryFootprintMB": 404,
+        "inputBytes": 9244533
+      },
+      "ours": {
+        "loadMedianMs": 408.9,
+        "libraryMedianMs": 33.2,
+        "dataToReadyMedianMs": 375,
+        "scrollYP95Ms": 18.6,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.6,
+        "longestFrameMaxMs": 18.8,
+        "memoryFootprintMB": 455.7,
+        "inputBytes": 7505595
+      }
+    },
+    "tree4-10000": {
+      "dhtmlx": {
+        "loadMedianMs": 101.7,
+        "libraryMedianMs": 19.4,
+        "dataToReadyMedianMs": 70.5,
+        "scrollYP95Ms": 18.7,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "longestFrameMaxMs": 35.3,
+        "memoryFootprintMB": 343.1,
+        "inputBytes": 1780297
+      },
+      "ours": {
+        "loadMedianMs": 161.6,
+        "libraryMedianMs": 30.9,
+        "dataToReadyMedianMs": 131.8,
+        "scrollYP95Ms": 18.6,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.7,
+        "longestFrameMaxMs": 18.8,
+        "memoryFootprintMB": 415.9,
+        "inputBytes": 1454430
+      }
+    },
+    "tree4-50000": {
+      "dhtmlx": {
+        "loadMedianMs": 328.9,
+        "libraryMedianMs": 19.8,
+        "dataToReadyMedianMs": 296.6,
+        "scrollYP95Ms": 18.7,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.6,
+        "longestFrameMaxMs": 35.4,
+        "memoryFootprintMB": 378.4,
+        "inputBytes": 9101049
+      },
+      "ours": {
+        "loadMedianMs": 388.6,
+        "libraryMedianMs": 30.4,
+        "dataToReadyMedianMs": 355.6,
+        "scrollYP95Ms": 18.6,
+        "scrollXP95Ms": 18.7,
+        "dragP95Ms": 18.6,
+        "longestFrameMaxMs": 33.4,
+        "memoryFootprintMB": 452,
+        "inputBytes": 7432833
+      }
+    }
+  }
+}

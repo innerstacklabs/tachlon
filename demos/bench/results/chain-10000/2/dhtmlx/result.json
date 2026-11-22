@@ -1,9 +1,9 @@
 {
   "tool": "drive",
-  "url": "http://127.0.0.1:51746/?cell=chain-10000-20261020",
+  "url": "http://127.0.0.1:56000/?cell=chain-10000-20261020",
   "side": "dhtmlx",
   "rows": 10000,
-  "date": "2026-11-05T16:46:03.093Z",
+  "date": "2026-11-22T06:42:16.270Z",
   "environment": {
     "chrome": "156.0.8078.4",
     "gpu": {
@@ -48,17 +48,17 @@
   "phases": {
     "load": {
       "dnf": false,
-      "ms": 170.5,
-      "libraryMs": 17.8,
-      "dataToReadyMs": 139.2,
+      "ms": 183.9,
+      "libraryMs": 21.3,
+      "dataToReadyMs": 149.4,
       "spotChecked": true,
-      "settledMs": 185.4,
-      "dataToSettledMs": 154.1
+      "settledMs": 184.7,
+      "dataToSettledMs": 150.2
     },
     "scroll-y": {
       "dnf": false,
       "verified": true,
-      "frames": 2660,
+      "frames": 2672,
       "p50": 16.7,
       "p95": 18.7,
       "longGaps": 0,
@@ -79,7 +79,7 @@
     "scroll-x": {
       "dnf": false,
       "verified": true,
-      "frames": 856,
+      "frames": 857,
       "p50": 16.7,
       "p95": 18.7,
       "longGaps": 0,
@@ -100,13 +100,13 @@
     "drag": {
       "dnf": false,
       "verified": true,
-      "frames": 131,
+      "frames": 132,
       "p50": 16.7,
-      "p95": 18.6,
+      "p95": 18.7,
       "longGaps": 0,
       "droppedFrames": 0,
       "max": 18.7,
-      "commitMs": 10.6,
+      "commitMs": 31.2,
       "days": 10,
       "steps": 60,
       "afterFrames": 10,
@@ -127,18 +127,18 @@
       "dnf": false,
       "afterLoad": {
         "kind": "footprint",
-        "chromeBytes": 347811840,
-        "rendererBytes": 149735424,
-        "gpuProcessBytes": 85144576,
-        "jsHeapUsedBytes": 13699096,
+        "chromeBytes": 346764288,
+        "rendererBytes": 148269056,
+        "gpuProcessBytes": 85773312,
+        "jsHeapUsedBytes": 13698032,
         "readAtS": 20.002
       },
       "afterScripts": {
         "kind": "footprint",
-        "chromeBytes": 378221568,
-        "rendererBytes": 172700672,
-        "gpuProcessBytes": 96678912,
-        "jsHeapUsedBytes": 14306304
+        "chromeBytes": 378956800,
+        "rendererBytes": 173330432,
+        "gpuProcessBytes": 97203200,
+        "jsHeapUsedBytes": 14308332
       }
     }
   }

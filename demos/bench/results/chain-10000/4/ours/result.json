@@ -1,9 +1,9 @@
 {
   "tool": "drive",
-  "url": "http://127.0.0.1:51834/ours-page.html?cell=chain-10000-20261020",
+  "url": "http://127.0.0.1:56099/ours-page.html?cell=chain-10000-20261020",
   "side": "ours",
   "rows": 10000,
-  "date": "2026-11-05T16:52:33.116Z",
+  "date": "2026-11-22T06:48:52.341Z",
   "environment": {
     "chrome": "156.0.8078.4",
     "gpu": {
@@ -48,9 +48,9 @@
   "phases": {
     "load": {
       "dnf": false,
-      "ms": 135.7,
-      "libraryMs": 24.7,
-      "dataToReadyMs": 111,
+      "ms": 174.2,
+      "libraryMs": 29.9,
+      "dataToReadyMs": 144.3,
       "spotChecked": false,
       "settledMs": null,
       "dataToSettledMs": null
@@ -60,10 +60,10 @@
       "verified": true,
       "frames": 720,
       "p50": 16.7,
-      "p95": 18.5,
+      "p95": 18.6,
       "longGaps": 0,
       "droppedFrames": 0,
-      "max": 18.8,
+      "max": 18.7,
       "steps": 120,
       "stepPx": 333.3333333333333,
       "wheelEvents": {
@@ -100,13 +100,13 @@
     "drag": {
       "dnf": false,
       "verified": true,
-      "frames": 130,
+      "frames": 138,
       "p50": 16.7,
       "p95": 18.7,
       "longGaps": 0,
       "droppedFrames": 0,
       "max": 18.7,
-      "commitMs": 13.7,
+      "commitMs": 16.7,
       "days": 10,
       "steps": 60,
       "afterFrames": 10,
@@ -127,18 +127,18 @@
       "dnf": false,
       "afterLoad": {
         "kind": "footprint",
-        "chromeBytes": 396571648,
-        "rendererBytes": 176894976,
-        "gpuProcessBytes": 101292032,
-        "jsHeapUsedBytes": 3581832,
+        "chromeBytes": 418487296,
+        "rendererBytes": 170183680,
+        "gpuProcessBytes": 126563328,
+        "jsHeapUsedBytes": 3472484,
         "readAtS": 20.001
       },
       "afterScripts": {
         "kind": "footprint",
-        "chromeBytes": 559834112,
-        "rendererBytes": 195453952,
-        "gpuProcessBytes": 245156864,
-        "jsHeapUsedBytes": 3949868
+        "chromeBytes": 612472832,
+        "rendererBytes": 201535488,
+        "gpuProcessBytes": 288358400,
+        "jsHeapUsedBytes": 3917908
       }
     }
   }

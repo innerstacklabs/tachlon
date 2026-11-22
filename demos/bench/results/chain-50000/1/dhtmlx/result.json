@@ -1,9 +1,9 @@
 {
   "tool": "drive",
-  "url": "http://127.0.0.1:52080/?cell=chain-50000-20261020",
+  "url": "http://127.0.0.1:56320/?cell=chain-50000-20261020",
   "side": "dhtmlx",
   "rows": 50000,
-  "date": "2026-11-05T17:10:55.248Z",
+  "date": "2026-11-22T07:02:22.076Z",
   "environment": {
     "chrome": "156.0.8078.4",
     "gpu": {
@@ -48,21 +48,21 @@
   "phases": {
     "load": {
       "dnf": false,
-      "ms": 790.2,
-      "libraryMs": 18.2,
-      "dataToReadyMs": 759,
+      "ms": 768.9,
+      "libraryMs": 17.6,
+      "dataToReadyMs": 737.9,
       "spotChecked": true,
-      "settledMs": 788.6,
-      "dataToSettledMs": 757.4
+      "settledMs": 783.3,
+      "dataToSettledMs": 752.3
     },
     "scroll-y": {
       "dnf": false,
       "verified": true,
-      "frames": 2838,
+      "frames": 2831,
       "p50": 16.7,
       "p95": 18.7,
-      "longGaps": 1,
-      "droppedFrames": 1,
+      "longGaps": 2,
+      "droppedFrames": 2,
       "max": 33.3,
       "steps": 120,
       "stepPx": 333.3333333333333,
@@ -79,12 +79,12 @@
     "scroll-x": {
       "dnf": false,
       "verified": true,
-      "frames": 855,
+      "frames": 856,
       "p50": 16.7,
       "p95": 18.7,
-      "longGaps": 0,
-      "droppedFrames": 0,
-      "max": 18.8,
+      "longGaps": 1,
+      "droppedFrames": 1,
+      "max": 35.4,
       "steps": 120,
       "stepPx": 213.33333333333334,
       "wheelEvents": {
@@ -100,13 +100,13 @@
     "drag": {
       "dnf": false,
       "verified": true,
-      "frames": 134,
+      "frames": 133,
       "p50": 16.7,
-      "p95": 17.9,
+      "p95": 18.6,
       "longGaps": 0,
       "droppedFrames": 0,
       "max": 18.7,
-      "commitMs": 0,
+      "commitMs": 49.3,
       "days": 10,
       "steps": 60,
       "afterFrames": 10,
@@ -127,18 +127,18 @@
       "dnf": false,
       "afterLoad": {
         "kind": "footprint",
-        "chromeBytes": 403805184,
-        "rendererBytes": 207722496,
-        "gpuProcessBytes": 85563392,
-        "jsHeapUsedBytes": 56572100,
+        "chromeBytes": 403701760,
+        "rendererBytes": 207618048,
+        "gpuProcessBytes": 85354496,
+        "jsHeapUsedBytes": 56546736,
         "readAtS": 20.001
       },
       "afterScripts": {
         "kind": "footprint",
         "chromeBytes": 429391872,
-        "rendererBytes": 225862656,
+        "rendererBytes": 225652736,
         "gpuProcessBytes": 97307648,
-        "jsHeapUsedBytes": 54260816
+        "jsHeapUsedBytes": 54244792
       }
     }
   }
