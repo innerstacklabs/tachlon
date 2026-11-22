@@ -72,6 +72,18 @@ With `--memory-infra` the command also turns on Chrome's own `disabled-by-defaul
 
 `profile.ts` made both tables: one page load per run, on a profile build with a counting allocator. The speed table on the site's page is not refilled from them. Its cells come from `demos/bench/results-file.ts`, which takes open from the load phase of `run.ts`'s drive and memory from the whole browser, a different quantity from navigation to ready or the GPU process. Refilling the page's table for this change needs a new `run.ts` run that includes the DHTMLX side, which is a row of its own.
 
+## A kept count: the critical-path drag on `tree4-50000`, 2026-11-22
+
+`node demos/bench/profile.ts --cell tree4-50000 --holder <lock name> --drag --critical-only --runs 10` on the Mac mini (Apple M4), `origin/main` at `09681df1`, three sessions one after the other. A run is in the 16.7 ms mode when its `drag.json` `frameIntervalP95Ms` is at most 25 ms, and in the 33 ms mode otherwise. Session 3 is session 2's command with a local, uncommitted edit that also wrote the page's `drag.encodeMs`, `recomputeMs` and missed-frame count to a file.
+
+| session | runs in the 16.7 ms mode | runs in the 33 ms mode | median response p50 / p95 (ms) |
+|---|---|---|---|
+| 1 | 0 | 10 | 16.2 / 25.4 |
+| 2 | 2 | 8 | 16.3 / 18.3 |
+| 3 | 2 | 8 | 16.3 / 18.5 |
+
+`profile.ts` prints and keeps only the frame interval and the response, and the page's own result also holds the frame's CPU time: in session 3 the CPU time of `App.frame()` (encode and submit, plus the recompute in a drag) had a p95 of 13.5 to 13.8 ms in the two runs in the 16.7 ms mode, with 26 and 28 of about 580 frames missed (under 5%), and 16.5 to 20.1 ms in the eight in the 33 ms mode, with 30 to 36 of about 540 missed (over 5%), so a run reads 33 ms when more than 1 frame in 20 misses. The page's report does not split a missed frame's time into recompute, upload and draw (its recompute p95 of 102 to 149 ms does not fit inside a frame CPU p95 of 13 to 20 ms), so the next measurement is the CPU time of the recompute and of the encode, and a GPU timestamp for the draw, each recorded per missed frame.
+
 ## Where the mini is used
 
 Every step that touches the mini is in `demos/bench/profile-mini.ts`. Per run it copies the bundle to a scratch directory there and serves it with `python3 -m http.server` on 127.0.0.1 (a free port, so no phase includes a transfer from the hub), starts a fresh Chromium with `--remote-debugging-port=0` and a temporary profile (it reads the port Chrome chose from `DevToolsActivePort`, so no port is assumed and no other browser is attached to), forwards that port to the hub, where Playwright drives it, and reads `vmmap`. When the run ends it stops the two processes it started, by pid (TERM, a wait of up to 5 s, then KILL), and removes the two temporary directories. Ctrl-C (or SIGTERM, SIGHUP) on the hub, even during the open, runs that same close (for at most 20 s) and exits 130. Everything made on the mini carries a marker, a temp directory named `gantt-profile.<id>` (Chrome's profile and the page server's folder are in them); a run that was stopped hard leaves them, so each run first stops any process whose command line holds such a path and removes such directories, and touches nothing without the marker. Run one profile command per mini at a time: a second one's start sweeps the first's. The build worktree is removed when the build ends; the bundle stays in the cache.
