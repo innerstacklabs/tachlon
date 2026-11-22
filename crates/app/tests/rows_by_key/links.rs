@@ -160,3 +160,106 @@ fn undo_and_redo_after_a_host_link_remove_never_stick() {
     assert!(!s.schedule().is_dependency_live(dep));
     drain(&mut s);
 }
+
+/// A person's rename of A, then their removal of the link C to D, which a host keys `l1`.
+fn person_removes_l1() -> Session {
+    let mut s = keyed_links();
+    rename(&mut s, A, "Mine");
+    s.edit(Edit::RemoveLink { dep: DepId(1) }).unwrap();
+    s.assign_key(KeyTarget::Link(DepId(1)), "l1").unwrap();
+    s
+}
+
+/// Everything a refused call must leave: links and whether each is live, `l1`'s holder, history, selections.
+fn held(s: &Session) -> String {
+    let links = s.schedule().dependencies().to_vec();
+    let live = (0..links.len()).map(|n| s.schedule().is_dependency_live(DepId(n as u32)));
+    let task = s.selection().map(|v| v.task);
+    let state = (s.revision(), s.selected_link(), task, s.history_len());
+    let key = s.host_keys().link("l1");
+    format!("{links:?} {:?} {key:?} {state:?}", live.collect::<Vec<_>>())
+}
+
+#[test]
+fn a_key_a_person_removed_brings_that_link_back() {
+    let mut s = person_removes_l1();
+    let links = s.schedule().dependencies().len();
+    let kept = |s: &Session| {
+        (
+            s.revision(),
+            s.selected_link(),
+            s.selection().map(|v| v.task),
+        )
+    };
+    let before = kept(&s);
+    let json = r#"{"key":"l1","pred":"t3","succ":"t4","kind":"SS","lag":60}"#;
+    assert_eq!(s.add_link_by_key(json), Ok(DepId(1)));
+    let link = s.schedule().dependencies()[1];
+    assert_eq!((link.kind, link.lag), (LinkType::SS, 60));
+    assert!(s.schedule().is_dependency_live(DepId(1)));
+    assert_eq!(s.schedule().dependencies().len(), links, "no new slot");
+    assert_eq!(s.host_keys().link("l1"), Some(DepId(1)));
+    assert_eq!(kept(&s), before);
+    assert_eq!(s.history_len(), (1, 0), "the person's remove is forgotten");
+    drain(&mut s);
+    assert!(s.schedule().is_dependency_live(DepId(1)));
+}
+
+#[test]
+fn a_refused_restore_changes_nothing() {
+    let mut s = person_removes_l1();
+    let before = held(&s);
+    #[rustfmt::skip]
+    let cases = [
+        (r#"{"key":"l1","pred":"t3","succ":"t5"}"#, "duplicateKey", "key"),
+        (r#"{"key":"l1","pred":"t3","succ":"t4","lag":9999999999}"#, "badValue", "lag"),    ];
+    for (json, kind, member) in cases {
+        let want = Err((kind, Some(member.to_owned())));
+        assert_eq!(
+            s.add_link_by_key(json).map_err(|e| (e.kind, e.member)),
+            want
+        );
+        assert_eq!(held(&s), before, "{json}");
+    }
+    // A person puts another link on the pair: the key's link cannot come back beside it.
+    s.edit(Edit::AddLink {
+        pred: C,
+        succ: D,
+        kind: LinkType::FS,
+        lag: 0,
+    })
+    .unwrap();
+    let before = held(&s);
+    let result = s.add_link_by_key(r#"{"key":"l1","pred":"t3","succ":"t4"}"#);
+    assert_eq!(result.map_err(|e| e.kind), Err("alreadyLinked"));
+    assert_eq!(held(&s), before);
+}
+
+#[test]
+fn a_bad_kind_or_lag_is_refused_by_name_and_changes_nothing() {
+    let mut s = person_removes_l1();
+    let before = held(&s);
+    let (add, restore) = (
+        r#""pred":"t3","succ":"t5""#,
+        r#""key":"l1","pred":"t3","succ":"t4""#,
+    );
+    let big = format!(r#""lag":{}"#, i64::MAX / 2);
+    #[rustfmt::skip]
+    let bad = [
+        (r#""kind":"XX""#, "kind"), (r#""kind":"fs""#, "kind"), (r#""kind":5"#, "kind"),
+        (r#""lag":"60""#, "lag"), (r#""lag":null"#, "lag"), (&*big, "lag"), (r#""lag":-9999999999"#, "lag"),
+    ];
+    for (member, name) in bad {
+        for json in [
+            format!("{{{add},{member}}}"),
+            format!("{{{restore},{member}}}"),
+        ] {
+            let result = s.add_link_by_key(&json).map_err(|e| (e.kind, e.member));
+            assert_eq!(result, Err(("badValue", Some(name.to_owned()))), "{json}");
+        }
+        let set = format!(r#"{{"key":"l0",{member}}}"#);
+        let result = s.set_link_by_key(&set).map_err(|e| (e.kind, e.member));
+        assert_eq!(result, Err(("badValue", Some(name.to_owned()))), "{set}");
+        assert_eq!(held(&s), before, "{member}");
+    }
+}
