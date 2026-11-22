@@ -158,11 +158,12 @@ function problem(name: string, f: Field, v: unknown): Pick<PlainIssue, "expected
   }
 }
 
+const NEED_START = ["actualFinish", "remaining", "resume"];
 /** The problems of a task's progress keys that no one field shows: `remaining` with `progress`, a key that needs an `actualStart`, and an actual finish before the start. */
-function progressIssues(t: Record<string, unknown>, path: string, add: Add, unstarted: boolean, week: [number, number][][] | undefined, bad: number): void {
-  if (t.remaining !== undefined && t.progress !== undefined) add(`${path}.remaining`, "remaining or progress, not both", show(t.remaining), "Keep remaining (the working days left) and remove progress, which the chart derives from it, or keep progress and remove remaining.");
-  for (const key of ["actualFinish", "remaining", "resume"]) if (t[key] !== undefined && t.actualStart === undefined && !(unstarted && key === "remaining")) add(`${path}.${key}`, "an actualStart on the same task", "nothing", `Add actualStart, or remove ${key}: it describes a task that has started (remaining alone is read when options.unstartedRemaining is "on").`);
-  if (t.actualStart !== undefined && t.actualFinish !== undefined && (bad & (BIT.actualStart! | BIT.actualFinish!)) === 0 && dateAt(t.actualFinish as string, "finish", week) < dateAt(t.actualStart as string, "start", week)) add(`${path}.actualFinish`, "an actual finish on or after the actual start", show(t.actualFinish), "Move actualFinish to the actualStart or later, or swap them.");
+function progressIssues(t: Record<string, unknown>, i: number, add: Add, unstarted: boolean, week: [number, number][][] | undefined, bad: number): void {
+  if (t.remaining !== undefined && t.progress !== undefined) add(`tasks[${i}].remaining`, "remaining or progress, not both", show(t.remaining), "Keep remaining (the working days left) and remove progress, which the chart derives from it, or keep progress and remove remaining.");
+  for (const key of NEED_START) if (t[key] !== undefined && t.actualStart === undefined && !(unstarted && key === "remaining")) add(`tasks[${i}].${key}`, "an actualStart on the same task", "nothing", `Add actualStart, or remove ${key}: it describes a task that has started (remaining alone is read when options.unstartedRemaining is "on").`);
+  if (t.actualStart !== undefined && t.actualFinish !== undefined && (bad & (BIT.actualStart! | BIT.actualFinish!)) === 0 && dateAt(t.actualFinish as string, "finish", week) < dateAt(t.actualStart as string, "start", week)) add(`tasks[${i}].actualFinish`, "an actual finish on or after the actual start", show(t.actualFinish), "Move actualFinish to the actualStart or later, or swap them.");
 }
 
 /** The schedule options of decision 0018 and the values each takes: the names the document and the engine use. */
@@ -223,11 +224,12 @@ function calendarIssues(data: Record<string, unknown>, add: Add): Set<string> {
   return keys;
 }
 
-/** A record's fields in order, and the names it requires. */
-interface Table { entries: [string, Field][]; required: string[] }
-const table = (fields: Record<string, Field>): Table => ({ entries: Object.entries(fields), required: Object.keys(fields).filter((name) => fields[name]!.required) });
-const TASK_TABLE = table(TASK);
-const LINK_TABLE = table(LINK);
+/** A record's fields in order, and the reader of their values in that order. */
+interface Table { entries: [string, Field][]; values: (r: Record<string, unknown>) => unknown[] }
+const table = (fields: Record<string, Field>, values: Table["values"]): Table => ({ entries: Object.entries(fields), values });
+/** The values of a task's fields in the order of `TASK`, each read by its name (the test `each_task_and_link_field_with_a_wrong_value_is_named_by_its_own_path` holds the order). */
+const TASK_TABLE = table(TASK, (r) => [r.id, r.name, r.start, r.end, r.duration, r.parent, r.progress, r.key, r.snet, r.snlt, r.fnet, r.fnlt, r.mso, r.mfo, r.constraint, r.alap, r.milestone, r.calendar, r.actualStart, r.actualFinish, r.remaining, r.resume]);
+const LINK_TABLE = table(LINK, (r) => [r.from, r.to, r.type, r.lag, r.key]);
 /** Each task field's bit in the mask `fields` returns of the fields with a wrong value: its place in `TASK`. */
 const BIT: Record<string, number> = Object.fromEntries(Object.keys(TASK).map((name, k) => [name, 1 << k]));
 
@@ -257,20 +259,22 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
   let parents: Set<string> | undefined; // the ids tasks name as parent ("" and null are no parent), read only when a task's start or end needs it
   const named = (id: string | undefined) => id !== undefined && (parents ??= new Set((data as { tasks: unknown[] }).tasks.flatMap((t) => { const p = (t as { parent?: unknown } | null)?.parent; return isId(p) && p !== "" ? [String(p)] : []; }))).has(id);
   /** The fields' problems, and the mask of the fields with a wrong value by their place in `table`: all bits for an entry that is no object. A task whose `id` other tasks name as parent takes its dates from them. */
-  const fields = (item: unknown, path: string, { entries, required }: Table, id?: string): number => {
+  const fields = (item: unknown, kind: "tasks" | "links", i: number, { entries, values }: Table, id?: string): number => {
     if (typeof item !== "object" || item === null || Array.isArray(item)) {
-      add(path, "an object", show(item), "Write each entry as an object in braces, with its fields.");
+      add(`${kind}[${i}]`, "an object", show(item), "Write each entry as an object in braces, with its fields.");
       return -1;
     }
     const rec = item as Record<string, unknown>;
     let bad = 0;
-    for (let k = 0; k < entries.length; k++) {
-      const v = rec[entries[k]![0]];
-      if (v !== undefined && !fine(entries[k]![1], v)) bad |= 1 << k;
-    }
     let complete = true;
-    for (const name of required) if (rec[name] === undefined) complete = false;
+    const vs = values(rec);
+    for (let k = 0; k < entries.length; k++) {
+      const v = vs[k], f = entries[k]![1];
+      if (v === undefined) complete &&= !f.required;
+      else if (!fine(f, v)) bad |= 1 << k;
+    }
     if (bad === 0 && complete) return 0;
+    const path = `${kind}[${i}]`; // built only for a record with a problem
     for (let k = 0; k < entries.length; k++) { // the problems in the table's order
       const [name, f] = entries[k]!;
       const v = rec[name];
@@ -300,6 +304,7 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
   if (!Array.isArray(tasks)) add("tasks", "an array of tasks", show(tasks), 'Pass the tasks as an array: { "tasks": [{ "id": 1, "name": "Task", "start": "2026-03-02" }] }.');
   if (links !== undefined && !Array.isArray(links)) add("links", "an array of links", show(links), 'Pass links as an array: [{ "from": 1, "to": 2 }], or leave links out.');
   const nums = new Map<number, number>(); // `ids` of the tasks with a number id, so a number is found without `String`
+  let texts = 0; // the tasks in `ids` with a text id
   const has = (v: string | number) => (typeof v === "number" ? nums.has(v) || ids.has(String(v)) : ids.has(v));
   if (Array.isArray(tasks)) {
     const late = new Uint8Array(tasks.length); // late[i]: an end before the start on a leaf whose end `fromTasks` reads
@@ -308,7 +313,7 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
       const t = tasks[i];
       const id = (t as { id?: unknown } | null)?.id;
       const name = isId(id) ? String(id) : undefined;
-      const bad = fields(t, `tasks[${i}]`, TASK_TABLE, name);
+      const bad = fields(t, "tasks", i, TASK_TABLE, name);
       keyed("tasks", t, i);
       const calendar = (t as { calendar?: unknown } | null)?.calendar;
       if (typeof calendar === "string" && !calendarKeys.has(calendar)) add(`tasks[${i}].calendar`, "the key of a calendar in calendars", show(calendar), "Use the key of a calendar in calendars, or leave calendar out for the first.");
@@ -316,13 +321,14 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
       if (twice !== undefined) add(`tasks[${i}].${twice}`, "constraint or this member, not both", show((t as Record<string, unknown>)[twice]), `Keep constraint, or the limit members snet to mfo, and remove the other: they are two spellings of one date limit.`);
       const pins = t as { mso?: unknown; mfo?: unknown } | null;
       if (pins?.mso !== undefined && pins.mfo !== undefined) add(`tasks[${i}].mfo`, "one pin, mso or mfo, not both", show(pins.mfo), "Keep mso (must start on) or mfo (must finish on), and remove the other.");
-      if (typeof t === "object" && t !== null) progressIssues(t as Record<string, unknown>, `tasks[${i}]`, add, unstarted, read?.list[typeof calendar === "string" ? read.at.get(calendar) ?? 0 : 0]?.week, bad);
-      const first = name === undefined ? undefined : ids.get(name);
+      if (typeof t === "object" && t !== null) progressIssues(t as Record<string, unknown>, i, add, unstarted, read?.list[typeof calendar === "string" ? read.at.get(calendar) ?? 0 : 0]?.week, bad);
+      const first = name === undefined ? undefined : typeof id === "number" && texts === 0 ? nums.get(id) : ids.get(name); // with no text id yet, `nums` holds every id so far
       if (name !== undefined) {
         if (name === "0") add(`tasks[${i}].id`, "an id other than 0", show(id), "Use another id: 0 is the root of the data, not a task.");
         if (first === undefined) {
           ids.set(name, i);
           if (typeof id === "number") nums.set(id, i);
+          else texts++;
         } else add(`tasks[${i}].id`, "an id no other task has", `${show(id)}, also tasks[${first}].id`, "Give each task its own id.");
       }
       // `fromTasks` reads an end only of a leaf (not the first task of an id named as parent) with no duration and no milestone type; a date alone is read as 00:00
@@ -352,7 +358,7 @@ export function inspect(data: unknown): { issues: PlainIssue[]; ids: Map<string,
     for (let i = 0; i < links.length; i++) {
       if (!(i in links)) continue;
       const l = links[i];
-      fields(l, `links[${i}]`, LINK_TABLE);
+      fields(l, "links", i, LINK_TABLE);
       keyed("links", l, i);
       const { from, to } = (l ?? {}) as { from?: unknown; to?: unknown };
       if (isId(from) && isId(to) && (typeof from === typeof to ? from === to || (from !== from && to !== to) : String(from) === String(to))) add(`links[${i}].to`, "a task other than from", show(to), "Link two different tasks: a task cannot depend on itself.");
