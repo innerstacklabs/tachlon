@@ -1,14 +1,15 @@
 {
-  "measuredOn": "2026-11-05",
+  "measuredOn": "2026-11-22",
   "machine": {
     "model": "Mac mini, Apple M4, 16 GB",
     "os": "macOS 26.7 (25G229), darwin 25.6.0",
-    "display": "1920x1080 at 60 Hz (system_profiler on the mini), measured 59.9 Hz by the driver on all 38 runs; headed, logged-in console session",
+    "display": "1920x1080 at 60 Hz (system_profiler on the mini), measured 59.9 Hz by the driver; headed, logged-in console session",
     "gpu": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)"
   },
   "ours": {
-    "commit": "af17939d103252ab3828bebeecf993d9cd3013d9",
-    "build": "the bench page (demos/bench/sides/ours-page.html) built on the hub from that commit: scripts/build-web.sh --no-bundle, then vite build with demos/bench/sides/ours-vite.config.ts in apps/hosted; bundleSha256 41d14d3dc8a7ae486dce2c85854449162d6e0faa5d9287d4cfdf3496823d0f7a",
+    "release": "0.5.0",
+    "commit": "45f38c4fba474794cc4aafa69fd764deaf74fa7e",
+    "build": "the bench page (demos/bench/sides/ours-page.html) built on the hub from that commit of main, which has the same engine, page and package code as the 0.5.0 release (the later commits change the docs, one test and the version number only): scripts/build-web.sh --no-bundle, then vite build with demos/bench/sides/ours-vite.config.ts in apps/hosted; bundleSha256 e934750d6a0da86a06df4f073ff5588092d4afe605ef6f74833b4b6835d8f414",
     "backend": "WebGPU"
   },
   "dhtmlx": {
@@ -17,13 +18,13 @@
     "license": "MIT (community edition), installed from npm by demos/bench/sides/dhtmlx-setup.ts into a directory outside any work tree"
   },
   "harness": {
-    "commit": "af17939d103252ab3828bebeecf993d9cd3013d9",
+    "commit": "7ecb10663bc208d9543e7deb30fe503ee46c44cc (the 0.4.0 release) for both sides",
     "node": "v26.12.1 (the mini's /opt/homebrew/bin/node)",
     "driverOptions": "the driver defaults (--dnf-s 120), the same for both sides",
     "seed": "20261020"
   },
   "browser": {
     "name": "Chromium 156.0.8078.4",
-    "source": "Playwright chromium-1248 from @playwright/test 1.64.1, headed"
+    "source": "Playwright, headed"
   }
 }
