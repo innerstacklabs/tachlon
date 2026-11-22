@@ -4,6 +4,7 @@ import { type Shell } from "./shell.js";
 import { type Filter, setFilter } from "./set-filter.js";
 import { type AcceptResult, type CompareResult, type EditResult, type LinkResult, type Refusal, refused, type RowResult } from "./edit-result.js";
 import { createHostCommands } from "./host-commands.js";
+import { type RowEdit } from "./row-edit.js";
 import { type WhatIfResult } from "./what-if.js";
 import { type ExplainResult } from "./explain.js";
 import { type HealthResult } from "./health.js";
@@ -140,19 +141,20 @@ export interface Commands {
 }
 
 /**
- * Build the commands over the chart's shell. `report` turns a thrown value into one line for the console; `busy` is `Gantt.busy()`; `refuse` shows a thrown refusal in the alert line.
+ * Build the commands over the chart's shell. `report` turns a thrown value into one line for the console; `busy` is `Gantt.busy()`; `rows` shows a thrown Undo or Redo refusal in the alert line.
  * @internal
  */
-export function createCommands({ canvas, app, status, root }: Shell, report: (err: unknown) => string, busy: () => boolean, refuse: (err: unknown) => void): Commands {
+export function createCommands({ canvas, app, status, root }: Shell, report: (err: unknown) => string, busy: () => boolean, rows: Pick<RowEdit, "refuse" | "rearm">): Commands {
   const select = (task: number | string): boolean => {
     const slot = typeof task === "string" ? (JSON.parse(app.task_slots([task])) as (number | null)[])[0] : task;
     return slot !== null && slot !== undefined && app.select_task(slot);
   };
   const history = (name: "undo" | "redo"): boolean => {
+    rows.rearm();
     try {
       return app[name]();
     } catch (err) {
-      refuse(err);
+      rows.refuse(err);
       return false;
     }
   };

@@ -6,19 +6,23 @@ test.use({ webgl: true });
 const NOTICE = "A step could no longer be undone or redone, so the chart dropped it from the list.";
 
 /** `inserts` (2 or more) inserts, an indent, an insert and an outdent: the host then gives a row a child with no undo step, so undoing that row's insert is refused. */
-async function refuseOneStep(g: Gantt, inserts: number): Promise<void> {
-  await g.open({ n: 60 });
-  await g.page.evaluate((count) => {
+async function build(g: Gantt, inserts: number, tag: string): Promise<void> {
+  await g.page.evaluate(([count, key]) => {
     const app = window.gantt!.app;
     const selected = () => (JSON.parse(app.status()) as { selected: { task: number } }).selected.task;
     app.select_task(5);
-    for (let i = 0; i < count; i += 1) app.insert_task();
+    for (let i = 0; i < Number(count); i += 1) app.insert_task();
     app.indent_selected();
     app.insert_task();
-    app.assign_task_key(selected(), "parent");
+    app.assign_task_key(selected(), `parent${key}`);
     app.outdent_selected();
-    app.add_task(JSON.stringify({ key: "child", name: "Child" }), "parent", null);
-  }, inserts);
+    app.add_task(JSON.stringify({ key: `child${key}`, name: "Child" }), `parent${key}`, null);
+  }, [inserts, tag] as const);
+}
+
+async function refuseOneStep(g: Gantt, inserts: number): Promise<void> {
+  await g.open({ n: 60 });
+  await build(g, inserts, "");
   await g.page.locator("#timeline").click({ position: { x: 20, y: 400 } });
 }
 
@@ -47,4 +51,20 @@ test("a press that drops a step and finds none below shows the same sentence", a
   await refuseOneStep(g, 2);
   for (let i = 0; i < 4; i += 1) await press(g);
   await expect(g.page.locator("#edit-error-text")).toHaveText(NOTICE);
+});
+
+test("two presses in a row that each drop a step and undo one show the notice after each", async ({ g }) => {
+  await g.open({ n: 60 });
+  await build(g, 3, "a");
+  // Its top three steps undone, the first block leaves [good, refused]; the second block builds [good, refused, ...] above it.
+  await g.page.evaluate(() => { for (let i = 0; i < 3; i += 1) window.gantt!.app.undo(); });
+  await build(g, 3, "b");
+  await g.page.locator("#timeline").click({ position: { x: 20, y: 400 } });
+  for (let i = 0; i < 3; i += 1) await press(g);
+  const notice = g.page.locator("#edit-error-text");
+  await press(g);
+  await expect(notice, "the first drop is said").toHaveText(NOTICE);
+  await press(g);
+  await expect(notice, "the second drop, worded the same, is said too").toHaveText(NOTICE);
+  await expect(g.page.locator("#edit-error")).toBeVisible();
 });

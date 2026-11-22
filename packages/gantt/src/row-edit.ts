@@ -19,6 +19,8 @@ export interface RowEdit {
   refuse: (err: unknown) => void;
   /** Show a hint that is not a failure in the alert line, in its info style; cleared the same way as a refusal. */
   hint: (message: string) => void;
+  /** Forget the link refusal last seen, before an Undo or Redo press: its report shows again when it is worded as the one before. Two presses inside one frame show only the second. */
+  rearm: () => void;
   /** Clear a refusal once the schedule changed or another file opened. */
   sync: (s: Status) => void;
 }
@@ -43,7 +45,7 @@ export function installRowEdit(shell: Shell, inserted: () => void): RowEdit { //
   // The revision and epoch the refusal was shown at: the next successful edit or open clears it.
   let shownAt: { revision: number; epoch: number } | null = null;
   // The link refusal the last status carried, and whether the line shows one: a link refusal ends with the next press.
-  let linkSeen: string | null = null;
+  let linkSeen: string | null | undefined = null;
   let lineIsLink = false;
   const clear = (): void => {
     shownAt = null;
@@ -96,6 +98,9 @@ export function installRowEdit(shell: Shell, inserted: () => void): RowEdit { //
     moveDown: () => run(() => app.move_selected_down()),
     refuse,
     hint,
+    rearm: () => {
+      linkSeen = undefined;
+    },
     sync: (s) => {
       // A link drag the engine refused shows its message in the same line; the next press clears it.
       const link = s.link.refusal;

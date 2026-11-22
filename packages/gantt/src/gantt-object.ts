@@ -6,6 +6,7 @@ import { loadSource } from "./load-source.js";
 import { readFilterInputs, type ViewState } from "./view-state.js";
 import { takeDown, type Shell } from "./shell.js";
 import type { OpenGuard } from "./open-guard.js";
+import type { RowEdit } from "./row-edit.js";
 import type { OpenedFile, OpenOptions } from "./open-schedule.js";
 import type { PageSize, PrintPages, Status } from "./api.js";
 import { pagePng } from "./image-export.js";
@@ -35,8 +36,8 @@ export interface GanttParts {
   openFile: (file: File, options?: OpenOptions) => Promise<void>;
   adopt: (file: OpenedFile, lines: string[], ms: number, expected: readonly string[], fileName: string | null, unsaved?: boolean) => void;
   busy: () => boolean;
-  /** Show a refusal in the alert line (`RowEdit.refuse`). */
-  refuse: (err: unknown) => void;
+  /** The alert line's part: a refused Undo or Redo shows in it. */
+  rows: Pick<RowEdit, "refuse" | "rearm">;
   /** Mark these task slots as pending (`installTable`). */
   setPending: (slots: readonly number[]) => void;
   wrote: (slots: readonly number[]) => void;
@@ -77,7 +78,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
     if (answer.ok) taken?.commit();
     return answer;
   };
-  const commands = guardCommands(createCommands(shell, p.reason, p.busy, p.refuse), () => destroyed);
+  const commands = guardCommands(createCommands(shell, p.reason, p.busy, p.rows), () => destroyed);
   return {
     commands,
     open: async (file, options) => {

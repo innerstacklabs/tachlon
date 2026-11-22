@@ -105,6 +105,7 @@ export function installKeys( // oxlint-disable-line max-lines-per-function -- ex
       // run its own undo either (it would return focus to the find box's last edit).
       e.preventDefault();
       if (!idle) return;
+      rows.rearm();
       try {
         if (undo) app.undo();
         else app.redo();
