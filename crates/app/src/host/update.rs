@@ -2,13 +2,12 @@
 //! edit: no gate, no undo step, no outbox commit, and `revision` stays; `stamp` rises, so the table
 //! redraws. Every record is read before a value is written, and a refusal puts every value back.
 
-use super::{Plan, read::read_duration};
+use super::{Plan, differs::is_host, read::read_duration};
 use crate::{
     Session,
-    document::json_read::{Value, parse},
+    document::json_read::{Value, parse_host},
     edit::{Edit, EditError},
     history::{Source, Step},
-    json::quote,
 };
 use engine::{Instant, Limit, Minutes, Pin, TaskId};
 use std::collections::HashSet;
@@ -18,7 +17,7 @@ use std::collections::HashSet;
 pub struct Updated {
     pub tasks: usize,
     pub solves: usize,
-    /// One JSON object (`record`, `key`, `member`, `host`, `chart`) per `hostStart` or `hostFinish` the chart computed otherwise.
+    /// One JSON object (`record`, `key`, `member`, `host`, `chart`) per `host*` member the chart computed otherwise.
     pub differs: Vec<String>,
 }
 
@@ -55,7 +54,6 @@ pub(super) struct Values {
     name: String,
     progress: Option<Progress>,
     percent: Option<u8>,
-    host: Vec<(usize, String, Instant)>,
 }
 
 /// A task and what a record sets on it, beside what it held.
@@ -112,7 +110,7 @@ impl Session {
     /// applies every record's `duration`, `start`, `snet`, limits and `name` first and works each `progress` out
     /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
     /// with a duration, start, snet or limit in any record solves twice, and any other call once. A member a
-    /// record leaves out keeps its value. `hostStart` and `hostFinish`, the dates the host computed, set nothing and are named in `differs` when the chart's early start or finish is not theirs (a day alone compares the day, a finish's day being its last minute's). `mso` and `mfo`, the pins, are read and never set: one that equals what the task's pin holds (`null` with no such pin) changes nothing, and any other is `notUpdatable`, as is every other member, `alap` included.
+    /// record leaves out keeps its value. `hostStart`, `hostFinish`, `hostLateStart`, `hostLateFinish`, `hostFloat`, `hostFreeFloat` and `hostCritical`, what the host computed, set nothing and are named in `differs` when the chart computed otherwise (a day alone compares the day, a finish's day being its last minute's; a float is in working days of the task's calendar, and may have a fraction). `mso` and `mfo`, the pins, are read and never set: one that equals what the task's pin holds (`null` with no such pin) changes nothing, and any other is `notUpdatable`, as is every other member, `alap` included.
     ///
     /// # Errors
     ///
@@ -137,7 +135,7 @@ impl Session {
             return Err(refuse(EditError::Busy));
         }
         let bad_json = || UpdateError::new("badJson", None, None);
-        let root = parse(json).map_err(|_| bad_json())?;
+        let root = parse_host(json).map_err(|_| bad_json())?;
         let records = root.as_array().ok_or_else(bad_json)?;
         let mut planned = Vec::with_capacity(records.len());
         let mut seen = HashSet::new();
@@ -155,7 +153,7 @@ impl Session {
         if undoable {
             self.undo_refusal(&planned)?;
             if (planned.iter()).all(|(task, (new, old))| new.steps_back(old, *task).is_empty()) {
-                let differs = self.differences(records, &planned);
+                let differs = self.differences(records, &planned)?;
                 let tasks = planned.len();
                 return Ok((
                     Updated {
@@ -194,6 +192,7 @@ impl Session {
         }
         self.solve_full(None, |session| session.put_back(&done))
             .map_err(refuse)?;
+        let differs = self.differences(records, &planned)?;
         if let Some(held) = &mut self.proposal {
             held.solved = None;
         }
@@ -205,7 +204,7 @@ impl Session {
         let updated = Updated {
             tasks: planned.len(),
             solves: 1 + usize::from(mixed),
-            differs: self.differences(records, &planned),
+            differs,
         };
         Ok((updated, planned))
     }
@@ -233,30 +232,6 @@ impl Session {
             }
         }
         Ok(())
-    }
-
-    /// Each `hostStart` and `hostFinish` in `planned` that is not its task's early start or finish, as JSON.
-    fn differences(&self, records: &[Value], planned: &[Written]) -> Vec<String> {
-        let mut found = vec![];
-        for (record, (task, (new, _))) in planned.iter().enumerate() {
-            let d = &self.solution.dates[task.0 as usize];
-            let key = records[record].get("key").and_then(Value::as_str);
-            for (kind, text, host) in &new.host {
-                let (chart, back) = [(d.es, 0), (d.ef, 1)][*kind];
-                let day = |t| self.origin.day_text(t - back);
-                if *host != chart && (text.contains('T') || day(*host) != day(chart)) {
-                    let shown = [day(chart), self.date_text(chart).replacen(' ', "T", 1)];
-                    found.push(format!(
-                        r#"{{"record":{record},"key":{},"member":"{}","host":{},"chart":{}}}"#,
-                        quote(key.unwrap_or_default()),
-                        ["start", "finish"][*kind],
-                        quote(text),
-                        quote(&shown[usize::from(text.contains('T'))])
-                    ));
-                }
-            }
-        }
-        found
     }
 
     /// Set each record's `progress` in `planned`: worked out against the plan the other members leave, which
@@ -303,7 +278,6 @@ impl Session {
             name: self.meta[task.0 as usize].name.clone(),
             progress: None,
             percent: None,
-            host: vec![],
         };
         let members: &[_] = match record {
             Value::Object(members)
@@ -341,11 +315,8 @@ impl Session {
                 "fnlt" => new.limit.fnlt = limit(value, true)?,
                 "mso" | "mfo"
                     if limit(value, &**name == "mfo")? == pin_of(current.limit.pin, name) => {}
-                "hostStart" | "hostFinish" => {
-                    let kind = usize::from(&**name == "hostFinish");
-                    let at = [Session::read_date, Session::read_finish][kind](self, value);
-                    let text = value.as_str().unwrap_or_default().to_owned();
-                    new.host.push((kind, text, at.ok_or_else(bad)?));
+                host if is_host(host) => {
+                    self.read_host(host, value).ok_or_else(bad)?;
                 }
                 "name" => {
                     let text = value.as_str().ok_or_else(bad)?.trim();

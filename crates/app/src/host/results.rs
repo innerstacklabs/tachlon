@@ -6,7 +6,7 @@ use engine::{Instant, Minutes, ScheduleError, TaskId};
 
 /// `minutes` as days of `day` minutes: the exact quotient, so it can be a fraction.
 #[expect(clippy::cast_precision_loss, reason = "minutes are far below 2^53")]
-fn days(minutes: Minutes, day: Minutes) -> f64 {
+pub(super) fn days(minutes: Minutes, day: Minutes) -> f64 {
     minutes as f64 / day as f64
 }
 

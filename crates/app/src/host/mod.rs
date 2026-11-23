@@ -5,6 +5,7 @@
 mod baseline;
 mod capabilities;
 mod conform;
+mod differs;
 mod edit;
 mod gate;
 mod keys;
