@@ -24,7 +24,7 @@ The README's "How it compares" section is this table, and `node scripts/features
 | 8 | Summary tasks in an outline | Yes | All | Both | Yes |
 | 9 | Milestones | Yes | All | Both | Yes |
 | 10 | Split tasks | No | Ent only | PRO only | Yes |
-| 11 | Resource names on tasks, and a filter by resource | Yes | Core, Ent | PRO only | Yes |
+| 11 | Resource names on tasks, and a filter by resource | Yes; from MS Project XML, a P6 open reads none | Core, Ent | PRO only | Yes |
 | 12 | Edit resource assignments | No | Core, Ent | PRO only | Yes |
 | 13 | Resource workload or histogram view | No | Widget in the examples; not in the feature table | PRO only | Over-allocation mark; no histogram found |
 | 14 | Schedule-quality checks (DCMA-style counts) | Yes ★ | Not found | Not found | Not found |
@@ -54,9 +54,9 @@ The README's "How it compares" section is this table, and `node scripts/features
 | 35 | A color per task bar | Yes | All | Yes; edition not stated | Yes |
 | 36 | Custom bar content from a template | No | All | Yes; edition not stated | Yes |
 | 37 | Keyboard navigation | Yes | Yes | Both | Yes |
-| 38 | Screen-reader access to the timeline bars | Yes | WCAG 2.1 and Section 508 stated as a goal | WAI-ARIA on by default; bars not stated | WCAG 2.2 AA "for most criteria" |
+| 38 | Screen-reader access to the timeline bars | Yes; the spoken text was not tried with a screen reader | WCAG 2.1 and Section 508 stated as a goal | WAI-ARIA on by default; bars not stated | WCAG 2.2 AA "for most criteria" |
 | | **Languages** | | | | |
-| 39 | Translated UI text and locale number and date formats | Yes | All (45 locales) | Both (50+ locales) | Yes |
+| 39 | Translated UI text and locale number and date formats | Yes: English ships, other languages come from your `texts` | All (45 locales) | Both (50+ locales) | Yes |
 | 40 | Right-to-left layout | Yes; the timeline stays left to right | Not documented | Both | Yes |
 | | **Developer API** | | | | |
 | 41 | TypeScript declarations | Yes | Yes | Yes | Yes |
@@ -108,7 +108,7 @@ Cites are paths at `origin/main` `3135461a` or merged PR numbers. "pkg README" i
 - 5: `crates/engine/src/calendar.rs`; per-task calendar in `model.rs`; read from XER and MS Project files and from a document's `calendars`. The plain `tasks` data uses one calendar (`adapters/plain.ts`).
 - 6: Baseline button and `chart.commands.setBaseline()`, `setBaselineFromFile()` (`packages/gantt/src/commands.ts`); DHTMLX planned dates open as the baseline #1979. One baseline; P6 baselines are not read (README, "Not yet").
 - 7, 8, 9: docs/JOURNEYS.md, journeys J3, J8; `model.rs` ("Zero makes a milestone"); the site Features page (`apps/site/features.html`).
-- 11: resource filter `{ resource }` (`packages/gantt/src/commands.ts`); names are display-only (`crates/app/src/resources.rs`).
+- 11: resource filter `{ resource }` (`packages/gantt/src/commands.ts`); names are display-only (`crates/app/src/resources.rs`). The MS Project XML reader fills them; the P6 XER reader leaves every resource list empty.
 - 14: 14 counts in `chart.commands.health()` (the package's `describe commands` and pkg README "Ask the engine", which names the counts; docs/JOURNEYS.md J4); Show buttons #1985, #1986.
 - 15: `chart.commands.whatIf`, `whatIfLonger`, `explain` (pkg README).
 - 16: Compare with a file, `setBaselineFromFile` (docs/JOURNEYS.md J3).
@@ -128,7 +128,7 @@ Cites are paths at `origin/main` `3135461a` or merged PR numbers. "pkg README" i
 - 35: #2001 draws a bar in its own color, #2008 keeps a task's `color` and `label` in the schedule document that `chart.load` reads, #2012 takes a `color` (`#rrggbb`) on a task given to `fromTasks`, and #2016 adds `label` there and `color` to `fromDhtmlx` (pkg README; `docs/WASM_API.md`, `PlainTask` and `App.save`).
 - 37: docs/KEYS.md.
 - 38: the task list is an ARIA tree grid (`packages/gantt/src/table-aria.ts`); the timeline canvas is one `role="img"` (`packages/gantt/src/chart.html`). The bars are spoken through the `card-live` live region when the selection moves: dates, float, critical state, percent complete, link counts and baseline start (`packages/gantt/src/bar-speech.ts`) #2014, #2017. The wording was not tried with a screen reader.
-- 39: `locale` and `texts` mount options (`gantt-types.ts`) #1906, #1925, #1929, #1934, #1941, #1943, #1945; month and weekday names #1911, #1980; week start #1930; passed by the React, Vue and Angular components #1983; host fonts for other scripts #1992, #1999.
+- 39: `packages/gantt/src/texts-en.ts` is the only texts file, so English ships and any other language comes from your `texts`. `locale` and `texts` mount options (`gantt-types.ts`) #1906, #1925, #1929, #1934, #1941, #1943, #1945; month and weekday names #1911, #1980; week start #1930; passed by the React, Vue and Angular components #1983; host fonts for other scripts #1992, #1999.
 - 40: `dirOf` sets `dir="rtl"` for Arabic, Hebrew, Persian, Urdu, Pashto, Sindhi, Yiddish, Sorani, Dhivehi and Uyghur (`packages/gantt/src/locale.ts`) #1939, #1948, #1950, #1951, #1952, #1953. The table, toolbar and panels mirror; the timeline stays left to right.
 - 41: `packages/gantt/package.json` `types` for every export.
 - 42: the `react`, `vue` (#1882, #1898) and `angular` (#1891) exports in `packages/gantt/package.json`.
