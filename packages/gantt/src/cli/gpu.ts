@@ -18,7 +18,9 @@ export type Draw = { page: string; rows: number; width: number; height: number }
 export const BROWSER_VARIABLE = `${PRODUCT_NAME.toUpperCase()}_BROWSER`;
 const NAMES = ["google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "microsoft-edge"];
 const APPS = ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"];
-const PLAYWRIGHT_PROGRAMS = ["chrome-linux64/chrome", "chrome-linux/chrome", "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing", "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing", "chrome-win64/chrome.exe", "chrome-win/chrome.exe"];
+const WINDOWS_FOLDERS = ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"];
+const WINDOWS_PROGRAMS = [join("Google", "Chrome", "Application", "chrome.exe"), join("Microsoft", "Edge", "Application", "msedge.exe")];
+const PLAYWRIGHT_PROGRAMS =["chrome-linux64/chrome", "chrome-linux/chrome", "chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing", "chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing", "chrome-win64/chrome.exe", "chrome-win/chrome.exe"];
 const TIMEOUT_MS = 30_000;
 /** The page: it asks as `mount` does, and writes the answer into its title, which `--dump-dom` prints. A file address is a secure context, where `navigator.gpu` exists. */
 const PAGE = `<!doctype html><title></title><script>
@@ -61,11 +63,12 @@ function playwrightChromium(env: NodeJS.ProcessEnv): string | undefined {
   return builds.sort((a, b) => number(b) - number(a)).flatMap((b) => PLAYWRIGHT_PROGRAMS.map((p) => join(b, p))).find(runnable);
 }
 
-/** The browser to ask: the one the environment variable names, else the first of the usual names on the path, else the usual place of an app on a Mac, else a Chromium Playwright installed. */
+/** The browser to ask: the one the environment variable names, else the first of the usual names on the path, else the usual place of an app on a Mac, else the usual folder of Chrome or Edge on Windows, else a Chromium Playwright installed. */
 function findBrowser(env: NodeJS.ProcessEnv): string | undefined {
   if (env[BROWSER_VARIABLE]) return env[BROWSER_VARIABLE];
   const onPath = (env.PATH ?? "").split(delimiter).filter(Boolean).flatMap((d) => NAMES.map((n) => join(d, n)));
-  return [...onPath, ...APPS].find(runnable) ?? playwrightChromium(env);
+  const onWindows = WINDOWS_FOLDERS.flatMap((v) => env[v] ?? "").filter(Boolean).flatMap((d) => WINDOWS_PROGRAMS.map((p) => join(d, p)));
+  return [...onPath, ...APPS, ...onWindows].find(runnable) ?? playwrightChromium(env);
 }
 
 /** The first line `stderr` holds, the one that says why a browser failed to start. */
