@@ -52,26 +52,31 @@ impl Session {
         Some(())
     }
 
-    /// Refuse the actuals `given` that record `at` sets on `task`, beside `progress` (which writes them too), with
-    /// a finish before the start, a finish or remaining with no start (a remaining alone is read when the
+    /// Refuse the actuals `given` that record `at` sets on `task`, with a `remaining` beside `progress` (the
+    /// record `said` the members it names), a finish before the start, a finish or remaining with no start (a remaining alone is read when the
     /// schedule's `unstartedRemaining` is on), or a date after the data date, as `validate` and a typed actual do.
     pub(super) fn check_actuals(
         &self,
         at: usize,
         task: TaskId,
         given: Progress,
-        with_percent: bool,
+        said: &[&str],
     ) -> Result<(), UpdateError> {
         let refuse = |kind, member| Err(UpdateError::new(kind, Some(at), Some(member)));
         let unstarted = self.schedule.options().unstarted_remaining == UnstartedRemaining::On;
         let lone = (given.finish.map(|_| "actualFinish"))
             .or(given.remaining.filter(|_| !unstarted).map(|_| "remaining"));
         match (given.start, given.finish, lone) {
-            _ if with_percent => return refuse("badValue", "progress"),
+            _ if said.contains(&"progress") && said.contains(&"remaining") => {
+                return refuse("badValue", "progress");
+            }
             (Some(start), Some(finish), _) if finish < start => {
                 return refuse(EditError::FinishBeforeStart.kind(), "actualFinish");
             }
-            (None, _, Some(member)) => return refuse("badValue", member),
+            (None, _, Some(member)) => {
+                let cleared = said.contains(&"actualStart");
+                return refuse("badValue", if cleared { "actualStart" } else { member });
+            }
             _ => {}
         }
         for (member, start, finish) in [

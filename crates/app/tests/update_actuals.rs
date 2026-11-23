@@ -73,3 +73,26 @@ fn actuals_that_plain_data_refuses_are_refused_by_member_and_change_nothing() {
         assert_eq!(saved(&session), before, "{record}");
     }
 }
+
+#[test]
+fn a_progress_beside_an_actual_date_sets_nothing_and_clearing_the_start_is_named() {
+    let (mut session, _) = keyed();
+    let depth = session.history_len();
+    session
+        .update_tasks(r#"[{"key":"k4","progress":100,"actualStart":"2026-03-02"}]"#)
+        .unwrap();
+    let (start, finish, remaining) = held(&session, "k4");
+    assert_eq!((start.is_some(), finish, remaining), (true, None, None));
+    session
+        .update_tasks(r#"[{"key":"k4","actualFinish":"2026-03-03"}]"#)
+        .unwrap();
+    let before = saved(&session);
+    let error = session
+        .update_tasks(r#"[{"key":"k4","progress":20,"actualStart":null}]"#)
+        .unwrap_err();
+    assert_eq!(
+        (error.kind, error.record, error.member.as_deref()),
+        ("badValue", Some(0), Some("actualStart"))
+    );
+    assert_eq!((saved(&session), session.history_len()), (before, depth));
+}

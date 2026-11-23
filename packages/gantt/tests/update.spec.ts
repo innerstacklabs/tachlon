@@ -395,3 +395,27 @@ test("a React host moves the data date in place: no second start, the same day a
   expect(await page.evaluate(() => [window.upChart.setData({ dataDate: "2026-03-09" }), window.upChart.setData({ dataDate: "2026-02-30" })])).toMatchObject([{ ok: true, updated: 0 }, { ok: false, reason: "badDate" }]);
   expect(await page.evaluate(() => [window.upChart.commands.undo(), window.upChart.state().dataDate, window.upChart.commands.undo()]), "one step, and it is the data date").toEqual([true, null, false]);
 });
+
+const actuals = (page: Page) => page.evaluate(() => (window.upChart.toDocument() as { tasks: { actual_start: number | null; actual_finish: number | null; remaining: number | null }[] }).tasks[0]!).then(({ actual_start, actual_finish, remaining }) => [actual_start, actual_finish, remaining]);
+
+test("update with a progress beside an actual date ends as a mount of the same task: start + 20, start + 100 with a finish, start + 100 with none", async ({ page }) => {
+  const start = { progress: 20, actualStart: "2026-03-02" };
+  for (const given of [start, { ...start, progress: 100, actualFinish: "2026-03-03" }, { ...start, progress: 100 }]) {
+    await mountHost(page, { tasks: tasks(1, given) });
+    const mounted = await actuals(page);
+    expect(mounted[0], "the mounted task started").not.toBeNull();
+    await mountHost(page, { tasks: tasks(1) });
+    expect(await page.evaluate((g) => window.upChart.update([{ key: "k0", ...g }]), given)).toEqual({ ok: true, updated: 1 });
+    expect(await actuals(page), JSON.stringify(given)).toEqual(mounted);
+  }
+});
+
+test("setData takes a task's progress 0 to 20 and its actualStart none to a date in one call: accepted, the undo list stays, no second start", async ({ page }) => {
+  const rows = (extra: object) => tasks(3).map((t, i) => (i === 0 ? { ...t, progress: 0, ...extra } : t));
+  await mountHost(page, { tasks: rows({}) });
+  expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k1", name: "Renamed" }]))).toEqual({ ok: true, updated: 1 });
+  await expect.poll(() => page.evaluate(() => window.edits.length)).toBe(1);
+  expect(await page.evaluate((r) => window.upChart.setData({ tasks: r } as never), rows({ progress: 20, actualStart: "2026-03-02" }))).toEqual({ ok: true, updated: 1 });
+  expect((await actuals(page))[0], "the task started").not.toBeNull();
+  expect(await page.evaluate(() => [window.edits.length, window.upChart.commands.undo(), window.upChart.commands.undo()]), "setData is no edit and no undo step").toEqual([1, true, false]);
+});

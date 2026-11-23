@@ -26,7 +26,8 @@ pub struct Updated {
 /// Why an update was refused. Nothing changed. `kind` is `badJson`, `noKey`, `unknownKey` (a
 /// deleted task's key too), `duplicateKey`, `notUpdatable` (a member an update does not set, or a summary),
 /// `badValue`, or an [`EditError::kind`]: `busy` and `schedule`, and for a `name` or a `progress` the
-/// reasons a typed rename or percent gets (`emptyName`, `invalidName`, `badPercent`, `finishBeforeStart`, `actualAfterDataDate`).
+/// reasons a typed rename or percent gets (`emptyName`, `invalidName`, `badPercent`, `actualAfterDataDate`), and for an
+/// `actualStart` or `actualFinish` `finishBeforeStart` and `actualAfterDataDate`.
 /// `record` counts from 0.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateError {
@@ -111,7 +112,7 @@ impl Session {
     /// sets it, and refused as a typed actual is when an actual it sets is after the data date. The call
     /// applies every record's `duration`, `start`, `snet`, limits and `name` first and works each `progress` out
     /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
-    /// with a duration, start, snet or limit in any record solves twice, and any other call once. `actualStart` and `actualFinish` take a date or `null` (a date alone is read as plain data reads it: the first working minute of the day, and the end of its last) and `remaining` a whole number of working minutes or `null`; a record that gives one with `progress`, an actual finish before the start, a finish or remaining (unless `unstartedRemaining` is on) with no actual start, or an actual after the data date is refused. A member a
+    /// with a duration, start, snet or limit in any record solves twice, and any other call once. `actualStart` and `actualFinish` take a date or `null` (a date alone is read as plain data reads it: the first working minute of the day, and the end of its last) and `remaining` a whole number of working minutes or `null`; a record that gives `remaining` with `progress` (beside an actual date, `progress` is read and sets nothing: the dates stand, as a mount of the same task reads them), an actual finish before the start, a finish or remaining (unless `unstartedRemaining` is on) with no actual start, or an actual after the data date is refused. A member a
     /// record leaves out keeps its value. `hostStart`, `hostFinish`, `hostLateStart`, `hostLateFinish`, `hostFloat`, `hostFreeFloat` and `hostCritical`, what the host computed, set nothing and are named in `differs` when the chart computed otherwise (a day alone compares the day, a finish's day being its last minute's; a float is in working days of the task's calendar, and may have a fraction). `mso` and `mfo`, the pins, are read and never set: one that equals what the task's pin holds (`null` with no such pin) changes nothing, and any other is `notUpdatable`, as is every other member, `alap` included.
     ///
     /// # Errors
@@ -288,6 +289,7 @@ impl Session {
         let held = Progress::of(current);
         let mut new = old.clone();
         let (mut percent, mut actuals) = (None, None::<Progress>);
+        let mut said: Vec<&str> = Vec::new();
         for (name, value) in members {
             let bad = || UpdateError::new("badValue", Some(at), Some(name));
             let refused = |error: EditError| UpdateError::new(error.kind(), Some(at), Some(name));
@@ -329,6 +331,7 @@ impl Session {
                 "actualStart" | "actualFinish" | "remaining" => {
                     let given = actuals.get_or_insert(held);
                     self.read_actual(task, name, value, given).ok_or_else(bad)?;
+                    said.push(name);
                 }
                 "progress" => {
                     let Value::Int(n) = value else {
@@ -336,6 +339,7 @@ impl Session {
                     };
                     let whole = u8::try_from(*n).ok().filter(|&n| n <= 100);
                     percent = Some(whole.ok_or_else(|| refused(EditError::BadPercent))?);
+                    said.push(name);
                 }
                 _ => return Err(UpdateError::new("notUpdatable", Some(at), Some(name))),
             }
@@ -345,7 +349,8 @@ impl Session {
         }
         new.percent = percent;
         if let Some(given) = actuals {
-            self.check_actuals(at, task, given, percent.is_some())?;
+            self.check_actuals(at, task, given, &said)?;
+            new.percent = None; // the given dates stand, and a percent beside them sets nothing
             new.progress = Some(given);
         }
         Ok((new, old))
