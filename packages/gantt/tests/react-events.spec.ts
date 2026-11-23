@@ -17,6 +17,9 @@ window.capsAt = async (capabilities) => (root.render(h(Gantt, { schedule, capabi
 window.saveAt = async (on) => (root.render(h(Gantt, { schedule, save: on ? async () => "sent" : undefined })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.length, answer: (await mounts[0].save[Symbol.for("gantt.liveSave")]()?.({})) ?? "none" });
 window.linkSaveAt = async (save) => (root.render(h(Gantt, { schedule, save })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.length, profiled: globalThis.profiled?.length ?? 0 });
 window.beforeEditAt = async (answer) => (root.render(h(Gantt, { schedule, beforeEdit: () => answer })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.length, answered: mounts[0].beforeEdit({ kind: "setDuration" }) });
+const rowState = () => ({ mounts: mounts.length, sets: (globalThis.sets ?? []).length, destroyed: (globalThis.destroyed ?? []).length });
+window.rowsAt = async (tasks) => (root.render(h(Gantt, { tasks })), await new Promise((done) => setTimeout(done, 300)), rowState());
+window.heldRows = async (first, second) => { const wait = (ms) => new Promise((done) => setTimeout(done, ms)); let release; globalThis.gate = new Promise((done) => (release = done)); root.render(h(Gantt, { tasks: first })); await wait(100); root.render(h(Gantt, { tasks: second })); await wait(100); release(); await wait(300); return rowState(); };
 window.heldReadOnly = async () => { const held = { demo: 2 }, wait = (ms) => new Promise((done) => setTimeout(done, ms)); let release; globalThis.gate = new Promise((done) => (release = done)); root.render(h(Gantt, { schedule: held, readOnly: false })); await wait(100); root.render(h(Gantt, { schedule: held, readOnly: true })); await wait(100); release(); await wait(300); return [...globalThis.switched]; };`;
 const wasmHost = { name: "wasm-host", resolveId: (id: string) => (id === "/tests/wasm-host.ts" ? id : null), load: (id: string) => (id === "/tests/wasm-host.ts" ? WASM_HOST : null) };
 
@@ -134,6 +137,22 @@ test("a `save` removed or added after the mount is read when a change set is sen
   expect.soft(await page.evaluate("saveAt(false)"), "no save at the mount: there is nothing to call and nothing throws").toEqual({ mounts: 1, answer: "none" });
   expect.soft(await page.evaluate("saveAt(true)"), "a save added later is called by the chart that is mounted").toEqual({ mounts: 1, answer: "sent" });
   expect.soft(await page.evaluate("saveAt(false)"), "removed again, there is nothing to call and nothing throws").toEqual({ mounts: 1, answer: "none" });
+});
+
+test("new `tasks` go to `setData` on the chart that is mounted, and the chart starts again only when `setData` refuses them, a member it ignores changed, or a start was pending", async ({ page }) => {
+  const base = server.resolvedUrls!.local[0]!;
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST.replace("react-events-host", "wasm-host") }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction("window.rowsAt");
+  const rows = (name: string, key = "a", color?: string) => [{ id: 1, key, name, ...(color && { color }) }, { id: 2, key: "b", name: "Build" }];
+  const at = (tasks: object[]) => page.evaluate((t) => (window as any).rowsAt(t), tasks);
+  expect.soft(await at(rows("Design")), "the first rows mount the chart").toEqual({ mounts: 1, sets: 0, destroyed: 0 });
+  expect.soft(await at(rows("Renamed")), "a name goes to setData once: no second mount, nothing destroyed").toEqual({ mounts: 1, sets: 1, destroyed: 0 });
+  expect.soft(await at(rows("Renamed", "new")), "a task setData refuses mounts the chart again").toEqual({ mounts: 2, sets: 2, destroyed: 1 });
+  expect.soft(await at(rows("Renamed", "new", "red")), "a color setData ignores mounts it again, with no setData call").toEqual({ mounts: 3, sets: 2, destroyed: 2 });
+  await page.reload();
+  await page.waitForFunction("window.heldRows");
+  expect.soft(await page.evaluate((t) => (window as any).heldRows(t[0], t[1]), [rows("Design"), rows("Renamed")]), "rows that change while the start is pending mount again once it has settled").toEqual({ mounts: 2, sets: 0, destroyed: 1 });
 });
 
 test("a new `beforeEdit` reaches the chart that is mounted and mounts nothing", async ({ page }) => {
