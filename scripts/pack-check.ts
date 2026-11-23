@@ -4,7 +4,7 @@
 import { binProblems, cssUrlsOutsidePack, declarationsNamingWasm, manifestProblems, missingExpected, missingFromPack, strayFiles } from "./lib/pack-check.ts";
 
 // The user guide's files (packages/gantt/guide/, copied by scripts/emit-guide.ts).
-const GUIDE = ["README", "baseline", "build", "change", "checks", "navigate", "open", "print", "progress", "save", "task-dialog"].map((n) => `dist-lib/guide/${n}.md`);
+const GUIDE = ["PROMPT", "README", "baseline", "build", "change", "checks", "navigate", "open", "print", "progress", "save", "task-dialog"].map((n) => `dist-lib/guide/${n}.md`);
 
 // Files the tarball must hold that no `exports` entry names.
 const EXPECTED = ["README.md", "LICENSE", "AGENTS.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", ...GUIDE];

@@ -84,7 +84,7 @@ The package carries its own instructions, so your assistant works from the versi
 | [`llms.txt`](https://tachlon.com/llms.txt) | Tells an assistant what to read first. |
 | [Engine tools](packages/gantt/README.md#tools-for-an-ai-assistant) | Typed tools, in MCP, Anthropic and OpenAI forms, for the assistant inside your own product: five ask the engine about the schedule, and one proposes an edit for a person to accept. |
 | [In-chart assistant](packages/gantt/README.md#tools-for-an-ai-assistant) | Give `mount` an `assistant` option and the chart puts a chat box beside itself. Your own `send` calls your model. |
-| Your product's user guide | Coming: product-neutral user chapters in the package, with a prompt your assistant uses to turn them into your own product's documentation. Today [`packages/gantt/guide/`](packages/gantt/guide/README.md) holds the guide's frame and its first chapter, the task dialog; the chapters and the prompt arrive with a coming release. |
+| [Your product's user guide](packages/gantt/README.md#your-products-user-guide) | The package ships product-neutral user chapters, one file for each feature ([`packages/gantt/guide/`](packages/gantt/guide/README.md)), and `npx tachlon describe guide` prints the prompt your assistant follows to turn them into your own product's documentation: your name and voice, only the features your options turn on, and a list of the screenshots to take. |
 
 ## Measured
 
