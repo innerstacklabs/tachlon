@@ -221,7 +221,7 @@ pub enum ImportError {
     TooDeep,
     /// The file is an MS Project binary file, not XML.
     NotXml,
-    /// The file is not a schedule: a PDF, a ZIP archive, or XML that is not an MS Project file.
+    /// The file is not a schedule: a PDF, a ZIP archive, UTF-16 text, a file that is neither XML nor an XER, or XML that is not an MS Project file.
     NotASchedule {
         /// What the file is, as the words after "this is".
         what: String,
