@@ -83,13 +83,21 @@ try {
   check("empty guide stops the copy", emit().status, 1);
   for (const n of names) writeFileSync(join(lic, "guide", n), "x\n");
   check("emit-guide then pack passes", [emit().status, packCheck().status], [0, 0]);
-  rmSync(join(lic, guide[0]));
-  check("a guide file lacking", packCheck().stderr.includes(`the tarball lacks ${guide[0]}`), true);
-  emit();
-  // The prompt that turns the guide into a product's own documentation ships beside the chapters: `describe guide` prints it.
-  rmSync(join(lic, "dist-lib/guide/PROMPT.md"));
-  check("the prompt lacking", packCheck().stderr.includes("the tarball lacks dist-lib/guide/PROMPT.md"), true);
-  emit();
+  // Each chapter in turn: the list the check holds the pack to comes from the guide folder, so none can drop out of it.
+  for (const n of names.filter((f) => f.endsWith(".md"))) {
+    rmSync(join(lic, "dist-lib/guide", n));
+    check(`guide chapter ${n} lacking`, packCheck().stderr.includes(`the tarball lacks dist-lib/guide/${n}`), true);
+    emit();
+  }
+  // dist-lib/guide/ holds Markdown and the guide's LICENSE: a picture, or a file in a folder, fails the pack naming it.
+  for (const stray of ["cover.png", "img/cover.png"]) {
+    mkdirSync(dirname(join(lic, "dist-lib/guide", stray)), { recursive: true });
+    writeFileSync(join(lic, "dist-lib/guide", stray), "x\n");
+    const r = packCheck();
+    check(`guide holds ${stray}`, [r.status, r.stderr.includes(`the tarball holds dist-lib/guide/${stray}`)], [1, true]);
+    rmSync(join(lic, "dist-lib/guide", stray));
+  }
+  check("guide of Markdown and LICENSE only", packCheck().status, 0);
   // The guide and the prompt carry MIT-0: its own LICENSE ships beside them, and the text asks for no notice.
   rmSync(join(lic, "dist-lib/guide/LICENSE"), { force: true });
   check("the guide licence lacking", packCheck().stderr.includes("the tarball lacks dist-lib/guide/LICENSE"), true);
