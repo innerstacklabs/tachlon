@@ -53,18 +53,18 @@ function sendRecords<F extends Fields | undefined>(chart: Chart<F> | undefined, 
 type HostRows<F extends Fields | undefined> = Pick<MountOptions<F>, "tasks" | "links" | "dataDate">;
 
 /** New `tasks`, `links` or `dataDate` go to `setData` on the chart that is mounted, in one call. The chart starts again (`count` goes up, and `ask` does it too, the chart that is mounted dropped at once) when `setData` refuses them, one of the three is taken away, or a task differs in a member `setData` ignores. `held` is the rows the chart last took, a start's or an accepted call's. A start that is pending reads them when it has settled. */
-function useHostRows<F extends Fields | undefined>(live: { current: { chart: Chart<F>; heard: Map<string, () => void> } | null }, rows: HostRows<F>): { count: number; ask: () => void; held: { current: HostRows<F> } } {
+function useHostRows<F extends Fields | undefined>(live: { current: { chart: Chart<F>; heard: Map<string, () => void> } | null }, rows: HostRows<F>, records: GanttProps<F>["records"]): { count: number; ask: (records: GanttProps<F>["records"]) => void; held: { current: HostRows<F> }; since: { current: { records: GanttProps<F>["records"] } | null } } {
   const [count, setCount] = useState(0); // the starts that rows the chart could not take in place have asked for
-  const held = useRef(rows);
-  const ask = (): void => (live.current?.heard.forEach((stop) => stop()), (live.current = null), setCount((n) => n + 1));
+  const held = useRef(rows), since = useRef<{ records: GanttProps<F>["records"] } | null>(null); // `since`: the `records` of the render that asked, which the chart that starts again counts as applied
+  const ask = (given: GanttProps<F>["records"]): void => (since.current = { records: given }, live.current?.heard.forEach((stop) => stop()), (live.current = null), setCount((n) => n + 1));
   useEffect(() => {
     const chart = live.current?.chart, was = held.current, keys = ["tasks", "links", "dataDate"] as const;
     if (chart === undefined) return;
     const data = Object.fromEntries(keys.filter((key) => rows[key] !== undefined && rows[key] !== was[key]).map((key) => [key, rows[key]])) as Parameters<Chart<F>["setData"]>[0];
-    if (keys.some((key) => was[key] !== undefined && rows[key] === undefined) || (data.tasks !== undefined && unsetChange((was.tasks ?? []) as PlainTask[], data.tasks as PlainTask[])) || !chart.setData(data).ok) ask();
+    if (keys.some((key) => was[key] !== undefined && rows[key] === undefined) || (data.tasks !== undefined && unsetChange((was.tasks ?? []) as PlainTask[], data.tasks as PlainTask[])) || !chart.setData(data).ok) ask(records);
     else held.current = rows;
   }, [rows.tasks, rows.links, rows.dataDate]);
-  return { count, ask, held };
+  return { count, ask, held, since };
 }
 
 export function Gantt<F extends Fields | undefined = undefined>(props: GanttProps<F>): JSX.Element {
@@ -74,7 +74,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
   const queue = useRef<Promise<void>>(Promise.resolve());
   const live = useRef<{ chart: Chart<F>; heard: Map<string, () => void>; loaded: boolean } | null>(null);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
-  const redo = useHostRows(live, { tasks, links, dataDate });
+  const redo = useHostRows(live, { tasks, links, dataDate }, records);
   if (failure !== null) throw failure.error;
   useEffect(() => { latest.current = props; });
 
@@ -100,7 +100,9 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
   // One start at a time: StrictMode runs this effect, its cleanup and the effect again before the first `mount` has settled, and two
   // charts must never start in one root. A start whose cleanup has already run never mounts.
   useEffect(() => {
-    applied.current = latest.current.records;
+    const asked = redo.since.current;
+    redo.since.current = null;
+    applied.current = asked === null ? latest.current.records : asked.records;
     redo.held.current = { tasks, links, dataDate };
     let started: Chart<F> | undefined;
     let stopped = false;
@@ -116,7 +118,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
       live.current = { chart: started, heard: new Map(), loaded: false };
       try { started.setReadOnly(latest.current.readOnly === true), started.setCapabilities(latest.current.capabilities); } catch (error) { return setFailure({ error }); } // a change while `mount` was pending found no chart to switch; a profile the chart rejects fails like a start
       listen();
-      for (const call of [() => latest.current.onReady?.(started as Chart<F>), () => !stopped && latest.current.records !== applied.current && sendRecords(live.current?.chart, latest.current, applied), () => !stopped && (latest.current.tasks !== tasks || latest.current.links !== links || latest.current.dataDate !== dataDate) && redo.ask()]) {
+      for (const call of [() => latest.current.onReady?.(started as Chart<F>), () => !stopped && (latest.current.tasks !== tasks || latest.current.links !== links || latest.current.dataDate !== dataDate) && redo.ask(applied.current), () => !stopped && latest.current.records !== applied.current && sendRecords(live.current?.chart, latest.current, applied)]) {
         try { call(); } catch (error) { reportError(error); } // a handler that throws must not stall the queue the next mount waits on
       }
     });

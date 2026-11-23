@@ -45,5 +45,18 @@ for (const [name, host] of Object.entries(HOSTS)) {
     expect.soft(await put({ locale: "x", records: a }), "a prop written after records that mounts again: records are not applied to the chart that is going").toMatchObject({ mounts: 3, updates: [c] });
   });
 
+  if (name === "React") test("React: records that come after the render that starts the chart again reach the chart it ends up with, whether the start was pending or the chart mounted", async ({ page }) => {
+    const put = await open(page, host), got = () => page.evaluate("charts.map((chart) => chart.got ?? [])");
+    await page.evaluate("globalThis.gate = new Promise((done) => (window.release = done)), 0");
+    await put({ tasks: [{ key: "t1" }], records: a });
+    await put({ tasks: [{ key: "t2" }] });
+    await put({ records: c });
+    await page.evaluate("release()");
+    await put({});
+    expect.soft(await got(), "a start that was pending: the chart it starts again gets the records, the one dropped none").toEqual([[], [c]]);
+    await put({ tasks: [{ key: "new" }], late: b });
+    expect.soft(await got(), "a parent effect sets records in the render that starts the chart again: the new chart gets them").toEqual([[], [c], [b]]);
+  });
+
   if (name !== "Vue") test(`${name}: records that a ready handler sets are applied once`, async ({ page }) => expect(await (await open(page, host))({ tasks: [], records: a, next: b })).toMatchObject({ mounts: 1, updates: [b] }));
 }

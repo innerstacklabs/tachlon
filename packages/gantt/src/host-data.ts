@@ -35,7 +35,7 @@ export function unsetChange(held: readonly PlainTask[], next: readonly PlainTask
   const taken = new Set<string>([...MEMBERS, "key", "id", "parent"]);
   return next.some((task) => {
     const was = typeof task.key === "string" ? before.get(task.key) : undefined;
-    return typeof task.key !== "string" || (was !== undefined && [...new Set([...Object.keys(was), ...Object.keys(task)])].some((member) => !taken.has(member) && differs(task[member], was[member])));
+    return typeof task.key !== "string" || (was !== undefined && (MEMBERS.some((member) => was[member] !== undefined && task[member] === undefined) || [...new Set([...Object.keys(was), ...Object.keys(task)])].some((member) => !taken.has(member) && differs(task[member], was[member]))));
   });
 }
 

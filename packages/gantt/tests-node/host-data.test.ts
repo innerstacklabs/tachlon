@@ -146,6 +146,7 @@ test("unsetChange is true for a task that differs in a member setData ignores, o
   const ignored = { color: "red", label: "x", end: "2026-03-09", calendar: "c", milestone: "start", alap: true, actualStart: "2026-03-02", actualFinish: "2026-03-03", remaining: 1, resume: "2026-03-04", own: 1 };
   for (const [member, value] of Object.entries(ignored)) expect(unsetChange(held, [task(1), task(2, { [member]: value }), task(3)]), member).toBe(true);
   expect(unsetChange(held, [task(1), { id: 2, name: "No key" }, task(3)]), "no key").toBe(true);
+  for (const member of ["start", "duration", "progress", "constraint"]) expect(unsetChange([task(1, { constraint: { type: "snet", date: "2026-03-02" } })], [{ ...task(1), [member]: undefined }]), `${member} left out`).toBe(true);
   expect(unsetChange(held, [task(1, { name: "Renamed", progress: 50 }), task(2), task(3)]), "a name").toBe(false);
   expect(unsetChange(held, [task(1), task(2), task(3), task(4, { color: "red" })]), "a new task is left to setData").toBe(false);
 });
