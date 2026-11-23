@@ -2,6 +2,8 @@
 // mount options as props and emits the chart's events. It uses only what the entry exports, `mount` and its types, imported by relative path, so
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { camelize, defineComponent, getCurrentInstance, h, onBeforeUnmount, onMounted, onUpdated, shallowRef, toHandlerKey, watch, type PropType } from "vue";
+import type { PlainTask } from "./adapters/plain.js";
+import { unsetChange } from "./host-data.js";
 import { drawsLinks, liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions, type UpdateResult } from "./index.js";
 export type { Handlers, SaveContext } from "./index.js";
@@ -97,9 +99,12 @@ const component = defineComponent({
       };
     };
     onMounted(start);
-    watch(() => [props.schedule, props.document, props.tasks, props.links, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.records], (now, before) => (now.slice(0, -1).some((value, i) => value !== before[i]) ? start() : send(props.records))); // `records` is last: any other prop that changed mounts again, in whatever order the host wrote them
-    // A changed `dataDate` is set on the chart that is mounted; the day `setData` refuses, a prop taken away, and a start still pending start again.
-    watch(() => props.dataDate, (dataDate) => { if (dataDate === undefined || live === null || !live.chart.setData({ dataDate }).ok) start(); });
+    // New `tasks`, `links` or `dataDate` go to the chart that is mounted as one `setData`; it starts again when `setData` refuses them, a prop is taken away, a task differs in a member `setData` ignores, or a start is still pending. This watch comes first, so `records` that arrive with a start are not sent to the chart that is going.
+    watch(() => [props.tasks, props.links, props.dataDate], (now, before) => {
+      const data = Object.fromEntries((["tasks", "links", "dataDate"] as const).flatMap((key, i) => (now[i] !== undefined && now[i] !== before[i] ? [[key, now[i]]] : []))) as Parameters<Chart<Fields | undefined>["setData"]>[0];
+      if (live === null || before.some((was, i) => was !== undefined && now[i] === undefined) || (data.tasks !== undefined && unsetChange((before[0] ?? []) as PlainTask[], data.tasks as PlainTask[])) || !live.chart.setData(data).ok) start();
+    });
+    watch(() => [props.schedule, props.document, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.records], (now, before) => (now.slice(0, -1).some((value, i) => value !== before[i]) ? start() : send(props.records))); // `records` is last: any other prop that changed mounts again, in whatever order the host wrote them
     // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
     watch(() => [props.capabilities, drawsLinks(props.save)], ([profile]) => live?.chart.setCapabilities(profile as MountOptions["capabilities"]));
@@ -117,9 +122,9 @@ type VueProps<F extends Fields | undefined> = Omit<Props, "tasks" | "links" | "f
 /**
  * The mount options, one prop each, and an emit for each event: `@select` gets `{ task, key }`, `@move` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `find` or `choose-file` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
- * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
+ * The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
- * A new `dataDate` (a day written `YYYY-MM-DD`) is set on the chart that is mounted, as `Gantt.setData({ dataDate })` does, and mounts it again only when `setData` refuses it or the prop is taken away.
+ * New `tasks`, `links` or `dataDate` (a day written `YYYY-MM-DD`) go to the chart that is mounted as one `Gantt.setData({ tasks, links, dataDate })` call, in place: the scroll position, the selection and the undo list stay. The chart mounts again only when `setData` refuses them, a prop is taken away, a task differs in a member `setData` ignores (`color`, `end` and the rest), or the start is still pending.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `records` is a new array of `Gantt.update` records: each one that arrives calls `update` on the chart that is mounted, in place, and `@update` gets its answer, a refusal too. One that arrives while the chart starts is applied once it has, the latest only. The first value, and a value that comes with a change that mounts the chart again, is not applied: put those values in `tasks`.
