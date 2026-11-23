@@ -40,7 +40,7 @@ Write one page for each file you kept, in the product's own format and in the fo
 - A line `<!-- control: member | what it does -->` marks a step that a product's own control carries out. Find the control in the product's code that calls that member, and write the step with its name and place. Where the product has no such control, drop the step and renumber the rest.
 - Take out every comment of the guide.
 
-The guide is under the package's license (MIT): add the notice in `node_modules/{name}/LICENSE` to the product's third-party notices.
+The guide is under MIT-0 (`node_modules/{name}/dist-lib/guide/LICENSE`): the pages you write need no notice or credit.
 
 ## 5. List the screenshots
 

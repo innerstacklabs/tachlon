@@ -90,6 +90,12 @@ try {
   rmSync(join(lic, "dist-lib/guide/PROMPT.md"));
   check("the prompt lacking", packCheck().stderr.includes("the tarball lacks dist-lib/guide/PROMPT.md"), true);
   emit();
+  // The guide and the prompt carry MIT-0: its own LICENSE ships beside them, and the text asks for no notice.
+  rmSync(join(lic, "dist-lib/guide/LICENSE"), { force: true });
+  check("the guide licence lacking", packCheck().stderr.includes("the tarball lacks dist-lib/guide/LICENSE"), true);
+  const mit0 = readFileSync(new URL("../packages/gantt/guide/LICENSE", import.meta.url), "utf8");
+  check("the guide licence is MIT-0", [mit0.startsWith("MIT No Attribution\n"), /copyright notice and this permission notice shall be included/.test(mit0)], [true, false]);
+  emit();
   // The assistant guide ships (gantt#1560): a `files` list without AGENTS.md fails the pack check, and with it the check passes (AGENTS.md is an allowed name).
   setFiles(["dist-lib", "README.md"]);
   check("guide left out of files", packCheck().stderr.includes("the tarball lacks AGENTS.md"), true);

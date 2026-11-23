@@ -7,7 +7,7 @@ import { binProblems, cssUrlsOutsidePack, declarationsNamingWasm, manifestProble
 const GUIDE = ["PROMPT", "README", "baseline", "build", "change", "checks", "navigate", "open", "print", "progress", "save", "task-dialog"].map((n) => `dist-lib/guide/${n}.md`);
 
 // Files the tarball must hold that no `exports` entry names.
-const EXPECTED = ["README.md", "LICENSE", "AGENTS.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", ...GUIDE];
+const EXPECTED = ["README.md", "LICENSE", "AGENTS.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/guide/LICENSE", ...GUIDE];
 
 // A publish ships the built library, the package's README, LICENSE and package.json, and nothing else (the npm publish workflow runs this check first).
 const ALLOWED_PREFIXES = ["dist-lib/"];
