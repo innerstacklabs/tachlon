@@ -53,7 +53,7 @@ function sendRecords<F extends Fields | undefined>(chart: Chart<F> | undefined, 
 type HostRows<F extends Fields | undefined> = Pick<MountOptions<F>, "tasks" | "links" | "dataDate">;
 
 /** New `tasks`, `links` or `dataDate` go to `setData` on the chart that is mounted, in one call. The chart starts again (`count` goes up, and `ask` does it too, the chart that is mounted dropped at once) when `setData` refuses them, one of the three is taken away, or a task differs in a member `setData` ignores. `held` is the rows the chart last took, a start's or an accepted call's. A start that is pending reads them when it has settled. */
-function useHostRows<F extends Fields | undefined>(live: { current: { chart: Chart<F>; heard: Map<string, () => void> } | null }, rows: HostRows<F>, records: GanttProps<F>["records"]): { count: number; ask: (records: GanttProps<F>["records"]) => void; held: { current: HostRows<F> }; since: { current: { records: GanttProps<F>["records"] } | null } } {
+function useHostRows<F extends Fields | undefined>(live: { current: { chart: Chart<F>; heard: Map<string, () => void> } | null }, rows: HostRows<F>, records: GanttProps<F>["records"]): { count: number; ask: (records: GanttProps<F>["records"]) => void; held: { current: HostRows<F> }; take: (latest: GanttProps<F>["records"]) => GanttProps<F>["records"] } {
   const [count, setCount] = useState(0); // the starts that rows the chart could not take in place have asked for
   const held = useRef(rows), since = useRef<{ records: GanttProps<F>["records"] } | null>(null); // `since`: the `records` of the render that asked, which the chart that starts again counts as applied
   const ask = (given: GanttProps<F>["records"]): void => (since.current = { records: given }, live.current?.heard.forEach((stop) => stop()), (live.current = null), setCount((n) => n + 1));
@@ -64,7 +64,8 @@ function useHostRows<F extends Fields | undefined>(live: { current: { chart: Cha
     if (keys.some((key) => was[key] !== undefined && rows[key] === undefined) || (data.tasks !== undefined && unsetChange((was.tasks ?? []) as PlainTask[], data.tasks as PlainTask[])) || !chart.setData(data).ok) ask(records);
     else held.current = rows;
   }, [rows.tasks, rows.links, rows.dataDate]);
-  return { count, ask, held, since };
+  const take = (latest: GanttProps<F>["records"]): GanttProps<F>["records"] => { const asked = since.current; since.current = null; return asked === null ? latest : asked.records; };
+  return { count, ask, held, take };
 }
 
 export function Gantt<F extends Fields | undefined = undefined>(props: GanttProps<F>): JSX.Element {
@@ -100,9 +101,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
   // One start at a time: StrictMode runs this effect, its cleanup and the effect again before the first `mount` has settled, and two
   // charts must never start in one root. A start whose cleanup has already run never mounts.
   useEffect(() => {
-    const asked = redo.since.current;
-    redo.since.current = null;
-    applied.current = asked === null ? latest.current.records : asked.records;
+    applied.current = redo.take(latest.current.records);
     redo.held.current = { tasks, links, dataDate };
     let started: Chart<F> | undefined;
     let stopped = false;
