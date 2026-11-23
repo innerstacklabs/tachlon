@@ -15,7 +15,7 @@ use app::{
 use engine::{Limit, LinkType, Pin, TaskDates, TaskId};
 
 /// A session over the demo outline with its first 30 leaf tasks keyed `k0` to `k29`.
-fn keyed() -> (Session, Vec<TaskId>) {
+pub(crate) fn keyed() -> (Session, Vec<TaskId>) {
     let (mut session, _) = outline_session(80);
     let outline = session.outline().unwrap();
     let all = outline.preorder().iter().copied();
@@ -50,7 +50,7 @@ fn keyed() -> (Session, Vec<TaskId>) {
     (session, leaves)
 }
 
-fn saved(session: &Session) -> String {
+pub(crate) fn saved(session: &Session) -> String {
     write(
         session,
         &Extras {

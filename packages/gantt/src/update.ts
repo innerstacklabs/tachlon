@@ -7,8 +7,10 @@ import { timedDate } from "./date-form.js";
 import { readAnswer, refused, type Refusal } from "./edit-result.js";
 import type { HostDifference, MountOptions, UpdateResult } from "./gantt-types.js";
 
-/** A duration of a record that holds one. */
-const hasDuration = (record: unknown): record is { duration: number } => typeof (record as { duration?: unknown } | null)?.duration === "number";
+/** The members that count working time in the host's unit. */
+const TIMED = ["duration", "remaining"] as const;
+/** A record that gives a number for one of them. */
+const hasTime = (record: unknown): record is Partial<Record<(typeof TIMED)[number], number>> => TIMED.some((member) => typeof (record as Record<string, unknown> | null)?.[member] === "number");
 
 /** `Gantt.pushHostEntry`: a `token` that is not text reads as empty, which the app refuses as `badToken`. */
 export const pushHostEntry = (app: PublicApp, token: string): { ok: true } | Refusal => readAnswer(app.try_push_host_entry(typeof token === "string" ? token : "")) as { ok: true } | Refusal;
@@ -29,8 +31,9 @@ export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["
   try { separate = records.map((record) => (typeof record === "object" && record !== null && !Array.isArray(record) ? toSeparate(record as Record<string, unknown>, true) : record)); } catch (err) { return Object.freeze({ ok: false, reason: "badRecords", message: `Nothing changed: ${(err as Error).message}` }); }
   const timed = timedDate(dateForm, separate);
   if (timed !== undefined) return timed;
-  const day = unit === "hours" || unit === "minutes" || !records.some(hasDuration) ? () => 0 : dayOfKey(app);
-  const answer = readAnswer(app[call](JSON.stringify(separate.map((record) => (hasDuration(record) ? { ...record, duration: toMinutes(record.duration, unit, day((record as { key?: unknown }).key)) } : record)))));
+  const day = unit === "hours" || unit === "minutes" || !records.some(hasTime) ? () => 0 : dayOfKey(app);
+  const inMinutes = (record: unknown): unknown => (hasTime(record) ? { ...record, ...Object.fromEntries(TIMED.flatMap((member) => (typeof record[member] === "number" ? [[member, toMinutes(record[member], unit, day((record as { key?: unknown }).key))]] : []))) } : record);
+  const answer = readAnswer(app[call](JSON.stringify(separate.map(inMinutes))));
   if (answer.ok) {
     wrote(JSON.parse(app.task_slots(records.map((record) => (record as { key: string }).key))) as number[]); // an accepted record names a live task by its key
     const { differs } = answer as { differs?: readonly HostDifference[] };

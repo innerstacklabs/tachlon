@@ -2,7 +2,7 @@
 import type { MountOptions, UpdateResult } from "./gantt-types.js";
 
 /** The members of a record, in the chart's own names, that hold a date. */
-const DATES = ["start", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "hostStart", "hostFinish", "hostLateStart", "hostLateFinish"];
+const DATES = ["start", "actualStart", "actualFinish", "snet", "snlt", "fnet", "fnlt", "mso", "mfo", "hostStart", "hostFinish", "hostLateStart", "hostLateFinish"];
 
 /** The `badValue` answer for the first record of `records` (with a typed `constraint` already spelled as members) that gives a text date with a time of day under `"day"`; other types are left to the app. */
 export function timedDate(dateForm: MountOptions["dateForm"], records: readonly unknown[]): UpdateResult | undefined {
