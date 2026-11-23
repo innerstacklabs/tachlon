@@ -1,10 +1,13 @@
-// Fails when a package's `exports` names a file its packed tarball leaves out, or the tarball lacks the engine file, the size recorded for it or the fonts' licence (the library build writes it beside the script, which loads it by a URL relative to itself), or a packed `.d.ts` imports from the generated `wasm/` folder, or a packed `.css` has a `url()` that names no file in the tarball, or it holds a file outside dist-lib/, README.md, AGENTS.md and package.json, or the package names no `bin` or one whose target the tarball lacks or that has no `#!` first line.
+// Fails when a package's `exports` names a file its packed tarball leaves out, or the tarball lacks the engine file, the size recorded for it or the fonts' licence (the library build writes it beside the script, which loads it by a URL relative to itself) or a file of the user guide (`dist-lib/guide/`), or a packed `.d.ts` imports from the generated `wasm/` folder, or a packed `.css` has a `url()` that names no file in the tarball, or it holds a file outside dist-lib/, README.md, AGENTS.md and package.json, or the package names no `bin` or one whose target the tarball lacks or that has no `#!` first line.
 //   node scripts/pack-check.ts <package folder> [--published]
 // `--published` also fails a `package.json` that holds `scripts`, `devDependencies` or `packageManager`: the folder is the one `npm publish` runs on (scripts/stage-package.ts writes it), not the source folder.
 import { binProblems, cssUrlsOutsidePack, declarationsNamingWasm, manifestProblems, missingExpected, missingFromPack, strayFiles } from "./lib/pack-check.ts";
 
+// The user guide's files (packages/gantt/guide/, copied by scripts/emit-guide.ts).
+const GUIDE = ["README", "baseline", "build", "change", "checks", "navigate", "open", "print", "progress", "save", "task-dialog"].map((n) => `dist-lib/guide/${n}.md`);
+
 // Files the tarball must hold that no `exports` entry names.
-const EXPECTED = ["README.md", "LICENSE", "AGENTS.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md"];
+const EXPECTED = ["README.md", "LICENSE", "AGENTS.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", ...GUIDE];
 
 // A publish ships the built library, the package's README, LICENSE and package.json, and nothing else (the npm publish workflow runs this check first).
 const ALLOWED_PREFIXES = ["dist-lib/"];
