@@ -72,9 +72,10 @@ try {
   check("licence packed", packCheck().status, 0);
   // One check runs `npm pack` once, not once per helper: a stand-in `npm` ahead of the real one counts its runs.
   mkdirSync(join(root, "shim"));
-  writeFileSync(join(root, "shim/npm"), `#!/bin/sh\necho x >> '${join(root, "npm-runs")}'\nPATH='${process.env.PATH}'\nexec npm "$@"\n`, { mode: 0o755 });
-  spawnSync(process.execPath, [fileURLToPath(new URL("./pack-check.ts", import.meta.url)), lic], { env: { ...process.env, PATH: `${join(root, "shim")}${delimiter}${process.env.PATH}` } });
-  check("one npm pack per check", readFileSync(join(root, "npm-runs"), "utf8").trim().split("\n").length, 1);
+  writeFileSync(join(root, "shim/npm"), `#!/bin/sh\necho x >> "$NPM_RUNS"\nPATH="$REAL_PATH"\nexec npm "$@"\n`, { mode: 0o755 });
+  const env = { ...process.env, NPM_RUNS: join(root, "npm-runs"), REAL_PATH: process.env.PATH, PATH: `${join(root, "shim")}${delimiter}${process.env.PATH}` };
+  const once = spawnSync(process.execPath, [fileURLToPath(new URL("./pack-check.ts", import.meta.url)), lic], { env });
+  check("one npm pack per check", [once.status, readFileSync(join(root, "npm-runs"), "utf8").trim().split("\n").length], [0, 1]);
   // `describe` reads dist-lib/describe.json and dist-lib/fit.md beside the CLI: a pack without either fails.
   for (const f of ["describe.json", "fit.md"]) {
     rmSync(join(lic, "dist-lib", f));
