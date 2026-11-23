@@ -139,7 +139,7 @@ Tachlon next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt on scheduling, 
 | 8 | Summary tasks in an outline | Yes | All | Both | Yes |
 | 9 | Milestones | Yes | All | Both | Yes |
 | 10 | Split tasks | No | Ent only | PRO only | Yes |
-| 11 | Resource names on tasks, and a filter by resource | Yes | Core, Ent | PRO only | Yes |
+| 11 | Resource names on tasks, and a filter by resource | Yes; from MS Project XML, a P6 open reads none | Core, Ent | PRO only | Yes |
 | 12 | Edit resource assignments | No | Core, Ent | PRO only | Yes |
 | 13 | Resource workload or histogram view | No | Widget in the examples; not in the feature table | PRO only | Over-allocation mark; no histogram found |
 | 14 | Schedule-quality checks (DCMA-style counts) | Yes ★ | Not found | Not found | Not found |
@@ -169,9 +169,9 @@ Tachlon next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt on scheduling, 
 | 35 | A color per task bar | Yes | All | Yes; edition not stated | Yes |
 | 36 | Custom bar content from a template | No | All | Yes; edition not stated | Yes |
 | 37 | Keyboard navigation | Yes | Yes | Both | Yes |
-| 38 | Screen-reader access to the timeline bars | Yes | WCAG 2.1 and Section 508 stated as a goal | WAI-ARIA on by default; bars not stated | WCAG 2.2 AA "for most criteria" |
+| 38 | Screen-reader access to the timeline bars | Yes; the spoken text was not tried with a screen reader | WCAG 2.1 and Section 508 stated as a goal | WAI-ARIA on by default; bars not stated | WCAG 2.2 AA "for most criteria" |
 | | **Languages** | | | | |
-| 39 | Translated UI text and locale number and date formats | Yes | All (45 locales) | Both (50+ locales) | Yes |
+| 39 | Translated UI text and locale number and date formats | Yes: English ships, other languages come from your `texts` | All (45 locales) | Both (50+ locales) | Yes |
 | 40 | Right-to-left layout | Yes; the timeline stays left to right | Not documented | Both | Yes |
 | | **Developer API** | | | | |
 | 41 | TypeScript declarations | Yes | Yes | Yes | Yes |
@@ -196,7 +196,7 @@ Tachlon next to Bryntum Gantt, DHTMLX Gantt and Syncfusion Gantt on scheduling, 
 - Split tasks, editing resource assignments, a resource workload view and custom bar templates (rows 10, 12, 13 and 36 above).
 - Native `.mpp` files: save as MS Project XML. P6 baselines are not read yet, and XER files have been tried on P6 version 19.12 only ([docs/IMPORT.md](docs/IMPORT.md)).
 - Resource leveling: Tachlon moves no task to fix an overload, and a P6 open reads no resources. When a file opens, one line in the panel of what was not read counts the in-progress activities whose dates in the file differ from the dates Tachlon computes; the repository records no such count for a real P6 schedule.
-- Speed is measured on Apple machines and one Dell laptop so far; Windows, tablets and phones are not measured yet.
+- Speed is measured on Apple machines and one Dell laptop so far; Windows, tablets and phones are not measured yet, no CI job runs on Windows, and no test covers the install's Windows branch.
 - The [open issues](https://github.com/innerstacklabs/tachlon/issues) list the work.
 
 </details>
