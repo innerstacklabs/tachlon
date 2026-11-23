@@ -1,13 +1,16 @@
 // The Angular wrapper of the chart (gantt#1875), the package's `/angular` entry: `Gantt` is a standalone component that calls `mount` once its view exists and
 // `destroy()` when it is destroyed, takes the mount options as inputs and has an output for each event of `Gantt.on`. It uses only what the entry exports,
-// `mount` and its types, imported by relative path, so the page loads the chart once, whether it imports the package's main entry as well or not.
+// `mount` and its types, and `unsetChange` from `host-data.ts`, imported by relative path, so the page loads the chart once, whether it imports the package's main entry as well or not.
 // It is compiled by `ngc` (`pnpm build:ng`, tsconfig.ng.json), the way an Angular library is built: the partial compilation it writes is what an app's own build links.
 import { Component, ElementRef, ErrorHandler, EventEmitter, Input, NgZone, Output, type AfterViewInit, type OnChanges, type OnDestroy, type SimpleChanges } from "@angular/core";
+import type { PlainTask } from "./adapters/plain.js";
+import { unsetChange } from "./host-data.js";
 import { liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions, type UpdateResult } from "./index.js";
 export type { Handlers, SaveContext } from "./index.js";
 
-const INPUTS = ["schedule", "document", "tasks", "links", "projectStart", "mustFinishBy", "calendars", "durationUnit", "dateForm", "constraintForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
+const ROWS = ["tasks", "links", "dataDate"] as const; // the inputs `setData` takes in place
+const INPUTS = ["schedule", "document", "projectStart", "mustFinishBy", "calendars", "durationUnit", "dateForm", "constraintForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
 /** Each output and the event of `Gantt.on` it emits: `(chartToggleStatus)` is `toggle-status`. The `chart` in front keeps an output apart from the DOM event of the same name: Angular also listens on the element for `change` and `select`, which an input inside the chart fires and which bubble. */
 const EVENTS = [["chartSelect", "select"], ["chartEdit", "edit"], ["chartMove", "move"], ["chartOpen", "open"], ["chartLoad", "load"], ["chartChange", "change"], ["chartError", "error"], ["chartFind", "find"], ["chartToggleStatus", "toggle-status"], ["chartChooseFile", "choose-file"], ["chartToggleKeys", "toggle-keys"]] as const satisfies readonly (readonly [string, keyof GanttEvents])[];
 ({}) as Record<(typeof EVENTS)[number][1], true> satisfies Record<keyof GanttEvents, true>; // an event of `GanttEvents` with no output here does not compile
@@ -16,9 +19,9 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 /**
  * The mount options, one input each, and an output for each event, named `chart` and the event (see `EVENTS`): `(chartSelect)` gets `{ task, key }`, `(chartMove)` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `chartFind` or `chartChooseFile` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
- * The chart mounts again when `schedule`, `document`, `tasks`, `links`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `tasks`, `links`, `texts` and `fonts` stable.
+ * The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
- * A new `dataDate` (a day written `YYYY-MM-DD`) is set on the chart that is mounted, as `Gantt.setData({ dataDate })` does, and mounts it again only when `setData` refuses it or the input is taken away.
+ * New `tasks`, `links` or `dataDate` (a day written `YYYY-MM-DD`) go to the chart that is mounted as one `Gantt.setData({ tasks, links, dataDate })` call, in place: the scroll position, the selection and the undo list stay. The chart mounts again only when `setData` refuses them, an input is taken away, a task differs in a member `setData` ignores (`color`, `end` and the rest), or the start is still pending.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
  * `records` is a new array of `Gantt.update` records: each one that arrives calls `update` on the chart that is mounted, in place, and `(update)` gets its answer, a refusal too. One that arrives while the chart starts is applied once it has, the latest only. The first value, and a value that comes with a change that mounts the chart again, is not applied: put those values in `tasks`.
@@ -71,6 +74,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   private stopStart = (): void => {};
   private viewed = false;
   private applied?: Parameters<Chart<F>["update"]>[0]; // the `records` the chart started with or was last sent
+  private held: readonly unknown[] = []; // the `[tasks, links, dataDate]` the chart started with or was last sent
   private chart?: Chart<F>;
 
   constructor(
@@ -80,7 +84,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (this.viewed && (INPUTS.some((name) => name in changes) || ("dataDate" in changes && !this.setDay()))) this.start();
+    if (this.viewed && (INPUTS.some((name) => name in changes) || (ROWS.some((name) => name in changes) && !this.setRows()))) this.start();
     if ("readOnly" in changes) this.chart?.setReadOnly(this.readOnly === true);
     if ("capabilities" in changes || "save" in changes) this.chart?.setCapabilities(this.capabilities); // a `save` that gains or drops `createLink` turns link drawing on or off
     if ("records" in changes) this.send();
@@ -93,10 +97,13 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
     this.stopStart();
   }
 
-  // A changed `dataDate` is set on the chart that is mounted; false when that cannot be (a start is pending, the day is refused or taken away), and the chart starts again.
-  private setDay(): boolean {
-    const { chart, dataDate } = this;
-    return chart !== undefined && dataDate !== undefined && chart.setData({ dataDate }).ok;
+  // The `[tasks, links, dataDate]` that changed go to the chart that is mounted as one `setData` call. False (the chart starts again) when none is mounted (a start is pending), an input was taken away, a task differs in a member `setData` ignores, or `setData` refuses them.
+  private setRows(): boolean {
+    const { chart, held } = this;
+    const now = ROWS.map((name) => this[name]);
+    this.held = now;
+    const data = Object.fromEntries(ROWS.flatMap((name, i) => (now[i] !== undefined && now[i] !== held[i] ? [[name, now[i]]] : []))) as Parameters<Chart<F>["setData"]>[0];
+    return chart !== undefined && !held.some((was, i) => was !== undefined && now[i] === undefined) && !(data.tasks !== undefined && unsetChange((held[0] ?? []) as PlainTask[], data.tasks as PlainTask[])) && chart.setData(data).ok;
   }
 
   // `update` is synchronous, so the chart that is mounted answers at once; with none mounted (a start is pending) the start applies `records` when it has settled.
@@ -113,6 +120,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   private start(): void {
     this.stopStart();
     this.applied = this.records;
+    this.held = ROWS.map((name) => this[name]);
     let started: Chart<F> | undefined;
     let stopped = false;
     let stops: (() => void)[] = [];

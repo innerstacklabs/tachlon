@@ -46,6 +46,19 @@ test("the component passes `locale`, `texts` and `fonts` to mount, and mounts ag
   expect.soft(await page.evaluate("words(\"es\", { \"toolbar.open\": \"Abrir\" }, [2])"), "new ones mount it again").toEqual([[undefined, undefined, undefined], ["de", { "toolbar.open": "Offnen" }, [1]], ["es", { "toolbar.open": "Abrir" }, [2]]]);
 });
 
+test("new `tasks` go to `setData` on the chart that is mounted, and the chart mounts again only when `setData` refuses them or a member it ignores changed", async ({ page }) => {
+  const base = server.resolvedUrls!.local[0]!;
+  await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
+  await page.goto(`${base}host.html`);
+  await page.waitForFunction("window.put");
+  const rows = (name: string, key = "a", color?: string) => [{ id: 1, key, name, ...(color && { color }) }, { id: 2, key: "b", name: "Build" }];
+  const at = async (tasks: object[]) => ({ mounts: ((await page.evaluate((t) => (window as any).put({ tasks: t }), tasks)) as { mounts: number }).mounts, sets: (await page.evaluate("(globalThis.sets ?? []).length")) as number });
+  expect.soft(await at(rows("Design")), "the first rows mount the chart").toEqual({ mounts: 1, sets: 0 });
+  expect.soft(await at(rows("Renamed")), "a name goes to setData once, with no second mount").toEqual({ mounts: 1, sets: 1 });
+  expect.soft(await at(rows("Renamed", "new")), "a task setData refuses mounts the chart again").toEqual({ mounts: 2, sets: 2 });
+  expect.soft(await at(rows("Renamed", "new", "red")), "a color setData ignores mounts it again, with no setData call").toEqual({ mounts: 3, sets: 2 });
+});
+
 test("a new `readOnly` switches the chart that is mounted, without mounting it again", async ({ page }) => {
   const base = server.resolvedUrls!.local[0]!;
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
