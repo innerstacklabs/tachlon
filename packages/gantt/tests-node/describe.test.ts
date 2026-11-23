@@ -1,10 +1,14 @@
 // `describe` (to#23, to#24): each topic prints every exported option, event, command, token and start error, found by reading the declarations as text; --json is the same
 // data; an unknown topic is exit 2; and every option, event, command and token the `fit` steps name is in the model, so a rename fails here and not in the field.
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
+import { pathToFileURL } from "node:url";
 import { buildModel } from "../../../scripts/lib/describe-model.ts";
-import type { Item, Model } from "../src/cli/describe.ts";
+import { type Item, type Model, readBundle } from "../src/cli/describe.ts";
+import { Refusal } from "../src/cli/detect.ts";
 import { run } from "../src/cli/run.ts";
 import { PRODUCT_NAME } from "../src/product.ts";
 
@@ -21,7 +25,7 @@ const declared = {
   tokens: all(body(read("src/styles/tokens.css").replace(/\/\*[\s\S]*?\*\//g, ""), ":where(.gantt) {"), /(--gantt-[a-z0-9-]+)\s*:/g),
   errors: all(body(read("src/errors.ts"), "const FIXES = {"), /^ {2}([A-Z_]+): "/gm).map((cause) => `${PRODUCT_NAME.toUpperCase()}_${cause}`),
 };
-const bundle = { model: buildModel(new URL("../", import.meta.url).pathname), fit: read("src/cli/fit.md") };
+const bundle = { model: buildModel(new URL("../", import.meta.url).pathname), fit: read("src/cli/fit.md"), guide: read("guide/PROMPT.md") };
 const describe = (...argv: string[]) => run(["describe", ...argv], ".", undefined, undefined, bundle);
 const names = (markdown: string): string[] => all(markdown, /^- `([\w$-]+)/gm);
 
@@ -55,7 +59,7 @@ test("an option's meaning starts its doc comment, and its default is the declara
 test("describe with no topic lists the topics, and an unknown topic is exit 2 with the topics listed", () => {
   const list = describe();
   assert.equal(list.code, 0);
-  for (const topic of [...Object.keys(declared), "refusals", "fit"]) assert.match(list.out, new RegExp(` describe ${topic}\``));
+  for (const topic of [...Object.keys(declared), "refusals", "fit", "guide"]) assert.match(list.out, new RegExp(` describe ${topic}\``));
   const bad = describe("nope");
   assert.equal(bad.code, 2);
   assert.match(bad.err, /unknown topic nope[^]* describe options`/);
@@ -88,6 +92,30 @@ test("describe fit prints the steps with the package's own name in the commands,
   assert.ok(!text.out.includes("{name}"), "the placeholder is filled");
   assert.match(text.out, new RegExp(`npx ${PRODUCT_NAME.toLowerCase()} describe tokens`));
   assert.equal((JSON.parse(describe("fit", "--json").out) as { markdown: string }).markdown, text.out);
+});
+
+test("describe guide prints the prompt with the package's own name in the commands, as markdown and as data", () => {
+  assert.ok(bundle.guide.includes("{name}"), "the prompt holds the placeholder");
+  const text = describe("guide");
+  assert.equal(text.code, 0);
+  assert.ok(!text.out.includes("{name}"), "the placeholder is filled");
+  assert.match(text.out, new RegExp(`npx ${PRODUCT_NAME.toLowerCase()} describe options`));
+  assert.equal((JSON.parse(describe("guide", "--json").out) as { markdown: string }).markdown, text.out);
+});
+
+test("a pack without guide/PROMPT.md is refused with the reinstall sentence, and one with it gives the prompt", () => {
+  const dir = mkdtempSync(join(tmpdir(), "describe-pack-"));
+  try {
+    writeFileSync(join(dir, "describe.json"), JSON.stringify(bundle.model));
+    writeFileSync(join(dir, "fit.md"), bundle.fit);
+    const pack = pathToFileURL(`${dir}/`);
+    assert.throws(() => readBundle(pack), (e) => e instanceof Refusal && e.message === "guide/PROMPT.md is not in this install; reinstall the package");
+    mkdirSync(join(dir, "guide"));
+    writeFileSync(join(dir, "guide", "PROMPT.md"), bundle.guide);
+    assert.equal(readBundle(pack).guide, bundle.guide);
+  } finally {
+    rmSync(dir, { recursive: true });
+  }
 });
 
 test("the hostEdit entry names its two added reasons and sends both to update; methods and commands point to refusals", () => {

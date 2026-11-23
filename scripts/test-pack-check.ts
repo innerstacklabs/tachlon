@@ -86,6 +86,10 @@ try {
   rmSync(join(lic, guide[0]));
   check("a guide file lacking", packCheck().stderr.includes(`the tarball lacks ${guide[0]}`), true);
   emit();
+  // The prompt that turns the guide into a product's own documentation ships beside the chapters: `describe guide` prints it.
+  rmSync(join(lic, "dist-lib/guide/PROMPT.md"));
+  check("the prompt lacking", packCheck().stderr.includes("the tarball lacks dist-lib/guide/PROMPT.md"), true);
+  emit();
   // The assistant guide ships (gantt#1560): a `files` list without AGENTS.md fails the pack check, and with it the check passes (AGENTS.md is an allowed name).
   setFiles(["dist-lib", "README.md"]);
   check("guide left out of files", packCheck().stderr.includes("the tarball lacks AGENTS.md"), true);

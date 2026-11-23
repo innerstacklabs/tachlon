@@ -1,8 +1,9 @@
 // Checks the guide's rules, one fixture a rule (scripts/lib/guide-pages.ts). Run from anywhere: node scripts/test-guide-pages.ts
 // Needs Node 22.18 or later (type stripping). Exits 1, one line per problem.
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { checkGuide } from "./lib/guide-pages.ts";
+import { checkGuide, COMMENTS, NAMED_TERMS, PLAIN_TERMS } from "./lib/guide-pages.ts";
 
 let failed = false;
 const check = (name: string, got: unknown, want: unknown): void => {
@@ -55,6 +56,14 @@ check("a bold label with no text key fails", guide(file.replace("**Save**", "**E
 check("a bold label that opens a bullet is still a label", guide(file + "- **Export** saves a file.\n"), ['g/print.md: the bold label "Export" is the English of no text key']);
 // Rule 7.
 check("British spelling fails, in the README too", guide(file + "A colour.\n", page, "The centre.\n"), ['g/print.md: "colour" is British spelling', 'g/README.md: "centre" is British spelling']);
+
+// The prompt's own words are the guide's: the comment kinds it shows and the terms in its table are the ones above, no more and no fewer.
+const prompt = readFileSync(join(import.meta.dirname, "..", "packages", "gantt", "guide", "PROMPT.md"), "utf8");
+const sorted = (words: readonly string[]): string[] => [...new Set(words)].sort();
+const terms = [...prompt.matchAll(/^\| `([^`]+)` \|/gm)].map((m) => m[1]!);
+check("the prompt shows every comment kind and no other", sorted([...prompt.matchAll(/`<!--\s*(\w+):/g)].map((m) => m[1]!)), sorted(COMMENTS));
+check("the prompt's table holds every plain term and no other", sorted(terms.filter((t) => !t.includes(":"))), sorted(PLAIN_TERMS));
+check("the prompt's table holds every named term and no other", sorted(terms.filter((t) => t.includes(":")).map((t) => t.split(":")[0]!)), sorted(NAMED_TERMS));
 
 const run = spawnSync(process.execPath, [join(import.meta.dirname, "check-guide.ts"), join(import.meta.dirname, "..")], { encoding: "utf8" });
 check("today's guide passes", [run.status, run.stderr], [0, ""]);

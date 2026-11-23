@@ -270,6 +270,16 @@ In Node, with no page, `import { openHeadless } from "tachlon/headless"` reads a
 
 An assistant that edits your project also has a skill: `npx tachlon init --skill` writes `.claude/skills/tachlon/SKILL.md`. It tells the assistant to read `node_modules/tachlon/AGENTS.md` first, to run `npx tachlon describe` before it writes code against an option or an event, and to run `npx tachlon doctor` when the chart does not draw or does not load.
 
+## Your product's user guide
+
+The package ships a user guide for the chart, written for any product: one file for each feature, in `node_modules/tachlon/dist-lib/guide/`, under the package's MIT license. `npx tachlon describe guide` prints the prompt that turns those files into your own product's documentation. It tells your assistant to read how your product uses the chart, learn its name and voice, keep only the features your options turn on, write the pages, and list the screenshots to take in your own themed app. It never invents a feature and never copies a picture. Paste this one line into your assistant:
+
+```text
+Follow `npx tachlon describe guide` to write this product's user guide from the chart's own.
+```
+
+`--json` prints the same prompt as data.
+
 ## The schema
 
 `tachlon/schema.json` is the JSON Schema of the task data `mount` reads (`tasks` and `links`). Read it from `node_modules/tachlon/dist-lib/schema.json`, or give it to a tool or an assistant that writes task data.
