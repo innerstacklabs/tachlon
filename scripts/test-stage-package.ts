@@ -2,7 +2,7 @@
 //   node scripts/test-stage-package.ts
 // Exits 1, one FAIL line per problem.
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -19,7 +19,7 @@ const root = mkdtempSync(join(tmpdir(), "test-stage-package-"));
 try {
   // A package that holds every file the real pack check expects, one source file the tarball leaves out, and the three private keys beside the keys a consumer needs.
   const src = join(root, "src-pkg");
-  const files = ["README.md", "LICENSE", "AGENTS.md", "src/secret.ts", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt"];
+  const files = ["README.md", "LICENSE", "AGENTS.md", "src/secret.ts", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", ...readdirSync(new URL("../packages/gantt/guide", import.meta.url)).map((n) => `dist-lib/guide/${n}`)];
   for (const f of files) {
     mkdirSync(dirname(join(src, f)), { recursive: true });
     writeFileSync(join(src, f), f === "dist-lib/a.js" ? "#!/usr/bin/env node\n" : "x\n");

@@ -2,7 +2,7 @@
 //   node scripts/test-pack-check.ts
 // Exits 1, one FAIL line per problem.
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -60,7 +60,9 @@ try {
   writeFileSync(join(cli, "dist/cli.js"), "#!/usr/bin/env node\n");
   check("bin ok", binProblems(cli), []);
   // The fonts' licence ships beside them: the real script (its EXPECTED list) fails a pack that holds every other expected file but not dist-lib/OFL.txt, and passes once the licence is packed.
-  const lic = fixture("licence", { ".": "./dist-lib/a.js" }, ["dist-lib", "README.md"], ["README.md", "LICENSE", "AGENTS.md", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/NOTICE.md"]);
+  const names = readdirSync(new URL("../packages/gantt/guide", import.meta.url));
+  const guide = names.map((n) => `dist-lib/guide/${n}`);
+  const lic = fixture("licence", { ".": "./dist-lib/a.js" }, ["dist-lib", "README.md"], ["README.md", "LICENSE", "AGENTS.md", "dist-lib/a.js", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/NOTICE.md", ...guide]);
   const setFiles = (files: string[]) => writeFileSync(join(lic, "package.json"), JSON.stringify({ name: "licence", version: "1.0.0", exports: { ".": "./dist-lib/a.js" }, files, bin: "./dist-lib/a.js" }));
   setFiles(["dist-lib", "README.md", "AGENTS.md"]);
   writeFileSync(join(lic, "dist-lib/a.js"), "#!/usr/bin/env node\n");
@@ -74,6 +76,16 @@ try {
     check(`${f} lacking`, packCheck().stderr.includes(`the tarball lacks dist-lib/${f}`), true);
     writeFileSync(join(lic, "dist-lib", f), "x\n");
   }
+  // The user guide's files ship in dist-lib/guide/: the real emit-guide.ts stops on an empty guide/, copies a full one, and the pack passes; a pack without one of the files fails naming it.
+  const emit = () => spawnSync(process.execPath, [fileURLToPath(new URL("./emit-guide.ts", import.meta.url)), lic], { encoding: "utf8" });
+  rmSync(join(lic, "dist-lib/guide"), { recursive: true });
+  mkdirSync(join(lic, "guide"));
+  check("empty guide stops the copy", emit().status, 1);
+  for (const n of names) writeFileSync(join(lic, "guide", n), "x\n");
+  check("emit-guide then pack passes", [emit().status, packCheck().status], [0, 0]);
+  rmSync(join(lic, guide[0]));
+  check("a guide file lacking", packCheck().stderr.includes(`the tarball lacks ${guide[0]}`), true);
+  emit();
   // The assistant guide ships (gantt#1560): a `files` list without AGENTS.md fails the pack check, and with it the check passes (AGENTS.md is an allowed name).
   setFiles(["dist-lib", "README.md"]);
   check("guide left out of files", packCheck().stderr.includes("the tarball lacks AGENTS.md"), true);
