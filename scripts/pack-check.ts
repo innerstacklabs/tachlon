@@ -7,7 +7,7 @@ import { binProblems, cssUrlsOutsidePack, declarationsNamingWasm, manifestProble
 // The user guide's chapters: the `.md` files of packages/gantt/guide/, which scripts/emit-guide.ts copies. The folder's README describes the file format and lists no chapter, so the folder is the index.
 const GUIDE = readdirSync(new URL("../packages/gantt/guide", import.meta.url)).filter((n) => n.endsWith(".md")).map((n) => `dist-lib/guide/${n}`);
 // dist-lib/guide/ holds Markdown and the guide's LICENSE, nothing else.
-const guideStrays = (dir: string): string[] => [...packedFiles(dir)].filter((f) => f.startsWith("dist-lib/guide/") && !/^dist-lib\/guide\/([^/]+\.md|LICENSE)$/.test(f)).sort();
+const guideStrays = (files: Set<string>): string[] => [...files].filter((f) => f.startsWith("dist-lib/guide/") && !/^dist-lib\/guide\/([^/]+\.md|LICENSE)$/.test(f)).sort();
 
 // Files the tarball must hold that no `exports` entry names.
 const EXPECTED = ["README.md", "LICENSE", "AGENTS.md", "dist-lib/NOTICE.md", "dist-lib/OFL.txt", "dist-lib/app_bg.wasm", "dist-lib/engine-size.json", "dist-lib/schema.json", "dist-lib/describe.json", "dist-lib/fit.md", "dist-lib/guide/LICENSE", ...GUIDE];
@@ -24,19 +24,20 @@ if (!dir) {
   process.exit(2);
 }
 try {
-  const missing = missingFromPack(dir);
+  const files = packedFiles(dir);
+  const missing = missingFromPack(dir, files);
   for (const t of missing) console.error(`pack-check: FAIL ${dir}: exports names ${t}, the tarball lacks it`);
-  const lacking = missingExpected(dir, EXPECTED);
+  const lacking = missingExpected(dir, EXPECTED, files);
   for (const f of lacking) console.error(`pack-check: FAIL ${dir}: the tarball lacks ${f}`);
-  const stray = strayFiles(dir, ALLOWED_PREFIXES, ALLOWED_NAMES);
+  const stray = strayFiles(dir, ALLOWED_PREFIXES, ALLOWED_NAMES, files);
   for (const f of stray) console.error(`pack-check: FAIL ${dir}: the tarball holds ${f}, which is not under dist-lib/ and is not README.md, LICENSE, AGENTS.md or package.json`);
-  const guideStray = guideStrays(dir);
+  const guideStray = guideStrays(files);
   for (const f of guideStray) console.error(`pack-check: FAIL ${dir}: the tarball holds ${f}, and dist-lib/guide/ holds only Markdown files and its LICENSE`);
-  const wasm = declarationsNamingWasm(dir);
+  const wasm = declarationsNamingWasm(dir, files);
   for (const f of wasm) console.error(`pack-check: FAIL ${dir}: ${f} imports from the generated wasm folder, which the tarball lacks`);
-  const bins = binProblems(dir);
+  const bins = binProblems(dir, files);
   for (const b of bins) console.error(`pack-check: FAIL ${dir}: bin ${b}`);
-  const urls = cssUrlsOutsidePack(dir);
+  const urls = cssUrlsOutsidePack(dir, files);
   for (const u of urls) console.error(`pack-check: FAIL ${dir}: url() ${u} names no file in the tarball`);
   const manifest = published ? manifestProblems(dir) : [];
   for (const m of manifest) console.error(`pack-check: FAIL ${dir}: ${m}`);
