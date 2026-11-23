@@ -46,7 +46,7 @@ Run the project's build script. If it has a typecheck or lint script, run that t
 
 ### 5. Commit
 
-Run `git add` on the files you changed, by name. Never run `git add .` or `git add -A`. Commit on the `add-tachlon` branch.
+Run `git add` on the files you changed, by name. Never run `git add .` or `git add -A`. Commit on the branch you made in step 1.
 
 ### 6. Summarize
 
