@@ -111,7 +111,7 @@ const component = defineComponent({
       };
     };
     onMounted(start);
-    watch(() => [props.schedule, props.document, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.tasks, props.links, props.dataDate, props.records], (now, before) => (mustStart(live?.chart, now, before) ? start() : send(props.records))); // one watch, so the order the host wrote the props in does not matter: `records` are sent only when nothing started
+    watch(() => [props.schedule, props.document, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.tasks, props.links, props.dataDate, props.records], (now, before) => (mustStart(live?.chart, now, before) ? start() : now.at(-1) !== before.at(-1) && send(props.records))); // one watch, so the order the host wrote the props in does not matter: `records` are sent only when nothing started
     // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
     watch(() => [props.capabilities, drawsLinks(props.save)], ([profile]) => live?.chart.setCapabilities(profile as MountOptions["capabilities"]));
