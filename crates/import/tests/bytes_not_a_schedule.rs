@@ -49,3 +49,37 @@ fn a_long_root_name_is_cut_at_40_characters() {
         )
     );
 }
+
+fn not_xml(text: &str) {
+    assert_eq!(
+        text,
+        format!(
+            "this is a file that is not XML and does not start with ERMHDR (the first line of a P6 XER file), {OPEN}"
+        )
+    );
+    assert!(!text.contains("XML error"));
+}
+
+#[test]
+fn a_csv_a_json_file_and_an_xer_with_a_blank_first_line_say_what_they_are() {
+    not_xml(&refusal(b"Task,Start\nA,2026-01-01\n"));
+    not_xml(&refusal(b"{\"tasks\": []}"));
+    not_xml(&refusal(b"\nERMHDR\t19.12\n"));
+}
+
+#[test]
+fn a_utf16_file_says_to_save_it_as_utf8() {
+    for bom in [[0xFF, 0xFE], [0xFE, 0xFF]] {
+        let text = refusal(&[&bom[..], b"<\0P\0"].concat());
+        assert_eq!(
+            text,
+            format!("this is UTF-16 text (save it as UTF-8 and open it again), {OPEN}")
+        );
+    }
+}
+
+#[test]
+fn a_bom_and_white_space_before_the_xml_declaration_still_reach_the_xml_reader() {
+    let text = refusal(b"\xEF\xBB\xBF \r\n\t<?xml version=\"1.0\"?><Project");
+    assert!(text.contains("XML error"), "{text}");
+}
