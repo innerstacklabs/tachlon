@@ -91,6 +91,9 @@ test("new `tasks` go to `setData` on the chart that is mounted, and the chart mo
   expect.soft(await at(rows("Renamed", "new", "red")), "a color setData ignores mounts it again, with no setData call").toEqual({ mounts: 3, sets: 2 });
   const sent = (await page.evaluate("put({ tasks: [{ key: \"new\" }], records: [{ key: \"k\" }] })")) as { mounts: number; updates: unknown[] };
   expect.soft({ mounts: sent.mounts, updates: sent.updates }, "records written before a refused `tasks` (the host patches dynamic props in that order, as a compiled template does) are not sent to the chart that is going").toEqual({ mounts: 4, updates: [] });
+  await page.evaluate("put({ records: [{ key: \"r\" }] })");
+  const kept = (await page.evaluate("put({ tasks: [{ key: \"z\" }] })")) as { mounts: number; updates: unknown[] };
+  expect.soft({ mounts: kept.mounts, updates: kept.updates.length }, "`tasks` that `setData` takes do not send the same `records` again").toEqual({ mounts: 4, updates: 1 });
 });
 
 test("a new `readOnly` switches the chart that is mounted, without mounting it again", async ({ page }) => {
