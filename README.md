@@ -16,7 +16,7 @@ Watch the narrated overview at [tachlon.com](https://tachlon.com).
 <!-- screencast: recorded headless on a MacBook Pro (Apple M3 Pro, WebGPU) on 2026-11-22 from branch `agent/tl384sc` based on `eb47143` -->
 <!-- screencast:end -->
 
-Needs a browser with WebGPU or WebGL2 and hardware acceleration on: a current Chrome, Edge, Firefox or Safari. Measured in Chrome.
+Needs a browser with WebGPU or WebGL2 and hardware acceleration on: a current Chrome, Edge, Firefox or Safari. Measured in Chrome. To check your browser, hold the pointer over the hosted app's toolbar: the tooltip reads "Drawing with WebGPU" or "Drawing with WebGL2".
 
 **Try your own file.** Open the [live demo](https://app.tachlon.com), press Open… in the toolbar and choose your .xer or .xml file; it needs no install and no sign-in, and the file is read in your browser and sent nowhere. To read how long the open took, click the chart and press `s`.
 
