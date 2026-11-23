@@ -1,8 +1,8 @@
 //! A small JSON value reader for the schedule document, with no dependency (decision 0010 item 5).
 //!
 //! It reads `null`, booleans, integers, strings (every escape, surrogate pairs included), arrays
-//! and objects with their keys in order. A fraction or an exponent is an error in version 1,
-//! nesting is capped at [`MAX_DEPTH`], and every error names the byte offset it stopped at.
+//! and objects with their keys in order. A fraction or an exponent is an error in version 1 ([`parse_host`]
+//! reads one), nesting is capped at [`MAX_DEPTH`], and every error names the byte offset it stopped at.
 //!
 //! [`parse_streaming`] reads the same text but hands each element of the top-level `tasks` and
 //! `links` arrays to a sink as it is read, so no tree of the whole file is ever held.
@@ -18,6 +18,8 @@ pub(crate) enum Value<'a> {
     Null,
     Bool(bool),
     Int(i64),
+    /// A number with a fraction or an exponent: only [`parse_host`] reads one.
+    Frac(f64),
     Str(Cow<'a, str>),
     Array(Vec<Value<'a>>),
     /// Members in the order the text gave them.
@@ -60,6 +62,7 @@ impl Value<'_> {
             Value::Null => "null".to_string(),
             Value::Bool(b) => b.to_string(),
             Value::Int(n) => n.to_string(),
+            Value::Frac(f) => f.to_string(),
             Value::Str(s) => format!("{:?}", s.chars().take(40).collect::<String>()),
             Value::Array(_) => "an array".to_string(),
             Value::Object(_) => "an object".to_string(),
@@ -87,21 +90,31 @@ const STREAMED: [(&str, &[&str]); 2] = [
 /// that starts with `byte <offset>`. The reader of a document streams instead; a host's records
 /// are small, and the tests check the two refuse the same texts.
 pub(crate) fn parse(text: &str) -> Result<Value<'_>, String> {
-    parse_with(text, None)
+    parse_with(text, None, false)
+}
+
+/// [`parse`] for a host's records, which hand back the fractions `results` writes: a [`Value::Frac`].
+pub(crate) fn parse_host(text: &str) -> Result<Value<'_>, String> {
+    parse_with(text, None, true)
 }
 
 /// The one JSON value `text` holds, or why it is not: a message that starts with `byte <offset>`.
 /// Each element of a streamed array goes to `sink` and is dropped, so the array is left empty in
 /// the value returned.
 pub(crate) fn parse_streaming<'t>(text: &'t str, sink: &mut Sink<'_>) -> Result<Value<'t>, String> {
-    parse_with(text, Some(sink))
+    parse_with(text, Some(sink), false)
 }
 
-fn parse_with<'t, 's>(text: &'t str, sink: Option<&'s mut Sink<'s>>) -> Result<Value<'t>, String> {
+fn parse_with<'t, 's>(
+    text: &'t str,
+    sink: Option<&'s mut Sink<'s>>,
+    fractions: bool,
+) -> Result<Value<'t>, String> {
     let mut reader = Reader {
         bytes: text.as_bytes(),
         at: 0,
         sink,
+        fractions,
     };
     let value = reader.value(0)?;
     reader.space();
@@ -115,6 +128,7 @@ struct Reader<'t, 's> {
     bytes: &'t [u8],
     at: usize,
     sink: Option<&'s mut Sink<'s>>,
+    fractions: bool,
 }
 
 impl<'t> Reader<'t, '_> {
@@ -266,13 +280,28 @@ impl<'t> Reader<'t, '_> {
             return Err(self.fail("not a number"));
         }
         if matches!(self.peek(), Some(b'.' | b'e' | b'E')) {
-            return Err(self.fail("a fraction or an exponent; version 1 has integers only"));
+            if !self.fractions {
+                return Err(self.fail("a fraction or an exponent; version 1 has integers only"));
+            }
+            return self.fraction(start);
         }
         std::str::from_utf8(&self.bytes[start..self.at])
             .ok()
             .and_then(|digits| digits.parse().ok())
             .map(Value::Int)
             .ok_or_else(|| self.fail("an integer that does not fit in 64 bits"))
+    }
+
+    /// The rest of the number that starts at `start`, once past its whole digits, as Rust reads a float.
+    fn fraction(&mut self, start: usize) -> Result<Value<'t>, String> {
+        while (self.peek()).is_some_and(|b| b.is_ascii_digit() || b".eE+-".contains(&b)) {
+            self.at += 1;
+        }
+        let text = std::str::from_utf8(&self.bytes[start..self.at]).unwrap_or_default();
+        match text.parse::<f64>() {
+            Ok(n) if n.is_finite() => Ok(Value::Frac(n)),
+            _ => Err(self.fail("not a number")),
+        }
     }
 
     fn hex4(&mut self) -> Result<u32, String> {
@@ -399,6 +428,20 @@ mod tests {
         assert_eq!(
             value.as_str(),
             Some("a\"\\/\u{8}\u{c}\n\r\t\u{e9}\u{1F600} \u{e9}")
+        );
+    }
+
+    /// `Value::Frac` is built in one place, which only `parse_host` opens (a streamed read is `parse`'s, below).
+    #[test]
+    fn only_parse_host_reads_a_fraction() {
+        let want = [Value::Frac(1.5), Value::Frac(-20.0), Value::Int(3)];
+        let read = parse_host("[1.5,-2e1,3]").unwrap();
+        assert_eq!(read.as_array(), Some(&want[..]));
+        assert!(parse("[1.5]").is_err() && parse("[1e3]").is_err());
+        assert!(
+            ["1e", "1.5.2", "1e999"]
+                .iter()
+                .all(|t| parse_host(t).is_err())
         );
     }
 

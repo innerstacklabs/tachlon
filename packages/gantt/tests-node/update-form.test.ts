@@ -4,7 +4,7 @@ import { timedDate } from "../src/date-form.ts";
 import { test } from "node:test";
 import { expect } from "@playwright/test";
 
-const TIMED = [["start", "2026-03-09T08:00"], ["snet", "2026-03-09T08:00"], ["snlt", "2026-03-20T10:00"], ["fnet", "2026-03-27T17:00"], ["fnlt", "2026-03-27T17:00"], ["mso", "2026-03-09T08:00"], ["mfo", "2026-03-27T17:00"], ["hostStart", "2026-03-09T08:00"], ["hostFinish", "2026-03-27T16:00"]] as const;
+const TIMED = [["start", "2026-03-09T08:00"], ["snet", "2026-03-09T08:00"], ["snlt", "2026-03-20T10:00"], ["fnet", "2026-03-27T17:00"], ["fnlt", "2026-03-27T17:00"], ["mso", "2026-03-09T08:00"], ["mfo", "2026-03-27T17:00"], ["hostStart", "2026-03-09T08:00"], ["hostFinish", "2026-03-27T16:00"], ["hostLateStart", "2026-03-09T08:00"], ["hostLateFinish", "2026-03-27T16:00"]] as const;
 
 test("under day, a date with a time of day is badValue, naming the task, the member and the value", () => {
   for (const [member, value] of TIMED) {

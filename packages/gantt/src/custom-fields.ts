@@ -33,7 +33,7 @@ const isRow = (value: unknown): value is Row => typeof value === "object" && val
 export function customFields(maps: { tasks: Pick<Names<object>, "toChart">; links: Pick<Names<object>, "toChart"> }): CustomFields {
   const held = { tasks: new Map<string, Row>(), links: new Map<string, Row>() };
   const seen = { tasks: new Set<string>(), links: new Set<string>() };
-  const known = { tasks: new Set([...KNOWN_TASK, "hostStart", "hostFinish"]), links: KNOWN_LINK }; // the two dates only `update` takes
+  const known = { tasks: new Set([...KNOWN_TASK, "hostStart", "hostFinish", "hostLateStart", "hostLateFinish", "hostFloat", "hostFreeFloat", "hostCritical"]), links: KNOWN_LINK }; // the members only `update` takes
   const cache = { tasks: new Map<string, boolean>(), links: new Map<string, boolean>() };
   const named = (tasks: string[], links: string[]): CustomNames => Object.freeze({ tasks: Object.freeze(tasks), links: Object.freeze(links) });
   let listed = named([], []);
