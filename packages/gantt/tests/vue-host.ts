@@ -1,5 +1,5 @@
 // The host app of the Vue spec (gantt#1875): a Vue page that renders the wrapper as an application would, on tests/react-fake-core.ts, and keeps what the spec reads.
-import { createApp, h, shallowRef } from "vue";
+import { createApp, createVNode, shallowRef } from "vue";
 import { Gantt } from "../src/vue.ts";
 
 const g = globalThis as { mounts?: { schedule?: { demo: number }; mustFinishBy?: string; locale?: string; texts?: Record<string, string>; capabilities?: object; save?: Record<symbol, () => ((changeSet: object) => unknown) | undefined> }[]; destroyed?: unknown[]; listened?: string[]; switched?: boolean[]; profiled?: unknown[] };
@@ -16,7 +16,7 @@ const tasks = shallowRef<object[] | undefined>(undefined);
 const records = shallowRef<object[] | undefined>(undefined);
 const results: unknown[] = [];
 let started = false;
-const app = createApp({ render: () => h(Gantt, { tasks: tasks.value as never, records: records.value as never, onUpdate: (r: unknown) => void results.push(r), schedule: schedule.value, locale: locale.value, mustFinishBy: mustFinishBy.value, texts: texts.value, readOnly: readOnly.value, capabilities: capabilities.value, save: save.value as never, ...handlers.value }) });
+const app = createApp({ render: () => { const props = { records: records.value as never, tasks: tasks.value as never, onUpdate: (r: unknown) => void results.push(r), schedule: schedule.value, locale: locale.value, mustFinishBy: mustFinishBy.value, texts: texts.value, readOnly: readOnly.value, capabilities: capabilities.value, save: save.value as never, ...handlers.value }; return createVNode(Gantt, props, null, 8, Object.keys(props)); } });
 const problems = { warnings: [] as string[], errors: 0 };
 console.warn = (...parts: unknown[]) => void problems.warnings.push(parts.join(" ")); // Vue's own warn handler only sees warnings raised while it renders; an emit after the mount warns on the console
 app.config.errorHandler = () => void (problems.errors += 1);
