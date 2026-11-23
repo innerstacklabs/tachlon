@@ -1,7 +1,8 @@
 # The user guide, for any product
 
 Each file in this folder tells a person how to use one feature of the chart, in words that fit any
-product that embeds it. The files are under the package's license (MIT, the package's `LICENSE`).
+product that embeds it. These files and `PROMPT.md` are under MIT-0 (MIT with its notice condition removed),
+in the `LICENSE` of this folder.
 
 ## What a file says about itself
 

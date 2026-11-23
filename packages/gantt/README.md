@@ -272,7 +272,7 @@ An assistant that edits your project also has a skill: `npx tachlon init --skill
 
 ## Your product's user guide
 
-The package ships a user guide for the chart, written for any product: one file for each feature, in `node_modules/tachlon/dist-lib/guide/`, under the package's MIT license. `npx tachlon describe guide` prints the prompt that turns those files into your own product's documentation. It tells your assistant to read how your product uses the chart, learn its name and voice, keep only the features your options turn on, write the pages, and list the screenshots to take in your own themed app. It never invents a feature and never copies a picture. Paste this one line into your assistant:
+The package ships a user guide for the chart, written for any product: one file for each feature, in `node_modules/tachlon/dist-lib/guide/`, under MIT-0 (MIT with its notice condition removed): a document your assistant derives from the guide needs no notice or credit. `npx tachlon describe guide` prints the prompt that turns those files into your own product's documentation. It tells your assistant to read how your product uses the chart, learn its name and voice, keep only the features your options turn on, write the pages, and list the screenshots to take in your own themed app. It never invents a feature and never copies a picture. Paste this one line into your assistant:
 
 ```text
 Follow `npx tachlon describe guide` to write this product's user guide from the chart's own.
