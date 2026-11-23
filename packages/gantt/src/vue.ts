@@ -13,6 +13,12 @@ const EVENTS = { select: null, edit: null, move: null, open: null, load: null, c
 type Emits = { [K in keyof GanttEvents]: (detail: GanttEvents[K]) => true } & { ready: (chart: Chart<Fields | undefined>) => true; update: (result: UpdateResult) => true };
 type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 
+/** Hands the `[tasks, links, dataDate]` that changed to `setData` as one call. False (the chart starts again) when a prop was taken away, a task differs in a member `setData` ignores, or `setData` refuses them. */
+function setRows(chart: Chart<Fields | undefined>, now: readonly unknown[], before: readonly unknown[]): boolean {
+  const data = Object.fromEntries((["tasks", "links", "dataDate"] as const).flatMap((key, i) => (now[i] !== undefined && now[i] !== before[i] ? [[key, now[i]]] : []))) as Parameters<Chart<Fields | undefined>["setData"]>[0];
+  return !before.some((was, i) => was !== undefined && now[i] === undefined) && !(data.tasks !== undefined && unsetChange((before[0] ?? []) as PlainTask[], data.tasks as PlainTask[])) && chart.setData(data).ok;
+}
+
 const component = defineComponent({
   name: "Gantt",
   props: {
@@ -100,10 +106,7 @@ const component = defineComponent({
     };
     onMounted(start);
     // New `tasks`, `links` or `dataDate` go to the chart that is mounted as one `setData`; it starts again when `setData` refuses them, a prop is taken away, a task differs in a member `setData` ignores, or a start is still pending. This watch comes first, so `records` that arrive with a start are not sent to the chart that is going.
-    watch(() => [props.tasks, props.links, props.dataDate], (now, before) => {
-      const data = Object.fromEntries((["tasks", "links", "dataDate"] as const).flatMap((key, i) => (now[i] !== undefined && now[i] !== before[i] ? [[key, now[i]]] : []))) as Parameters<Chart<Fields | undefined>["setData"]>[0];
-      if (live === null || before.some((was, i) => was !== undefined && now[i] === undefined) || (data.tasks !== undefined && unsetChange((before[0] ?? []) as PlainTask[], data.tasks as PlainTask[])) || !live.chart.setData(data).ok) start();
-    });
+    watch(() => [props.tasks, props.links, props.dataDate], (now, before) => { if (live === null || !setRows(live.chart, now, before)) start(); });
     watch(() => [props.schedule, props.document, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.records], (now, before) => (now.slice(0, -1).some((value, i) => value !== before[i]) ? start() : send(props.records))); // `records` is last: any other prop that changed mounts again, in whatever order the host wrote them
     // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
