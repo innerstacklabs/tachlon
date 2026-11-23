@@ -2,6 +2,8 @@
 //! edit: no gate, no undo step, no outbox commit, and `revision` stays; `stamp` rises, so the table
 //! redraws. Every record is read before a value is written, and a refusal puts every value back.
 
+mod record;
+
 use super::{Plan, differs::is_host, read::read_duration};
 use crate::{
     Session,
@@ -24,7 +26,7 @@ pub struct Updated {
 /// Why an update was refused. Nothing changed. `kind` is `badJson`, `noKey`, `unknownKey` (a
 /// deleted task's key too), `duplicateKey`, `notUpdatable` (a member an update does not set, or a summary),
 /// `badValue`, or an [`EditError::kind`]: `busy` and `schedule`, and for a `name` or a `progress` the
-/// reasons a typed rename or percent gets (`emptyName`, `invalidName`, `badPercent`, `actualAfterDataDate`).
+/// reasons a typed rename or percent gets (`emptyName`, `invalidName`, `badPercent`, `finishBeforeStart`, `actualAfterDataDate`).
 /// `record` counts from 0.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct UpdateError {
@@ -44,8 +46,8 @@ impl UpdateError {
     }
 }
 
-/// What an update sets on one task. A record with no `progress` leaves `progress` and `percent` empty,
-/// and the task's actual dates and remaining work are not written.
+/// What an update sets on one task. A record with none of `progress`, `actualStart`, `actualFinish` and
+/// `remaining` leaves `progress` and `percent` empty, and the task's actual dates and remaining work are not written.
 #[derive(Clone)]
 pub(super) struct Values {
     duration: Minutes,
@@ -109,7 +111,7 @@ impl Session {
     /// sets it, and refused as a typed actual is when an actual it sets is after the data date. The call
     /// applies every record's `duration`, `start`, `snet`, limits and `name` first and works each `progress` out
     /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
-    /// with a duration, start, snet or limit in any record solves twice, and any other call once. A member a
+    /// with a duration, start, snet or limit in any record solves twice, and any other call once. `actualStart` and `actualFinish` take a date or `null` (a date alone is read as plain data reads it: the first working minute of the day, and the end of its last) and `remaining` a whole number of working minutes or `null`; a record that gives one with `progress`, an actual finish before the start, a finish or remaining (unless `unstartedRemaining` is on) with no actual start, or an actual after the data date is refused. A member a
     /// record leaves out keeps its value. `hostStart`, `hostFinish`, `hostLateStart`, `hostLateFinish`, `hostFloat`, `hostFreeFloat` and `hostCritical`, what the host computed, set nothing and are named in `differs` when the chart computed otherwise (a day alone compares the day, a finish's day being its last minute's; a float is in working days of the task's calendar, and may have a fraction). `mso` and `mfo`, the pins, are read and never set: one that equals what the task's pin holds (`null` with no such pin) changes nothing, and any other is `notUpdatable`, as is every other member, `alap` included.
     ///
     /// # Errors
@@ -222,7 +224,7 @@ impl Session {
             let back: Vec<_> = (new.steps_back(old, *task).into_iter())
                 .map(|step| step.edit)
                 .collect();
-            if new.percent.is_some() || held && !back.is_empty() {
+            if new.percent.is_some() || new.progress.is_some() || held && !back.is_empty() {
                 return Err(UpdateError::new("hasActuals", Some(at), None));
             }
             if let Err(error) = self.refuse_unallowed(&Plan::Group(&back, Source::Host)) {
@@ -274,14 +276,7 @@ impl Session {
         record: &Value,
     ) -> Result<(Values, Values), UpdateError> {
         let current = &self.schedule.tasks()[task.0 as usize];
-        let mut old = Values {
-            duration: current.duration,
-            snet: current.snet,
-            limit: current.limit,
-            name: self.meta[task.0 as usize].name.clone(),
-            progress: None,
-            percent: None,
-        };
+        let mut old = self.values_of(task);
         let members: &[_] = match record {
             Value::Object(members)
                 if !self.outline.as_ref().is_some_and(|o| o.is_summary(task)) =>
@@ -290,8 +285,9 @@ impl Session {
             }
             _ => return Err(UpdateError::new("notUpdatable", Some(at), Some("key"))),
         };
+        let held = Progress::of(current);
         let mut new = old.clone();
-        let mut percent = None;
+        let (mut percent, mut actuals) = (None, None::<Progress>);
         for (name, value) in members {
             let bad = || UpdateError::new("badValue", Some(at), Some(name));
             let refused = |error: EditError| UpdateError::new(error.kind(), Some(at), Some(name));
@@ -330,6 +326,10 @@ impl Session {
                     rename.check_typed().map_err(refused)?;
                     text.clone_into(&mut new.name);
                 }
+                "actualStart" | "actualFinish" | "remaining" => {
+                    let given = actuals.get_or_insert(held);
+                    self.read_actual(task, name, value, given).ok_or_else(bad)?;
+                }
                 "progress" => {
                     let Value::Int(n) = value else {
                         return Err(bad());
@@ -340,13 +340,13 @@ impl Session {
                 _ => return Err(UpdateError::new("notUpdatable", Some(at), Some(name))),
             }
         }
-        if let Some(percent) = percent {
-            old.progress = Some(Progress {
-                start: current.actual_start,
-                finish: current.actual_finish,
-                remaining: current.remaining,
-            });
-            new.percent = Some(percent);
+        if percent.is_some() || actuals.is_some() {
+            old.progress = Some(held);
+        }
+        new.percent = percent;
+        if let Some(given) = actuals {
+            self.check_actuals(at, task, given, percent.is_some())?;
+            new.progress = Some(given);
         }
         Ok((new, old))
     }

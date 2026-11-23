@@ -156,6 +156,9 @@ fn a_record_that_sets_actuals_is_refused_and_an_unchanged_call_changes_nothing()
     for (record, kind) in [
         (r#"{"key":"b","duration":1}"#, "hasActuals"),
         (r#"{"key":"a","progress":50}"#, "hasActuals"),
+        (r#"{"key":"a","actualStart":"2026-03-02"}"#, "hasActuals"),
+        (r#"{"key":"b","actualFinish":"2026-03-02"}"#, "hasActuals"),
+        (r#"{"key":"b","remaining":60}"#, "hasActuals"),
     ] {
         let error = s.host_edit(&format!("[{record}]")).unwrap_err();
         assert_eq!((error.kind, error.record), (kind, Some(0)), "{record}");

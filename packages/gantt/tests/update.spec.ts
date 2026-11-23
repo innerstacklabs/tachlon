@@ -108,6 +108,14 @@ test("a duration is counted in the unit the chart mounted with: hours, minutes, 
   expect(await set({ document, durationUnit: "day" }, 3), "a unit that is not one of the three counts days, as the reader does").toEqual([1440]);
 });
 
+test("a remaining alone is counted in the unit the chart mounted with, on the task's own calendar, as a duration is", async ({ page }) => {
+  const ten = { key: "ten", workDays: [1, 2, 3, 4, 5], hoursPerDay: 10 };
+  const task = { ...tasks(1)[0]!, calendar: "ten", actualStart: "2026-03-02" };
+  await mountHost(page, { tasks: [task], calendars: [{ key: "std", workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 }, ten] });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", remaining: 2 }]))).toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate(() => (window.upChart.toDocument() as { tasks: { remaining: number | null }[] }).tasks[0]!.remaining), "two days of the 10-hour calendar").toBe(1200);
+});
+
 test("a null start clears the floor a record gave: the type takes it and the chart leaves the date", async ({ page }) => {
   await mountHost(page, { tasks: tasks(3) });
   const start = () => page.evaluate(() => window.upChart.snapshot().tasks[0]!.start);

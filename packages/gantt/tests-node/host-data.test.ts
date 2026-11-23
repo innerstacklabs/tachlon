@@ -141,9 +141,19 @@ test("a data date the chart refuses is offered again, not remembered", () => {
   expect(days).toEqual(["2026-03-09", "2026-03-09"]);
 });
 
+test("a changed remaining, actualStart or actualFinish reaches update by key and is no restart, and one left out that the task had is", () => {
+  const started = { actualStart: "2026-03-02", actualFinish: "2026-03-03", remaining: 1 };
+  const { calls, give } = chart();
+  expect(give({ tasks: [task(1, started), task(2), task(3)] })).toEqual({ ok: true, updated: 1 });
+  expect(give({ tasks: [task(1, { ...started, remaining: 3 }), task(2), task(3)] })).toEqual({ ok: true, updated: 1 });
+  expect(calls).toEqual([[{ key: "k1", ...started }], [{ key: "k1", remaining: 3 }]]);
+  expect(unsetChange([task(1, started)], [task(1, { ...started, remaining: 3 })]), "a new value is set in place").toBe(false);
+  expect(unsetChange([task(1, started)], [task(1, { ...started, remaining: undefined })]), "a member left out").toBe(true);
+});
+
 test("unsetChange is true for a task that differs in a member setData ignores, or that has no key, and false for a name", () => {
   const held = rows();
-  const ignored = { color: "red", label: "x", end: "2026-03-09", calendar: "c", milestone: "start", alap: true, actualStart: "2026-03-02", actualFinish: "2026-03-03", remaining: 1, resume: "2026-03-04", own: 1 };
+  const ignored = { color: "red", label: "x", end: "2026-03-09", calendar: "c", milestone: "start", alap: true, resume: "2026-03-04", own: 1 };
   for (const [member, value] of Object.entries(ignored)) expect(unsetChange(held, [task(1), task(2, { [member]: value }), task(3)]), member).toBe(true);
   expect(unsetChange(held, [task(1), { id: 2, name: "No key" }, task(3)]), "no key").toBe(true);
   for (const member of ["start", "duration", "progress", "constraint"]) expect(unsetChange([task(1, { constraint: { type: "snet", date: "2026-03-02" } })], [{ ...task(1), [member]: undefined }]), `${member} left out`).toBe(true);
