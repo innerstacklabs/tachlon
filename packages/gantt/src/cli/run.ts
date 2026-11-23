@@ -8,7 +8,7 @@ import { type Bundle, describeTopic, readBundle, TOPICS } from "./describe.ts";
 import { detect, findProjectDir, readJsonObject, Refusal } from "./detect.ts";
 import { type Checks, describeFindings, diagnose } from "./doctor.ts";
 import { applyInit, describe, nextSteps, type Own, planInit } from "./init.ts";
-import { askBrowser, BROWSER_VARIABLE, type Gpu } from "./gpu.ts";
+import { askBoth, BROWSER_VARIABLE, type Gpu } from "./gpu.ts";
 import { type Probe, probePage } from "./probe.ts";
 
 export interface Result {
@@ -39,7 +39,7 @@ export function run(argv: string[], cwd: string, probe?: Probe, gpu?: Checks["gp
 }
 
 /** `run`, reading the page first when `doctor` is given `--url` and asking a browser (`askGpu`) about the GPU, only when `doctor` gets as far as that check; the entry `main.ts` calls. A page it cannot fetch is exit 2. */
-export async function runAsync(argv: string[], cwd: string, askGpu: () => Promise<Gpu> = askBrowser): Promise<Result> {
+export async function runAsync(argv: string[], cwd: string, askGpu: (page: string | undefined) => Promise<Gpu> = askBoth): Promise<Result> {
   const args = parseArgs(argv);
   if ("error" in args || args.command !== "doctor" || args.help || args.version) return run(argv, cwd);
   try {
@@ -49,7 +49,7 @@ export async function runAsync(argv: string[], cwd: string, askGpu: () => Promis
       reached = true;
       return undefined;
     });
-    return reached ? run(argv, cwd, probe, await askGpu()) : first;
+    return reached ? run(argv, cwd, probe, await askGpu(args.url)) : first;
   } catch (e) {
     if (e instanceof Refusal) return refuse(e.message);
     throw e;
