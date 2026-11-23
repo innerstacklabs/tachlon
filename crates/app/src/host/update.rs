@@ -192,7 +192,10 @@ impl Session {
         }
         self.solve_full(None, |session| session.put_back(&done))
             .map_err(refuse)?;
-        let differs = self.differences(records, &planned)?;
+        let differs = self.differences(records, &planned).inspect_err(|_| {
+            self.put_back(&done);
+            let _ = self.solve_full(None, |_| {});
+        })?;
         if let Some(held) = &mut self.proposal {
             held.solved = None;
         }

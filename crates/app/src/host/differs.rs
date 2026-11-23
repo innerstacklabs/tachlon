@@ -29,7 +29,7 @@ impl Session {
             (1 | 3, _) => Said::At(self.read_finish(value)?),
             (4 | 5, Value::Frac(days)) => Said::Days(*days),
             (4 | 5, Value::Int(n)) => Said::Days(f64::from(i32::try_from(*n).ok()?)),
-            (_, Value::Bool(flag)) => Said::Flag(*flag),
+            (6, Value::Bool(flag)) => Said::Flag(*flag),
             _ => return None,
         };
         Some((kind, said))
