@@ -29,6 +29,16 @@ function membersByKey(tasks: readonly PlainTask[]): Map<string, readonly unknown
   return byKey;
 }
 
+/** True when a task of `next` has no text `key`, or differs from the task of `held` with its key in a member `setData` ignores (`color`, `end` and the rest, the host's own included): the rows must start the chart again, or the change is dropped. A task `held` lacks, and a changed `id` or `parent`, are `setData`'s to refuse. */
+export function unsetChange(held: readonly PlainTask[], next: readonly PlainTask[]): boolean {
+  const before = new Map(held.map((task) => [task.key, task]));
+  const taken = new Set<string>([...MEMBERS, "key", "id", "parent"]);
+  return next.some((task) => {
+    const was = typeof task.key === "string" ? before.get(task.key) : undefined;
+    return typeof task.key !== "string" || (was !== undefined && [...new Set([...Object.keys(was), ...Object.keys(task)])].some((member) => !taken.has(member) && differs(task[member], was[member])));
+  });
+}
+
 /** `text` as the day `setDataDate` reads (`YYYY-MM-DD`, trimmed, a day the calendar has), or undefined. */
 const dayOf = (text: unknown): string | undefined => {
   const day = typeof text === "string" ? text.trim() : "";

@@ -3,7 +3,7 @@ import { test } from "node:test";
 import { expect } from "@playwright/test";
 import type { PlainLink, PlainTask } from "../src/adapters/plain.ts";
 import type { TaskUpdate, UpdateResult } from "../src/gantt-types.ts";
-import { hostData } from "../src/host-data.ts";
+import { hostData, unsetChange } from "../src/host-data.ts";
 
 const task = (n: number, extra: object = {}): PlainTask => ({ id: n, key: `k${n}`, name: `Task ${n}`, start: "2026-03-02", duration: 2, progress: 0, ...extra });
 const rows = (): PlainTask[] => [task(1), task(2), task(3)];
@@ -139,4 +139,13 @@ test("a data date the chart refuses is offered again, not remembered", () => {
   refuse = false;
   expect(give({ dataDate: "2026-03-09" })).toEqual({ ok: true, updated: 0 });
   expect(days).toEqual(["2026-03-09", "2026-03-09"]);
+});
+
+test("unsetChange is true for a task that differs in a member setData ignores, or that has no key, and false for a name", () => {
+  const held = rows();
+  const ignored = { color: "red", label: "x", end: "2026-03-09", calendar: "c", milestone: "start", alap: true, actualStart: "2026-03-02", actualFinish: "2026-03-03", remaining: 1, resume: "2026-03-04", own: 1 };
+  for (const [member, value] of Object.entries(ignored)) expect(unsetChange(held, [task(1), task(2, { [member]: value }), task(3)]), member).toBe(true);
+  expect(unsetChange(held, [task(1), { id: 2, name: "No key" }, task(3)]), "no key").toBe(true);
+  expect(unsetChange(held, [task(1, { name: "Renamed", progress: 50 }), task(2), task(3)]), "a name").toBe(false);
+  expect(unsetChange(held, [task(1), task(2), task(3), task(4, { color: "red" })]), "a new task is left to setData").toBe(false);
 });

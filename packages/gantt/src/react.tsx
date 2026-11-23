@@ -2,6 +2,8 @@
 // mount options as props and the chart's events as callbacks. It uses only what the entry exports, `mount` and its types, imported by relative path, so
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { useEffect, useRef, useState, type CSSProperties, type JSX } from "react";
+import type { PlainTask } from "./adapters/plain.js";
+import { unsetChange } from "./host-data.js";
 import { drawsLinks, liveSave } from "./save-queue.js";
 import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOptions, type UpdateResult } from "./index.js";
 export type { ChangeSet, Handlers, Save, SaveContext, SaveError, SaveResult } from "./index.js";
@@ -24,9 +26,9 @@ const EVENTS = {
 /**
  * The mount options, one prop each, and a callback for each event: `onSelect({ task, key })`, `onMove({ task, key, start })` and the rest of `GanttEvents`.
  * A handler is called with the latest function the component was given. A handler for `find` or `choose-file` takes that key from the browser,
- * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `tasks`, `links`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
- * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `tasks`, `links`, `texts` and `fonts` stable between renders.
- * A new `dataDate` (a day written `YYYY-MM-DD`) is set on the chart that is mounted, as `Gantt.setData({ dataDate })` does, and mounts it again only when `setData` refuses it or the prop is taken away.
+ * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
+ * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `texts` and `fonts` stable between renders.
+ * New `tasks`, `links` or `dataDate` (a day written `YYYY-MM-DD`) go to the chart that is mounted as one `Gantt.setData({ tasks, links, dataDate })` call, in place: the scroll position, the selection and the undo list stay. The chart mounts again only when `setData` refuses them (a task or link added, removed or changed), a prop is taken away, a task differs in a member `setData` ignores (`color`, `end` and the rest, so no change is dropped), or the start is still pending.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
  * `save` is read as each change set is sent: a function added or removed later takes effect at the next edit, and none mounts the chart again.
@@ -48,15 +50,21 @@ function sendRecords<F extends Fields | undefined>(chart: Chart<F> | undefined, 
   if (chart !== undefined && props.records !== undefined) props.onUpdate?.(chart.update((applied.current = props.records)));
 }
 
-/** A changed `dataDate` is set on the chart that is mounted; one it refuses (`setData` holds none of your rows, or the day is not a day) or that is taken away starts the chart again (`count` goes up, and `ask` does it too). A start that is pending reads it when it has settled. */
-function useDataDate<F extends Fields | undefined>(live: { current: { chart: Chart<F> } | null }, dataDate: string | undefined): { count: number; ask: () => void } {
-  const [count, setCount] = useState(0); // the starts a `dataDate` that the chart could not take in place has asked for
-  const ask = (): void => setCount((n) => n + 1);
+type HostRows<F extends Fields | undefined> = Pick<MountOptions<F>, "tasks" | "links" | "dataDate">;
+
+/** New `tasks`, `links` or `dataDate` go to `setData` on the chart that is mounted, in one call. The chart starts again (`count` goes up, and `ask` does it too, the chart that is mounted dropped at once) when `setData` refuses them, one of the three is taken away, or a task differs in a member `setData` ignores. `held` is the rows the chart last took, a start's or an accepted call's. A start that is pending reads them when it has settled. */
+function useHostRows<F extends Fields | undefined>(live: { current: { chart: Chart<F>; heard: Map<string, () => void> } | null }, rows: HostRows<F>): { count: number; ask: () => void; held: { current: HostRows<F> } } {
+  const [count, setCount] = useState(0); // the starts that rows the chart could not take in place have asked for
+  const held = useRef(rows);
+  const ask = (): void => (live.current?.heard.forEach((stop) => stop()), (live.current = null), setCount((n) => n + 1));
   useEffect(() => {
-    const chart = live.current?.chart;
-    if (chart !== undefined && (dataDate === undefined || !chart.setData({ dataDate }).ok)) ask();
-  }, [dataDate]);
-  return { count, ask };
+    const chart = live.current?.chart, was = held.current, keys = ["tasks", "links", "dataDate"] as const;
+    if (chart === undefined) return;
+    const data = Object.fromEntries(keys.filter((key) => rows[key] !== undefined && rows[key] !== was[key]).map((key) => [key, rows[key]])) as Parameters<Chart<F>["setData"]>[0];
+    if (keys.some((key) => was[key] !== undefined && rows[key] === undefined) || (data.tasks !== undefined && unsetChange((was.tasks ?? []) as PlainTask[], data.tasks as PlainTask[])) || !chart.setData(data).ok) ask();
+    else held.current = rows;
+  }, [rows.tasks, rows.links, rows.dataDate]);
+  return { count, ask, held };
 }
 
 export function Gantt<F extends Fields | undefined = undefined>(props: GanttProps<F>): JSX.Element {
@@ -66,7 +74,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
   const queue = useRef<Promise<void>>(Promise.resolve());
   const live = useRef<{ chart: Chart<F>; heard: Map<string, () => void>; loaded: boolean } | null>(null);
   const [failure, setFailure] = useState<{ error: unknown } | null>(null);
-  const redo = useDataDate(live, dataDate);
+  const redo = useHostRows(live, { tasks, links, dataDate });
   if (failure !== null) throw failure.error;
   useEffect(() => { latest.current = props; });
 
@@ -93,6 +101,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
   // charts must never start in one root. A start whose cleanup has already run never mounts.
   useEffect(() => {
     applied.current = latest.current.records;
+    redo.held.current = { tasks, links, dataDate };
     let started: Chart<F> | undefined;
     let stopped = false;
     queue.current = queue.current.then(async () => {
@@ -107,7 +116,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
       live.current = { chart: started, heard: new Map(), loaded: false };
       try { started.setReadOnly(latest.current.readOnly === true), started.setCapabilities(latest.current.capabilities); } catch (error) { return setFailure({ error }); } // a change while `mount` was pending found no chart to switch; a profile the chart rejects fails like a start
       listen();
-      for (const call of [() => latest.current.onReady?.(started as Chart<F>), () => !stopped && latest.current.records !== applied.current && sendRecords(live.current?.chart, latest.current, applied), () => !stopped && latest.current.dataDate !== dataDate && redo.ask()]) {
+      for (const call of [() => latest.current.onReady?.(started as Chart<F>), () => !stopped && latest.current.records !== applied.current && sendRecords(live.current?.chart, latest.current, applied), () => !stopped && (latest.current.tasks !== tasks || latest.current.links !== links || latest.current.dataDate !== dataDate) && redo.ask()]) {
         try { call(); } catch (error) { reportError(error); } // a handler that throws must not stall the queue the next mount waits on
       }
     });
@@ -117,7 +126,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
       live.current = null;
       started?.destroy();
     };
-  }, [schedule, document, tasks, links, projectStart, redo.count, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts]);
+  }, [schedule, document, projectStart, redo.count, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts]);
 
   // `readOnly` switches the chart that is mounted and never mounts it again; a chart that mounts later starts on the latest value.
   useEffect(() => live.current?.chart.setReadOnly(readOnly === true), [readOnly]);

@@ -28,7 +28,7 @@ for (const [name, host] of Object.entries(HOSTS)) {
     const put = await open(page, host);
     expect.soft(await put({ tasks: [], records: a }), "the first value is not applied").toEqual({ mounts: 1, updates: [], results: [] });
     expect.soft(await put({ records: b }), "a new value is one update and no second mount").toEqual({ mounts: 1, updates: [b], results: [{ ok: true, updated: 1 }] });
-    expect.soft(await put({ tasks: [] }), "a new tasks value mounts again and sends nothing").toMatchObject({ mounts: 2, updates: [b] });
+    expect.soft(await put({ tasks: [{ key: "new" }] }), "a new tasks value the chart cannot take in place (the stand-in refuses the key `new`) mounts again and sends nothing").toMatchObject({ mounts: 2, updates: [b] });
     const bad = [{ key: "bad" }];
     expect.soft(await put({ records: bad }), "a refusal reaches onUpdate").toMatchObject({ mounts: 2, updates: [b, bad], results: [{ ok: true }, { ok: false, reason: "unknownKey", key: "bad" }] });
   });
@@ -41,7 +41,7 @@ for (const [name, host] of Object.entries(HOSTS)) {
     expect.soft(await put({ records: c }), "no chart is mounted, so nothing is sent yet").toMatchObject({ mounts: 1, updates: [] });
     await page.evaluate("release()");
     expect.soft(await put({}), "the start settled: the latest value, once").toEqual({ mounts: 1, updates: [c], results: [{ ok: true, updated: 1 }] });
-    expect.soft(await put({ tasks: [], records: b }), "the chart mounts again from tasks: records of that render are not applied").toMatchObject({ mounts: 2, updates: [c] });
+    expect.soft(await put({ tasks: [{ key: "new" }], records: b }), "the chart mounts again from tasks: records of that render are not applied").toMatchObject({ mounts: 2, updates: [c] });
     expect.soft(await put({ locale: "x", records: a }), "a prop written after records that mounts again: records are not applied to the chart that is going").toMatchObject({ mounts: 3, updates: [c] });
   });
 
