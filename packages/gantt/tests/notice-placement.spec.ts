@@ -173,7 +173,7 @@ for (const scheme of ["light", "dark"] as const) {
     await showEdit(page, "info", "Nothing saved yet. Press Enter to finish the edit, then save.");
     await inside("info notice");
     if (process.env.SHOTS_DIR) await page.screenshot({ path: `${process.env.SHOTS_DIR}/toolbar-notice-${scheme}.png` });
-    await showEdit(page, "error", "could not open notes.txt: this is a file that is not XML and does not start with ERMHDR (the first line of a P6 XER file), not a schedule; open a P6 XER file or an MS Project XML file. Tachlon opens P6 XER, MS Project XML and .gantt files.");
+    await showEdit(page, "error", "could not open notes.txt: this is a file that is not XML and does not start with ERMHDR (the first line of a P6 XER file), not a schedule; open a P6 XER file or an MS Project XML file");
     await inside("error notice");
   });
 }
