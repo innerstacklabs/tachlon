@@ -108,6 +108,19 @@ test("askBrowser falls back to the newest Chromium in Playwright's cache when no
   assert.match(said(await askBrowser({ PATH: "", HOME: join(root, "no-home") })), new RegExp(`Playwright.*${NAME.toUpperCase()}_BROWSER`));
 });
 
+test("askBrowser finds a Chrome or Edge in its usual Windows folder when none is on the path, and says none was found when the folders are not named", async () => {
+  const quiet = (name: string) => (mkdirSync(join(root, name), { recursive: true }), join(root, name));
+  const empty = { PATH: "", HOME: quiet("win-home"), USERPROFILE: quiet("win-profile"), PLAYWRIGHT_BROWSERS_PATH: quiet("win-cache") };
+  const program = `#!/usr/bin/env node\nconsole.log(${JSON.stringify(answer({ api: "webgl2", adapter: "from the usual folder" }))});\n`; // CommonJS: Node does not run an ES module named .exe
+  for (const [variable, exe] of [["ProgramFiles", "Google/Chrome/Application/chrome.exe"], ["ProgramFiles(x86)", "Google/Chrome/Application/chrome.exe"], ["LOCALAPPDATA", "Microsoft/Edge/Application/msedge.exe"]]) {
+    const folder = quiet(`win-${programs++}`);
+    mkdirSync(join(folder, exe, ".."), { recursive: true });
+    writeFileSync(join(folder, exe), program, { mode: 0o755 });
+    assert.equal(said(await askBrowser({ ...empty, [variable]: folder })), "from the usual folder", variable);
+  }
+  assert.match(said(await askBrowser(empty)), /no Chrome, Edge or Chromium was found/);
+});
+
 test("askBrowser says why when it cannot make its folder, and never throws", async () => {
   const got = await inTmp(join(root, "no-such-folder"), () => askBrowser(browser(`console.log(${JSON.stringify(answer({ api: "none", adapter: "" }))});`)));
   assert.match(said(got), /did not answer/);
