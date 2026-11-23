@@ -6,7 +6,7 @@ import { validate } from "../adapters/validate.ts";
 import { codeFor, fixFor } from "../errors.ts";
 import { allowsConnect, allowsWasm, configPolicies, wasmDirective } from "./csp.ts";
 import { type Project, readJsonObject, Refusal } from "./detect.ts";
-import { BROWSER_VARIABLE, type Gpu } from "./gpu.ts";
+import { BROWSER_VARIABLE, type Draw, type Gpu } from "./gpu.ts";
 import type { Own } from "./init.ts";
 import type { Probe } from "./probe.ts";
 
@@ -196,8 +196,16 @@ export function diagnose(project: Project, own: Own, c: Checks): Finding[] {
   out.push(mentions(project.dir, css) ? pass("STYLESHEET_OK", `a source file imports ${css}`) : fail("STYLESHEET_MISSING", `no source file imports ${css}`, `Add \`import "${css}";\` to the module that mounts the chart, or the chart draws unstyled.`));
   out.push(...unresolvableFinding(project, own.name));
   if (c.data !== undefined) out.push(...dataFindings(c.data));
-  out.push(gpuFinding(typeof c.gpu === "function" ? c.gpu() : c.gpu));
+  const gpu = typeof c.gpu === "function" ? c.gpu() : c.gpu;
+  out.push(gpuFinding(gpu), ...(gpu?.draw ? [drawFinding(gpu.draw)] : []));
   return out;
+}
+
+/** What the page showed in the browser: a task row and a timeline canvas with a width and a height is a chart that drew. With no browser answer the check is skipped and says why, as the GPU one is. */
+function drawFinding(draw: Draw): Finding {
+  if ("unavailable" in draw) return { code: "DRAW_SKIPPED", status: "skipped", what: `not checked: ${draw.unavailable}; no page was loaded to see whether the chart drew`, fix: `Install Chrome, Edge or Chromium (or name one with ${BROWSER_VARIABLE}) and run doctor again, or open the page in a browser and look at it.` };
+  const saw = `the browser loaded ${draw.page}, which had ${draw.rows} task row${draw.rows === 1 ? "" : "s"} and a timeline canvas ${draw.width} by ${draw.height} pixels`;
+  return draw.rows > 0 && draw.width > 0 && draw.height > 0 ? pass("DRAW_OK", `${saw}, so the chart drew`) : fail("DRAW_NONE", `${saw}, so the chart did not draw`, "Read the page's console in a browser for the error `mount` rejects with, and give the element it draws into a width and a height.");
 }
 
 /** The graphics path a browser gave the chart: WebGPU or WebGL2 with the adapter's name, or neither (the fault `mount` rejects with). With no browser answer, the check is skipped and says why: a Node process has no WebGPU or WebGL2 to ask. */
@@ -219,7 +227,7 @@ export function describeFindings(findings: Finding[], where: string): string {
   const lines = [`doctor in ${where}`];
   for (const f of findings) lines.push(`  ${mark[f.status]} ${f.code}: ${f.what}`, ...(f.fix ? [`       fix: ${f.fix}`] : []));
   const n = findings.filter((f) => f.status === "fail").length;
-  // A clean run with the GPU unchecked is not "all fine": the one check that says whether the chart can draw at all did not run.
-  const unchecked = findings.some((f) => f.code === "GPU_SKIPPED");
-  return [...lines, n === 0 ? `No problems found${unchecked ? ", GPU not checked" : ""}.` : `${n} problem${n === 1 ? "" : "s"} found.`, ""].join("\n");
+  // A clean run with the GPU or the page unchecked is not "all fine": the checks that say whether the chart can draw at all did not run.
+  const unchecked = [["GPU_SKIPPED", "GPU"], ["DRAW_SKIPPED", "page"]].filter(([code]) => findings.some((f) => f.code === code)).map(([, what]) => `, ${what} not checked`);
+  return [...lines, n === 0 ? `No problems found${unchecked.join("")}.` : `${n} problem${n === 1 ? "" : "s"} found.`, ""].join("\n");
 }

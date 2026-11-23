@@ -50,10 +50,11 @@ Run `git add` on the files you changed, by name. Never run `git add .` or `git a
 
 ### 6. Summarize
 
-Finish with a short summary that lists:
+Start the app's dev server, run `npx tachlon doctor --url <the page that shows the chart>` (doctor opens it in a browser and says whether it drew a task row), stop the server, then finish with a short summary that lists:
 
 - the files you changed;
 - the doctor result, finding by finding if any failed;
+- whether the page was looked at (a `DRAW_SKIPPED` finding means it was not);
 - whether the GPU was checked.
 
 ## Never

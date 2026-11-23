@@ -1,15 +1,18 @@
 // What `doctor` asks a real browser about the GPU: it opens a page of its own, headless, in a Chrome, Edge or Chromium found on this machine, and reads the answer the page writes.
 // Only this file starts a browser; `doctor.ts` turns what it returns into a finding.
 import { spawn } from "node:child_process";
-import { accessSync, constants, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { accessSync, constants, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
-import { delimiter, join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { delimiter, extname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { PRODUCT_NAME } from "../product.ts";
 
-/** What the browser said: the graphics path the chart takes (WebGPU first, then WebGL2, as `mount` tries them) and the adapter's name; or why no browser could say. */
-export type Gpu = { api: "webgpu" | "webgl2" | "none"; adapter: string; /** True when the browser only started after a retry with `--no-sandbox`. */ noSandbox?: true } | { unavailable: string };
+/** What the browser said: the graphics path the chart takes (WebGPU first, then WebGL2, as `mount` tries them) and the adapter's name; or why no browser could say. `draw` is what a page showed in the same browser, when it was asked. */
+export type Gpu = ({ api: "webgpu" | "webgl2" | "none"; adapter: string; /** True when the browser only started after a retry with `--no-sandbox`. */ noSandbox?: true } | { unavailable: string }) & { draw?: Draw };
+/** What a page had drawn when the browser dumped it: the task rows, and the timeline canvas's size in pixels; or why no browser could say. `page` is the address it loaded, or says it was the built-in sample. */
+export type Draw = { page: string; rows: number; width: number; height: number } | { unavailable: string };
 
 /** The environment variable that names the browser to ask, for a machine where it is not on the path. */
 export const BROWSER_VARIABLE = `${PRODUCT_NAME.toUpperCase()}_BROWSER`;
@@ -28,6 +31,9 @@ const PAGE = `<!doctype html><title></title><script>
   return { api: "webgl2", adapter: String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER)) };
 })().then((answer) => (document.title = "gpu=" + encodeURIComponent(JSON.stringify(answer))));
 </script>`;
+
+/** The built-in sample page: the package's own script, stylesheet and engine, and two tasks in a box with a size. */
+const SAMPLE = `<!doctype html><link rel="stylesheet" href="/gantt.css"><div class="gantt" style="width:800px;height:300px"></div><script type="module">import { mount } from "/${PRODUCT_NAME.toLowerCase()}.js"; mount(document.querySelector(".gantt"), { tasks: [{ id: 1, name: "Design", start: "2026-11-02", duration: 3 }, { id: 2, name: "Build", start: "2026-11-05", duration: 5 }], links: [{ from: 1, to: 2 }] });</script>`;
 
 const why = (e: unknown): string => (e instanceof Error ? e.message : String(e)).replace(/\s+/g, " ").slice(0, 200);
 
@@ -89,16 +95,15 @@ function output(browser: string, args: string[], ms: number): Promise<string> {
   }).finally(() => clearTimeout(timer));
 }
 
-/** Opens the page in the browser `env` leads to and returns what it said; no browser, one that fails or does not answer in `timeoutMs`, or one that prints no report is `unavailable`, with the reason. It never throws. */
-export async function askBrowser(env: NodeJS.ProcessEnv = process.env, timeoutMs = TIMEOUT_MS): Promise<Gpu> {
+/** Opens the address `open` makes (in a folder of its own, which is removed after) in the browser `env` leads to and returns what `read` makes of the page the browser dumped; `read` has nothing to say when it returns `undefined`, and `silent` says what that means. No browser, one that fails or does not answer in `timeoutMs`, or one with nothing to say is `unavailable`, with the reason. It never throws. */
+async function inBrowser<T>(env: NodeJS.ProcessEnv, timeoutMs: number, open: (folder: string) => Promise<string>, read: (dump: string, noSandbox: boolean) => T | undefined, silent: string): Promise<T | { unavailable: string }> {
   const browser = findBrowser(env);
   if (!browser) return { unavailable: `no Chrome, Edge or Chromium was found on this machine or in Playwright's cache (set ${BROWSER_VARIABLE} to the path of one)` };
   let dir: string | undefined;
   try {
     const folder = (dir = mkdtempSync(join(tmpdir(), "doctor-gpu-")));
-    const page = join(folder, "gpu.html");
-    writeFileSync(page, PAGE);
-    const flags = (profile: string, more: string[] = []) => ["--headless=new", "--no-first-run", "--disable-background-networking", "--disable-component-update", `--user-data-dir=${join(folder, profile)}`, ...more, "--virtual-time-budget=10000", "--dump-dom", pathToFileURL(page).href];
+    const address = await open(folder);
+    const flags = (profile: string, more: string[] = []) => ["--headless=new", "--no-first-run", "--disable-background-networking", "--disable-component-update", `--user-data-dir=${join(folder, profile)}`, ...more, "--virtual-time-budget=10000", "--dump-dom", address];
     let stdout: string;
     let noSandbox = false;
     try {
@@ -113,14 +118,59 @@ export async function askBrowser(env: NodeJS.ProcessEnv = process.env, timeoutMs
         return { unavailable: `${browser} did not answer: ${why(e)}; retried without the sandbox, which also failed: ${why(again)}` };
       }
     }
-    const report = /<title>gpu=([^<]*)<\/title>/.exec(stdout)?.[1];
-    const got = report === undefined ? undefined : (JSON.parse(decodeURIComponent(report)) as Partial<Extract<Gpu, { api: string }>>);
-    if (got?.api !== "webgpu" && got?.api !== "webgl2" && got?.api !== "none") return { unavailable: `${browser} ran the page but sent no GPU report` };
-    return { api: got.api, adapter: String(got.adapter ?? ""), ...(noSandbox ? { noSandbox: true as const } : {}) };
+    return read(stdout, noSandbox) ?? { unavailable: `${browser} ran the page but ${silent}` };
   } catch (e) {
     return { unavailable: `${browser} did not answer: ${why(e)}` };
   } finally {
     // A folder left behind is not worth losing the answer for.
     if (dir) await rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 }).catch(() => undefined);
   }
+}
+
+/** Opens the GPU page in the browser `env` leads to and returns what it said; no browser, one that fails or does not answer in `timeoutMs`, or one that prints no report is `unavailable`, with the reason. It never throws. */
+export function askBrowser(env: NodeJS.ProcessEnv = process.env, timeoutMs = TIMEOUT_MS): Promise<Gpu> {
+  const open = async (folder: string) => {
+    const page = join(folder, "gpu.html");
+    writeFileSync(page, PAGE);
+    return pathToFileURL(page).href;
+  };
+  return inBrowser(env, timeoutMs, open, (dump, noSandbox): Gpu | undefined => {
+    const report = /<title>gpu=([^<]*)<\/title>/.exec(dump)?.[1];
+    const got = report === undefined ? undefined : (JSON.parse(decodeURIComponent(report)) as Partial<Extract<Gpu, { api: string }>>);
+    if (got?.api !== "webgpu" && got?.api !== "webgl2" && got?.api !== "none") return undefined;
+    return { api: got.api, adapter: String(got.adapter ?? ""), ...(noSandbox ? { noSandbox: true as const } : {}) };
+  }, "sent no GPU report");
+}
+
+/** What `doctor` asks a browser: the GPU, and, when one answered, what `page` (the built-in sample when none) drew. */
+export async function askBoth(page: string | undefined): Promise<Gpu> {
+  const gpu = await askBrowser();
+  return { ...gpu, draw: "api" in gpu ? await askDraw(page) : { unavailable: gpu.unavailable } };
+}
+
+/** The built-in sample, a page that mounts the chart of the package this command came from: a server of its own on this machine serves it and the package's `dist-lib`, because a browser runs a module and fetches the engine from a file address only with its security off. The server never keeps the process alive. */
+async function sample(): Promise<string> {
+  const root = fileURLToPath(new URL("../../dist-lib/", import.meta.url));
+  const types: Record<string, string> = { ".js": "text/javascript", ".css": "text/css", ".wasm": "application/wasm" };
+  const server = createServer((request, response) => {
+    const path = new URL(request.url ?? "/", "http://x").pathname;
+    try {
+      const body = path === "/" ? SAMPLE : readFileSync(join(root, path));
+      response.writeHead(200, { "content-type": types[extname(path)] ?? "text/html" }).end(body);
+    } catch {
+      response.writeHead(404).end();
+    }
+  }).unref();
+  await new Promise<void>((listening) => server.listen(0, "127.0.0.1", listening));
+  return `http://127.0.0.1:${(server.address() as { port: number }).port}/`;
+}
+
+/** Loads `page` (the built-in sample when none) in the browser `env` leads to, and counts what the dumped page holds: the task rows, and the timeline canvas's width and height. A page that drew nothing reads as 0, not as `unavailable`. It never throws. */
+export function askDraw(page: string | undefined, env: NodeJS.ProcessEnv = process.env, timeoutMs = TIMEOUT_MS): Promise<Draw> {
+  const open = async () => page ?? sample();
+  return inBrowser(env, timeoutMs, open, (dump): Draw => {
+    const canvas = /<canvas\b[^>]*\bdata-part="timeline"[^>]*>/.exec(dump)?.[0] ?? "";
+    const size = (name: string) => Number(new RegExp(`\\s${name}="(\\d+)"`).exec(canvas)?.[1] ?? 0);
+    return { page: page ?? "the built-in sample", rows: (dump.match(/<div class="row\b[^>]*\sdata-task=/g) ?? []).length, width: size("width"), height: size("height") };
+  }, "dumped nothing");
 }

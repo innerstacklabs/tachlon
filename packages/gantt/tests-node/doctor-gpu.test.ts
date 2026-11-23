@@ -2,10 +2,11 @@
 // `run` and `runAsync` are given the browser's answer, so no browser starts, except in the last tests, which start a stand-in program.
 import assert from "node:assert/strict";
 import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, test } from "node:test";
-import { askBrowser, type Gpu } from "../src/cli/gpu.ts";
+import { askBrowser, askDraw, type Gpu } from "../src/cli/gpu.ts";
 import { run, runAsync } from "../src/cli/run.ts";
 
 const root = mkdtempSync(join(tmpdir(), "doctor-gpu-"));
@@ -63,7 +64,7 @@ test("doctor asks the browser it is given, and the answer reaches the findings",
 let programs = 0;
 function browser(body: string): NodeJS.ProcessEnv {
   const file = join(root, `browser-${programs++}.mjs`);
-  writeFileSync(file, `#!/usr/bin/env node\nimport { readFileSync } from "node:fs";\nimport { fileURLToPath } from "node:url";\nconst page = readFileSync(fileURLToPath(process.argv.at(-1)), "utf8");\n${body}\n`);
+  writeFileSync(file, `#!/usr/bin/env node\nimport { readFileSync } from "node:fs";\nimport { fileURLToPath } from "node:url";\nconst page = process.argv.at(-1).startsWith("file:") ? readFileSync(fileURLToPath(process.argv.at(-1)), "utf8") : "";\n${body}\n`);
   chmodSync(file, 0o755);
   return { PATH: process.env.PATH, [`${NAME.toUpperCase()}_BROWSER`]: file };
 }
@@ -174,4 +175,39 @@ test("doctor asks no browser when it has no report to make: the package is not l
   const unlisted = await runAsync(["doctor", "--dir", bare, "--json"], bare, spy);
   const nowhere = await runAsync(["doctor", "--dir", join(root, "nowhere")], root, spy);
   assert.deepEqual([unlisted.code, nowhere.code, asked], [1, 2, 0]);
+});
+
+test("doctor says what the page drew: a task row and a canvas with a size pass, none fails, no answer is skipped and the summary says so", () => {
+  const gpu = { api: "webgl2", adapter: "llvmpipe" } as const;
+  const page = "http://localhost:5173/";
+  const drew = run(argv, dir, undefined, { ...gpu, draw: { page, rows: 3, width: 600, height: 300 } });
+  assert.deepEqual([drew.code, lastOf(drew.out).code], [0, "DRAW_OK"]);
+  assert.match(lastOf(drew.out).what, /http:\/\/localhost:5173\/, which had 3 task rows and a timeline canvas 600 by 300 pixels/);
+  const blank = run(argv, dir, undefined, { ...gpu, draw: { page, rows: 0, width: 0, height: 0 } });
+  assert.deepEqual([blank.code, lastOf(blank.out).code], [1, "DRAW_NONE"]);
+  const skipped = run(["doctor", "--dir", dir], dir, undefined, { ...gpu, draw: { unavailable: "x did not answer" } });
+  assert.match(skipped.out, /^ {2}skip DRAW_SKIPPED: not checked: x did not answer/m);
+  assert.match(skipped.out, /^No problems found, page not checked\.$/m);
+});
+
+test("askDraw counts the task rows and the canvas size in the page the browser dumped: of the address it is given, else of a built-in sample served on this machine", async () => {
+  const dumped = (rows: number) => `console.log('<div class="row cols" data-row="0" data-task="0"></div>'.repeat(${rows}) + '<canvas id="timeline" data-part="timeline" width="347" height="242"></canvas>');`;
+  const url = "http://localhost:5173/app";
+  // The stand-in draws only for the address it is asked to open, so a page that is never loaded gets none.
+  const env = browser(`if (process.argv.at(-1) === ${JSON.stringify(url)}) {\n${dumped(2)}\n}`);
+  assert.deepEqual(await askDraw(url, env), { page: url, rows: 2, width: 347, height: 242 });
+  assert.deepEqual(await askDraw("http://localhost:1/", env), { page: "http://localhost:1/", rows: 0, width: 0, height: 0 });
+  // The sample is a page on this machine that mounts the chart.
+  const served = browser(`const address = process.argv.at(-1);\nif (address.startsWith("http://127.0.0.1:") && (await (await fetch(address)).text()).includes("mount(")) {\n${dumped(1)}\n}`);
+  assert.deepEqual(await askDraw(undefined, served), { page: "the built-in sample", rows: 1, width: 347, height: 242 });
+});
+
+test("doctor gives the browser the --url page it was asked about", async () => {
+  const server = createServer((_, res) => res.end("<!doctype html>"));
+  await new Promise<void>((listening) => server.listen(0, "127.0.0.1", listening));
+  const site = `http://127.0.0.1:${(server.address() as { port: number }).port}/`;
+  const seen: (string | undefined)[] = [];
+  for (const more of [["--url", site], []]) await runAsync([...argv, ...more], dir, async (page) => (seen.push(page), { unavailable: "spy" }));
+  server.close();
+  assert.deepEqual(seen, [site, undefined]);
 });
