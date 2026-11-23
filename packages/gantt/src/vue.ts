@@ -1,5 +1,5 @@
 // The Vue 3 wrapper of the chart (gantt#1875), the package's `/vue` entry: `<Gantt>` calls `mount` when it mounts, `destroy()` when it unmounts, takes the
-// mount options as props and emits the chart's events. It uses only what the entry exports, `mount` and its types, imported by relative path, so
+// mount options as props and emits the chart's events. It uses `mount` and its types from the entry, and `unsetChange` from `host-data.ts`, all imported by relative path, so
 // the page loads the chart once, whether it imports the package's main entry as well or not.
 import { camelize, defineComponent, getCurrentInstance, h, onBeforeUnmount, onMounted, onUpdated, shallowRef, toHandlerKey, watch, type PropType } from "vue";
 import type { PlainTask } from "./adapters/plain.js";
@@ -18,6 +18,12 @@ function setRows(chart: Chart<Fields | undefined>, now: readonly unknown[], befo
   const data = Object.fromEntries((["tasks", "links", "dataDate"] as const).flatMap((key, i) => (now[i] !== undefined && now[i] !== before[i] ? [[key, now[i]]] : []))) as Parameters<Chart<Fields | undefined>["setData"]>[0];
   return !before.some((was, i) => was !== undefined && now[i] === undefined) && !(data.tasks !== undefined && unsetChange((before[0] ?? []) as PlainTask[], data.tasks as PlainTask[])) && chart.setData(data).ok;
 }
+
+/** Whether the chart starts again for a change of the watched props, in this order: the mount options, then `tasks`, `links` and `dataDate`, then `records` (never read here). A changed mount option starts it; changed rows start it when no chart is mounted or `setRows` is false. */
+const mustStart = (chart: Chart<Fields | undefined> | undefined, now: readonly unknown[], before: readonly unknown[]): boolean => {
+  const rows = (list: readonly unknown[]): readonly unknown[] => list.slice(-4, -1);
+  return now.slice(0, -4).some((value, i) => value !== before[i]) || (rows(now).some((value, i) => value !== rows(before)[i]) && (chart === undefined || !setRows(chart, rows(now), rows(before))));
+};
 
 const component = defineComponent({
   name: "Gantt",
@@ -105,9 +111,7 @@ const component = defineComponent({
       };
     };
     onMounted(start);
-    // New `tasks`, `links` or `dataDate` go to the chart that is mounted as one `setData`; it starts again when `setData` refuses them, a prop is taken away, a task differs in a member `setData` ignores, or a start is still pending. This watch comes first, so `records` that arrive with a start are not sent to the chart that is going.
-    watch(() => [props.tasks, props.links, props.dataDate], (now, before) => { if (live === null || !setRows(live.chart, now, before)) start(); });
-    watch(() => [props.schedule, props.document, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.records], (now, before) => (now.slice(0, -1).some((value, i) => value !== before[i]) ? start() : send(props.records))); // `records` is last: any other prop that changed mounts again, in whatever order the host wrote them
+    watch(() => [props.schedule, props.document, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.tasks, props.links, props.dataDate, props.records], (now, before) => (mustStart(live?.chart, now, before) ? start() : send(props.records))); // one watch, so the order the host wrote the props in does not matter: `records` are sent only when nothing started
     // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
     watch(() => [props.capabilities, drawsLinks(props.save)], ([profile]) => live?.chart.setCapabilities(profile as MountOptions["capabilities"]));

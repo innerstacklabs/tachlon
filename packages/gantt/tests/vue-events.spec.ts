@@ -89,6 +89,8 @@ test("new `tasks` go to `setData` on the chart that is mounted, and the chart mo
   expect.soft(await at(rows("Renamed")), "a name goes to setData once, with no second mount").toEqual({ mounts: 1, sets: 1 });
   expect.soft(await at(rows("Renamed", "new")), "a task setData refuses mounts the chart again").toEqual({ mounts: 2, sets: 2 });
   expect.soft(await at(rows("Renamed", "new", "red")), "a color setData ignores mounts it again, with no setData call").toEqual({ mounts: 3, sets: 2 });
+  const sent = (await page.evaluate("put({ tasks: [{ key: \"new\" }], records: [{ key: \"k\" }] })")) as { mounts: number; updates: unknown[] };
+  expect.soft({ mounts: sent.mounts, updates: sent.updates }, "records written before a refused `tasks` (the host patches dynamic props in that order, as a compiled template does) are not sent to the chart that is going").toEqual({ mounts: 4, updates: [] });
 });
 
 test("a new `readOnly` switches the chart that is mounted, without mounting it again", async ({ page }) => {
