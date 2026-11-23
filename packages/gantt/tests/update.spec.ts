@@ -410,7 +410,7 @@ test("update with a progress beside an actual date ends as a mount of the same t
   }
 });
 
-test("setData takes a task's progress 0 to 20 and its actualStart none to a date in one call: accepted, the undo list stays, no second start", async ({ page }) => {
+test("setData takes a task's progress 0 to 20 and its actualStart none to a date in one call: accepted, and the undo list stays", async ({ page }) => {
   const rows = (extra: object) => tasks(3).map((t, i) => (i === 0 ? { ...t, progress: 0, ...extra } : t));
   await mountHost(page, { tasks: rows({}) });
   expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k1", name: "Renamed" }]))).toEqual({ ok: true, updated: 1 });
