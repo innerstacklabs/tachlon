@@ -353,6 +353,13 @@ test("hostEdit refuses a record that sets progress or changes a task with actual
   expect((await page.evaluate(() => { window.upChart.update([{ key: "k2", duration: 90 }]); return window.upChart.hostEdit([{ key: "k2", duration: 960 }]); }) as { message: string }).message).toBe("Nothing changed: task k2 cannot be put back by an Undo under the host's capability profile (durations in whole days), so hostEdit cannot take it; call update, which sets it without an undo step.");
 });
 
+test("hostEdit refuses a changed color or label and says to call update, which sets it", async ({ page }) => {
+  await mountHost(page, { tasks: tasks(3) });
+  const refused = (r: { key: string; color?: string; label?: string }) => page.evaluate((x) => window.upChart.hostEdit([x]), r) as Promise<{ reason: string; message: string }>;
+  expect(await refused({ key: "k0", color: "#ff0000" })).toMatchObject({ reason: "notUpdatable", message: "Nothing changed: task k0 changes its color, which no undo step holds, so hostEdit cannot take it; call update, which sets it without an undo step." });
+  expect((await refused({ key: "k1", label: "Late" })).message).toBe("Nothing changed: task k1 changes its label, which no undo step holds, so hostEdit cannot take it; call update, which sets it without an undo step.");
+});
+
 test("a React host hands 20 tasks to the component as records while one is selected and scrolled to: the chart starts once, selection, scroll and undo hold, and the changed cells are marked", async ({ page }) => {
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: REACT_HOST }));
   await page.goto(`${base}host.html`);
