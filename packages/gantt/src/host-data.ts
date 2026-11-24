@@ -86,8 +86,12 @@ const staying = (links: readonly LinkText[], gone: ReadonlySet<string>): LinkTex
 const texts = (links: readonly LinkText[]): string[] => links.map(([text]) => text);
 
 const setOf = (values: readonly unknown[], was?: readonly unknown[]) => MEMBERS.flatMap((member, i) => (values[i] !== undefined && (was === undefined || differs(values[i], was[i])) ? [[member, values[i]] as const] : []));
-/** `set` with the row's `actualStart` put beside a changed `progress` when the row holds a start and no finish: the chart then reads the percent beside that start, as `mount` does, where a lone `progress` is a typed percent. */
-const beside = (set: ReturnType<typeof setOf>, values: readonly unknown[]) => (set.some(([member]) => member === "progress") && !set.some(([member]) => member === "actualStart") && typeof values[MEMBERS.indexOf("actualStart")] === "string" && typeof values[MEMBERS.indexOf("actualFinish")] !== "string" ? [...set, ["actualStart", values[MEMBERS.indexOf("actualStart")]] as const] : set);
+/** `set` with the row's `actualStart` and `actualFinish` (those it holds) put beside a changed `progress` when the row holds a start: the chart then reads the percent beside those dates, as `mount` does, where a lone `progress` is a typed percent and drops a finish. */
+const beside = (set: ReturnType<typeof setOf>, values: readonly unknown[]) => {
+  const held = (member: "actualStart" | "actualFinish") => values[MEMBERS.indexOf(member)];
+  if (!set.some(([member]) => member === "progress") || typeof held("actualStart") !== "string") return set;
+  return [...set, ...(["actualStart", "actualFinish"] as const).filter((member) => typeof held(member) === "string" && !set.some(([name]) => name === member)).map((member) => [member, held(member)] as const)];
+};
 const idsIn = (layout: Layout, keys: readonly string[]) => new Set(keys.map((key) => String((JSON.parse(layout.at.get(key)!) as [unknown])[0])));
 /** The refusal for the first task that gives a date limit in two spellings, or undefined. */
 function twiceRefusal(tasks: readonly PlainTask[]): UpdateResult | undefined {
