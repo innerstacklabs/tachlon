@@ -40,11 +40,19 @@ const frames = (page: Page) => page.evaluate(() => new Promise<void>((done) => r
 const saved = (page: Page) => page.evaluate(() => (window.upChart.toDocument() as { tasks: { key?: string; name: string; duration: number; parent: number | null }[] }).tasks);
 const table = (page: Page) => page.evaluate(() => ({ rows: window.gantt!.status().rowCount, height: document.getElementById("table-body")!.scrollHeight, top: document.getElementById("table-body")!.scrollTop, selected: window.upChart.state().selection?.task }));
 
-async function open(page: Page): Promise<void> {
+const without = (...keys: string[]) => tasks.filter((task) => !keys.includes(task.key));
+const owned = tasks.map((task) => (task.key === "k5" || task.key === "k6" ? { ...task, owner: "sam" } : task));
+const names = (page: Page) => saved(page).then((now) => now.map((task) => task.key));
+const pick = async (page: Page, row: number) => { // select a row of the table as a person does, with the table at the top and no edit recorded yet
+  await page.evaluate(() => { document.getElementById("table-body")!.scrollTop = 0; window.edits.length = 0; });
+  await page.locator(`#table-rows .row[data-row="${row}"] .name`).click();
+};
+
+async function open(page: Page, mounted: object[] = tasks): Promise<void> {
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
   await page.goto(`${base}host.html`);
   await page.waitForFunction(() => (window as unknown as { ready?: boolean }).ready === true, undefined, { timeout: 120_000 });
-  await page.evaluate((o) => window.mountUp(o), { tasks });
+  await page.evaluate((o) => window.mountUp(o), { tasks: mounted });
   await page.locator('#table-rows .row[data-row="2"] .name').dblclick();
   await page.locator("#table-rows input.cell-edit").fill("Renamed");
   await page.keyboard.press("Enter");
@@ -88,4 +96,57 @@ test("a bad record on the second add keeps the first and corrected rows add the 
   const next = [...rows({ progress: 50 }), { id: "m1", key: "m1", name: "New" }, { id: "held", key: "held", name: "Held" }];
   expect(await page.evaluate((all) => window.upChart.setData({ tasks: all }), next), "a row the chart holds is not an add").toMatchObject({ ok: false, reason: "rowsChanged", message: expect.stringContaining("Nothing changed") });
   expect((await saved(page)).some((task) => task.key === "m1"), "m1 was not added either").toBe(false);
+});
+
+test("setData drops a row its data no longer holds: the person's step that names it is forgotten and the other's stays, the selection and the scroll hold, and it is no edit", async ({ page }) => {
+  await open(page);
+  expect(await page.evaluate(() => window.upChart.hostEdit([{ key: "k3", name: "Second" }])), "a second step, after the rename of k2").toMatchObject({ ok: true });
+  await page.evaluate(() => { window.upChart.setPending(["k2", "k12"]); document.getElementById("table-body")!.scrollTop = 30; });
+  await frames(page);
+  await page.evaluate(() => { window.edits.length = 0; });
+  const before = await table(page);
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k2"))).toEqual({ ok: true, updated: 1 });
+  await frames(page);
+  const after = await table(page);
+  expect([after.rows, after.height, after.top, after.selected], "a row less, the scroll and the selection as they were").toEqual([before.rows - 1, before.height - 24, before.top, before.selected]);
+  expect([(await names(page)).includes("k2"), await page.evaluate(() => window.edits), await page.evaluate(() => [...document.querySelectorAll("#table-rows .row[data-pending]")].map((row) => row.querySelector(".name")?.textContent))], "k2 is gone, with no edit, and only the other mark is left").toEqual([false, [], ["Task 12"]]);
+  expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
+  expect((await saved(page)).find((task) => task.key === "k3")!.name, "the one Undo is the other row's step").toBe("Task 3");
+  expect(await page.evaluate(() => window.upChart.commands.undo()), "the dropped row's step is gone").toBe(false);
+});
+
+test("a row a person deleted and the data then drops keeps its Undo and its columns", async ({ page }) => {
+  await open(page, owned);
+  await pick(page, 5);
+  await page.evaluate(() => window.upChart.commands.deleteRow());
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5")), "the row is not the chart's to remove: it counts nothing").toEqual({ ok: true, updated: 0 });
+  expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
+  await frames(page);
+  expect(await names(page), "Undo brings it back").toContain("k5");
+  expect(await page.evaluate(() => window.edits.at(-1)), "with its own columns").toMatchObject({ commits: [{ changes: [{ op: "create", key: "k5", set: { owner: "sam" } }] }] });
+});
+
+test("a dropped row's columns are forgotten: the row given again has none to give back", async ({ page }) => {
+  await open(page, owned);
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k6"))).toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), tasks), "k6 comes back with no columns").toEqual({ ok: true, updated: 1 });
+  await pick(page, 6);
+  await page.evaluate(() => window.upChart.commands.deleteRow());
+  await frames(page);
+  expect(await page.evaluate(() => window.edits.at(-1))).toMatchObject({ commits: [{ changes: [{ op: "delete", key: "k6" }] }] });
+  expect(await page.evaluate(() => JSON.stringify(window.edits.at(-1))), "no owner").not.toContain("owner");
+});
+
+test("a summary whose children are all dropped is still a summary while the records are set; a row a person gave a child refuses its drop, and the drops before it stay", async ({ page }) => {
+  await open(page, tasks.map((task) => (task.key === "k4" ? { ...task, parent: "t3" } : task)));
+  const gone = tasks.filter((task) => task.key !== "k4").map((task) => (task.key === "k3" ? { ...task, duration: 5 } : task));
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), gone), "k3 is a summary until k4 is gone: its duration is refused, and nothing is dropped").toMatchObject({ ok: false, key: "k3", message: expect.stringMatching(/^Nothing changed/) });
+  expect(await names(page)).toContain("k4");
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), gone.map((task) => (task.key === "k3" ? tasks[3]! : task))), "the drop alone").toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), gone), "the duration, one call later").toEqual({ ok: true, updated: 1 });
+  await page.evaluate(() => window.gantt!.app.add_task(JSON.stringify({ key: "c1", name: "Child" }), "k8", null, true));
+  const last = gone.filter((task) => task.key !== "k7" && task.key !== "k8");
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), last), "k7 went, k8 has a child the data does not hold").toMatchObject({ ok: false, reason: "hasChildren", key: "k8", message: expect.stringContaining("Partly applied") });
+  expect((await names(page)).filter((key) => key === "k7" || key === "k8" || key === "c1")).toEqual(["k8", "c1"]);
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), last), "the same rows again: nothing is applied").toMatchObject({ ok: false, reason: "hasChildren", message: expect.stringMatching(/^Nothing changed/) });
 });
