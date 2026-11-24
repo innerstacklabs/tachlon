@@ -170,9 +170,10 @@ export function hostData(first: HostRows, epoch: number): SetData {
         byKey.set(key, values.map((value, i) => (value === undefined ? was?.[i] : value)));
       }
     }
-    if (next.links !== undefined && next.links !== kept.links?.deref()) { // a link that touches a dropped row is no change: the chart removes it with the row
-      const gone = idsOf(drops);
-      if (!same(texts(staying(linkTexts(next.links), gone)), texts(staying(links, gone)))) return rowsChanged("a link was added, removed or changed.");
+    if (next.links !== undefined && next.links !== kept.links?.deref()) { // a link that touches a row the chart will not hold (after this call's adds and drops) is no change, and the order of the list is none
+      const present = idsIn(layout, [...layout.at.keys()]);
+      const among = (list: readonly LinkText[]) => texts(list.filter(([, from, to]) => present.has(from) && present.has(to))).sort();
+      if (!same(among(linkTexts(next.links)), among(links))) return rowsChanged("a link was added, removed or changed.");
     }
     const day = next.dataDate === undefined ? undefined : dayOf(next.dataDate);
     if (next.dataDate !== undefined && day === undefined) return Object.freeze({ ok: false, reason: "badDate", message: "Nothing changed: write the data date as YYYY-MM-DD." });
