@@ -52,6 +52,7 @@ mod data_date_edit;
 mod date_origin;
 mod deadline;
 mod demo_whole_hours;
+mod density;
 mod details;
 mod document_bar_look;
 mod document_finish_by;

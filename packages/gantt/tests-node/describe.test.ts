@@ -56,6 +56,12 @@ test("an option's meaning starts its doc comment, and its default is the declara
   for (const [, text, name] of comments) assert.ok(text!.startsWith(items.find((i) => i.name === name)!.description), `${name}'s meaning starts its comment`);
 });
 
+test("describe options lists density with its three names and its default", () => {
+  const { items } = JSON.parse(describe("options", "--json").out) as { items: Item[] };
+  assert.equal(items.find((i) => i.name === "density")?.default, "\"normal\"");
+  assert.match(describe("options").out, /- `density`[^]*?Default: `"normal"`\./);
+});
+
 test("describe with no topic lists the topics, and an unknown topic is exit 2 with the topics listed", () => {
   const list = describe();
   assert.equal(list.code, 0);

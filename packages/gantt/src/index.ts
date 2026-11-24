@@ -8,7 +8,7 @@ import { App } from "./wasm/app.js";
 import { engine, load, MountError, renderError, type StartSource } from "./mount-load.js";
 import { createGantt } from "./gantt-object.js";
 import { hostData } from "./host-data.js";
-import type { Fields, Gantt, MountOptions, SaveError } from "./gantt-types.js";
+import { DENSITIES, type Fields, type Gantt, type MountOptions, type SaveError } from "./gantt-types.js";
 import { Metrics } from "./measure.js";
 import { speedOf } from "./speed.js";
 import { type PageKnobs, type RunFacts, takePageKnobs } from "./page-knobs.js";
@@ -123,6 +123,7 @@ const CELL_OF: Record<string, string> = { name: "name", duration: "dur", start: 
 export async function mount<F extends Fields | undefined = undefined>(root: HTMLDivElement, options: MountOptions<F>): Promise<Gantt<F>>;
 export async function mount(root: HTMLDivElement, options: MountOptions<Fields | undefined>): Promise<Gantt<Fields | undefined>> {
   numberFormat(options.locale); // a tag that is not a language tag throws here, before the chart touches the root
+  if (options.density !== undefined && !DENSITIES.includes(options.density)) throw new RangeError(`density ${JSON.stringify(options.density)} is not one of ${DENSITIES.join(", ")}`);
   // The developer page's knobs (`page-knobs.ts`, not an export of this entry); a host page sets none.
   let names: FieldMap;
   try { names = readFields(options.fields, undefined, options.constraintForm); } catch (err) { throw new MountError("schedule", (err as Error).message); }
@@ -137,7 +138,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
   given.tasks.commit();
   given.links.commit();
   let plain: StartSource = options.document === undefined ? { tasks: given.tasks.rows && names.tasks.rows(given.tasks.rows), links: given.links.rows && names.links.rows(given.links.rows), projectStart: options.projectStart, dataDate: options.dataDate, mustFinishBy: options.mustFinishBy, options: options.options, calendars: options.calendars, durationUnit: options.durationUnit, lagCalendar: options.lagCalendar } : { document: options.document };
-  const { schedule, wasmUrl, forceWebgl, locale, texts, fonts, assistant, durationUnit, dateForm, save } = options;
+  const { schedule, wasmUrl, forceWebgl, locale, density, texts, fonts, assistant, durationUnit, dateForm, save } = options;
   const { keys, newKey } = options;
   const mistake = !hasSave(save) || schedule !== undefined || options.document !== undefined ? undefined : keyMistake("task", given.tasks.rows && names.tasks.rows(given.tasks.rows)) ?? keyMistake("link", given.links.rows && names.links.rows(given.links.rows));
   if (mistake !== undefined || (keys !== undefined && keys !== "chart" && keys !== "server")) throw new MountError("schedule", mistake ?? `keys is "chart" or "server", not ${JSON.stringify(keys)}.`);
@@ -145,7 +146,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
     const again = measured && schedule !== undefined && source !== undefined && "document" in source;
     const from = again ? schedule : (source ?? plain);
     if (from === undefined) return Promise.reject(new MountError("schedule", "The chart could not read its schedule to start again: the page's tasks and links were let go once it had started."));
-    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, texts, fonts, assistant, durationUnit, dateForm, save, names, { keys, newKey }));
+    return startTakingDown((own) => startIn(root, page, from, again ? { ...run, unsaved: false } : run, own, wasmUrl, locale, density, texts, fonts, assistant, durationUnit, dateForm, save, names, { keys, newKey }));
   };
   const gantt = await mountSwitching(root, { schedule, forceWebgl, readOnly: options.readOnly, capabilities: options.capabilities, beforeEdit: options.beforeEdit }, start, page?.fallback ?? null, restart);
   plain = undefined;
@@ -153,7 +154,7 @@ export async function mount(root: HTMLDivElement, options: MountOptions<Fields |
 }
 
 /** One start of the chart in `root`, on `source`, as `run` says; `own` holds what `destroy` takes down, and its app once made. */
-async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], hostSave: MountOptions["save"], names: FieldMap, hostKeys: Pick<MountOptions, "keys" | "newKey">): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
+async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source: NonNullable<StartSource>, run: Run, own: Own, wasmUrl: string | URL | undefined, locale: string | undefined, density: MountOptions["density"], texts: MountOptions["texts"], fonts: MountOptions["fonts"], assistant: MountOptions["assistant"], unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], hostSave: MountOptions["save"], names: FieldMap, hostKeys: Pick<MountOptions, "keys" | "newKey">): Promise<Started> { // oxlint-disable-line max-lines-per-function -- existing, over cap
   const { disposers } = own;
   root.innerHTML = chartHtml;
   applyTexts(root, texts);
@@ -191,6 +192,7 @@ async function startIn(root: HTMLDivElement, page: PageKnobs | undefined, source
     throw await renderError(reason(err), err);
   }
   own.app = app;
+  if (density !== undefined) app.set_density(density); // before the theme and the table read the row height
   app.set_read_only(run.readOnly());
   // A host's handlers object with no handler for a kind of change: one warning now, link drawing off with no `createLink`, and the edits that need a missing one refused ahead of `beforeEdit`.
   const handlers = (): ReturnType<typeof handlersOf> => handlersOf(hostSave);

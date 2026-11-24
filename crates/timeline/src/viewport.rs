@@ -17,8 +17,8 @@ pub const MIN_SPAN: f64 = 120.0;
 )]
 pub const MAX_SPAN: f64 = 5.0 * 365.25 * DAY as f64;
 
-/// Default row height.
-pub const ROW_HEIGHT: f64 = 24.0;
+/// Default row height: [`Density::Normal`].
+pub const ROW_HEIGHT: f64 = Density::Normal.row_height();
 /// Height of the time-axis band at the top of the canvas: two tiers of 24 px (`--gantt-axis-h`).
 pub const AXIS_HEIGHT: f64 = 48.0;
 /// Default bar height as a share of the row (`--gantt-bar-h`).
@@ -29,6 +29,40 @@ pub const BAR_RADIUS: f64 = 2.0;
 pub const TODAY_DASH: (f64, f64) = (6.0, 4.0);
 /// Default width of a critical bar's edge, CSS pixels (`--gantt-crit-edge-w`).
 pub const CRIT_EDGE: f64 = 2.0;
+
+/// How tall the rows are, which a host picks by name: compact 20 px, normal 24 px, roomy 40 px.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Density {
+    /// 20 px rows.
+    Compact,
+    /// 24 px rows, the default.
+    Normal,
+    /// 40 px rows.
+    Roomy,
+}
+
+impl Density {
+    /// `"compact"`, `"normal"` or `"roomy"`, in lower case only; anything else is `None`.
+    #[must_use]
+    pub fn parse(name: &str) -> Option<Self> {
+        match name {
+            "compact" => Some(Self::Compact),
+            "normal" => Some(Self::Normal),
+            "roomy" => Some(Self::Roomy),
+            _ => None,
+        }
+    }
+
+    /// The height of one row in CSS pixels.
+    #[must_use]
+    pub const fn row_height(self) -> f64 {
+        match self {
+            Self::Compact => 20.0,
+            Self::Normal => 24.0,
+            Self::Roomy => 40.0,
+        }
+    }
+}
 
 /// The sizes a session keeps when it opens another file: the row and axis heights and the bar look.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -346,5 +380,20 @@ mod tests {
         v.zoom_at(0.0, 1e12);
         v.set_size(300.0, 800.0);
         assert_eq!(v.px_per_minute, 300.0 / MIN_SPAN);
+    }
+
+    #[test]
+    fn a_density_is_parsed_by_name_and_has_one_height() {
+        let all = [Density::Compact, Density::Normal, Density::Roomy];
+        assert_eq!(
+            ["compact", "normal", "roomy"].map(Density::parse),
+            all.map(Some)
+        );
+        assert_eq!(["", "tall", "Roomy"].map(Density::parse), [None; 3]);
+        assert_eq!(Density::Normal.row_height(), ROW_HEIGHT);
+        assert!(
+            all.windows(2)
+                .all(|w| w[0].row_height() < w[1].row_height())
+        );
     }
 }

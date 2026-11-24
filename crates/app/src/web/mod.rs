@@ -237,6 +237,13 @@ impl App {
             .map_err(|error| JsError::new(&error))
     }
 
+    /// Set the row height by density name ("compact", "normal" or "roomy"); another name throws and changes nothing.
+    pub fn set_density(&mut self, name: &str) -> Result<(), JsError> {
+        self.session
+            .set_density(name)
+            .map_err(|error| JsError::new(&error))
+    }
+
     /// Number of tasks.
     #[expect(
         clippy::cast_possible_truncation,

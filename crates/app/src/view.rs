@@ -83,6 +83,21 @@ impl Session {
         Ok(())
     }
 
+    /// Set the row height by density name (`"compact"`, `"normal"` or `"roomy"`); another name is refused and changes nothing.
+    ///
+    /// # Errors
+    /// A message naming the value when it is not one of the three.
+    pub fn set_density(&mut self, name: &str) -> Result<(), String> {
+        let Some(density) = timeline::viewport::Density::parse(name) else {
+            return Err(format!("density {name:?} is not compact, normal or roomy"));
+        };
+        let viewport = &mut self.timeline.viewport;
+        viewport.row_height = density.row_height();
+        viewport.scroll_y = viewport.scroll_y.clamp(0.0, viewport.max_scroll());
+        self.link_refresh();
+        Ok(())
+    }
+
     /// Set the shapes that tell the data date from the critical path without colour (tl#1215), in
     /// CSS pixels: the data-date line's `dash` (1 or more) and `gap` (0 or more), and the critical
     /// bar's `edge` (0 or more). Anything else, NaN included, is refused and changes nothing.

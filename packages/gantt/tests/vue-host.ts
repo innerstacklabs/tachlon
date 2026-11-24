@@ -6,6 +6,7 @@ const g = globalThis as { mounts?: { schedule?: { demo: number }; mustFinishBy?:
 const seen = { change: 0, load: 0, ready: 0 };
 const schedule = shallowRef<{ demo: number; fail?: number }>({ demo: 1 });
 const locale = shallowRef<string | undefined>(undefined);
+const density = shallowRef<string | undefined>(undefined);
 const mustFinishBy = shallowRef<string | undefined>(undefined);
 const texts = shallowRef<Record<string, string> | undefined>(undefined);
 const readOnly = shallowRef<boolean | undefined>(undefined);
@@ -16,7 +17,7 @@ const tasks = shallowRef<object[] | undefined>(undefined);
 const records = shallowRef<object[] | undefined>(undefined);
 const results: unknown[] = [];
 let started = false;
-const app = createApp({ render: () => { const props = { records: records.value as never, tasks: tasks.value as never, onUpdate: (r: unknown) => void results.push(r), schedule: schedule.value, locale: locale.value, mustFinishBy: mustFinishBy.value, texts: texts.value, readOnly: readOnly.value, capabilities: capabilities.value, save: save.value as never, ...handlers.value }; return createVNode(Gantt, props, null, 8, Object.keys(props)); } });
+const app = createApp({ render: () => { const props = { records: records.value as never, tasks: tasks.value as never, onUpdate: (r: unknown) => void results.push(r), schedule: schedule.value, locale: locale.value, density: density.value as never, mustFinishBy: mustFinishBy.value, texts: texts.value, readOnly: readOnly.value, capabilities: capabilities.value, save: save.value as never, ...handlers.value }; return createVNode(Gantt, props, null, 8, Object.keys(props)); } });
 const problems = { warnings: [] as string[], errors: 0 };
 console.warn = (...parts: unknown[]) => void problems.warnings.push(parts.join(" ")); // Vue's own warn handler only sees warnings raised while it renders; an emit after the mount warns on the console
 app.config.errorHandler = () => void (problems.errors += 1);
@@ -25,6 +26,7 @@ Object.assign(window, {
   put: (more: { tasks?: object[]; records?: object[]; locale?: string }) => ("tasks" in more && (tasks.value = more.tasks), "records" in more && (records.value = more.records), "locale" in more && (locale.value = more.locale), started || ((started = true), app.mount(document.body.appendChild(document.createElement("div")))), report().then(() => ({ mounts: g.mounts?.length, updates: (g as { updates?: unknown[] }).updates ?? [], results: [...results] }))), // gantt#2087
   start: () => (app.mount(document.body.appendChild(document.createElement("div"))), report()),
   change: (demo: number) => ((schedule.value = { demo }), report()),
+  rows: (value: string) => ((density.value = value), report().then(() => (g.mounts ?? []).map((o) => (o as { density?: string }).density ?? "-"))),
   lang: (tag: string) => ((locale.value = tag), report().then((seen) => ({ ...seen, locales: (g.mounts ?? []).map((o) => o.locale ?? "-") }))),
   finish: (day: string) => ((mustFinishBy.value = day), report().then(() => (g.mounts ?? []).map((o) => o.mustFinishBy))),
   words: (value: Record<string, string>) => ((texts.value = value), report().then(() => (g.mounts ?? []).map((o) => o.texts))),

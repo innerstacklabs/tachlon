@@ -143,7 +143,7 @@ impl Session {
         // The list and the panel fill the page's width, so only a taller row can shrink the body.
         #[expect(
             clippy::cast_precision_loss,
-            reason = "rows_per_page is at most ROWS_PER_PAGE, a small constant"
+            reason = "rows_per_page is at most 30 (20 px rows), a small count"
         )]
         let body_h = axis + plan.rows_per_page as f64 * row_h;
         let scale = ((page_h - 2.0 * MARGIN - HEADER_H - FOOTER_H) / body_h).min(1.0);
@@ -240,7 +240,7 @@ impl Session {
                 let _ = write!(
                     out,
                     "<clipPath id=\"pc{id}\"><rect x=\"{x}\" y=\"{}\" width=\"{}\" height=\"{row_h}\"/></clipPath><g clip-path=\"url(#pc{id})\">",
-                    y - row_h + 4.0,
+                    y - row_h / 2.0 - 8.0,
                     clip
                 );
                 let task = Some(c) == task_col;
@@ -254,19 +254,21 @@ impl Session {
             }
         };
         let mut id = 0;
-        cell_at(&mut out, &mut id, axis - 6.0, &worded_head, 0);
+        // A row's text baseline sits 6 px under the row's middle, whatever the row's height; the head is the row that ends at the axis.
+        let baseline = |bottom: f64| bottom - row_h / 2.0 + 6.0;
+        cell_at(&mut out, &mut id, baseline(axis), &worded_head, 0);
         for (i, (&task, line)) in rows.iter().zip(lines).enumerate() {
             let depth = self
                 .outline()
                 .map_or(0, |outline| outline.depth(TaskId(task)) - 1);
             #[expect(
                 clippy::cast_precision_loss,
-                reason = "i is a row number on one page, at most ROWS_PER_PAGE, exact in f64"
+                reason = "i is a row number on one page, at most 30, exact in f64"
             )]
             cell_at(
                 &mut out,
                 &mut id,
-                axis + (i as f64 + 1.0) * row_h - 6.0,
+                baseline(axis + (i as f64 + 1.0) * row_h),
                 &line,
                 depth,
             );
