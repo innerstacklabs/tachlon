@@ -3,22 +3,27 @@ import { test } from "node:test";
 import { expect } from "@playwright/test";
 import type { PlainLink, PlainTask } from "../src/adapters/plain.ts";
 import type { TaskUpdate, UpdateResult } from "../src/gantt-types.ts";
-import { hostData, unsetChange, type Add } from "../src/host-data.ts";
+import { hostData, unsetChange, type Add, type LinkChange } from "../src/host-data.ts";
 
 const task = (n: number, extra: object = {}): PlainTask => ({ id: n, key: `k${n}`, name: `Task ${n}`, start: "2026-03-02", duration: 2, progress: 0, ...extra });
 const rows = (): PlainTask[] => [task(1), task(2), task(3)];
 const links: PlainLink[] = [{ from: 1, to: 2 }, { from: 2, to: 3, lag: 1 }];
 
-/** A chart that has been given `tasks`, `links` and a data date at epoch 0, the records its `update` was asked to set, the days its `setDataDate` was, the rows its engine was asked to add and the keys it was asked to drop: it takes `took` of the adds and `tookDrops` of the drops, and refuses the next as "Partly applied" (all of them by default). */
+/** A chart that has been given `tasks`, `links` and a data date at epoch 0, the records its `update` was asked to set, the days its `setDataDate` was, the rows its engine was asked to add and the keys it was asked to drop, and the links it was asked to add (`joined`) and drop (`unjoined`): it takes `took` of the adds and `tookDrops` of the drops, and refuses the next as "Partly applied" (all of them by default); `limit` says the same of the links. */
 function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) = (records) => ({ ok: true, updated: records.length }), took = Infinity, tookDrops = Infinity, start: PlainTask[] = rows()) {
   const out = new Set<string>(); // the keys of rows a person deleted: the chart holds no live task of them, and `apply` skips their drops
   const calls: TaskUpdate[][] = [];
   const days: string[] = [];
   const added: Add[][] = [];
   const dropped: string[][] = [];
+  const joined: LinkChange[][] = [];
+  const unjoined: LinkChange[][] = [];
+  const limit = { adds: Infinity, drops: Infinity };
   const first = { tasks: start, links: links.map((link) => ({ ...link })), dataDate: "2026-03-02T08:00" };
   const set = hostData(first, 0);
-  const apply = (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[]): UpdateResult & { added?: number; dropped?: number; skipped?: string[] } => {
+  const apply = (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[], links: { adds: LinkChange[]; drops: LinkChange[] } = { adds: [], drops: [] }): UpdateResult & { added?: number; dropped?: number; skipped?: string[]; linked?: number; unlinked?: number } => {
+    if (links.adds.length > 0) joined.push(links.adds);
+    if (links.drops.length > 0) unjoined.push(links.drops);
     if (records.length > 0) calls.push(records);
     if (day !== undefined) days.push(day);
     if (adds.length > 0) added.push(adds);
@@ -26,10 +31,12 @@ function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) 
     const done = typeof answer === "function" ? answer(records) : answer;
     if (!done.ok) return done;
     if (adds.length > took) return { ok: false, reason: "badValue", message: "Partly applied: no", added: took };
+    if (links.drops.length > limit.drops) return { ok: false, reason: "badValue", message: "Partly applied: no", added: adds.length, unlinked: limit.drops };
+    if (links.adds.length > limit.adds) return { ok: false, reason: "badValue", message: "Partly applied: no", added: adds.length, unlinked: links.drops.length, linked: limit.adds };
     const skipped = drops.slice(0, tookDrops).filter((key) => out.has(key));
     return drops.length <= tookDrops ? { ok: true, updated: done.updated + adds.length, skipped } : { ok: false, reason: "hasChildren", message: "Partly applied: no", added: adds.length, dropped: tookDrops, skipped };
   };
-  return { calls, days, added, dropped, first, out, give: (data: { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?: string }, epoch = 0) => set(data, epoch, apply, (keys) => keys.map((key) => !out.has(key))) };
+  return { calls, days, added, dropped, joined, unjoined, limit, first, out, give: (data: { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?: string }, epoch = 0) => set(data, epoch, apply, (keys) => keys.map((key) => !out.has(key))) };
 }
 
 test("only the member that differs reaches update, with the task's key", () => {
@@ -74,13 +81,11 @@ test("a changed snlt, fnet, fnlt, mso or mfo reaches update by key, as update ta
   expect(calls[1], "only the limit that changed").toEqual([{ key: "k1", fnlt: "2026-03-26" }]);
 });
 
-test("a task moved or given another id or parent, a key that is no text, a repeated key, a parent no row has and a changed link are refused with nothing set", () => {
+test("a task moved or given another id or parent, a key that is no text, a repeated key, a parent no row has and a link that stays with another lag are refused with nothing set", () => {
   const { calls, added, dropped, give } = chart();
   const refusals = [
     give({ tasks: [task(1), task(2), task(3, { key: undefined })] }),
     give({ tasks: [task(1), task(1), task(3)] }),
-    give({ links: [links[0]!] }),
-    give({ tasks: [task(1, { duration: 7 }), task(2), task(3)], links: [...links, { from: 1, to: 3 }] }),
     give({ links: [links[0]!, { from: 2, to: 3, lag: 2 }] }),
     give({ tasks: [task(1), task(2, { parent: 1 }), task(3)] }),
     give({ tasks: [task(1), task(2, { id: 22 }), task(3)] }),
@@ -90,7 +95,7 @@ test("a task moved or given another id or parent, a key that is no text, a repea
     give({ tasks: [task(1), task(2), task(3), task(4, { parent: 99 })] }),
     give({ tasks: [task(1), task(2), task(3), task(4, { parent: 5 }), task(5, { parent: 4 })] }),
   ];
-  expect(refusals.map((answer) => (answer.ok ? "ok" : answer.reason))).toEqual(Array(12).fill("rowsChanged"));
+  expect(refusals.map((answer) => (answer.ok ? "ok" : answer.reason))).toEqual(Array(10).fill("rowsChanged"));
   expect(refusals.every((answer) => !answer.ok && answer.message.startsWith("Nothing changed"))).toBe(true);
   expect([calls, added, dropped], "nothing was set, added or dropped").toEqual([[], [], []]);
 });
@@ -160,11 +165,45 @@ test("a link that touches a dropped row is no link change, and the links held ar
   expect(changed.dropped, "nothing was dropped").toEqual([]);
 });
 
-test("links in another order are the same links, and a link to a row added in the same call is still a link change", () => {
+test("links in another order are the same links, and a link listed twice is a change", () => {
   const { give } = chart();
   expect(give({ links: [...links].reverse().map((link) => ({ ...link })) }), "the list in the other order").toEqual({ ok: true, updated: 0 });
   expect(give({ links: [links[0]!, links[0]!].map((link) => ({ ...link })) }), "a link twice and one gone is a change").toMatchObject({ ok: false, reason: "rowsChanged" });
-  expect(give({ tasks: [...rows(), task(4)], links: [...links, { from: 3, to: 4 }] }), "a row and a link to it added in one call").toMatchObject({ ok: false, reason: "rowsChanged" });
+});
+
+test("a link the data holds and the chart lacks is added, one the data lacks is dropped, each by its key else its two ends as task keys, and the links are then held", () => {
+  const { joined, unjoined, first, give } = chart();
+  const next = [{ ...links[0]! }, { from: 1, to: 3, key: "l9", type: "SS" as const, lag: 2 }];
+  expect(give({ links: next })).toMatchObject({ ok: true });
+  expect([joined, unjoined], "k1 to k3 added by its key, k2 to k3 dropped by its ends").toEqual([[[{ pred: "k1", succ: "k3", key: "l9", type: "SS", lag: 2 }]], [[{ pred: "k2", succ: "k3", lag: 1 }]]]);
+  expect(give({ links: next.map((link) => ({ ...link })) }), "the links given again are held").toMatchObject({ ok: true });
+  expect(give({ links: first.links }), "the array of the start is read again: l9 goes and k2 to k3 returns").toMatchObject({ ok: true });
+  expect([joined.length, unjoined.length, joined[1], unjoined[1]]).toEqual([2, 2, [{ pred: "k2", succ: "k3", lag: 1 }], [{ pred: "k1", succ: "k3", key: "l9", type: "SS", lag: 2 }]]);
+  expect(give({ links: [{ from: 1, to: 2, key: "x" }, { ...links[1]! }] }), "a key makes the same pair another link").toMatchObject({ ok: true });
+  expect([joined[2], unjoined[2]]).toEqual([[{ pred: "k1", succ: "k2", key: "x" }], [{ pred: "k1", succ: "k2" }]]);
+  expect(give({ links: [{ from: 1, to: 3, key: "x" }, { ...links[1]! }] }), "a key that stays with other ends is a change").toMatchObject({ ok: false, reason: "rowsChanged" });
+});
+
+test("a link to a row added in the same call is listed with the add, its ends as task keys", () => {
+  const { added, joined, give } = chart();
+  expect(give({ tasks: [...rows(), task(4)], links: [...links, { from: 3, to: 4 }] })).toMatchObject({ ok: true });
+  expect([added[0]!.map(({ record }) => record.key), joined]).toEqual([["k4"], [[{ pred: "k3", succ: "k4" }]]]);
+});
+
+test("a link add or drop the chart refuses part way keeps the ones before it, and the same rows given again apply the rest", () => {
+  const { joined, unjoined, limit, give } = chart();
+  const swapped = [{ from: 1, to: 3 }, { from: 3, to: 2 }];
+  limit.adds = 1;
+  expect(give({ links: swapped }), "two drops made, one of two adds").toMatchObject({ ok: false, reason: "badValue" });
+  limit.adds = Infinity;
+  expect(give({ links: swapped }), "the same rows again").toMatchObject({ ok: true });
+  expect([joined, unjoined]).toEqual([[[{ pred: "k1", succ: "k3" }, { pred: "k3", succ: "k2" }], [{ pred: "k3", succ: "k2" }]], [[{ pred: "k1", succ: "k2" }, { pred: "k2", succ: "k3", lag: 1 }]]]);
+  const drops = chart();
+  drops.limit.drops = 1;
+  expect(drops.give({ links: [] })).toMatchObject({ ok: false, reason: "badValue" });
+  drops.limit.drops = Infinity;
+  expect(drops.give({ links: [] })).toMatchObject({ ok: true });
+  expect(drops.unjoined.map((list) => list.length), "the first drop is not offered again").toEqual([2, 1]);
 });
 
 test("a drop the chart refuses part way keeps the drops before it, and the same rows given again drop the rest", () => {

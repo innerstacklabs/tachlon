@@ -12,6 +12,7 @@ const HOST = `<!doctype html><html><body style="margin: 0"><div id="app" class="
   import { mount } from "/src/index.ts";
   window.edits = [];
   window.mountUp = async (options) => {
+    window.upChart?.destroy();
     window.upChart = await mount(document.getElementById("app"), { forceWebgl: true, ...options });
     window.upChart.on("edit", (change) => window.edits.push(change));
   };
@@ -48,11 +49,15 @@ const pick = async (page: Page, row: number) => { // select a row of the table a
   await page.locator(`#table-rows .row[data-row="${row}"] .name`).click();
 };
 
-async function open(page: Page, mounted: object[] = tasks): Promise<void> {
+async function load(page: Page): Promise<void> {
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
   await page.goto(`${base}host.html`);
   await page.waitForFunction(() => (window as unknown as { ready?: boolean }).ready === true, undefined, { timeout: 120_000 });
-  await page.evaluate((o) => window.mountUp(o), { tasks: mounted });
+}
+
+async function open(page: Page, mounted: object[] = tasks, links: object[] = []): Promise<void> {
+  await load(page);
+  await page.evaluate((o) => window.mountUp(o), { tasks: mounted, links });
   await page.locator('#table-rows .row[data-row="2"] .name').dblclick();
   await page.locator("#table-rows input.cell-edit").fill("Renamed");
   await page.keyboard.press("Enter");
@@ -213,4 +218,53 @@ test("a summary whose children are all dropped is still a summary while the reco
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), last), "k7 went, k8 has a child the data does not hold").toMatchObject({ ok: false, reason: "hasChildren", key: "k8", message: expect.stringContaining("Partly applied") });
   expect((await names(page)).filter((key) => key === "k7" || key === "k8" || key === "c1")).toEqual(["k8", "c1"]);
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), last), "the same rows again: nothing is applied").toMatchObject({ ok: false, reason: "hasChildren", message: expect.stringMatching(/^Nothing changed/) });
+});
+
+/** The links the chart holds as `[pred's key, succ's key, link key, kind, lag in minutes]`. */
+const linksOf = (page: Page) => page.evaluate(() => {
+  const doc = window.upChart.toDocument() as { tasks: { key?: string }[]; links: { pred: number; succ: number; kind: string; lag: number; key?: string }[] };
+  return doc.links.map((link) => [doc.tasks[link.pred]!.key, doc.tasks[link.succ]!.key, link.key ?? null, link.kind, link.lag]);
+});
+
+test("setData adds the link its data holds and drops the one it lacks, by key else by its two ends: selection, scroll and the earlier rename's undo hold, and it is no edit", async ({ page }) => {
+  await open(page, tasks, [{ from: "t1", to: "t2", key: "l1" }, { from: "t3", to: "t4" }]);
+  const before = await table(page);
+  expect(before.top, "the table is scrolled").toBeGreaterThan(0);
+  const next = [{ from: "t3", to: "t4" }, { from: "t5", to: "t6", key: "l2", type: "SS" as const, lag: 1 }];
+  expect(await page.evaluate((links) => window.upChart.setData({ links }), next)).toEqual({ ok: true, updated: 2 });
+  await frames(page);
+  expect(await table(page), "the scroll and the selection are as they were").toEqual(before);
+  expect(await linksOf(page), "l1 is dropped by its key, k5 to k6 is added with its type and a day of lag").toEqual([["k3", "k4", null, "FS", 0], ["k5", "k6", "l2", "SS", 480]]);
+  expect(await page.evaluate(() => window.edits), "no edit").toEqual([]);
+  expect(await page.evaluate((links) => window.upChart.setData({ links }), next.map((link) => ({ ...link }))), "the same links again").toEqual({ ok: true, updated: 0 });
+  expect(await page.evaluate(() => window.upChart.commands.undo()), "the one Undo is the person's rename").toBe(true);
+  expect([(await saved(page)).find((task) => task.key === "k2")!.name, (await linksOf(page)).length]).toEqual(["Task 2", 2]);
+  expect(await page.evaluate(() => window.upChart.commands.undo()), "no step is left").toBe(false);
+});
+
+test("a link the engine refuses answers with its key and Partly applied, keeps the links before it, and corrected rows add the rest", async ({ page }) => {
+  await open(page);
+  const loop = [{ from: "t7", to: "t8", key: "a" }, { from: "t8", to: "t7", key: "b" }];
+  expect(await page.evaluate((links) => window.upChart.setData({ links }), loop), "the second closes a loop").toMatchObject({ ok: false, key: "b", message: expect.stringContaining("Partly applied") });
+  expect(await linksOf(page), "the first stays").toEqual([["k7", "k8", "a", "FS", 0]]);
+  expect(await page.evaluate((links) => window.upChart.setData({ links }), [loop[0]!, { from: "t8", to: "t9", key: "b" }])).toEqual({ ok: true, updated: 1 });
+  expect(await linksOf(page)).toEqual([["k7", "k8", "a", "FS", 0], ["k8", "k9", "b", "FS", 0]]);
+});
+
+test("an added link's lag is counted as mount counts it, in each lagCalendar value", async ({ page }) => {
+  await load(page);
+  const calendars = ["a", "b", "c"].map((key, i) => ({ key, workDays: [1, 2, 3, 4, 5], hoursPerDay: 8 / 2 ** i }));
+  const pair = [{ id: "a", key: "a", name: "A", start: "2026-03-02", duration: 1, calendar: "a" }, { id: "b", key: "b", name: "B", start: "2026-03-03", duration: 1, calendar: "b" }];
+  const link = [{ from: "a", to: "b", lag: 2 }];
+  const seen: unknown[] = [];
+  for (const lagCalendar of ["successor", "predecessor", "24h", { calendar: "c" }]) {
+    const options = { calendars, durationUnit: "days", lagCalendar, tasks: pair };
+    await page.evaluate((o) => window.mountUp(o), { ...options, links: link });
+    const mounted = await linksOf(page);
+    await page.evaluate((o) => window.mountUp(o), options);
+    expect(await page.evaluate((links) => window.upChart.setData({ links }), link)).toEqual({ ok: true, updated: 1 });
+    expect(await linksOf(page), JSON.stringify(lagCalendar)).toEqual(mounted);
+    seen.push(mounted[0]![4]);
+  }
+  expect(seen, "two days of the successor's, the predecessor's, a 24-hour and the named calendar's day").toEqual([480, 960, 2880, 240]);
 });

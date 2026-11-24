@@ -8,15 +8,15 @@ import { takeDown, type Shell } from "./shell.js";
 import type { OpenGuard } from "./open-guard.js";
 import type { RowEdit } from "./row-edit.js";
 import type { OpenedFile, OpenOptions } from "./open-schedule.js";
-import type { PageSize, PrintPages, Status } from "./api.js";
+import type { PageSize, PrintPages, PublicApp, Status } from "./api.js";
 import { pagePng } from "./image-export.js";
 import { xlsxFile } from "./xlsx.js";
 import { snapshot } from "./snapshot.js";
 import { localDate, measureText, printColumns } from "./print-sheet.js";
 import type { Gantt, MountOptions } from "./index.js";
-import { pushHostEntry, send, toApp, update } from "./update.js";
-import { readAnswer, refused } from "./edit-result.js";
-import { rowsChanged, type SetData } from "./host-data.js";
+import { lagMinutes, pushHostEntry, send, toApp, update } from "./update.js";
+import { readAnswer, refused, type Refusal } from "./edit-result.js";
+import { rowsChanged, type LinkChange, type LinkChanges, type SetData } from "./host-data.js";
 import type { UpdateResult } from "./gantt-types.js";
 import type { FieldMap } from "./field-map.js";
 import type { HasOn } from "./events.js";
@@ -61,6 +61,27 @@ export interface GanttParts {
   setData: SetData;
   /** The host's capability profile as the chart holds it: what a missing save handler turns off is merged in (`save-handlers.ts`). */
   profile: (host: MountOptions["capabilities"]) => MountOptions["capabilities"];
+}
+
+/** `setData`'s link drops, then adds, by `App.remove_link_by_key` and `App.add_link_by_key`: how many of each the chart took, how many changed it (a drop of a link it holds no live one of, that a person removed or it never held, is taken as already gone), and the refusal that stopped them. */
+function setLinks(app: PublicApp, unit: MountOptions["durationUnit"], { adds, drops }: LinkChanges): { unlinked: number; linked: number; changed: number; refusal?: { link: LinkChange; done: Refusal; what: string } } {
+  let unlinked = 0;
+  let changed = 0;
+  for (const link of drops) {
+    const done = readAnswer(app.remove_link_by_key(JSON.stringify(link.key === undefined ? { pred: link.pred, succ: link.succ } : { key: link.key })));
+    if (!done.ok && done.reason !== "unknownKey" && done.reason !== "unknownLink") return { unlinked, linked: 0, changed, refusal: { link, done, what: "was not dropped" } };
+    unlinked += 1;
+    changed += done.ok ? 1 : 0;
+  }
+  const minutes = adds.some(({ lag }) => lag !== undefined) ? lagMinutes(app, unit) : undefined;
+  let linked = 0;
+  for (const link of adds) {
+    const { key, pred, succ, type, lag } = link;
+    const done = readAnswer(app.add_link_by_key(JSON.stringify({ ...(key === undefined ? {} : { key }), pred, succ, ...(type === undefined ? {} : { kind: type }), ...(lag === undefined ? {} : { lag: minutes!(lag, pred, succ) }) })));
+    if (!done.ok) return { unlinked, linked, changed: changed + linked, refusal: { link, done, what: "was refused" } };
+    linked += 1;
+  }
+  return { unlinked, linked, changed: changed + linked };
 }
 
 /** The `Gantt` of one start; `destroy` takes down what `shell.disposers` holds, then frees the app and empties the root. */
@@ -218,11 +239,11 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       const custom = { tasks: p.fields.custom.take("tasks", data.tasks), links: p.fields.custom.take("links", data.links) };
       const rows = { ...p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), dataDate: data.dataDate };
-      const answer = p.setData(rows, shell.status().epoch, (records, day, adds, drops) => {
+      const answer = p.setData(rows, shell.status().epoch, (records, day, adds, drops, links) => {
         if ((JSON.parse(app.task_slots(adds.map(({ record }) => record.key))) as (number | null)[]).some((slot) => slot !== null)) return rowsChanged("a task of the rows that the chart lacks has a key it already holds.");
         const moved = day === undefined ? undefined : commands.setDataDate(day);
         if (moved !== undefined && !moved.ok) return moved;
-        if (records.length + adds.length + drops.length > 0 && p.busy()) return refused("busy");
+        if (records.length + adds.length + drops.length + links.adds.length + links.drops.length > 0 && p.busy()) return refused("busy");
         const read = toApp(app, p.unit, p.dateForm, [...records, ...adds.map(({ record }) => record)]);
         if (!Array.isArray(read)) return read;
         const set = records.length === 0 ? Object.freeze({ ok: true as const, updated: 0 }) : send(app, read.slice(0, records.length), p.wrote);
@@ -236,6 +257,12 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
           }
           added += 1;
         }
+        const { unlinked, linked, changed, refusal } = setLinks(app, p.unit, links);
+        if (refusal !== undefined) {
+          const { link, done, what } = refusal;
+          const why = `link ${link.key ?? `${link.pred} to ${link.succ}`} ${what} (${done.message})`;
+          return { ...done, ...(link.key === undefined ? {} : { key: link.key }), message: records.length + added + changed > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to apply the rest.` : `Nothing changed: ${why}.`, added, unlinked, linked };
+        }
         const slots = JSON.parse(app.task_slots(drops)) as (number | null)[]; // a key no live task holds (a row a person deleted) stays as it is: their Undo and its columns too
         const removed: string[] = [];
         const skipped: string[] = []; // `setData` holds these rows until the chart holds them again
@@ -244,13 +271,13 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
           if (done !== undefined && !done.ok) {
             p.fields.custom.drop("tasks", removed);
             const why = `task ${key} was not dropped (${done.message})`;
-            return { ...done, key, message: records.length + added + removed.length > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to drop the rest.` : `Nothing changed: ${why}.`, added, dropped: i, skipped };
+            return { ...done, key, message: records.length + added + changed + removed.length > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to drop the rest.` : `Nothing changed: ${why}.`, added, unlinked, linked, dropped: i, skipped };
           }
           if (done === undefined) skipped.push(key);
           else removed.push(key);
         }
         p.fields.custom.drop("tasks", removed);
-        return { ...set, updated: set.updated + added + removed.length, skipped };
+        return { ...set, updated: set.updated + added + changed + removed.length, skipped };
       }, (keys) => (JSON.parse(app.task_slots(keys)) as (number | null)[]).map((slot) => slot !== null));
       if (answer.ok) [custom.tasks, custom.links].forEach((taken) => taken.commit());
       return answer;
