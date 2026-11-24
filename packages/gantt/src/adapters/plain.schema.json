@@ -62,7 +62,7 @@
         "duration": { "type": "number", "minimum": 0, "description": "In the data's durationUnit: working days of the task's calendar, by default." },
         "calendar": { "type": "string", "description": "The key of one of the data's calendars; the first when left out." },
         "parent": { "oneOf": [{ "$ref": "#/$defs/id" }, { "type": "null" }], "description": "The id of the summary task this one sits under. null, or leaving it out, is no parent." },
-        "progress": { "type": "number", "minimum": 0, "maximum": 100, "description": "Percent complete." },
+        "progress": { "type": "number", "minimum": 0, "maximum": 100, "description": "Percent complete. Beside an actualStart and no actualFinish it sets the remaining work: none for 0, 0 for 100." },
         "color": { "type": "string", "pattern": "^#[0-9a-fA-F]{6}$", "description": "The bar's color as #rrggbb, with no alpha. Any other text is left out and named in leftOut. The name on the bar stays readable for the tested palette only." },
         "label": { "type": "string", "description": "The text the bar shows in place of the name. The task list keeps the name. Any other kind of value is left out and named in leftOut." },
         "key": { "type": "string", "description": "The host's own text id for the task, such as a database id. It is kept through edits and saves and the app never reads it. Send a number as text." },

@@ -114,7 +114,7 @@ impl Session {
     /// sets it, and refused as a typed actual is when an actual it sets is after the data date. The call
     /// applies every record's `duration`, `start`, `snet`, limits and `name` first and works each `progress` out
     /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
-    /// with a duration, start, snet or limit in any record solves twice, and any other call once. `actualStart` and `actualFinish` take a date or `null` (a date alone is read as plain data reads it: the first working minute of the day, and the end of its last) and `remaining` a whole number of working minutes or `null`; a record that gives `remaining` with `progress` (beside an actual date, `progress` is read and sets nothing: the dates stand, as a mount of the same task reads them), an actual finish before the start, a finish or remaining (unless `unstartedRemaining` is on) with no actual start, or an actual after the data date is refused. A member a
+    /// with a duration, start, snet or limit in any record solves twice, and any other call once. `actualStart` and `actualFinish` take a date or `null` (a date alone is read as plain data reads it: the first working minute of the day, and the end of its last) and `remaining` a whole number of working minutes or `null`; a record that gives `remaining` with `progress` (beside an actual finish, `progress` sets nothing; beside an actual start with none, it sets the remaining work as a typed percent does (none for `0`, `0` for `100`) and drops a finish the task held, as a mount of the same task reads them), an actual finish before the start, a finish or remaining (unless `unstartedRemaining` is on) with no actual start, or an actual after the data date is refused. A member a
     /// record leaves out keeps its value. `color` (`"#rrggbb"`) and `label` (text) set the bar's look, `null` for none; no undo step holds them, so `host_edit` refuses a record that changes either (`notUpdatable`). `hostStart`, `hostFinish`, `hostLateStart`, `hostLateFinish`, `hostFloat`, `hostFreeFloat` and `hostCritical`, what the host computed, set nothing and are named in `differs` when the chart computed otherwise (a day alone compares the day, a finish's day being its last minute's; a float is in working days of the task's calendar, and may have a fraction). `mso` and `mfo`, the pins, are read and never set: one that equals what the task's pin holds (`null` with no such pin) changes nothing, and any other is `notUpdatable`, as is every other member, `alap` included.
     ///
     /// # Errors
@@ -263,13 +263,18 @@ impl Session {
             };
             let (start, finish, remaining) =
                 self.percent_progress(dates, *task, i64::from(percent), new.duration);
-            self.check_actuals_not_after_data_date(*task, start, finish)
-                .map_err(|error| UpdateError::new(error.kind(), Some(at), Some("progress")))?;
-            new.progress = Some(Progress {
+            let mut worked = Progress {
                 start,
                 finish,
                 remaining,
-            });
+            };
+            if new.progress.is_some() {
+                // the record gave an actual start with the percent
+                worked = worked.beside_start(percent, new.duration);
+            }
+            self.check_actuals_not_after_data_date(*task, worked.start, worked.finish)
+                .map_err(|error| UpdateError::new(error.kind(), Some(at), Some("progress")))?;
+            new.progress = Some(worked);
         }
         Ok(())
     }
@@ -355,8 +360,9 @@ impl Session {
         }
         new.percent = percent;
         if let Some(given) = actuals {
+            let (given, beside) = given.beside_start_in(&said);
+            new.percent = new.percent.filter(|_| beside); // else the given dates stand, and a percent beside them sets nothing
             self.check_actuals(at, task, given, &said)?;
-            new.percent = None; // the given dates stand, and a percent beside them sets nothing
             new.progress = Some(given);
         }
         Ok((new, old))

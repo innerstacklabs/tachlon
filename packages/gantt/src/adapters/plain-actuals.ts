@@ -9,10 +9,15 @@ export function dateAt(text: string, edge?: "start" | "finish", week = WORKING_W
   return at + (edge === "start" ? from : to);
 }
 
-/** The progress keys of `task` (checked by `validate`) as minutes since 1970 and `remaining` in minutes (`minutes` converts a duration), each null when not given; `dates` holds every date, a date alone read on the task's `week`. */
-export function readActuals(task: Record<string, unknown>, week: [number, number][][], minutes: (value: number) => number) {
+/** What a whole `percent` below 100 leaves of `duration` minutes to do, in whole working hours: the nearest hour, halves up, never 0 (the rule of a typed percent, `whole_hours_left` in the app). */
+const hoursLeft = (duration: number, percent: number): number => Math.max(1, Math.floor((duration * (100 - percent) * 2 + 6000) / 12000)) * 60;
+
+/** The progress keys of `task` (checked by `validate`) as minutes since 1970 and `remaining` in minutes (`minutes` converts a duration), each null when not given; `dates` holds every date, a date alone read on the task's `week`. A whole `percent` beside a start, with no finish and no `remaining`, sets the remaining work of a task of `duration` minutes: none for 0 or a zero duration, 0 for 100. */
+export function readActuals(task: Record<string, unknown>, week: [number, number][][], minutes: (value: number) => number, percent: number, duration: number) {
   const read = (key: string, edge?: "start" | "finish") => (typeof task[key] === "string" ? dateAt(task[key], edge, week) : null);
   const [start, finish, resume] = [read("actualStart", "start"), read("actualFinish", "finish"), read("resume")];
-  const remaining = typeof task.remaining === "number" ? minutes(task.remaining) : null;
+  const given = typeof task.remaining === "number" ? minutes(task.remaining) : null;
+  const beside = start !== null && finish === null && given === null && percent > 0 && duration > 0;
+  const remaining = beside ? (percent === 100 ? 0 : hoursLeft(duration, percent)) : given;
   return { start, finish, resume, remaining, dates: [start, finish, resume].filter((at): at is number => at !== null) };
 }

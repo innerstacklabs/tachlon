@@ -21,7 +21,7 @@ export interface PlainCalendar {
   [field: string]: unknown;
 }
 
-/** A task: `start` and `end` are `YYYY-MM-DD[THH:mm]`, `duration` is in the data's `durationUnit` (working days of the task's `calendar`, by default), `progress` 0 to 100, `color` the bar's `#rrggbb`, `label` the text the bar shows in place of the name, `key` your own text id, kept through edits and saves. `snet` (start no earlier than, in place of `start`), `snlt`, `fnet`, `fnlt` (each a date), `mso` and `mfo` (a date each; one pin per task) and `alap: true` are the task's limits; a date alone on a finish limit is the end of the last working minute of that day on the task's calendar, and on a start limit the first working minute. `milestone` (`"start"` or `"finish"`) on a task with no duration puts it at the start of a working period or at the end of one (for example, after a task that ends at 17:00, `"start"` is 08:00 the next working day and `"finish"` is 17:00 that day). `actualStart` and `actualFinish` (dates; a date alone is the first working minute of the day, and the end of its last), `remaining` (as `duration` is) and `resume` (a date) say what happened; the last three need an `actualStart`, and `remaining` is not given with `progress`. `calendar` is the `key` of one of the data's `calendars`, the first when it is left out. A task with children is a summary that takes its dates from them. */
+/** A task: `start` and `end` are `YYYY-MM-DD[THH:mm]`, `duration` is in the data's `durationUnit` (working days of the task's `calendar`, by default), `progress` 0 to 100, `color` the bar's `#rrggbb`, `label` the text the bar shows in place of the name, `key` your own text id, kept through edits and saves. `snet` (start no earlier than, in place of `start`), `snlt`, `fnet`, `fnlt` (each a date), `mso` and `mfo` (a date each; one pin per task) and `alap: true` are the task's limits; a date alone on a finish limit is the end of the last working minute of that day on the task's calendar, and on a start limit the first working minute. `milestone` (`"start"` or `"finish"`) on a task with no duration puts it at the start of a working period or at the end of one (for example, after a task that ends at 17:00, `"start"` is 08:00 the next working day and `"finish"` is 17:00 that day). `actualStart` and `actualFinish` (dates; a date alone is the first working minute of the day, and the end of its last), `remaining` (as `duration` is) and `resume` (a date) say what happened; the last three need an `actualStart`, and `remaining` is not given with `progress`; `progress` beside an `actualStart` and no `actualFinish` sets the remaining work as a typed percent does (none for 0, 0 for 100, so send `actualFinish` to finish the task). `calendar` is the `key` of one of the data's `calendars`, the first when it is left out. A task with children is a summary that takes its dates from them. */
 export interface PlainTask {
   id: string | number;
   calendar?: string;
@@ -158,9 +158,6 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; proje
     const ownFloor = constrained ? lim.snet : (lim.snet ?? start);
     const floor = projectStart === null ? ownFloor : Math.max(ownFloor ?? projectStart, projectStart);
     starts.push(floor);
-    const act = readActuals(task, week, (value) => toMinutes(value, data.durationUnit, day)); progress.push(act);
-    limitDates.push(...lim.dates, ...act.dates);
-    const limit = act.resume === null ? lim.limit : { ...lim.limit, resume: act.resume };
     let duration = 0;
     if (task.type !== "milestone") {
       if (task.duration !== undefined) duration = toMinutes(task.duration, data.durationUnit, day);
@@ -169,6 +166,9 @@ export function fromTasks(data: { tasks: PlainTask[]; links?: PlainLink[]; proje
       if (duration < 0) throw new Error(`DHTMLX data: task ${id} has a negative duration`);
     }
     const percent = Math.round(Math.min(1, Math.max(0, fraction)) * 100);
+    const act = readActuals(task, week, (value) => toMinutes(value, data.durationUnit, day), percent, Math.round(duration)); progress.push(act);
+    limitDates.push(...lim.dates, ...act.dates);
+    const limit = act.resume === null ? lim.limit : { ...lim.limit, resume: act.resume };
     return limit === undefined ? { ...base, duration: Math.round(duration), snet: floor, progress: percent } : { ...base, duration: Math.round(duration), snet: floor, limit, progress: percent };
   });
 

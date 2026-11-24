@@ -75,14 +75,49 @@ fn actuals_that_plain_data_refuses_are_refused_by_member_and_change_nothing() {
 }
 
 #[test]
-fn a_progress_beside_an_actual_date_sets_nothing_and_clearing_the_start_is_named() {
-    let (mut session, _) = keyed();
+fn a_progress_beside_an_actual_start_sets_the_remaining_work_and_clearing_the_start_is_named() {
+    let (mut session, leaves) = keyed();
     let depth = session.history_len();
-    session
-        .update_tasks(r#"[{"key":"k4","progress":100,"actualStart":"2026-03-02"}]"#)
+    let (mut typed, _) = keyed();
+    typed
+        .update_tasks(r#"[{"key":"k4","actualStart":"2026-03-02"}]"#)
         .unwrap();
-    let (start, finish, remaining) = held(&session, "k4");
-    assert_eq!((start.is_some(), finish, remaining), (true, None, None));
+    typed.set_percent_text(leaves[4], "20").unwrap();
+    let (_, _, twenty) = held(&typed, "k4");
+    assert!(twenty.is_some_and(|left| left > 0));
+    let held_finish =
+        r#"[{"key":"k4","actualStart":"2026-03-02","actualFinish":"2026-03-03","remaining":300}]"#;
+    for first in ["[]", held_finish] {
+        session.update_tasks(first).unwrap();
+        for (given, finish, remaining) in [
+            (r#""progress":20"#, None, twenty),
+            (r#""progress":100"#, None, Some(0)),
+            (r#""progress":0"#, None, None),
+        ] {
+            let json = format!(r#"[{{"key":"k4","actualStart":"2026-03-02",{given}}}]"#);
+            session.update_tasks(&json).unwrap();
+            let (start, got_finish, got) = held(&session, "k4");
+            assert_eq!(
+                (start.is_some(), got_finish, got),
+                (true, finish, remaining),
+                "{json}"
+            );
+        }
+    }
+    assert_eq!(session.task_percent(leaves[4].0), "0%");
+    session
+        .update_tasks(r#"[{"key":"k4","actualStart":"2026-03-02","progress":100}]"#)
+        .unwrap();
+    assert_eq!(session.task_percent(leaves[4].0), "100%");
+    let both =
+        r#"[{"key":"k4","actualStart":"2026-03-02","actualFinish":"2026-03-03","progress":20}]"#;
+    session.update_tasks(both).unwrap();
+    let (_, finish, remaining) = held(&session, "k4");
+    assert_eq!(
+        (finish.is_some(), remaining),
+        (true, Some(0)),
+        "the finish stands"
+    );
     session
         .update_tasks(r#"[{"key":"k4","actualFinish":"2026-03-03"}]"#)
         .unwrap();

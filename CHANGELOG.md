@@ -4,6 +4,10 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+### Breaking changes
+
+- **`progress` beside an `actualStart` that is a date, with no `actualFinish`, now sets the remaining work, as a typed percent does, in `mount`, `update` and `setData`.** It set none, and the cell read 0%. The remaining work is the whole working hours a typed percent leaves (none for `0` or a zero duration, and `0` for `100`, which leaves the task started and not finished), and a finish the task held goes. So the dates of that task and of what follows it can move: send `actualFinish` to finish a task. A snapshot from `toPlain` leaves `progress` out beside a start with no finish, so it mounts again with the same dates.
+
 ### New
 
 - `mount` takes `density` (`"compact"`, `"normal"` the default, `"roomy"`: rows 20, 24 and 40 px tall). The bars, the table rows, hit testing, keyboard paging and print follow one height, and `--gantt-row-h` on the root says it for your own layout. Any other value rejects `mount` with a `RangeError` before the root is touched. The React, Vue and Angular components take `density` and mount the chart again when it changes.

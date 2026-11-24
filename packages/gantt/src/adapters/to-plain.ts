@@ -59,7 +59,7 @@ export function toPlain(document: Saved, dates: readonly string[]): { tasks: Pla
     ...limits[at],
     duration: task.duration / WORKING_DAY,
     ...(task.parent === null ? {} : { parent: ids[task.parent]! }),
-    ...("remaining" in limits[at]! ? {} : { progress: task.progress }), // `progress` and `remaining` are not given together
+    ...("remaining" in limits[at]! || (task.actual_start !== null && task.actual_finish === null) ? {} : { progress: task.progress }), // `progress` and `remaining` are not given together, and a percent beside a start with no finish would set the remaining work again
     ...(task.label === undefined ? {} : { label: task.label }),
     ...(task.color === undefined ? {} : { color: task.color }),
     ...(task.key === undefined ? {} : { key: task.key }),
