@@ -150,13 +150,21 @@ test("a link that touches a dropped row is no link change, and the links held ar
   const first = chart();
   expect(first.give({ tasks: [task(1), task(2)] }), "no links given: the link to k3 went with it").toEqual({ ok: true, updated: 0 });
   expect(first.give({ links: [links[0]!] }), "the links held are the one that stays").toEqual({ ok: true, updated: 0 });
-  expect(first.give({ links }), "a link to the dropped row is added back").toMatchObject({ ok: false, reason: "rowsChanged" });
+  expect(first.give({ links: links.map((link) => ({ ...link })) }), "a link to the dropped row is listed again: the chart holds no such row, so no change").toEqual({ ok: true, updated: 0 });
+  expect(first.give({ links: [...links].reverse().map((link) => ({ ...link })) }), "and the same on a second call with another array").toEqual({ ok: true, updated: 0 });
   expect(chart().give({ tasks: [task(1), task(2)], links: [links[0]!] }), "the data drops the link with the row").toEqual({ ok: true, updated: 0 });
   const listed = chart();
   expect(listed.give({ tasks: [task(1), task(2)], links: links.map((link) => ({ ...link })) }), "the data still lists the link to the dropped row").toEqual({ ok: true, updated: 0 });
   const changed = chart();
   expect(changed.give({ tasks: [task(1), task(2)], links: [{ from: 1, to: 2, lag: 5 }] }), "a link between the rows that stay still differs").toMatchObject({ ok: false, reason: "rowsChanged" });
   expect(changed.dropped, "nothing was dropped").toEqual([]);
+});
+
+test("links in another order are the same links, and a link to a row added in the same call is still a link change", () => {
+  const { give } = chart();
+  expect(give({ links: [...links].reverse().map((link) => ({ ...link })) }), "the list in the other order").toEqual({ ok: true, updated: 0 });
+  expect(give({ links: [links[0]!, links[0]!].map((link) => ({ ...link })) }), "a link twice and one gone is a change").toMatchObject({ ok: false, reason: "rowsChanged" });
+  expect(give({ tasks: [...rows(), task(4)], links: [...links, { from: 3, to: 4 }] }), "a row and a link to it added in one call").toMatchObject({ ok: false, reason: "rowsChanged" });
 });
 
 test("a drop the chart refuses part way keeps the drops before it, and the same rows given again drop the rest", () => {
