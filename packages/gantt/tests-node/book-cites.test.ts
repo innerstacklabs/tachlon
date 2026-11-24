@@ -20,3 +20,15 @@ test("the_task_dialog_chapter_cites_both_dialog_specs_and_they_exist", () => {
   expect(cited.filter((path) => !existsSync(new URL(path, root))), "dialog specs the chapter names that are not in the repo").toEqual([]);
   expect(cited, "the chapter names both dialog specs").toEqual(expect.arrayContaining(["packages/gantt/tests/task-dialog.spec.ts", "packages/gantt/tests/task-dialog-open.spec.ts"]));
 });
+
+test("the_guide_chapter_is_listed_after_the_assistant_chapter_and_names_the_command_and_the_licence", () => {
+  const book = (name: string) => readFileSync(new URL(`book/src/${name}`, root), "utf8");
+  for (const page of ["SUMMARY.md", "index.md"]) {
+    const text = book(page);
+    expect(text, `${page} lists the guide chapter`).toContain("(dev-guide.md)");
+    expect(text.indexOf("(dev-guide.md)"), `${page} lists it after the assistant chapter`).toBeGreaterThan(text.indexOf("(dev-assistant.md)"));
+  }
+  const chapter = book("dev-guide.md");
+  expect(chapter, "the chapter names the command that prints the prompt").toContain("describe guide");
+  expect(chapter, "the chapter names the licence").toContain("MIT-0");
+});

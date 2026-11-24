@@ -22,6 +22,7 @@ To try the chart without a file of your own, [open the office fit-out sample](/?
 - [Load and save P6 and MS Project files](dev-files.md): load a file into the chart, and write the schedule out as a P6 or MS Project file.
 - [Run the engine in Node](dev-node.md): open a schedule with no page and ask what moves and what sets the finish.
 - [Give an AI assistant the engine tools](dev-assistant.md): hand your model the tool definitions, run its tool calls, and add a chat box beside the chart.
+- [Turn the user guide into your own docs](dev-guide.md): print the prompt that has your assistant write your product's help pages from the guide files.
 - [Install it in your app](install.md): install the package, let `npx tachlon init` write the chart component, and open a schedule file.
 
 **Guide**

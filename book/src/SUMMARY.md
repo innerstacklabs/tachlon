@@ -11,6 +11,7 @@
 - [Load and save P6 and MS Project files](dev-files.md)
 - [Run the engine in Node](dev-node.md)
 - [Give an AI assistant the engine tools](dev-assistant.md)
+- [Turn the user guide into your own docs](dev-guide.md)
 - [Install it in your app](install.md)
 
 # Guide
