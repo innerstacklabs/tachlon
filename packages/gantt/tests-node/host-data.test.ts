@@ -10,14 +10,15 @@ const rows = (): PlainTask[] => [task(1), task(2), task(3)];
 const links: PlainLink[] = [{ from: 1, to: 2 }, { from: 2, to: 3, lag: 1 }];
 
 /** A chart that has been given `tasks`, `links` and a data date at epoch 0, the records its `update` was asked to set, the days its `setDataDate` was, the rows its engine was asked to add and the keys it was asked to drop: it takes `took` of the adds and `tookDrops` of the drops, and refuses the next as "Partly applied" (all of them by default). */
-function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) = (records) => ({ ok: true, updated: records.length }), took = Infinity, tookDrops = Infinity) {
+function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) = (records) => ({ ok: true, updated: records.length }), took = Infinity, tookDrops = Infinity, start: PlainTask[] = rows()) {
+  const out = new Set<string>(); // the keys of rows a person deleted: the chart holds no live task of them, and `apply` skips their drops
   const calls: TaskUpdate[][] = [];
   const days: string[] = [];
   const added: Add[][] = [];
   const dropped: string[][] = [];
-  const first = { tasks: rows(), links: links.map((link) => ({ ...link })), dataDate: "2026-03-02T08:00" };
+  const first = { tasks: start, links: links.map((link) => ({ ...link })), dataDate: "2026-03-02T08:00" };
   const set = hostData(first, 0);
-  const apply = (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[]): UpdateResult & { added?: number; dropped?: number } => {
+  const apply = (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[]): UpdateResult & { added?: number; dropped?: number; skipped?: string[] } => {
     if (records.length > 0) calls.push(records);
     if (day !== undefined) days.push(day);
     if (adds.length > 0) added.push(adds);
@@ -25,9 +26,10 @@ function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) 
     const done = typeof answer === "function" ? answer(records) : answer;
     if (!done.ok) return done;
     if (adds.length > took) return { ok: false, reason: "badValue", message: "Partly applied: no", added: took };
-    return drops.length <= tookDrops ? { ok: true, updated: done.updated + adds.length } : { ok: false, reason: "hasChildren", message: "Partly applied: no", added: adds.length, dropped: tookDrops };
+    const skipped = drops.slice(0, tookDrops).filter((key) => out.has(key));
+    return drops.length <= tookDrops ? { ok: true, updated: done.updated + adds.length, skipped } : { ok: false, reason: "hasChildren", message: "Partly applied: no", added: adds.length, dropped: tookDrops, skipped };
   };
-  return { calls, days, added, dropped, first, give: (data: { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?: string }, epoch = 0) => set(data, epoch, apply) };
+  return { calls, days, added, dropped, first, out, give: (data: { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?: string }, epoch = 0) => set(data, epoch, apply, (keys) => keys.map((key) => !out.has(key))) };
 }
 
 test("only the member that differs reaches update, with the task's key", () => {
@@ -253,6 +255,51 @@ test("an added task's color and label go in its record and are no restart, and a
   expect(added[0]![0]!.record, "the key, the members update takes and the look").toEqual({ key: "k4", name: "Task 4", start: "2026-03-02", duration: 2, progress: 0, ...look });
   expect(give({ tasks: [...rows(), task(4, { color: "#000000", label: "Other" })] }), "a kept task's look is no change setData sets").toEqual({ ok: true, updated: 0 });
   expect(calls).toEqual([]);
+  expect(give({ tasks: [...rows(), task(4), task(5, { color: "red", label: 5 })] }), "a color that is not #rrggbb and a label that is not text are left out of the record, as mount leaves them out").toEqual({ ok: true, updated: 1 });
+  expect(added[1]![0]!.record).toEqual({ key: "k5", name: "Task 5", start: "2026-03-02", duration: 2, progress: 0 });
   expect(unsetChange(rows(), [...rows(), task(4, { ...look, color: null })]), "an added task's look, null for none included").toBe(false);
   for (const change of [{ color: "#000000" }, { label: "Other" }, { color: undefined }]) expect(unsetChange([task(1, look)], [task(1, { ...look, ...change })]), JSON.stringify(change)).toBe(true);
+});
+
+test("a row the chart holds no live task of is held when its drop is skipped: once the chart holds it again the rows that give it set only what differs and add nothing, links included", () => {
+  const { calls, added, dropped, out, give } = chart();
+  out.add("k2");
+  expect(give({ tasks: [task(1), task(3)] }), "k2 is a person's deleted row: skipped, counts nothing").toEqual({ ok: true, updated: 0 });
+  out.delete("k2"); // Undo
+  expect(give({ tasks: [task(1), task(2, { duration: 5 }), task(3)], links })).toEqual({ ok: true, updated: 1 });
+  expect([calls, added, dropped]).toEqual([[[{ key: "k2", duration: 5 }]], [], [["k2"]]]);
+});
+
+test("a deleted row given again under another parent or in another place is refused as a move once Undo brought it back, and is an add while it is still deleted", () => {
+  const { calls, added, dropped, out, give } = chart();
+  out.add("k2");
+  give({ tasks: [task(1), task(3)] });
+  expect(give({ tasks: [task(1), task(2), task(3)] }), "still deleted: an add, after k1").toEqual({ ok: true, updated: 1 });
+  expect(added[0]![0]).toMatchObject({ record: { key: "k2" }, after: "k1" });
+  const again = chart();
+  again.out.add("k2");
+  again.give({ tasks: [task(1), task(3)] });
+  again.out.delete("k2");
+  expect(again.give({ tasks: [task(1), task(3), task(2)] }), "another place").toMatchObject({ ok: false, reason: "rowsChanged", message: expect.stringContaining("moved") });
+  expect(again.give({ tasks: [task(1), task(2, { parent: 1 }), task(3)] }), "another parent").toMatchObject({ ok: false, reason: "rowsChanged", message: expect.stringContaining("another id or parent") });
+  expect([again.calls, again.added, again.dropped], "nothing was set, added or dropped after the first drop").toEqual([[], [], [["k2"]]]);
+  expect(give({ tasks: [task(1), task(2), task(3)] }), "k2 is held again as the chart's own row").toEqual({ ok: true, updated: 0 });
+  expect([calls, dropped]).toEqual([[], [["k2"]]]);
+});
+
+test("a deleted row's children, dropped with it, are held with it: they come back in place with it, and a child the rows no longer give is dropped", () => {
+  const nested = [task(1), task(2), task(3, { parent: 2 })];
+  const { calls, added, dropped, out, give } = chart(undefined, undefined, undefined, nested);
+  out.add("k2").add("k3");
+  expect(give({ tasks: [task(1)] })).toEqual({ ok: true, updated: 0 });
+  expect(dropped, "the child before its parent").toEqual([["k3", "k2"]]);
+  out.clear();
+  expect(give({ tasks: [task(1), task(2), task(3, { parent: 2, name: "Child" })] })).toEqual({ ok: true, updated: 1 });
+  expect([calls, added]).toEqual([[[{ key: "k3", name: "Child" }]], []]);
+  const lone = chart(undefined, undefined, undefined, nested);
+  lone.out.add("k2").add("k3");
+  lone.give({ tasks: [task(1)] });
+  lone.out.clear();
+  expect(lone.give({ tasks: [task(1), task(2)] }), "the child came back with its parent and the rows lack it").toEqual({ ok: true, updated: 0 });
+  expect([lone.added, lone.dropped.at(-1)]).toEqual([[], ["k3"]]);
 });

@@ -238,18 +238,20 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
         }
         const slots = JSON.parse(app.task_slots(drops)) as (number | null)[]; // a key no live task holds (a row a person deleted) stays as it is: their Undo and its columns too
         const removed: string[] = [];
+        const skipped: string[] = []; // `setData` holds these rows until the chart holds them again
         for (const [i, key] of drops.entries()) {
           const done = slots[i] === null ? undefined : readAnswer(app.remove_task(key));
           if (done !== undefined && !done.ok) {
             p.fields.custom.drop("tasks", removed);
             const why = `task ${key} was not dropped (${done.message})`;
-            return { ...done, key, message: records.length + added + removed.length > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to drop the rest.` : `Nothing changed: ${why}.`, added, dropped: i };
+            return { ...done, key, message: records.length + added + removed.length > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to drop the rest.` : `Nothing changed: ${why}.`, added, dropped: i, skipped };
           }
-          if (done !== undefined) removed.push(key);
+          if (done === undefined) skipped.push(key);
+          else removed.push(key);
         }
         p.fields.custom.drop("tasks", removed);
-        return { ...set, updated: set.updated + added + removed.length };
-      });
+        return { ...set, updated: set.updated + added + removed.length, skipped };
+      }, (keys) => (JSON.parse(app.task_slots(keys)) as (number | null)[]).map((slot) => slot !== null));
       if (answer.ok) [custom.tasks, custom.links].forEach((taken) => taken.commit());
       return answer;
     },
