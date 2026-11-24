@@ -63,25 +63,31 @@ export interface GanttParts {
   profile: (host: MountOptions["capabilities"]) => MountOptions["capabilities"];
 }
 
-/** `setData`'s link drops, then adds, by `App.remove_link_by_key` and `App.add_link_by_key`: how many of each the chart took, how many changed it (a drop of a link it holds no live one of, that a person removed or it never held, is taken as already gone), and the refusal that stopped them. */
-function setLinks(app: PublicApp, unit: MountOptions["durationUnit"], { adds, drops }: LinkChanges): { unlinked: number; linked: number; changed: number; refusal?: { link: LinkChange; done: Refusal; what: string } } {
+/** `setData`'s link drops, then sets, then adds, by `App.remove_link_by_key`, `App.set_link_by_key` and `App.add_link_by_key`: how many of each the chart took, how many changed it (a drop of a link it holds no live one of, that a person removed or it never held, is taken as already gone), and the refusal that stopped them. */
+function setLinks(app: PublicApp, unit: MountOptions["durationUnit"], { adds, sets, drops }: LinkChanges): { unlinked: number; relinked: number; linked: number; changed: number; refusal?: { link: LinkChange; done: Refusal; what: string } } {
   let unlinked = 0;
   let changed = 0;
   for (const link of drops) {
     const done = readAnswer(app.remove_link_by_key(JSON.stringify(link.key === undefined ? { pred: link.pred, succ: link.succ } : { key: link.key })));
-    if (!done.ok && done.reason !== "unknownKey" && done.reason !== "unknownLink") return { unlinked, linked: 0, changed, refusal: { link, done, what: "was not dropped" } };
+    if (!done.ok && done.reason !== "unknownKey" && done.reason !== "unknownLink") return { unlinked, relinked: 0, linked: 0, changed, refusal: { link, done, what: "was not dropped" } };
     unlinked += 1;
     changed += done.ok ? 1 : 0;
   }
-  const minutes = adds.some(({ lag }) => lag !== undefined) ? lagMinutes(app, unit) : undefined;
+  const minutes = [...sets, ...adds].some(({ lag }) => lag !== undefined) ? lagMinutes(app, unit) : undefined;
+  const body = ({ key, pred, succ, type, lag }: LinkChange): string => JSON.stringify({ ...(key === undefined ? {} : { key }), pred, succ, ...(type === undefined ? {} : { kind: type }), ...(lag === undefined ? {} : { lag: minutes!(lag, pred, succ) }) });
+  let relinked = 0;
+  for (const link of sets) {
+    const done = readAnswer(app.set_link_by_key(body(link)));
+    if (!done.ok) return { unlinked, relinked, linked: 0, changed: changed + relinked, refusal: { link, done, what: "was not set" } };
+    relinked += 1;
+  }
   let linked = 0;
   for (const link of adds) {
-    const { key, pred, succ, type, lag } = link;
-    const done = readAnswer(app.add_link_by_key(JSON.stringify({ ...(key === undefined ? {} : { key }), pred, succ, ...(type === undefined ? {} : { kind: type }), ...(lag === undefined ? {} : { lag: minutes!(lag, pred, succ) }) })));
-    if (!done.ok) return { unlinked, linked, changed: changed + linked, refusal: { link, done, what: "was refused" } };
+    const done = readAnswer(app.add_link_by_key(body(link)));
+    if (!done.ok) return { unlinked, relinked, linked, changed: changed + relinked + linked, refusal: { link, done, what: "was refused" } };
     linked += 1;
   }
-  return { unlinked, linked, changed: changed + linked };
+  return { unlinked, relinked, linked, changed: changed + relinked + linked };
 }
 
 /** The `Gantt` of one start; `destroy` takes down what `shell.disposers` holds, then frees the app and empties the root. */
@@ -243,7 +249,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
         if ((JSON.parse(app.task_slots(adds.map(({ record }) => record.key))) as (number | null)[]).some((slot) => slot !== null)) return rowsChanged("a task of the rows that the chart lacks has a key it already holds.");
         const moved = day === undefined ? undefined : commands.setDataDate(day);
         if (moved !== undefined && !moved.ok) return moved;
-        if (records.length + adds.length + drops.length + links.adds.length + links.drops.length > 0 && p.busy()) return refused("busy");
+        if (records.length + adds.length + drops.length + links.adds.length + links.sets.length + links.drops.length > 0 && p.busy()) return refused("busy");
         const read = toApp(app, p.unit, p.dateForm, [...records, ...adds.map(({ record }) => record)]);
         if (!Array.isArray(read)) return read;
         const set = records.length === 0 ? Object.freeze({ ok: true as const, updated: 0 }) : send(app, read.slice(0, records.length), p.wrote);
@@ -257,11 +263,11 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
           }
           added += 1;
         }
-        const { unlinked, linked, changed, refusal } = setLinks(app, p.unit, links);
+        const { unlinked, relinked, linked, changed, refusal } = setLinks(app, p.unit, links);
         if (refusal !== undefined) {
           const { link, done, what } = refusal;
           const why = `link ${link.key ?? `${link.pred} to ${link.succ}`} ${what} (${done.message})`;
-          return { ...done, ...(link.key === undefined ? {} : { key: link.key }), message: records.length + added + changed > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to apply the rest.` : `Nothing changed: ${why}.`, added, unlinked, linked };
+          return { ...done, ...(link.key === undefined ? {} : { key: link.key }), message: records.length + added + changed > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to apply the rest.` : `Nothing changed: ${why}.`, added, unlinked, relinked, linked };
         }
         const slots = JSON.parse(app.task_slots(drops)) as (number | null)[]; // a key no live task holds (a row a person deleted) stays as it is: their Undo and its columns too
         const removed: string[] = [];
@@ -271,7 +277,7 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
           if (done !== undefined && !done.ok) {
             p.fields.custom.drop("tasks", removed);
             const why = `task ${key} was not dropped (${done.message})`;
-            return { ...done, key, message: records.length + added + changed + removed.length > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to drop the rest.` : `Nothing changed: ${why}.`, added, unlinked, linked, dropped: i, skipped };
+            return { ...done, key, message: records.length + added + changed + removed.length > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to drop the rest.` : `Nothing changed: ${why}.`, added, unlinked, relinked, linked, dropped: i, skipped };
           }
           if (done === undefined) skipped.push(key);
           else removed.push(key);
