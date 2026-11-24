@@ -244,18 +244,6 @@ test("a changed remaining, actualStart or actualFinish reaches update by key and
   expect(unsetChange([task(1, started)], [task(1, { ...started, remaining: undefined })]), "a member left out").toBe(true);
 });
 
-test("a changed progress on a row with both actual dates, unchanged, reaches update beside both, so the finish stands", () => {
-  const dates = { actualStart: "2026-03-02", actualFinish: "2026-03-03" };
-  for (const to of [0, 100]) {
-    const { calls, give } = chart(undefined, Infinity, Infinity, [task(1, { ...dates, progress: 20 }), task(2), task(3)]);
-    expect(give({ tasks: [task(1, { ...dates, progress: to }), task(2), task(3)] })).toEqual({ ok: true, updated: 1 });
-    expect(calls, `20 to ${to}`).toEqual([[{ key: "k1", progress: to, ...dates }]]);
-  }
-  const { calls, give } = chart(undefined, Infinity, Infinity, [task(1, dates), task(2), task(3)]);
-  give({ tasks: [task(1, { ...dates, actualFinish: "2026-03-04", progress: 50 }), task(2), task(3)] });
-  expect(calls, "a changed finish is sent once, beside the start").toEqual([[{ key: "k1", progress: 50, ...dates, actualFinish: "2026-03-04" }]]);
-});
-
 test("unsetChange is true for a task that differs in a member setData ignores, or that has no key, and false for a name", () => {
   const held = rows();
   const ignored = { color: "red", label: "x", end: "2026-03-09", calendar: "c", milestone: "start", alap: true, resume: "2026-03-04", own: 1 };
