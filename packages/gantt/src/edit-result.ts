@@ -44,7 +44,7 @@ export type EditRefusal =
   | "beforeEditFailed"
   /** `update` with a value that is not an array of records: send an array, even for one record. */
   | "badRecords"
-  /** `setData` rows that differ from the ones it holds in a task's `key`, `id`, `parent` or place in the list or in a link (what it cannot set in place), or that it has no rows to compare with: start the chart again with the rows. */
+  /** `setData` rows that remove or move a task, change its `id` or `parent`, add a task whose key the chart holds, or change a link (what it cannot set in place), or that it has no rows to compare with: start the chart again with the rows. */
   | "rowsChanged"
   /** `update`, `hostEdit` or `setBaseline` records: a record the app could not read (`badJson`), with no `key` (`noKey`) or a key an earlier record holds (`duplicateKey`), naming no task (`unknownKey`), setting a member or a summary it cannot set (`notUpdatable`), or holding a value it cannot take (`badValue`, `badPercent`, `emptyName`, `invalidName`, `actualAfterDataDate`); `hostEdit` alone answers `hasActuals` (the record sets progress or changes a task with actual dates) and `notAllowed` (a group of fields the host's capability profile turned off, or an old value it does not store; `member` says which), where an Undo could not put the values back. Correct the record that `record` names; for `hasActuals` and `notAllowed`, call `update` in place of `hostEdit`. */
   | "finishBeforeStart" | "badJson" | "noKey" | "duplicateKey" | "unknownKey" | "notUpdatable" | "badValue" | "badPercent" | "emptyName" | "invalidName" | "actualAfterDataDate" | "hasActuals"

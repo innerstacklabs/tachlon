@@ -14,8 +14,9 @@ import { xlsxFile } from "./xlsx.js";
 import { snapshot } from "./snapshot.js";
 import { localDate, measureText, printColumns } from "./print-sheet.js";
 import type { Gantt, MountOptions } from "./index.js";
-import { pushHostEntry, update } from "./update.js";
-import type { SetData } from "./host-data.js";
+import { pushHostEntry, send, toApp, update } from "./update.js";
+import { readAnswer, refused } from "./edit-result.js";
+import { rowsChanged, type SetData } from "./host-data.js";
 import type { UpdateResult } from "./gantt-types.js";
 import type { FieldMap } from "./field-map.js";
 import type { HasOn } from "./events.js";
@@ -217,10 +218,22 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       const custom = { tasks: p.fields.custom.take("tasks", data.tasks), links: p.fields.custom.take("links", data.links) };
       const rows = { ...p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), dataDate: data.dataDate };
-      const answer = p.setData(rows, shell.status().epoch, (records, day) => {
+      const answer = p.setData(rows, shell.status().epoch, (records, day, adds) => {
+        if ((JSON.parse(app.task_slots(adds.map(({ record }) => record.key))) as (number | null)[]).some((slot) => slot !== null)) return rowsChanged("a task of the rows that the chart lacks has a key it already holds.");
         const moved = day === undefined ? undefined : commands.setDataDate(day);
         if (moved !== undefined && !moved.ok) return moved;
-        return records.length === 0 ? Object.freeze({ ok: true, updated: 0 }) : update(app, p.busy, p.unit, p.dateForm, records, p.wrote);
+        if (records.length + adds.length > 0 && p.busy()) return refused("busy");
+        const read = toApp(app, p.unit, p.dateForm, [...records, ...adds.map(({ record }) => record)]);
+        if (!Array.isArray(read)) return read;
+        const set = records.length === 0 ? Object.freeze({ ok: true as const, updated: 0 }) : send(app, read.slice(0, records.length), p.wrote);
+        if (!set.ok) return set;
+        let added = 0;
+        for (const { record, parent, after } of adds) {
+          const done = readAnswer(app.add_task(JSON.stringify(read[records.length + added]), parent, after, after === undefined));
+          if (!done.ok) return { ...done, key: record.key, message: `${records.length + added > 0 || moved !== undefined ? "Partly applied" : "Nothing changed"}: task ${record.key} was refused (${done.message}). The rows before it are in the chart; give the same rows again to add the rest.`, added };
+          added += 1;
+        }
+        return { ...set, updated: set.updated + added };
       });
       if (answer.ok) [custom.tasks, custom.links].forEach((taken) => taken.commit());
       return answer;

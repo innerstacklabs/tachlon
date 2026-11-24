@@ -23,17 +23,28 @@ function dayOfKey(app: PublicApp): (key: unknown) => number {
   return (key) => days.get(key as string) ?? list[0]!.day;
 }
 
-/** Answer what `app.update_tasks` (or `app.host_edit`, the same records as one undo step) answers for `records`; `busy` is `Gantt.busy()`, `unit` the unit of the host's durations, `dateForm` the form of its dates (under `"day"` the app reads a date alone on the task's calendar and a date with a time of day is `badValue`), and `wrote` is told the slots of the tasks written (the table's). */
-export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], records: unknown, wrote: (slots: readonly number[]) => void, call: "update_tasks" | "host_edit" = "update_tasks"): UpdateResult {
-  if (!Array.isArray(records)) return Object.freeze({ ok: false, reason: "badRecords", message: "update takes an array of records." });
-  if (busy()) return refused("busy");
+/** `records` as the app reads them (a separate `constraint`, a date in the form the host stores, a duration in working minutes), or why none can be: a refusal of `update` and `setData` before the app is asked. */
+export function toApp(app: PublicApp, unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], records: unknown[]): unknown[] | UpdateResult {
   let separate: unknown[];
   try { separate = records.map((record) => (typeof record === "object" && record !== null && !Array.isArray(record) ? toSeparate(record as Record<string, unknown>, true) : record)); } catch (err) { return Object.freeze({ ok: false, reason: "badRecords", message: `Nothing changed: ${(err as Error).message}` }); }
   const timed = timedDate(dateForm, separate);
   if (timed !== undefined) return timed;
   const day = unit === "hours" || unit === "minutes" || !records.some(hasTime) ? () => 0 : dayOfKey(app);
   const inMinutes = (record: unknown): unknown => (hasTime(record) ? { ...record, ...Object.fromEntries(TIMED.flatMap((member) => (typeof record[member] === "number" ? [[member, toMinutes(record[member], unit, day((record as { key?: unknown }).key))]] : []))) } : record);
-  const answer = readAnswer(app[call](JSON.stringify(separate.map(inMinutes))));
+  return separate.map(inMinutes);
+}
+
+/** Answer what `app.update_tasks` (or `app.host_edit`, the same records as one undo step) answers for `records`; `busy` is `Gantt.busy()`, `unit` the unit of the host's durations, `dateForm` the form of its dates (under `"day"` the app reads a date alone on the task's calendar and a date with a time of day is `badValue`), and `wrote` is told the slots of the tasks written (the table's). */
+export function update(app: PublicApp, busy: () => boolean, unit: MountOptions["durationUnit"], dateForm: MountOptions["dateForm"], records: unknown, wrote: (slots: readonly number[]) => void, call: "update_tasks" | "host_edit" = "update_tasks"): UpdateResult {
+  if (!Array.isArray(records)) return Object.freeze({ ok: false, reason: "badRecords", message: "update takes an array of records." });
+  if (busy()) return refused("busy");
+  const read = toApp(app, unit, dateForm, records);
+  return Array.isArray(read) ? send(app, read, wrote, call) : read;
+}
+
+/** Hand the app `records` that `toApp` read and answer as `update` does. */
+export function send(app: PublicApp, records: unknown[], wrote: (slots: readonly number[]) => void, call: "update_tasks" | "host_edit" = "update_tasks"): UpdateResult {
+  const answer = readAnswer(app[call](JSON.stringify(records)));
   if (answer.ok) {
     wrote(JSON.parse(app.task_slots(records.map((record) => (record as { key: string }).key))) as number[]); // an accepted record names a live task by its key
     const { differs } = answer as { differs?: readonly HostDifference[] };
