@@ -490,6 +490,81 @@ fn a_key_freed_by_a_remove_can_be_added_again() {
     assert!(s.schedule().is_deleted(D));
 }
 
+fn look(s: &Session, task: TaskId) -> (Option<[u8; 4]>, Option<&str>) {
+    let meta = &s.meta()[task.0 as usize];
+    (meta.color, meta.label.as_deref())
+}
+
+#[test]
+fn an_added_row_takes_color_and_label_from_its_record_and_a_deleted_row_comes_back_with_them() {
+    let mut s = keyed();
+    let json = r##"{"key":"n1","color":"#12aB34","label":"Lbl"}"##;
+    let task = add(&mut s, json, None, None);
+    assert_eq!(look(&s, task), (Some([0x12, 0xab, 0x34, 255]), Some("Lbl")));
+    assert_eq!(s.bar_label(task.0), "Lbl");
+    s.edit(Edit::Delete { task: E }).unwrap();
+    let back = add(&mut s, r##"{"key":"t5","color":"#000001"}"##, None, None);
+    assert_eq!((back, look(&s, E)), (E, (Some([0, 0, 1, 255]), None)));
+}
+
+#[test]
+fn update_tasks_sets_clears_and_refuses_color_and_label_by_name_and_puts_them_back() {
+    let mut s = keyed();
+    let record =
+        |key: &str, member: &str, value: &str| format!(r#"{{"key":"{key}","{member}":{value}}}"#);
+    s.update_tasks(&format!("[{}]", record("t3", "color", r##""#FF0000""##)))
+        .unwrap();
+    s.update_tasks(&format!("[{}]", record("t3", "label", r#""L""#)))
+        .unwrap();
+    assert_eq!(look(&s, C), (Some([255, 0, 0, 255]), Some("L")));
+    for (member, value) in [
+        ("color", r#""red""#),
+        ("color", r##""#12345g""##),
+        ("color", r##""#+12345""##),
+        ("color", "5"),
+        ("label", "5"),
+    ] {
+        let json = format!(
+            "[{},{}]",
+            record("t4", "label", r#""D""#),
+            record("t3", member, value)
+        );
+        let error = s.update_tasks(&json).unwrap_err();
+        assert_eq!(
+            (error.kind, error.record, error.member.as_deref()),
+            ("badValue", Some(1), Some(member)),
+            "{value}"
+        );
+        assert_eq!(look(&s, D), (None, None), "the first record is put back");
+    }
+    s.update_tasks(r#"[{"key":"t3","color":null,"label":null}]"#)
+        .unwrap();
+    assert_eq!(look(&s, C), (None, None));
+}
+
+#[test]
+fn host_edit_refuses_a_changed_color_or_label_and_takes_the_one_a_task_holds() {
+    let mut s = keyed();
+    s.update_tasks(r##"[{"key":"t3","color":"#010203"}]"##)
+        .unwrap();
+    let history = s.history_len();
+    let json = r##"[{"key":"t3","color":"#010203","duration":123}]"##;
+    assert_eq!(s.host_edit(json).unwrap().tasks, 1);
+    for (member, value) in [("color", r##""#010204""##), ("label", r#""x""#)] {
+        let error = s
+            .host_edit(&format!(r#"[{{"key":"t3","{member}":{value}}}]"#))
+            .unwrap_err();
+        assert_eq!(
+            (error.kind, error.member.as_deref()),
+            ("notUpdatable", Some(member))
+        );
+    }
+    assert_eq!(
+        (s.history_len().0, look(&s, C).0),
+        (history.0 + 1, Some([1, 2, 3, 255]))
+    );
+}
+
 mod first;
 mod forget;
 mod links;

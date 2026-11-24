@@ -55,6 +55,8 @@ pub(super) struct Values {
     snet: Option<Instant>,
     limit: Limit,
     name: String,
+    color: Option<[u8; 4]>,
+    label: Option<String>,
     progress: Option<Progress>,
     percent: Option<u8>,
 }
@@ -113,7 +115,7 @@ impl Session {
     /// applies every record's `duration`, `start`, `snet`, limits and `name` first and works each `progress` out
     /// against the plan those leave, as the typed dialog does field by field: a call that mixes progress
     /// with a duration, start, snet or limit in any record solves twice, and any other call once. `actualStart` and `actualFinish` take a date or `null` (a date alone is read as plain data reads it: the first working minute of the day, and the end of its last) and `remaining` a whole number of working minutes or `null`; a record that gives `remaining` with `progress` (beside an actual date, `progress` is read and sets nothing: the dates stand, as a mount of the same task reads them), an actual finish before the start, a finish or remaining (unless `unstartedRemaining` is on) with no actual start, or an actual after the data date is refused. A member a
-    /// record leaves out keeps its value. `hostStart`, `hostFinish`, `hostLateStart`, `hostLateFinish`, `hostFloat`, `hostFreeFloat` and `hostCritical`, what the host computed, set nothing and are named in `differs` when the chart computed otherwise (a day alone compares the day, a finish's day being its last minute's; a float is in working days of the task's calendar, and may have a fraction). `mso` and `mfo`, the pins, are read and never set: one that equals what the task's pin holds (`null` with no such pin) changes nothing, and any other is `notUpdatable`, as is every other member, `alap` included.
+    /// record leaves out keeps its value. `color` (`"#rrggbb"`) and `label` (text) set the bar's look, `null` for none; no undo step holds them, so `host_edit` refuses a record that changes either (`notUpdatable`). `hostStart`, `hostFinish`, `hostLateStart`, `hostLateFinish`, `hostFloat`, `hostFreeFloat` and `hostCritical`, what the host computed, set nothing and are named in `differs` when the chart computed otherwise (a day alone compares the day, a finish's day being its last minute's; a float is in working days of the task's calendar, and may have a fraction). `mso` and `mfo`, the pins, are read and never set: one that equals what the task's pin holds (`null` with no such pin) changes nothing, and any other is `notUpdatable`, as is every other member, `alap` included.
     ///
     /// # Errors
     ///
@@ -225,6 +227,9 @@ impl Session {
             let back: Vec<_> = (new.steps_back(old, *task).into_iter())
                 .map(|step| step.edit)
                 .collect();
+            if let Some(member) = new.look_changed(old) {
+                return Err(UpdateError::new("notUpdatable", Some(at), Some(member)));
+            }
             if new.percent.is_some() || new.progress.is_some() || held && !back.is_empty() {
                 return Err(UpdateError::new("hasActuals", Some(at), None));
             }
@@ -328,6 +333,7 @@ impl Session {
                     rename.check_typed().map_err(refused)?;
                     text.clone_into(&mut new.name);
                 }
+                "color" | "label" => new.read_look(name, value).ok_or_else(bad)?,
                 "actualStart" | "actualFinish" | "remaining" => {
                     let given = actuals.get_or_insert(held);
                     self.read_actual(task, name, value, given).ok_or_else(bad)?;
@@ -365,7 +371,9 @@ impl Session {
             self.schedule.set_actual_start(task, progress.start)?;
             self.schedule.set_actual_finish(task, progress.finish)?;
         }
-        values.name.clone_into(&mut self.meta[task.0 as usize].name);
+        let meta = &mut self.meta[task.0 as usize];
+        values.name.clone_into(&mut meta.name);
+        (meta.color, meta.label) = (values.color, values.label.clone());
         Ok(())
     }
 

@@ -5,6 +5,9 @@ import type { TaskUpdate, UpdateResult } from "./gantt-types.js";
 
 /** The members of a task that `update` takes, the six limits among them (`update` answers `notUpdatable` for an `mso` or `mfo` that is not the pin the chart holds): the only ones `setData` compares. */
 const MEMBERS = ["name", "start", "constraint", "duration", "progress", "actualStart", "actualFinish", "remaining", ...LIMITS] as const;
+/** The members of an added task that its record carries beside the ones `update` takes: the bar's `color` and `label`, which `add_task` reads and refuses as `update` does. A kept task's are compared by no one: `unsetChange` has the components start the chart again for a change. */
+const LOOK = ["color", "label"] as const;
+const lookOf = (task: PlainTask): Pick<TaskUpdate, (typeof LOOK)[number]> => Object.fromEntries(LOOK.flatMap((member) => (task[member] !== undefined ? [[member, task[member]]] : [])));
 /** A member that differs from the one held; a `constraint` is an object, so it is compared by value. */
 const differs = (given: unknown, held: unknown): boolean => given !== held && JSON.stringify(given) !== JSON.stringify(held);
 
@@ -81,13 +84,14 @@ function membersByKey(tasks: readonly PlainTask[]): Map<string, readonly unknown
   return byKey;
 }
 
-/** True when a task of `next` has no text `key`, or differs from the task of `held` with its key in a member `setData` ignores (`color`, `end` and the rest, the host's own included), or is a task `held` lacks that gives one: the rows must start the chart again, or the change is dropped. A changed `id` or `parent` is `setData`'s to refuse. */
+/** True when a task of `next` has no text `key`, or differs from the task of `held` with its key in a member `setData` ignores (`color`, `end` and the rest, the host's own included), or is a task `held` lacks that gives one (an added task's `color` and `label` are set in place): the rows must start the chart again, or the change is dropped. A changed `id` or `parent` is `setData`'s to refuse. */
 export function unsetChange(held: readonly PlainTask[], next: readonly PlainTask[]): boolean {
   const before = new Map(held.map((task) => [task.key, task]));
   const taken = new Set<string>([...MEMBERS, "key", "id", "parent"]);
+  const added = new Set<string>([...taken, ...LOOK]);
   return next.some((task) => {
     const was = typeof task.key === "string" ? before.get(task.key) : undefined;
-    return typeof task.key !== "string" || (was === undefined ? Object.keys(task).some((member) => !taken.has(member) && task[member] !== undefined) : MEMBERS.some((member) => was[member] !== undefined && task[member] === undefined) || [...new Set([...Object.keys(was), ...Object.keys(task)])].some((member) => !taken.has(member) && differs(task[member], was[member])));
+    return typeof task.key !== "string" || (was === undefined ? Object.keys(task).some((member) => !added.has(member) && task[member] !== undefined) : MEMBERS.some((member) => was[member] !== undefined && task[member] === undefined) || [...new Set([...Object.keys(was), ...Object.keys(task)])].some((member) => !taken.has(member) && differs(task[member], was[member])));
   });
 }
 
@@ -128,7 +132,8 @@ export function hostData(first: HostRows, epoch: number): SetData {
       const setOf = (values: readonly unknown[], was?: readonly unknown[]) => MEMBERS.flatMap((member, i) => (values[i] !== undefined && (was === undefined || differs(values[i], was[i])) ? [[member, values[i]] as const] : []));
       layout = to;
       drops = dropsOf(held, to);
-      adds = places.map(({ key, ...place }) => ({ ...place, record: { key, ...Object.fromEntries(setOf(given.get(key)!)) } }));
+      const rowOf = new Map(next.tasks.map((task) => [task.key, task]));
+      adds = places.map(({ key, ...place }) => ({ ...place, record: { key, ...Object.fromEntries(setOf(given.get(key)!)), ...lookOf(rowOf.get(key)!) } }));
       for (const [key, values] of given) {
         const was = old.get(key);
         const set = setOf(values, was);

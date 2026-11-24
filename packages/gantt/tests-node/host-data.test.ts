@@ -243,5 +243,16 @@ test("unsetChange is true for a task that differs in a member setData ignores, o
   expect(unsetChange(held, [task(1), task(2)]), "a task left out is a drop, not a restart").toBe(false);
   expect(unsetChange(held, [task(1, { name: "Renamed", progress: 50 }), task(2), task(3)]), "a name").toBe(false);
   expect(unsetChange(held, [task(1), task(2), task(3), task(4)]), "a new task with the members setData takes is left to it").toBe(false);
-  expect(unsetChange(held, [task(1), task(2), task(3), task(4, { color: "red" })]), "a new task with a color, which setData would drop: the components mount the chart again").toBe(true);
+  expect(unsetChange(held, [task(1), task(2), task(3), task(4, { end: "2026-03-09" })]), "a new task with a member setData still ignores: the components mount the chart again").toBe(true);
+});
+
+test("an added task's color and label go in its record and are no restart, and a kept task's color or label that changed still is", () => {
+  const { calls, added, give } = chart();
+  const look = { color: "#FF00aa", label: "Shown" };
+  expect(give({ tasks: [...rows(), task(4, look)] })).toEqual({ ok: true, updated: 1 });
+  expect(added[0]![0]!.record, "the key, the members update takes and the look").toEqual({ key: "k4", name: "Task 4", start: "2026-03-02", duration: 2, progress: 0, ...look });
+  expect(give({ tasks: [...rows(), task(4, { color: "#000000", label: "Other" })] }), "a kept task's look is no change setData sets").toEqual({ ok: true, updated: 0 });
+  expect(calls).toEqual([]);
+  expect(unsetChange(rows(), [...rows(), task(4, { ...look, color: null })]), "an added task's look, null for none included").toBe(false);
+  for (const change of [{ color: "#000000" }, { label: "Other" }, { color: undefined }]) expect(unsetChange([task(1, look)], [task(1, { ...look, ...change })]), JSON.stringify(change)).toBe(true);
 });
