@@ -22,9 +22,9 @@ import { mount } from "tachlon";
 import "tachlon/gantt.css";
 
 const tasks = [
-  { id: 1, name: "Design", start: "2026-11-02", duration: 3 },
-  { id: 2, name: "Build", start: "2026-11-05", duration: 5 },
-  { id: 3, name: "Ship", start: "2026-11-12", duration: 1 },
+  { id: 1, name: "Design", key: "design", start: "2026-11-02", duration: 3 },
+  { id: 2, name: "Build", key: "build", start: "2026-11-05", duration: 5 },
+  { id: 3, name: "Ship", key: "ship", start: "2026-11-12", duration: 1 },
 ];
 const links = [{ from: 1, to: 2 }, { from: 2, to: 3 }];
 
@@ -33,7 +33,7 @@ const chart = await mount(document.getElementById("chart"), { tasks, links, forc
 ```
 
 `chart.destroy()` stops the chart and empties its element. CI runs this page: `node examples/check.ts plain
-react`, a step of the `web` job in `.github/workflows/ci.yml`, installs the packed package into a copy of
+react save`, a step of the `web` job in `.github/workflows/ci.yml`, installs the packed package into a copy of
 the folder and drives the page in Chromium with `examples/plain/spec.ts`.
 
 ## React, Vue and Angular
@@ -46,6 +46,35 @@ package README has the tag to write and what each one needs:
 - [Use it in React](https://github.com/innerstacklabs/tachlon/blob/main/packages/gantt/README.md#use-it-in-react)
 - [Use it in Vue](https://github.com/innerstacklabs/tachlon/blob/main/packages/gantt/README.md#use-it-in-vue)
 - [Use it in Angular](https://github.com/innerstacklabs/tachlon/blob/main/packages/gantt/README.md#use-it-in-angular)
+
+This is the React page in `examples/react/src/main.tsx`, after its imports (`useState`, `createRoot`,
+`tachlon/gantt.css` and `Gantt`). It shows the name of the task you pick and has a Stop button:
+
+```tsx
+// Keep `tasks` and `links` the same objects between renders: the chart starts again when they change.
+const tasks = [
+  { id: 1, name: "Design", key: "design", start: "2026-11-02", duration: 3 },
+  { id: 2, name: "Build", key: "build", start: "2026-11-05", duration: 5 },
+  { id: 3, name: "Ship", key: "ship", start: "2026-11-12", duration: 1 },
+];
+const links = [{ from: 1, to: 2 }, { from: 2, to: 3 }];
+
+function App() {
+  const [picked, setPicked] = useState<string>();
+  const [shown, setShown] = useState(true);
+  return (
+    <>
+      {/* forceWebgl: this app needs no GPU. Drop it to let the chart use WebGPU when the browser has it. */}
+      {shown && <Gantt tasks={tasks} links={links} forceWebgl style={{ width: 800, height: 300 }} onSelect={({ key }) => setPicked(tasks.find((t) => t.key === key)?.name)} />}
+      <p id="picked">{picked ? `Picked: ${picked}` : "Pick a task."}</p>
+      {/* Taking <Gantt> out of the tree calls destroy(). */}
+      <button id="stop" onClick={() => setShown(false)}>Stop</button>
+    </>
+  );
+}
+
+createRoot(document.getElementById("root")!).render(<App />);
+```
 
 ## What `mount` takes
 
