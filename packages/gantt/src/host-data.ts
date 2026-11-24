@@ -20,10 +20,10 @@ export interface HostRows { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?:
 export interface Add { record: TaskUpdate; parent?: string; after?: string }
 /** A link the data holds and the chart lacks (to add), or the reverse (to drop): its ends as the keys of tasks, with the `key`, `type` and `lag` (in the data's `durationUnit`) the data gives it. */
 export interface LinkChange { pred: string; succ: string; key?: string; type?: PlainLink["type"]; lag?: number }
-/** The links `setData` adds, after the tasks it adds, and drops, before the tasks it drops (a link of a dropped task goes with the task and is not listed). */
-export interface LinkChanges { adds: LinkChange[]; drops: LinkChange[] }
-/** `setData` of one start of the chart: `next` is the rows given, `epoch` the schedule's, `apply` moves the data date to `day` (when there is one) with the chart's `setDataDate`, sets the records with its `update`, adds the tasks it lacks, in the order given, then drops the links in `links.drops`, adds those in `links.adds`, and drops the keys in `drops` (the rows the data no longer holds, the deepest first). A refusal it answers has `added`, how many adds the chart took before it, `unlinked` and `linked`, how many link drops and adds (none: 0), and `dropped`, how many drops (none: 0), once it took the records (none when it refused them); `setData` does not pass them on. An answer that went as far as the drops also has `skipped`, the keys among the drops it took that the chart held no live task of (a row a person deleted): `setData` holds those rows until the chart holds them again. `live` (all live when left out) says for each key whether the chart holds a live task of it. */
-export type SetData = (next: HostRows, epoch: number, apply: (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[], links: LinkChanges) => UpdateResult & { added?: number; dropped?: number; skipped?: string[]; linked?: number; unlinked?: number }, live?: (keys: string[]) => boolean[]) => UpdateResult;
+/** The links `setData` adds, after the tasks it adds, sets (the `type` and `lag` of a link it keeps, each as the data gives it or its default) and drops, before the tasks it drops (a link of a dropped task goes with the task and is not listed). */
+export interface LinkChanges { adds: LinkChange[]; sets: LinkChange[]; drops: LinkChange[] }
+/** `setData` of one start of the chart: `next` is the rows given, `epoch` the schedule's, `apply` moves the data date to `day` (when there is one) with the chart's `setDataDate`, sets the records with its `update`, adds the tasks it lacks, in the order given, then drops the links in `links.drops`, sets those in `links.sets`, adds those in `links.adds`, and drops the keys in `drops` (the rows the data no longer holds, the deepest first). A refusal it answers has `added`, how many adds the chart took before it, `unlinked`, `relinked` and `linked`, how many link drops, sets and adds (none: 0), and `dropped`, how many drops (none: 0), once it took the records (none when it refused them); `setData` does not pass them on. An answer that went as far as the drops also has `skipped`, the keys among the drops it took that the chart held no live task of (a row a person deleted): `setData` holds those rows until the chart holds them again. `live` (all live when left out) says for each key whether the chart holds a live task of it. */
+export type SetData = (next: HostRows, epoch: number, apply: (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[], links: LinkChanges) => UpdateResult & { added?: number; dropped?: number; skipped?: string[]; linked?: number; relinked?: number; unlinked?: number }, live?: (keys: string[]) => boolean[]) => UpdateResult;
 
 export const rowsChanged = (message: string): UpdateResult => Object.freeze({ ok: false, reason: "rowsChanged", message: `Nothing changed: ${message}` });
 const same = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((text, i) => text === b[i]);
@@ -100,15 +100,18 @@ const matched = (list: readonly LinkText[], layout: Layout, within: Layout): Mat
     return [{ id: key === undefined ? JSON.stringify([pred, succ]) : `key ${key}`, entry, change: { pred, succ, ...(key === undefined ? {} : { key }), ...(type === undefined ? {} : { type }), ...(lag === undefined ? {} : { lag }) } }];
   });
 };
-/** The links to add and drop to make `held` the links of `next`, or why `next` is more: a key or pair listed twice, or a link that stays (by its key, else its two ends) with another member. */
-function linksOf(held: readonly Matched[], next: readonly Matched[]): string | { adds: Matched[]; drops: Matched[] } {
+/** A link's text without its `type` and `lag`, the two members the chart sets in place. */
+const bare = ({ entry }: Matched): string => JSON.stringify((JSON.parse(entry[0]) as [string, unknown][]).filter(([member]) => member !== "type" && member !== "lag"));
+/** The links to add, set (each with the entry it replaces) and drop to make `held` the links of `next`, or why `next` is more: a key or pair listed twice, or a link that stays (by its key, else its two ends) with other ends or a member besides `type` and `lag`. */
+function linksOf(held: readonly Matched[], next: readonly Matched[]): string | { adds: Matched[]; sets: { link: Matched; was: LinkText }[]; drops: Matched[] } {
   const text = (list: readonly Matched[]) => list.map(({ entry }) => entry[0]).sort();
-  if (same(text(next), text(held))) return { adds: [], drops: [] };
+  if (same(text(next), text(held))) return { adds: [], sets: [], drops: [] };
   const was = new Map(held.map((link) => [link.id, link]));
   const now = new Set(next.map(({ id }) => id));
   if (now.size !== next.length) return "a key or a pair of tasks is listed twice among the links.";
-  if (next.some((link) => was.has(link.id) && was.get(link.id)!.entry[0] !== link.entry[0])) return "a link that stays has another member (its type, lag or ends).";
-  return { adds: next.filter(({ id }) => !was.has(id)), drops: held.filter(({ id }) => !now.has(id)) };
+  if (next.some((link) => was.has(link.id) && bare(was.get(link.id)!) !== bare(link))) return "a link that stays has other ends or a member besides its type and lag.";
+  const sets = next.filter((link) => was.has(link.id) && was.get(link.id)!.entry[0] !== link.entry[0]).map((link) => ({ link: { ...link, change: { ...link.change, type: link.change.type ?? "FS", lag: link.change.lag ?? 0 } }, was: was.get(link.id)!.entry }));
+  return { adds: next.filter(({ id }) => !was.has(id)), sets, drops: held.filter(({ id }) => !now.has(id)) };
 }
 
 const setOf = (values: readonly unknown[], was?: readonly unknown[]) => MEMBERS.flatMap((member, i) => (values[i] !== undefined && (was === undefined || differs(values[i], was[i])) ? [[member, values[i]] as const] : []));
@@ -200,14 +203,14 @@ export function hostData(first: HostRows, epoch: number): SetData {
         byKey.set(key, values.map((value, i) => (value === undefined ? was?.[i] : value)));
       }
     }
-    const found = next.links !== undefined && next.links !== kept.links?.deref() ? linksOf(matched(links, held, layout), matched(linkTexts(next.links), layout, layout)) : { adds: [], drops: [] };
+    const found = next.links !== undefined && next.links !== kept.links?.deref() ? linksOf(matched(links, held, layout), matched(linkTexts(next.links), layout, layout)) : { adds: [], sets: [], drops: [] };
     if (typeof found === "string") return rowsChanged(found);
-    const { adds: linkAdds, drops: linkDrops } = found;
+    const { adds: linkAdds, sets: linkSets, drops: linkDrops } = found;
     const day = next.dataDate === undefined ? undefined : dayOf(next.dataDate);
     if (next.dataDate !== undefined && day === undefined) return Object.freeze({ ok: false, reason: "badDate", message: "Nothing changed: write the data date as YYYY-MM-DD." });
     const move = day !== kept.day ? day : undefined;
-    const idle = records.length === 0 && adds.length === 0 && drops.length === 0 && linkAdds.length === 0 && linkDrops.length === 0 && move === undefined;
-    const { added, dropped, skipped = [], linked, unlinked, ...answer } = idle ? { ok: true as const, updated: 0 } : apply(records, move, adds, drops, { adds: linkAdds.map(({ change }) => change), drops: linkDrops.map(({ change }) => change) });
+    const idle = records.length === 0 && adds.length === 0 && drops.length === 0 && linkAdds.length === 0 && linkSets.length === 0 && linkDrops.length === 0 && move === undefined;
+    const { added, dropped, skipped = [], linked, relinked, unlinked, ...answer } = idle ? { ok: true as const, updated: 0 } : apply(records, move, adds, drops, { adds: linkAdds.map(({ change }) => change), sets: linkSets.map(({ link }) => link.change), drops: linkDrops.map(({ change }) => change) });
     const took = answer.ok ? adds.length : added;
     if (took !== undefined) { // the chart took the records: the rows it was given, the first `took` adds and the first drops are held, and what it refused is offered again
       const lost = answer.ok ? drops.length : dropped ?? 0;
@@ -218,7 +221,7 @@ export function hostData(first: HostRows, epoch: number): SetData {
       const rows = took === adds.length ? layout : layoutOf((next.tasks ?? []).filter(({ key }) => byKey.has(key!)));
       out.forEach((key) => byKey.set(key, kept0.get(key)!));
       const ghosts = [...out, ...taken.filter((key) => skipped.includes(key))];
-      const stays = staying(kept.linkTexts, idsOf([...taken.filter((key) => !skipped.includes(key)), ...absent.filter((key) => !out.includes(key))])).filter((entry) => !linkDrops.slice(0, answer.ok ? linkDrops.length : unlinked ?? 0).some((drop) => drop.entry === entry));
+      const stays = staying(kept.linkTexts, idsOf([...taken.filter((key) => !skipped.includes(key)), ...absent.filter((key) => !out.includes(key))])).filter((entry) => !linkDrops.slice(0, answer.ok ? linkDrops.length : unlinked ?? 0).some((drop) => drop.entry === entry)).map((entry) => linkSets.slice(0, answer.ok ? linkSets.length : relinked ?? 0).find(({ was }) => was === entry)?.link.entry ?? entry);
       kept = { ...kept, byKey, ghosts, layout: withRest(rows, full, [...drops.slice(lost), ...ghosts]), linkTexts: [...stays, ...linkAdds.slice(0, answer.ok ? linkAdds.length : linked ?? 0).map(({ entry }) => entry)], ...(answer.ok && next.tasks !== undefined && { tasks: weak(next.tasks) }), ...(answer.ok && next.links !== undefined && { links: weak(next.links) }), ...(move !== undefined && { day: move }) };
     }
     return Object.freeze(answer) as UpdateResult;

@@ -9,7 +9,7 @@ const task = (n: number, extra: object = {}): PlainTask => ({ id: n, key: `k${n}
 const rows = (): PlainTask[] => [task(1), task(2), task(3)];
 const links: PlainLink[] = [{ from: 1, to: 2 }, { from: 2, to: 3, lag: 1 }];
 
-/** A chart that has been given `tasks`, `links` and a data date at epoch 0, the records its `update` was asked to set, the days its `setDataDate` was, the rows its engine was asked to add and the keys it was asked to drop, and the links it was asked to add (`joined`) and drop (`unjoined`): it takes `took` of the adds and `tookDrops` of the drops, and refuses the next as "Partly applied" (all of them by default); `limit` says the same of the links. */
+/** A chart that has been given `tasks`, `links` and a data date at epoch 0, the records its `update` was asked to set, the days its `setDataDate` was, the rows its engine was asked to add and the keys it was asked to drop, and the links it was asked to add (`joined`), set (`reset`) and drop (`unjoined`): it takes `took` of the adds and `tookDrops` of the drops, and refuses the next as "Partly applied" (all of them by default); `limit` says the same of the links. */
 function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) = (records) => ({ ok: true, updated: records.length }), took = Infinity, tookDrops = Infinity, start: PlainTask[] = rows()) {
   const out = new Set<string>(); // the keys of rows a person deleted: the chart holds no live task of them, and `apply` skips their drops
   const calls: TaskUpdate[][] = [];
@@ -18,12 +18,14 @@ function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) 
   const dropped: string[][] = [];
   const joined: LinkChange[][] = [];
   const unjoined: LinkChange[][] = [];
-  const limit = { adds: Infinity, drops: Infinity };
+  const reset: LinkChange[][] = [];
+  const limit = { adds: Infinity, drops: Infinity, sets: Infinity };
   const first = { tasks: start, links: links.map((link) => ({ ...link })), dataDate: "2026-03-02T08:00" };
   const set = hostData(first, 0);
-  const apply = (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[], links: { adds: LinkChange[]; drops: LinkChange[] } = { adds: [], drops: [] }): UpdateResult & { added?: number; dropped?: number; skipped?: string[]; linked?: number; unlinked?: number } => {
+  const apply = (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[], links: { adds: LinkChange[]; sets: LinkChange[]; drops: LinkChange[] } = { adds: [], sets: [], drops: [] }): UpdateResult & { added?: number; dropped?: number; skipped?: string[]; linked?: number; unlinked?: number; relinked?: number } => {
     if (links.adds.length > 0) joined.push(links.adds);
     if (links.drops.length > 0) unjoined.push(links.drops);
+    if (links.sets.length > 0) reset.push(links.sets);
     if (records.length > 0) calls.push(records);
     if (day !== undefined) days.push(day);
     if (adds.length > 0) added.push(adds);
@@ -32,11 +34,12 @@ function chart(answer: UpdateResult | ((records: TaskUpdate[]) => UpdateResult) 
     if (!done.ok) return done;
     if (adds.length > took) return { ok: false, reason: "badValue", message: "Partly applied: no", added: took };
     if (links.drops.length > limit.drops) return { ok: false, reason: "badValue", message: "Partly applied: no", added: adds.length, unlinked: limit.drops };
-    if (links.adds.length > limit.adds) return { ok: false, reason: "badValue", message: "Partly applied: no", added: adds.length, unlinked: links.drops.length, linked: limit.adds };
+    if (links.sets.length > limit.sets) return { ok: false, reason: "badValue", message: "Partly applied: no", added: adds.length, unlinked: links.drops.length, relinked: limit.sets };
+    if (links.adds.length > limit.adds) return { ok: false, reason: "badValue", message: "Partly applied: no", added: adds.length, unlinked: links.drops.length, relinked: links.sets.length, linked: limit.adds };
     const skipped = drops.slice(0, tookDrops).filter((key) => out.has(key));
     return drops.length <= tookDrops ? { ok: true, updated: done.updated + adds.length, skipped } : { ok: false, reason: "hasChildren", message: "Partly applied: no", added: adds.length, dropped: tookDrops, skipped };
   };
-  return { calls, days, added, dropped, joined, unjoined, limit, first, out, give: (data: { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?: string }, epoch = 0) => set(data, epoch, apply, (keys) => keys.map((key) => !out.has(key))) };
+  return { calls, days, added, dropped, joined, unjoined, reset, limit, first, out, give: (data: { tasks?: PlainTask[]; links?: PlainLink[]; dataDate?: string }, epoch = 0) => set(data, epoch, apply, (keys) => keys.map((key) => !out.has(key))) };
 }
 
 test("only the member that differs reaches update, with the task's key", () => {
@@ -81,12 +84,12 @@ test("a changed snlt, fnet, fnlt, mso or mfo reaches update by key, as update ta
   expect(calls[1], "only the limit that changed").toEqual([{ key: "k1", fnlt: "2026-03-26" }]);
 });
 
-test("a task moved or given another id or parent, a key that is no text, a repeated key, a parent no row has and a link that stays with another lag are refused with nothing set", () => {
+test("a task moved or given another id or parent, a key that is no text, a repeated key, a parent no row has and a link that stays with another member are refused with nothing set", () => {
   const { calls, added, dropped, give } = chart();
   const refusals = [
     give({ tasks: [task(1), task(2), task(3, { key: undefined })] }),
     give({ tasks: [task(1), task(1), task(3)] }),
-    give({ links: [links[0]!, { from: 2, to: 3, lag: 2 }] }),
+    give({ links: [links[0]!, { from: 2, to: 3, lag: 1, note: "x" }] }),
     give({ tasks: [task(1), task(2, { parent: 1 }), task(3)] }),
     give({ tasks: [task(1), task(2, { id: 22 }), task(3)] }),
     give({ tasks: [task(2), task(1), task(3)] }),
@@ -161,8 +164,8 @@ test("a link that touches a dropped row is no link change, and the links held ar
   const listed = chart();
   expect(listed.give({ tasks: [task(1), task(2)], links: links.map((link) => ({ ...link })) }), "the data still lists the link to the dropped row").toEqual({ ok: true, updated: 0 });
   const changed = chart();
-  expect(changed.give({ tasks: [task(1), task(2)], links: [{ from: 1, to: 2, lag: 5 }] }), "a link between the rows that stay still differs").toMatchObject({ ok: false, reason: "rowsChanged" });
-  expect(changed.dropped, "nothing was dropped").toEqual([]);
+  expect(changed.give({ tasks: [task(1), task(2)], links: [{ from: 1, to: 2, lag: 5 }] }), "a link between the rows that stay still differs: its lag is set").toEqual({ ok: true, updated: 0 });
+  expect([changed.dropped, changed.reset], "only k3 is dropped").toEqual([[["k3"]], [[{ pred: "k1", succ: "k2", type: "FS", lag: 5 }]]]);
 });
 
 test("links in another order are the same links, and a link listed twice is a change", () => {
@@ -182,6 +185,29 @@ test("a link the data holds and the chart lacks is added, one the data lacks is 
   expect(give({ links: [{ from: 1, to: 2, key: "x" }, { ...links[1]! }] }), "a key makes the same pair another link").toMatchObject({ ok: true });
   expect([joined[2], unjoined[2]]).toEqual([[{ pred: "k1", succ: "k2", key: "x" }], [{ pred: "k1", succ: "k2" }]]);
   expect(give({ links: [{ from: 1, to: 3, key: "x" }, { ...links[1]! }] }), "a key that stays with other ends is a change").toMatchObject({ ok: false, reason: "rowsChanged" });
+});
+
+test("a link that stays with another type or lag is set in place, by its key else its two ends, and the links are then held", () => {
+  const { reset, unjoined, first, give } = chart();
+  const next = [{ from: 1, to: 2, type: "SS" as const }, { ...links[1]!, lag: 2 }];
+  expect(give({ links: next })).toEqual({ ok: true, updated: 0 });
+  expect(reset, "a type and a lag, each with the other as the chart holds it").toEqual([[{ pred: "k1", succ: "k2", type: "SS", lag: 0 }, { pred: "k2", succ: "k3", type: "FS", lag: 2 }]]);
+  expect(give({ links: next.map((link) => ({ ...link })) }), "the links given again are held").toEqual({ ok: true, updated: 0 });
+  expect(give({ links: first.links }), "a type and a lag left out are the defaults").toEqual({ ok: true, updated: 0 });
+  expect(reset[1], "FS and 0 for what the array of the start leaves out").toEqual([{ pred: "k1", succ: "k2", type: "FS", lag: 0 }, { pred: "k2", succ: "k3", type: "FS", lag: 1 }]);
+  expect(give({ links: [{ from: 1, to: 2, key: "x" }, { ...links[1]! }] })).toEqual({ ok: true, updated: 0 });
+  expect(give({ links: [{ from: 1, to: 2, key: "x", lag: 3 }, { ...links[1]! }] }), "a key that stays").toEqual({ ok: true, updated: 0 });
+  expect([reset[2], unjoined.length], "set by its key, no drop").toEqual([[{ pred: "k1", succ: "k2", key: "x", type: "FS", lag: 3 }], 1]);
+});
+
+test("a set the chart refuses part way keeps the sets before it, and the same rows given again apply the rest", () => {
+  const { reset, limit, give } = chart();
+  const next = [{ from: 1, to: 2, lag: 1 }, { from: 2, to: 3, lag: 2 }];
+  limit.sets = 1;
+  expect(give({ links: next })).toMatchObject({ ok: false, reason: "badValue" });
+  limit.sets = Infinity;
+  expect(give({ links: next })).toMatchObject({ ok: true });
+  expect(reset.map((list) => list.length), "the first set is not offered again").toEqual([2, 1]);
 });
 
 test("a link to a row added in the same call is listed with the add, its ends as task keys", () => {
