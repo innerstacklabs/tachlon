@@ -51,7 +51,8 @@ export function send(app: PublicApp, records: unknown[], wrote: (slots: readonly
     return Object.freeze({ ok: true, updated: answer.updated!, ...(differs === undefined ? {} : { differs }) });
   }
   const key = (records[answer.record ?? -1] as { key?: unknown } | undefined)?.key;
-  const undo = ({ hasActuals: "has actual dates, or the record sets them", notAllowed: `cannot be put back by an Undo under the host's capability profile (${answer.member})` } as Record<string, string>)[answer.reason];
+  const look = (member: string): string => `changes its ${member}, which no undo step holds`;
+  const undo = ({ hasActuals: "has actual dates, or the record sets them", notAllowed: `cannot be put back by an Undo under the host's capability profile (${answer.member})`, "notUpdatable.color": look("color"), "notUpdatable.label": look("label") } as Record<string, string>)[call === "host_edit" && answer.reason === "notUpdatable" ? `notUpdatable.${answer.member}` : answer.reason];
   const why = undo !== undefined ? `task ${String(key)} ${undo}, so hostEdit cannot take it; call update, which sets it without an undo step` :`${answer.reason}${answer.record === undefined ? "" : ` in record ${answer.record}`}${answer.member === undefined ? "" : ` (${answer.member})`}`;
   return Object.freeze({ ...answer, message: `Nothing changed: ${why}.`, ...(typeof key === "string" ? { key } : {}) });
 }
