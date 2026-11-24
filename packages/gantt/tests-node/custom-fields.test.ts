@@ -28,6 +28,14 @@ test("a row the person made has none, and an update never carries one", () => {
   expect(map.custom.add([made, edit, deleted(null, { name: "x" })])).toEqual([made, edit, deleted(null, { name: "x" })]);
 });
 
+test("drop forgets the members of the rows it names and no others", () => {
+  const map = names();
+  map.custom.take("tasks", [row({ owner: "sam" }), row({ id: "t2", key: "t2", owner: "kim" })]).commit();
+  map.custom.drop("tasks", ["t1"]);
+  expect(map.custom.add([deleted("t1", { name: "Pour" })]), "the dropped row's members are gone").toEqual([deleted("t1", { name: "Pour" })]);
+  expect(map.custom.add([deleted("t2", { name: "Pour" })]), "another row's stay").toEqual([deleted("t2", { name: "Pour", owner: "kim" })]);
+});
+
 test("a misspelled member is kept and listed, and fromTasks counts nothing in leftOut", () => {
   const map = names();
   const taken = map.custom.take("tasks", [row({ durration: 3 }), row({ id: "t2", key: "t2" })]);

@@ -218,11 +218,11 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       const custom = { tasks: p.fields.custom.take("tasks", data.tasks), links: p.fields.custom.take("links", data.links) };
       const rows = { ...p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), dataDate: data.dataDate };
-      const answer = p.setData(rows, shell.status().epoch, (records, day, adds) => {
+      const answer = p.setData(rows, shell.status().epoch, (records, day, adds, drops) => {
         if ((JSON.parse(app.task_slots(adds.map(({ record }) => record.key))) as (number | null)[]).some((slot) => slot !== null)) return rowsChanged("a task of the rows that the chart lacks has a key it already holds.");
         const moved = day === undefined ? undefined : commands.setDataDate(day);
         if (moved !== undefined && !moved.ok) return moved;
-        if (records.length + adds.length > 0 && p.busy()) return refused("busy");
+        if (records.length + adds.length + drops.length > 0 && p.busy()) return refused("busy");
         const read = toApp(app, p.unit, p.dateForm, [...records, ...adds.map(({ record }) => record)]);
         if (!Array.isArray(read)) return read;
         const set = records.length === 0 ? Object.freeze({ ok: true as const, updated: 0 }) : send(app, read.slice(0, records.length), p.wrote);
@@ -236,7 +236,19 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
           }
           added += 1;
         }
-        return { ...set, updated: set.updated + added };
+        const slots = JSON.parse(app.task_slots(drops)) as (number | null)[]; // a key no live task holds (a row a person deleted) stays as it is: their Undo and its columns too
+        const removed: string[] = [];
+        for (const [i, key] of drops.entries()) {
+          const done = slots[i] === null ? undefined : readAnswer(app.remove_task(key));
+          if (done !== undefined && !done.ok) {
+            p.fields.custom.drop("tasks", removed);
+            const why = `task ${key} was not dropped (${done.message})`;
+            return { ...done, key, message: records.length + added + removed.length > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to drop the rest.` : `Nothing changed: ${why}.`, added, dropped: i };
+          }
+          if (done !== undefined) removed.push(key);
+        }
+        p.fields.custom.drop("tasks", removed);
+        return { ...set, updated: set.updated + added + removed.length };
       });
       if (answer.ok) [custom.tasks, custom.links].forEach((taken) => taken.commit());
       return answer;

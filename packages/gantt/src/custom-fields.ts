@@ -21,6 +21,8 @@ export interface CustomFields {
   take<T>(kind: Kind, list: readonly T[] | undefined): Taken<T>;
   /** The changes with the custom members of a created or deleted record, under the host's names; an update has none. */
   add(changes: readonly Change[]): Change[];
+  /** Forget the members kept for the rows with these keys: the chart removed them, so no create or delete names them again. The names seen stay. */
+  drop(kind: Kind, keys: readonly string[]): void;
   /** The names seen: the same object until a new one is seen. */
   names(): CustomNames;
   /** Forget every row and name: a file was opened, so its keys are not the rows these members belong to. */
@@ -76,6 +78,7 @@ export function customFields(maps: { tasks: Pick<Names<object>, "toChart">; link
       if (change.op === "create" && change.set) return { ...change, set: { ...mine, ...change.set } };
       return change.op === "delete" && change.was ? { ...change, was: { ...mine, ...change.was } } : change;
     }),
+    drop: (kind, keys) => keys.forEach((key) => held[kind].delete(key)),
     names: () => listed,
     clear() {
       for (const kind of ["tasks", "links"] as const) [held[kind], seen[kind]].forEach((store) => store.clear());
