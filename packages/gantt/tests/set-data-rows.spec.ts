@@ -82,15 +82,68 @@ test("setData adds the rows its data holds under their parents and after their p
   expect([undone.find((task) => task.key === "k2")!.name, undone.length], "the one Undo is the person's rename; the added rows stay").toEqual(["Task 2", 23]);
 });
 
-test("an added row takes its color and label in place, and a color the chart cannot read refuses its add by name", async ({ page }) => {
+test("an added row takes its color and label in place, and a color or label the chart cannot read is left out as mount leaves it out", async ({ page }) => {
   await open(page);
   const look = { color: "#12ab34", label: "Shown" };
   const given = [...tasks, { ...added[1], ...look }];
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), given)).toEqual({ ok: true, updated: 1 });
   const row = await page.evaluate(() => (window.upChart.toDocument() as { tasks: { key?: string; color?: string; label?: string }[] }).tasks.find((task) => task.key === "n2"));
   expect(row, "the color and the label are in the document").toMatchObject(look);
-  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), [...given, { ...added[2], color: "red" }])).toMatchObject({ ok: false, reason: "badValue", key: "n3" });
-  expect((await saved(page)).some((task) => task.key === "n3"), "n3 was not added").toBe(false);
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), [...given, { ...added[2], color: "red", label: 7 as never }])).toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate(() => (window.upChart.toDocument() as { tasks: { key?: string; color?: string; label?: string }[] }).tasks.filter((task) => task.key === "n3").map(({ color, label }) => [color, label])), "n3 is added without the color and the label").toEqual([[undefined, undefined]]);
+});
+
+const nested = tasks.map((task) => (task.key === "k6" ? { ...task, parent: "t5" } : task));
+
+test("a row a person deleted, the data dropped and Undo brought back is taken in place when the data gives it again: no start again, and the selection, the scroll and the undo list hold", async ({ page }) => {
+  await open(page, owned);
+  await pick(page, 5);
+  await page.evaluate(() => window.upChart.commands.deleteRow());
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5")), "the drop of a deleted row counts nothing").toEqual({ ok: true, updated: 0 });
+  expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
+  await frames(page);
+  const before = { ...(await table(page)), edits: await page.evaluate(() => window.edits.length) };
+  const back = owned.map((task) => (task.key === "k5" ? { ...task, name: "Back" } : task));
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), back), "k5 is held again: its name is set, nothing is added").toEqual({ ok: true, updated: 1 });
+  await frames(page);
+  expect({ ...(await table(page)), edits: await page.evaluate(() => window.edits.length) }, "no row more, the scroll and the selection as they were, and no edit").toEqual(before);
+  expect((await saved(page)).filter((task) => task.key === "k5").map((task) => task.name), "one k5, renamed").toEqual(["Back"]);
+  expect(await page.evaluate(() => window.upChart.commands.undo()), "the undo list is the person's: the rename that came first").toBe(true);
+  expect((await saved(page)).find((task) => task.key === "k2")!.name).toBe("Task 2");
+});
+
+test("a child and its parent a person deleted, the data dropped together and Undo brings back one at a time, are each taken in place as they return", async ({ page }) => {
+  await open(page, nested);
+  for (const row of [6, 5]) { // a person deletes a leaf: the child first, then the parent that is a leaf by then
+    await pick(page, row);
+    await page.evaluate(() => window.upChart.commands.deleteRow());
+  }
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5", "k6")), "both are skipped").toEqual({ ok: true, updated: 0 });
+  expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
+  const parent = nested.filter((task) => task.key !== "k6").map((task) => (task.key === "k5" ? { ...task, name: "Parent" } : task));
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), parent), "k5 is back, k6 still deleted: only k5's name is set").toEqual({ ok: true, updated: 1 });
+  expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
+  const both = nested.map((task) => (task.key === "k5" ? { ...task, name: "Parent" } : task.key === "k6" ? { ...task, name: "Child" } : task));
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), both), "k6 is back under k5: only its name is set").toEqual({ ok: true, updated: 1 });
+  expect((await saved(page)).filter((task) => task.key === "k5" || task.key === "k6").map((task) => [task.key, task.name]), "one of each").toEqual([["k5", "Parent"], ["k6", "Child"]]);
+});
+
+test("a deleted row the data gives again is a new row while it is still deleted, and a move once Undo brought it back", async ({ page }) => {
+  await open(page, owned);
+  await pick(page, 5);
+  await page.evaluate(() => window.upChart.commands.deleteRow());
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5"))).toEqual({ ok: true, updated: 0 });
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), owned), "still deleted: an add").toEqual({ ok: true, updated: 1 });
+  expect((await names(page)).filter((key) => key === "k5")).toEqual(["k5"]);
+  await open(page, owned);
+  await pick(page, 5);
+  await page.evaluate(() => window.upChart.commands.deleteRow());
+  await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5"));
+  expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
+  const before = await names(page);
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), [...without("k5"), owned[5]!]), "k5 at the end is a move").toMatchObject({ ok: false, reason: "rowsChanged", message: expect.stringContaining("moved") });
+  expect(await names(page), "nothing changed").toEqual(before);
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), owned.map((task) => (task.key === "k5" ? { ...task, parent: "t4" } : task))), "k5 under k4 is a move").toMatchObject({ ok: false, reason: "rowsChanged", message: expect.stringContaining("another id or parent") });
 });
 
 test("a bad record on the second add keeps the first and corrected rows add the rest; a key the chart already holds refuses the whole call", async ({ page }) => {
