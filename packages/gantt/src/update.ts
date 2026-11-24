@@ -1,6 +1,6 @@
 // `Gantt.update` (gantt#2087, decision 0019 rule 13): the host gives the chart new values for many tasks by key, applied in place as one call.
 // A `duration` is in the unit the host mounted with (decision 0017 rule 5); this is the one place it becomes the app's working minutes.
-import { readCalendars, toMinutes } from "./adapters/plain-calendars.js";
+import { lagDay, readCalendars, toMinutes } from "./adapters/plain-calendars.js";
 import type { PublicApp } from "./api.js";
 import { toSeparate } from "./constraint-form.js";
 import { timedDate } from "./date-form.js";
@@ -21,6 +21,16 @@ function dayOfKey(app: PublicApp): (key: unknown) => number {
   const { list } = readCalendars(saved.calendars);
   const days = new Map(saved.tasks.flatMap((task) => (task.key === undefined ? [] : [[task.key, list[task.calendar]!.day] as const])));
   return (key) => days.get(key as string) ?? list[0]!.day;
+}
+
+/** A lag in the host's `unit` as working minutes between the tasks with keys `pred` and `succ`, as `fromTasks` counts it: a day of the document's `lag_calendar`, read with each task's calendar from the saved document. */
+export function lagMinutes(app: PublicApp, unit: MountOptions["durationUnit"]): (lag: number, pred: string, succ: string) => number {
+  const saved = JSON.parse(app.save("update")) as { lag_calendar: "successor" | "predecessor" | "24h" | { calendar: number }; calendars: Parameters<typeof readCalendars>[0]; tasks: { key?: string; calendar: number }[] };
+  const { list } = readCalendars(saved.calendars);
+  const at = new Map(saved.tasks.flatMap((task) => (task.key === undefined ? [] : [[task.key, task.calendar] as const])));
+  const lag = typeof saved.lag_calendar === "object" ? { calendar: String(saved.lag_calendar.calendar) } : saved.lag_calendar; // the document names a calendar by its position
+  const byPosition = { list, at: new Map(list.map((_, i) => [String(i), i])) };
+  return (value, pred, succ) => toMinutes(value, unit, lagDay(lag, byPosition, at.get(pred)!, at.get(succ)!));
 }
 
 /** `records` as the app reads them (a separate `constraint`, a date in the form the host stores, a duration in working minutes), or why none can be: a refusal of `update` and `setData` before the app is asked. */
