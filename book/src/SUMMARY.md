@@ -4,6 +4,7 @@
 
 # For developers
 
+- [Install it in your app](install.md)
 - [Put a chart on a page](dev-page.md)
 - [Give it your data and keep your own ids](dev-data.md)
 - [Listen for edits and save them](dev-save.md)
@@ -12,7 +13,6 @@
 - [Run the engine in Node](dev-node.md)
 - [Give an AI assistant the engine tools](dev-assistant.md)
 - [Turn the user guide into your own docs](dev-guide.md)
-- [Install it in your app](install.md)
 
 # Guide
 

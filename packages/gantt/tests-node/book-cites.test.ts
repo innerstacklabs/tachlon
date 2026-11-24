@@ -32,3 +32,14 @@ test("the_guide_chapter_is_listed_after_the_assistant_chapter_and_names_the_comm
   expect(chapter, "the chapter names the command that prints the prompt").toContain("describe guide");
   expect(chapter, "the chapter names the licence").toContain("MIT-0");
 });
+
+test("no_book_page_names_the_architecture_page_and_the_install_chapter_heads_the_developer_part", () => {
+  const book = (name: string) => readFileSync(new URL(`book/src/${name}`, root), "utf8");
+  const pages = readdirSync(new URL("book/src/", root)).filter((name) => name.endsWith(".md"));
+  expect(pages.filter((page) => book(page).includes("docs/ARCHITECTURE.md")), "book pages that name docs/ARCHITECTURE.md").toEqual([]);
+  for (const page of ["SUMMARY.md", "index.md"]) {
+    const text = book(page);
+    const links = [...text.slice(text.indexOf("For developers")).matchAll(/\]\(((?:dev-|install)[\w-]*\.md)\)/g)].map((m) => m[1]);
+    expect(links[0], `${page} lists the install chapter first among the developer chapters`).toBe("install.md");
+  }
+});

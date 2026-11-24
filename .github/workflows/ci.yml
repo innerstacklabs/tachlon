@@ -592,8 +592,8 @@ jobs:
         run: pnpm build
       - name: install Chromium
         run: pnpm exec playwright install chromium
-      # The book spec (book-next-arrow) reads a built book from BOOK_DIR and fails when it is unset (gs#703). It is the `book` job's build,
-      # which holds the API reference; this job does not build mdbook.
+      # The book spec (book-next-arrow) reads a built book from BOOK_DIR and fails when it is unset (gs#703). It is the `book` job's build;
+      # this job does not build mdbook.
       - id: book-disk
         run: |
           [ -n "$BOOK_HANDOFF" ] || { echo "BOOK_HANDOFF is empty, downloading the artifact"; exit 0; }; mkdir -p "$RUNNER_TEMP/book" && cp -r "$HOME/$BOOK_HANDOFF/." "$RUNNER_TEMP/book/" && echo "hit=true" >> "$GITHUB_OUTPUT" && echo "book read from $HOME/$BOOK_HANDOFF, no download" || echo "book is not on this disk, downloading the artifact"
@@ -820,7 +820,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       # One site, one Access sign-in: the hosted app at the root and the book under /book/
       # (the address in vars.SITE_URL, and the project's pages.dev address). Old /app/ links redirect.
-      # The book is the `book` job's build, API reference included (it needs the wasm bindings, which this runner does not have).
+      # The book is the `book` job's build; this job builds no mdbook of its own.
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: book
