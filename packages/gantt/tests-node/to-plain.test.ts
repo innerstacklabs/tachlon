@@ -84,6 +84,16 @@ test("actuals_remaining_resume_and_the_data_date_come_back_and_progress_is_left_
   expect(fromTasks(out).document).toEqual(first);
 });
 
+test("a_started_task_with_no_finish_and_no_remaining_comes_back_without_a_progress_that_would_set_the_remaining_work", () => {
+  const given: PlainTask[] = [{ id: "a", name: "A", start: "2026-03-02", duration: 4, progress: 40 }];
+  const unstarted = fromTasks({ tasks: given }).document;
+  const first = { ...unstarted, tasks: unstarted.tasks.map((task) => ({ ...task, actual_start: 480 })) };
+  const out = toPlain(first, ["2026-03-02 00:00"]);
+  expect(out.tasks.map(({ actualStart, remaining, progress }) => ({ actualStart, remaining, progress }))).toEqual([{ actualStart: "2026-03-02T08:00", remaining: undefined, progress: undefined }]);
+  const again = fromTasks(out).document.tasks[0]!;
+  expect([again.actual_start, again.actual_finish, again.remaining], "it mounts again with the same dates").toEqual([480, null, null]);
+});
+
 test("the_options_come_back_and_a_schedule_without_them_writes_none", () => {
   const options = { unstartedRemaining: "on" } as const;
   expect(toPlain(fromTasks({ tasks, options }).document, starts).options).toEqual(options);

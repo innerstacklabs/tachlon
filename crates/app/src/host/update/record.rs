@@ -12,6 +12,34 @@ impl Progress {
             remaining: task.remaining,
         }
     }
+
+    /// `self` as a record naming the members `said` leaves it, and whether that record gives `progress` beside an
+    /// actual start that is a date and no actual finish: the percent then sets the remaining work against that
+    /// start, so a finish and a remaining the task held are dropped.
+    pub(super) fn beside_start_in(self, said: &[&str]) -> (Self, bool) {
+        let named = |member| said.contains(&member);
+        let beside = self.start.is_some()
+            && named("progress")
+            && named("actualStart")
+            && !named("actualFinish");
+        let dropped = Self {
+            finish: None,
+            remaining: None,
+            ..self
+        };
+        (if beside { dropped } else { self }, beside)
+    }
+
+    /// `self`, worked out from a typed `percent`, as read beside an actual start: no finish (`100` leaves the
+    /// task started with no remaining work), and no remaining work for `0` or a zero `duration`.
+    pub(super) fn beside_start(self, percent: u8, duration: i64) -> Self {
+        let none = percent == 0 || duration == 0;
+        Self {
+            finish: None,
+            remaining: self.remaining.filter(|_| !none),
+            ..self
+        }
+    }
 }
 
 /// An opaque color from `"#rrggbb"`, hex digits in either case, as a document reads one.
