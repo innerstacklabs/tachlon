@@ -11,6 +11,7 @@ const WASM_HOST = `import { createElement as h } from "react"; import { createRo
 const root = createRoot(document.body.appendChild(document.createElement("div"))), schedule = { demo: 1 };
 window.wasmAt = async (wasmUrl) => (root.render(h(Gantt, { schedule, wasmUrl })), await new Promise((done) => setTimeout(done, 300)), mounts.map((options) => options.wasmUrl));
 window.localeAt = async (locale) => (root.render(h(Gantt, { schedule, locale })), await new Promise((done) => setTimeout(done, 300)), mounts.map((options) => options.locale));
+window.densityAt = async (density) => (root.render(h(Gantt, { schedule, locale: "pt-BR", density })), await new Promise((done) => setTimeout(done, 300)), mounts.map((options) => options.density ?? "-"));
 window.textsAt = async (texts) => (root.render(h(Gantt, { schedule, texts })), await new Promise((done) => setTimeout(done, 300)), mounts.map((options) => options.texts));
 window.readOnlyAt = async (readOnly) => (root.render(h(Gantt, { schedule, readOnly })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.map((options) => options.readOnly), switched: [...(globalThis.switched ?? [])] });
 window.capsAt = async (capabilities) => (root.render(h(Gantt, { schedule, capabilities })), await new Promise((done) => setTimeout(done, 300)), { mounts: mounts.map((options) => options.capabilities), profiled: [...globalThis.profiled] });
@@ -63,13 +64,15 @@ test("the wrapper passes `wasmUrl` to mount, and mounts again when it changes", 
   expect.soft(await page.evaluate("wasmAt(\"/engine/b.wasm\")"), "a new address mounts the chart again").toEqual(["/engine/a.wasm", "/engine/b.wasm"]);
 });
 
-test("the wrapper passes `locale` to mount, and mounts again when it changes", async ({ page }) => {
+test("the wrapper passes `locale` and `density` to mount, and mounts again when either changes", async ({ page }) => {
   const base = server.resolvedUrls!.local[0]!;
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST.replace("react-events-host", "wasm-host") }));
   await page.goto(`${base}host.html`);
   await page.waitForFunction("window.localeAt");
   expect.soft(await page.evaluate("localeAt(\"de\")"), "the first mount gets the locale the page gave").toEqual(["de"]);
   expect.soft(await page.evaluate("localeAt(\"pt-BR\")"), "a new locale mounts the chart again").toEqual(["de", "pt-BR"]);
+  expect.soft(await page.evaluate("densityAt(\"compact\")"), "a density the page gives mounts the chart again with it").toEqual(["-", "-", "compact"]);
+  expect.soft(await page.evaluate("densityAt(\"roomy\")"), "a new density mounts it again").toEqual(["-", "-", "compact", "roomy"]);
 });
 
 test("the wrapper passes `texts` to mount, and mounts again when a new object comes", async ({ page }) => {

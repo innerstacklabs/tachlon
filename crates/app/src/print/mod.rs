@@ -11,7 +11,7 @@ use engine::Instant;
 use timeline::{
     Scene, Theme, Viewport,
     scene::{RowMarks, add_arrows_highlighted, build_marked},
-    viewport::{AXIS_HEIGHT, ROW_HEIGHT},
+    viewport::AXIS_HEIGHT,
 };
 
 /// Most pages a plan holds; the rows past them are counted in [`PrintPlan::left_out`].
@@ -21,9 +21,6 @@ pub const MAX_PAGES: usize = 100;
 const MARGIN: f64 = 36.0;
 const HEADER_H: f64 = 44.0;
 const FOOTER_H: f64 = 20.0;
-/// Most rows on a full page: with the default 24 px rows and 48 px axis, they take 648 px of the
-/// page's body, 680 px on Letter and 658 px on A4, so both sheets hold this many.
-const ROWS_PER_PAGE: usize = 25;
 
 /// The sheet a page is printed on: US Letter (1056 by 816, the default) or A4 (1123 by 794), both in CSS px at 96 to the inch.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -53,15 +50,17 @@ impl PageSize {
         }
     }
 
-    /// The whole rows that fit under the axis in the page's body, at most [`ROWS_PER_PAGE`].
+    /// The whole rows of `row_height` px that fit under the axis in the body of the shorter sheet,
+    /// so Letter and A4 hold the same count (25 at 24 px).
     #[expect(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
-        reason = "body is the page height minus constant margins; a float-to-usize `as` saturates, so a negative or NaN quotient becomes 0 and it never wraps, and min caps the rest at ROWS_PER_PAGE"
+        reason = "body is the page height minus constant margins; a float-to-usize `as` saturates, so a negative or NaN quotient becomes 0 and it never wraps"
     )]
-    fn rows_per_page(self) -> usize {
-        let body = self.dims().1 - 2.0 * MARGIN - HEADER_H - FOOTER_H - AXIS_HEIGHT;
-        ((body / ROW_HEIGHT) as usize).min(ROWS_PER_PAGE)
+    fn rows_per_page(row_height: f64) -> usize {
+        let page_h = Self::Letter.dims().1.min(Self::A4.dims().1);
+        let body = page_h - 2.0 * MARGIN - HEADER_H - FOOTER_H - AXIS_HEIGHT;
+        (body / row_height) as usize
     }
 }
 
@@ -135,7 +134,7 @@ impl Session {
         if let Some((from, to)) = window {
             all.retain(|&task| active_in(from, to, early(task).0, early(task).1));
         }
-        let rows_per_page = size.rows_per_page();
+        let rows_per_page = PageSize::rows_per_page(timeline.viewport.row_height);
         let pages = all.len().div_ceil(rows_per_page).min(MAX_PAGES);
         let kept = (pages * rows_per_page).min(all.len());
         let rows = all[..kept].to_vec();
@@ -186,7 +185,7 @@ impl Session {
         let order = plan.page_rows(page);
         #[expect(
             clippy::cast_precision_loss,
-            reason = "rows_per_page is at most ROWS_PER_PAGE, a small constant"
+            reason = "rows_per_page is at most 30 (20 px rows), a small count"
         )]
         let mut view = Viewport::new(
             plan.panel_w,

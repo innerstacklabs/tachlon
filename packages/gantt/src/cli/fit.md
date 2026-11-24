@@ -36,7 +36,7 @@ Check: open the page. Passes when the task list and the toolbar show the host's 
 
 ### 4. Row height and bar shape
 
-The chart writes `--gantt-row-h` and `--gantt-axis-h` on the root's `style` from its own metrics, so a value your CSS gives them is overridden: leave them. Shape the bars with `--gantt-bar-h` (the bar's share of the row) and `--gantt-bar-r` (the corner radius), and the strips with `--gantt-toolbar-h` and `--gantt-status-h`.
+The chart writes `--gantt-row-h` and `--gantt-axis-h` on the root's `style` from its own metrics, so a value your CSS gives them is overridden: leave them. Choose the row height with the `density` mount option (`"compact"`, `"normal"` or `"roomy"`), and read `--gantt-row-h` for your own layout. Shape the bars with `--gantt-bar-h` (the bar's share of the row) and `--gantt-bar-r` (the corner radius), and the strips with `--gantt-toolbar-h` and `--gantt-status-h`.
 
 Check: open the page. Passes when the bars have the shape you set and no text is clipped in the rows, the toolbar or the status line.
 

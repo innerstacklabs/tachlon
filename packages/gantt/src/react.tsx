@@ -26,7 +26,7 @@ const EVENTS = {
 /**
  * The mount options, one prop each, and a callback for each event: `onSelect({ task, key })`, `onMove({ task, key, start })` and the rest of `GanttEvents`.
  * A handler is called with the latest function the component was given. A handler for `find` or `choose-file` takes that key from the browser,
- * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or
+ * as `Gantt.on` does, so give one only when the app answers the key. The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `density`, `texts`, `fonts` or
  * `forceWebgl` changes (compared by reference, as a hook's dependencies are), so keep `texts` and `fonts` stable between renders.
  * New `tasks`, `links` or `dataDate` (a day written `YYYY-MM-DD`) go to the chart that is mounted as one `Gantt.setData({ tasks, links, dataDate })` call, in place: the scroll position, the selection and the undo list stay. The chart mounts again only when `setData` refuses them (a task or link added, removed or changed), a prop is taken away, a task differs in a member `setData` ignores (`color`, `end` and the rest, so no change is dropped), or the start is still pending.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
@@ -69,7 +69,7 @@ function useHostRows<F extends Fields | undefined>(live: { current: { chart: Cha
 }
 
 export function Gantt<F extends Fields | undefined = undefined>(props: GanttProps<F>): JSX.Element {
-  const { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, readOnly, capabilities, records, className, style } = props;
+  const { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, density, texts, fonts, readOnly, capabilities, records, className, style } = props;
   const root = useRef<HTMLDivElement>(null);
   const latest = useRef(props), applied = useRef<GanttProps<F>["records"]>(undefined); // `applied`: the `records` the chart started with or was last sent
   const queue = useRef<Promise<void>>(Promise.resolve());
@@ -108,7 +108,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
     queue.current = queue.current.then(async () => {
       if (stopped) return;
       try {
-        started = await mount<F>(root.current as HTMLDivElement, { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: latest.current.fields, keys: latest.current.keys, newKey: latest.current.newKey, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
+        started = await mount<F>(root.current as HTMLDivElement, { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, density, texts, fonts, fields: latest.current.fields, keys: latest.current.keys, newKey: latest.current.newKey, readOnly: latest.current.readOnly, capabilities: latest.current.capabilities, beforeEdit: (change) => latest.current.beforeEdit?.(change), save: liveSave(() => latest.current.save) });
       } catch (error) {
         if (!stopped) setFailure({ error });
         return;
@@ -127,7 +127,7 @@ export function Gantt<F extends Fields | undefined = undefined>(props: GanttProp
       live.current = null;
       started?.destroy();
     };
-  }, [schedule, document, projectStart, redo.count, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts]);
+  }, [schedule, document, projectStart, redo.count, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, density, texts, fonts]);
 
   // `readOnly` switches the chart that is mounted and never mounts it again; a chart that mounts later starts on the latest value.
   useEffect(() => live.current?.chart.setReadOnly(readOnly === true), [readOnly]);

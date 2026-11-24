@@ -10,7 +10,7 @@ import { mount, type Fields, type Gantt as Chart, type GanttEvents, type MountOp
 export type { Handlers, SaveContext } from "./index.js";
 
 const ROWS = ["tasks", "links", "dataDate"] as const; // the inputs `setData` takes in place
-const INPUTS = ["schedule", "document", "projectStart", "mustFinishBy", "calendars", "durationUnit", "dateForm", "constraintForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "texts", "fonts"] as const;
+const INPUTS = ["schedule", "document", "projectStart", "mustFinishBy", "calendars", "durationUnit", "dateForm", "constraintForm", "lagCalendar", "options", "forceWebgl", "wasmUrl", "locale", "density", "texts", "fonts"] as const;
 /** Each output and the event of `Gantt.on` it emits: `(chartToggleStatus)` is `toggle-status`. The `chart` in front keeps an output apart from the DOM event of the same name: Angular also listens on the element for `change` and `select`, which an input inside the chart fires and which bubble. */
 const EVENTS = [["chartSelect", "select"], ["chartEdit", "edit"], ["chartMove", "move"], ["chartOpen", "open"], ["chartLoad", "load"], ["chartChange", "change"], ["chartError", "error"], ["chartFind", "find"], ["chartToggleStatus", "toggle-status"], ["chartChooseFile", "choose-file"], ["chartToggleKeys", "toggle-keys"]] as const satisfies readonly (readonly [string, keyof GanttEvents])[];
 ({}) as Record<(typeof EVENTS)[number][1], true> satisfies Record<keyof GanttEvents, true>; // an event of `GanttEvents` with no output here does not compile
@@ -19,7 +19,7 @@ type Listen = (name: string, handler: (detail: unknown) => void) => () => void;
 /**
  * The mount options, one input each, and an output for each event, named `chart` and the event (see `EVENTS`): `(chartSelect)` gets `{ task, key }`, `(chartMove)` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `chartFind` or `chartChooseFile` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
- * The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `texts` and `fonts` stable.
+ * The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `density`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * New `tasks`, `links` or `dataDate` (a day written `YYYY-MM-DD`) go to the chart that is mounted as one `Gantt.setData({ tasks, links, dataDate })` call, in place: the scroll position, the selection and the undo list stay. The chart mounts again only when `setData` refuses them, an input is taken away, a task differs in a member `setData` ignores (`color`, `end` and the rest), or the start is still pending.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.
@@ -55,6 +55,7 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
   @Input() save?: MountOptions["save"];
   @Input() wasmUrl?: MountOptions["wasmUrl"];
   @Input() locale?: MountOptions["locale"];
+  @Input() density?: MountOptions["density"];
   @Input() texts?: MountOptions["texts"];
   @Input() fonts?: MountOptions["fonts"];
   @Output() readonly chartSelect = new EventEmitter<GanttEvents["select"]>();
@@ -126,9 +127,9 @@ export class Gantt<F extends Fields | undefined = undefined> implements OnChange
     let stops: (() => void)[] = [];
     this.queue = this.queue.then(async () => {
       if (stopped) return;
-      const { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts } = this;
+      const { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, density, texts, fonts } = this;
       try {
-        started = await this.zone.runOutsideAngular(() => mount<F>(this.host.nativeElement, { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, texts, fonts, fields: this.fields, keys: this.keys, newKey: this.newKey, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
+        started = await this.zone.runOutsideAngular(() => mount<F>(this.host.nativeElement, { schedule, document, tasks, links, projectStart, dataDate, mustFinishBy, calendars, durationUnit, dateForm, constraintForm, lagCalendar, options, forceWebgl, wasmUrl, locale, density, texts, fonts, fields: this.fields, keys: this.keys, newKey: this.newKey, readOnly: this.readOnly, capabilities: this.capabilities, beforeEdit: (change) => this.beforeEdit?.(change), save: liveSave(() => this.save) }));
       } catch (error) {
         return void (stopped || this.errors.handleError(error));
       }

@@ -24,7 +24,7 @@ test("the component mounts the chart, emits its events, mounts again for a new s
   expect.soft(await page.evaluate("stop()"), "the unmount destroys the chart that is left").toMatchObject({ mounts: [1, 2], destroyed: 2 });
 });
 
-test("the component passes `locale` to mount, and mounts again when it changes", async ({ page }) => {
+test("the component passes `locale` and `density` to mount, and mounts again when either changes", async ({ page }) => {
   const base = server.resolvedUrls!.local[0]!;
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
   await page.goto(`${base}host.html`);
@@ -32,6 +32,8 @@ test("the component passes `locale` to mount, and mounts again when it changes",
   await page.evaluate("start()");
   expect.soft(await page.evaluate("lang(\"de\")"), "a locale the page gives mounts the chart again with it").toMatchObject({ locales: ["-", "de"] });
   expect.soft(await page.evaluate("lang(\"pt-BR\")"), "a new locale mounts it again").toMatchObject({ locales: ["-", "de", "pt-BR"] });
+  expect.soft(await page.evaluate("rows(\"compact\")"), "a density the page gives mounts it again with it").toEqual(["-", "-", "-", "compact"]);
+  expect.soft(await page.evaluate("rows(\"roomy\")"), "a new density mounts it again").toEqual(["-", "-", "-", "compact", "roomy"]);
 });
 
 test("the component passes `mustFinishBy` to mount, and mounts again when it changes", async ({ page }) => {

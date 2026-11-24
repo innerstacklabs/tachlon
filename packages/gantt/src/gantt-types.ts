@@ -14,6 +14,9 @@ import type { OpenOptions } from "./open-schedule.js";
 import type { Speed } from "./speed.js";
 import type { FilterInputs, ViewState } from "./view-state.js";
 
+/** The names `MountOptions.density` takes, shortest row first; the engine's `Density` holds the pixels. */
+export const DENSITIES: readonly NonNullable<MountOptions["density"]>[] = ["compact", "normal", "roomy"];
+
 /** What the before-edit function is asked: the action (`kind`), what made it, the session slots of the tasks it touches and the changes it would make, as the `edit` event writes them. A change whose value is not known yet has no `new`. */
 export interface BeforeEditChange { kind: string; source: CommitSource; tasks: readonly number[]; changes: readonly Change[] }
 
@@ -110,6 +113,9 @@ export interface MountOptions<F extends Fields | undefined = undefined> {
   /** The calendar a lag day is counted on for the plain `tasks`: `"successor"` (default), `"predecessor"`, `"24h"` or `{ calendar: key }`. Read with `tasks`, and kept no longer than they are.
    * @defaultValue `"successor"` */
   lagCalendar?: "successor" | "predecessor" | "24h" | { calendar: string };
+  /** How tall the rows are: `"compact"` (20 px), `"normal"` (24 px) or `"roomy"` (40 px). The bars, the table's rows, hit testing, keyboard paging and print follow one height, which the chart writes on the root as `--gantt-row-h` for the host's own layout. Read once, when the chart starts: to change it, mount again. Any other value rejects `mount` with a `RangeError` before it touches the root.
+   * @defaultValue `"normal"` */
+  density?: "compact" | "normal" | "roomy";
   /** Draw with WebGL2 and never try WebGPU. Without it a WebGPU failure switches the chart to WebGL2 in its root, and `on("error")` says so.
    * @defaultValue `false` */
   forceWebgl?: boolean;

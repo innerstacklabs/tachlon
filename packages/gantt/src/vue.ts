@@ -52,6 +52,7 @@ const component = defineComponent({
     newKey: { type: Function as PropType<NonNullable<MountOptions["newKey"]>>, default: undefined },
     wasmUrl: { type: null as unknown as PropType<NonNullable<MountOptions["wasmUrl"]>>, default: undefined },
     locale: { type: String, default: undefined },
+    density: { type: String as PropType<NonNullable<MountOptions["density"]>>, default: undefined },
     texts: { type: Object as PropType<NonNullable<MountOptions["texts"]>>, default: undefined },
     fonts: { type: Array as PropType<NonNullable<MountOptions["fonts"]>>, default: undefined },
   },
@@ -93,7 +94,7 @@ const component = defineComponent({
       queue = queue.then(async () => {
         if (stopped) return;
         try {
-          started = await mount<Fields | undefined>(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, projectStart: props.projectStart, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, dateForm: props.dateForm, constraintForm: props.constraintForm, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, texts: props.texts, fonts: props.fonts, fields: props.fields, keys: props.keys, newKey: props.newKey, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: liveSave(() => props.save) });
+          started = await mount<Fields | undefined>(root.value as HTMLDivElement, { schedule: props.schedule, document: props.document, tasks: props.tasks, links: props.links, projectStart: props.projectStart, dataDate: props.dataDate, mustFinishBy: props.mustFinishBy, calendars: props.calendars, durationUnit: props.durationUnit, dateForm: props.dateForm, constraintForm: props.constraintForm, lagCalendar: props.lagCalendar, options: props.options, forceWebgl: props.forceWebgl, wasmUrl: props.wasmUrl, locale: props.locale, density: props.density, texts: props.texts, fonts: props.fonts, fields: props.fields, keys: props.keys, newKey: props.newKey, readOnly: props.readOnly, capabilities: props.capabilities, beforeEdit: (change) => props.beforeEdit?.(change), save: liveSave(() => props.save) });
         } catch (error) {
           return void (stopped || (failure.value = { error }));
         }
@@ -111,7 +112,7 @@ const component = defineComponent({
       };
     };
     onMounted(start);
-    watch(() => [props.schedule, props.document, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.texts, props.fonts, props.tasks, props.links, props.dataDate, props.records], (now, before) => (mustStart(live?.chart, now, before) ? start() : now.at(-1) !== before.at(-1) && send(props.records))); // one watch, so the order the host wrote the props in does not matter: `records` are sent only when nothing started
+    watch(() => [props.schedule, props.document, props.projectStart, props.mustFinishBy, props.calendars, props.durationUnit, props.dateForm, props.constraintForm, props.lagCalendar, props.options, props.forceWebgl, props.wasmUrl, props.locale, props.density, props.texts, props.fonts, props.tasks, props.links, props.dataDate, props.records], (now, before) => (mustStart(live?.chart, now, before) ? start() : now.at(-1) !== before.at(-1) && send(props.records))); // one watch, so the order the host wrote the props in does not matter: `records` are sent only when nothing started
     // `readOnly` and `capabilities` switch the chart that is mounted and never mount it again.
     watch(() => props.readOnly, (on) => live?.chart.setReadOnly(on === true));
     watch(() => [props.capabilities, drawsLinks(props.save)], ([profile]) => live?.chart.setCapabilities(profile as MountOptions["capabilities"]));
@@ -129,7 +130,7 @@ type VueProps<F extends Fields | undefined> = Omit<Props, "tasks" | "links" | "f
 /**
  * The mount options, one prop each, and an emit for each event: `@select` gets `{ task, key }`, `@move` gets `{ task, key, start }` and so on through `GanttEvents`.
  * Give a listener for `find` or `choose-file` only when the app answers the key, since a listener takes that key from the browser, as `Gantt.on` does.
- * The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `texts` and `fonts` stable.
+ * The chart mounts again when `schedule`, `document`, `projectStart`, `mustFinishBy`, `calendars`, `durationUnit`, `dateForm`, `constraintForm`, `lagCalendar`, `options`, `wasmUrl`, `locale`, `density`, `texts`, `fonts` or `forceWebgl` changes (compared by reference), so keep `texts` and `fonts` stable.
  * `readOnly` and `capabilities` are not among them: changing one calls `Gantt.setReadOnly` or `Gantt.setCapabilities` on the chart that is mounted, and a chart that mounts again starts on the latest `capabilities`.
  * New `tasks`, `links` or `dataDate` (a day written `YYYY-MM-DD`) go to the chart that is mounted as one `Gantt.setData({ tasks, links, dataDate })` call, in place: the scroll position, the selection and the undo list stay. The chart mounts again only when `setData` refuses them, a prop is taken away, a task differs in a member `setData` ignores (`color`, `end` and the rest), or the start is still pending.
  * `fields` is read when the chart mounts, never as it changes: a new value is used the next time the chart mounts for another prop.

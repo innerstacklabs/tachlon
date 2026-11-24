@@ -29,14 +29,14 @@ test("the component mounts the chart outside the zone, emits its events inside i
   expect.soft(await page.evaluate("declaration()"), "the decorators name the class's inputs (the mount options) and its outputs (an emitter each, and `ready`), and its selector").toMatchObject({
     selector: "gantt-chart",
     standalone: true,
-    inputs: { schedule: "schedule", document: "document", tasks: "tasks", links: "links", projectStart: "projectStart", dataDate: "dataDate", mustFinishBy: "mustFinishBy", calendars: "calendars", durationUnit: "durationUnit", dateForm: "dateForm", lagCalendar: "lagCalendar", options: "options", forceWebgl: "forceWebgl", wasmUrl: "wasmUrl", locale: "locale", texts: "texts", fonts: "fonts" },
-    options: ["beforeEdit", "calendars", "capabilities", "constraintForm", "dataDate", "dateForm", "document", "durationUnit", "fields", "fonts", "forceWebgl", "keys", "lagCalendar", "links", "locale", "mustFinishBy", "newKey", "options", "projectStart", "readOnly", "save", "schedule", "tasks", "texts", "wasmUrl"],
+    inputs: { schedule: "schedule", document: "document", tasks: "tasks", links: "links", projectStart: "projectStart", dataDate: "dataDate", mustFinishBy: "mustFinishBy", calendars: "calendars", durationUnit: "durationUnit", dateForm: "dateForm", lagCalendar: "lagCalendar", options: "options", forceWebgl: "forceWebgl", wasmUrl: "wasmUrl", locale: "locale", density: "density", texts: "texts", fonts: "fonts" },
+    options: ["beforeEdit", "calendars", "capabilities", "constraintForm", "dataDate", "dateForm", "density", "document", "durationUnit", "fields", "fonts", "forceWebgl", "keys", "lagCalendar", "links", "locale", "mustFinishBy", "newKey", "options", "projectStart", "readOnly", "save", "schedule", "tasks", "texts", "wasmUrl"],
     emitters: ["chartChange", "chartChooseFile", "chartEdit", "chartError", "chartFind", "chartLoad", "chartMove", "chartOpen", "chartSelect", "chartToggleKeys", "chartToggleStatus", "ready", "update"],
     outputs: Object.fromEntries(["chartChange", "chartChooseFile", "chartEdit", "chartError", "chartFind", "chartLoad", "chartMove", "chartOpen", "chartSelect", "chartToggleKeys", "chartToggleStatus", "ready", "update"].map((n) => [n, n])),
   });
 });
 
-test("the component passes `locale`, `texts` and `fonts` to mount, and mounts again when they change", async ({ page }) => {
+test("the component passes `locale`, `density`, `texts` and `fonts` to mount, and mounts again when they change", async ({ page }) => {
   const base = server.resolvedUrls!.local[0]!;
   await page.route(`${base}host.html`, (route) => route.fulfill({ contentType: "text/html", body: HOST }));
   await page.goto(`${base}host.html`);
@@ -44,6 +44,8 @@ test("the component passes `locale`, `texts` and `fonts` to mount, and mounts ag
   await page.evaluate("start()");
   expect.soft(await page.evaluate("words(\"de\", { \"toolbar.open\": \"Offnen\" }, [1])"), "a locale and texts the page gives mount the chart again with them").toEqual([[undefined, undefined, undefined], ["de", { "toolbar.open": "Offnen" }, [1]]]);
   expect.soft(await page.evaluate("words(\"es\", { \"toolbar.open\": \"Abrir\" }, [2])"), "new ones mount it again").toEqual([[undefined, undefined, undefined], ["de", { "toolbar.open": "Offnen" }, [1]], ["es", { "toolbar.open": "Abrir" }, [2]]]);
+  expect.soft(await page.evaluate("put({ density: \"compact\" }).then(() => mounts.map((o) => o.density ?? \"-\"))"), "a density the page gives mounts it again with it").toEqual(["-", "-", "-", "compact"]);
+  expect.soft(await page.evaluate("put({ density: \"roomy\" }).then(() => mounts.map((o) => o.density ?? \"-\"))"), "a new density mounts it again").toEqual(["-", "-", "-", "compact", "roomy"]);
 });
 
 test("new `tasks` go to `setData` on the chart that is mounted, and the chart mounts again only when `setData` refuses them or a member it ignores changed", async ({ page }) => {

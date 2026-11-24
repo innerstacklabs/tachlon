@@ -4,6 +4,10 @@ What changed in each npm release, newest first. Each entry says what you must ch
 
 ## Unreleased
 
+### New
+
+- `mount` takes `density` (`"compact"`, `"normal"` the default, `"roomy"`: rows 20, 24 and 40 px tall). The bars, the table rows, hit testing, keyboard paging and print follow one height, and `--gantt-row-h` on the root says it for your own layout. Any other value rejects `mount` with a `RangeError` before the root is touched. The React, Vue and Angular components take `density` and mount the chart again when it changes.
+
 ## 0.5.0
 
 Read "Breaking changes" first.

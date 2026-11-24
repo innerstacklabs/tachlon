@@ -12,6 +12,7 @@ use engine::{Calendar, DAY, Dependency, LinkType, TaskDates, TaskId};
 use timeline::labels::{self, Placement, Rows};
 use timeline::scene::{self, Highlight, LinkIndex};
 use timeline::theme::TOKENS;
+use timeline::viewport::Density;
 use timeline::{Summaries, Theme, Viewport};
 
 #[test]
@@ -436,4 +437,24 @@ fn css_row_height_matches_viewport_default() {
         .expect("--gantt-row-h must be a px length");
     let px: f64 = value.parse().expect("--gantt-row-h must be a number of px");
     assert_eq!(px, timeline::viewport::ROW_HEIGHT);
+}
+
+#[test]
+fn the_density_docs_state_the_heights_the_engine_holds() {
+    let read =
+        |path| std::fs::read_to_string(format!("{}/../../{path}", env!("CARGO_MANIFEST_DIR")));
+    let types = read("packages/gantt/src/gantt-types.ts").expect("readable");
+    let api = read("docs/WASM_API.md").expect("readable");
+    let heights = [Density::Compact, Density::Normal, Density::Roomy].map(Density::row_height);
+    let said = format!("{}, {} or {} px", heights[0], heights[1], heights[2]);
+    let row = api.lines().find(|l| l.starts_with("| `MountOptions` |"));
+    assert!(row.expect("the row").contains(&said), "the row says {said}");
+    let comment = types.lines().find(|l| l.contains("How tall the rows are"));
+    for (name, px) in ["compact", "normal", "roomy"].iter().zip(heights) {
+        assert!(
+            comment
+                .expect("a doc comment")
+                .contains(&format!("`\"{name}\"` ({px} px)"))
+        );
+    }
 }
