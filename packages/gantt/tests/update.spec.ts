@@ -426,6 +426,18 @@ test("update and setData with a progress beside an actual start end as a mount o
   expect((await actuals(page))[1], "a finish given beside a progress stands").not.toBeNull();
 });
 
+test("setData of a changed progress on a row with both actual dates, unchanged, ends as a mount of the same row: the finish stands", async ({ page }) => {
+  const row = (progress: number) => tasks(1, { actualStart: "2026-03-02", actualFinish: "2026-03-03", progress });
+  for (const to of [0, 100]) {
+    await mountHost(page, { tasks: row(to) });
+    const mounted = await actuals(page);
+    expect(mounted[1], "the mounted task finished").not.toBeNull();
+    await mountHost(page, { tasks: row(20) });
+    expect(await page.evaluate((rows) => window.upChart.setData({ tasks: rows } as never), row(to))).toEqual({ ok: true, updated: 1 });
+    expect(await actuals(page), `setData 20 to ${to}`).toEqual(mounted);
+  }
+});
+
 test("setData of a progress 0 to 100 on a started row, the start the same in both, leaves remaining 0 and no finish as a mount does; update with progress 100 alone finishes", async ({ page }) => {
   const row = (progress: number) => tasks(1, { actualStart: "2026-03-02", progress });
   await mountHost(page, { tasks: row(100) });

@@ -187,7 +187,7 @@ test("a row a person deleted and the data then drops keeps its Undo and its colu
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
   await frames(page);
   expect(await names(page), "Undo brings it back").toContain("k5");
-  expect(await page.evaluate(() => window.edits.at(-1)), "with its own columns").toMatchObject({ commits: [{ changes: [{ op: "create", key: "k5", set: { owner: "sam" } }] }] });
+  await expect.poll(() => page.evaluate(() => window.edits.at(-1)), "with its own columns").toMatchObject({ commits: [{ changes: [{ op: "create", key: "k5", set: { owner: "sam" } }] }] });
 });
 
 test("a dropped row's columns are forgotten: the row given again has none to give back", async ({ page }) => {
