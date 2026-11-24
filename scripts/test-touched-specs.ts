@@ -79,14 +79,16 @@ const driven: Array<{ name: string; changed: string[]; want: string[] }> = [
   { name: "the printed pages run the journey that prints and the page spec", changed: ["crates/app/src/print/legend.rs"], want: ["journey-j5.spec.ts", "print-pages.spec.ts", "legend.spec.ts", "startup.spec.ts", "data-api.spec.ts"] },
   { name: "a chart print module runs the journey that reads its sheet, and its own spec", changed: [`${WEB_ROOT}/src/print-sheet.ts`], want: ["journey-j5.spec.ts", "print-sheet.spec.ts"] },
   { name: "a chart file and a crate file add their specs together", changed: [`${WEB_ROOT}/src/range.ts`, "crates/xer/src/lib.rs"], want: [...FILES, "range.spec.ts", "copy-range.spec.ts"] },
+  { name: "the host data module runs the specs that call setData, set-data-rows.spec.ts among them", changed: [`${WEB_ROOT}/src/host-data.ts`], want: ["angular-events.spec.ts", "before-edit.spec.ts", "custom-fields.spec.ts", "host-commands.spec.ts", "open.spec.ts", "paste.spec.ts", "react-events.spec.ts", "read-only.spec.ts", "save-contract.spec.ts", "save-queue.spec.ts", "set-data-rows.spec.ts", "toolbar-api.spec.ts", "update.spec.ts", "vue-events.spec.ts"] },
 ];
+if (!webPlan("fast", [`${WEB_ROOT}/src/gantt-object.ts`], REAL).specs.includes("set-data-rows.spec.ts")) fail("gantt-object.ts calls setData, so it must run set-data-rows.spec.ts");
 for (const row of driven) {
   const got = webPlan("fast", row.changed, REAL);
   const want = REAL.filter((s) => row.want.includes(s));
   if (got.web !== "some" || JSON.stringify(got.specs) !== JSON.stringify(want)) fail(`"${row.name}": got ${got.web} ${JSON.stringify(got.specs)} (${got.why}), wanted ${JSON.stringify(want)}`);
 }
-// The fifteen chart files with no spec of their name (gantt#1163): a change to any one starts some specs, never every spec.
-for (const file of ["gantt-object.ts", "styles/table-cells.css", "table-row.ts", "filter-names.ts", "set-filter.ts", "row-edit.ts", "edit-result.ts", "view-state.ts", "column-drag.ts", "open-schedule.ts", "table-aria.ts", "explain.ts", "health.ts", "propose.ts", "what-if.ts"]) {
+// The sixteen chart files with no spec of their name (gantt#1163): a change to any one starts some specs, never every spec.
+for (const file of ["gantt-object.ts", "styles/table-cells.css", "table-row.ts", "filter-names.ts", "set-filter.ts", "row-edit.ts", "edit-result.ts", "view-state.ts", "column-drag.ts", "open-schedule.ts", "table-aria.ts", "explain.ts", "health.ts", "propose.ts", "what-if.ts", "host-data.ts"]) {
   const got = webPlan("fast", [`${WEB_ROOT}/src/${file}`], REAL);
   if (got.web !== "some") fail(`${file} is driven by no spec: got ${got.web} (${got.why})`);
 }
