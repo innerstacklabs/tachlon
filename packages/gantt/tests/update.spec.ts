@@ -307,7 +307,7 @@ test("setData sets only the 20 changed durations: selection, scroll and the undo
   expect({ selected: await page.evaluate(() => window.upChart.state().selection?.task), top: await scrollTop(page) }, "selection and scroll are as read before the call").toEqual(before);
   expect(await page.evaluate(() => window.edits), "setData is not an edit").toEqual([]);
   expect(await page.evaluate((rows) => window.upChart.setData({ tasks: rows }), next), "the same rows again").toEqual({ ok: true, updated: 0 });
-  expect(await page.evaluate((rows) => window.upChart.setData({ tasks: rows.slice(1) }), next)).toMatchObject({ ok: false, reason: "rowsChanged" });
+  expect(await page.evaluate((rows) => window.upChart.setData({ tasks: [rows[1], rows[0], ...rows.slice(2)] }), next)).toMatchObject({ ok: false, reason: "rowsChanged" });
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
   expect((await saved(page))[2]!.name, "the undo list is the person's: the one undo is the rename").toBe("Task 2");
   expect(await minutes(page, keys(0, 20)), "and it leaves the 20 durations").toEqual(Array(20).fill(2400));
