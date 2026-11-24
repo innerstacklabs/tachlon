@@ -123,7 +123,7 @@ export function hostData(first: HostRows, epoch: number): SetData {
     const took = answer.ok ? adds.length : added;
     if (took !== undefined) { // the chart took the records: the rows it was given and the first `took` adds are held, and what it refused is offered again
       adds.slice(took).forEach(({ record }) => byKey.delete(record.key));
-      kept = { ...kept, byKey, layout: took === adds.length ? layout : layoutOf((next.tasks ?? []).filter(({ key }) => byKey.has(key!))), ...(answer.ok && next.tasks !== undefined && { tasks: weak(next.tasks) }), ...(answer.ok && move !== undefined && { day: move }) };
+      kept = { ...kept, byKey, layout: took === adds.length ? layout : layoutOf((next.tasks ?? []).filter(({ key }) => byKey.has(key!))), ...(answer.ok && next.tasks !== undefined && { tasks: weak(next.tasks) }), ...(move !== undefined && { day: move }) };
     }
     return Object.freeze(answer) as UpdateResult;
   };

@@ -230,7 +230,10 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
         let added = 0;
         for (const { record, parent, after } of adds) {
           const done = readAnswer(app.add_task(JSON.stringify(read[records.length + added]), parent, after, after === undefined));
-          if (!done.ok) return { ...done, key: record.key, message: `${records.length + added > 0 || moved !== undefined ? "Partly applied" : "Nothing changed"}: task ${record.key} was refused (${done.message}). The rows before it are in the chart; give the same rows again to add the rest.`, added };
+          if (!done.ok) {
+            const why = `task ${record.key} was refused (${done.message})`;
+            return { ...done, key: record.key, message: records.length + added > 0 || moved !== undefined ? `Partly applied: ${why}. What was applied stays; give the same rows again to add the rest.` : `Nothing changed: ${why}.`, added };
+          }
           added += 1;
         }
         return { ...set, updated: set.updated + added };

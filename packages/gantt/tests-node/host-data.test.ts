@@ -115,13 +115,13 @@ test("a task added under a row that is held or that is added with it goes in out
 });
 
 test("a refusal part way keeps the rows added before it, and the same rows given again add the rest", () => {
-  const { calls, added, give } = chart(undefined, 1);
+  const { calls, days, added, give } = chart(undefined, 1);
   const next = [task(1), task(2, { duration: 9 }), task(3), task(4), task(5)];
-  expect(give({ tasks: next })).toMatchObject({ ok: false, reason: "badValue", message: expect.stringContaining("Partly applied") });
+  expect(give({ tasks: next, dataDate: "2026-03-09" })).toMatchObject({ ok: false, reason: "badValue", message: expect.stringContaining("Partly applied") });
   expect(calls, "the row that differs was set before the adds").toEqual([[{ key: "k2", duration: 9 }]]);
-  expect(give({ tasks: next }), "the same array again: the rest is added and nothing is set twice").toEqual({ ok: true, updated: 1 });
+  expect(give({ tasks: next, dataDate: "2026-03-09" }), "the same array again: the rest is added and nothing is set twice").toEqual({ ok: true, updated: 1 });
   expect(added.map((adds) => adds.map(({ record: { key }, after }) => [key, after]))).toEqual([[["k4", "k3"], ["k5", "k4"]], [["k5", "k4"]]]);
-  expect(calls).toEqual([[{ key: "k2", duration: 9 }]]);
+  expect([calls, days], "the data date moved once: it was held when the chart took the records").toEqual([[[{ key: "k2", duration: 9 }]], ["2026-03-09"]]);
 });
 
 test("links that differ only in the order of their members are the same links", () => {
@@ -202,5 +202,5 @@ test("unsetChange is true for a task that differs in a member setData ignores, o
   for (const member of ["start", "duration", "progress", "constraint"]) expect(unsetChange([task(1, { constraint: { type: "snet", date: "2026-03-02" } })], [{ ...task(1), [member]: undefined }]), `${member} left out`).toBe(true);
   expect(unsetChange(held, [task(1, { name: "Renamed", progress: 50 }), task(2), task(3)]), "a name").toBe(false);
   expect(unsetChange(held, [task(1), task(2), task(3), task(4)]), "a new task with the members setData takes is left to it").toBe(false);
-  expect(unsetChange(held, [task(1), task(2), task(3), task(4, { color: "red" })]), "a new task with a member setData would drop").toBe(true);
+  expect(unsetChange(held, [task(1), task(2), task(3), task(4, { color: "red" })]), "a new task with a color, which setData would drop: the components mount the chart again").toBe(true);
 });
