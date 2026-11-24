@@ -86,6 +86,8 @@ const staying = (links: readonly LinkText[], gone: ReadonlySet<string>): LinkTex
 const texts = (links: readonly LinkText[]): string[] => links.map(([text]) => text);
 
 const setOf = (values: readonly unknown[], was?: readonly unknown[]) => MEMBERS.flatMap((member, i) => (values[i] !== undefined && (was === undefined || differs(values[i], was[i])) ? [[member, values[i]] as const] : []));
+/** `set` with the row's `actualStart` put beside a changed `progress` when the row holds a start and no finish: the chart then reads the percent beside that start, as `mount` does, where a lone `progress` is a typed percent. */
+const beside = (set: ReturnType<typeof setOf>, values: readonly unknown[]) => (set.some(([member]) => member === "progress") && !set.some(([member]) => member === "actualStart") && typeof values[MEMBERS.indexOf("actualStart")] === "string" && typeof values[MEMBERS.indexOf("actualFinish")] !== "string" ? [...set, ["actualStart", values[MEMBERS.indexOf("actualStart")]] as const] : set);
 const idsIn = (layout: Layout, keys: readonly string[]) => new Set(keys.map((key) => String((JSON.parse(layout.at.get(key)!) as [unknown])[0])));
 /** The refusal for the first task that gives a date limit in two spellings, or undefined. */
 function twiceRefusal(tasks: readonly PlainTask[]): UpdateResult | undefined {
@@ -163,7 +165,7 @@ export function hostData(first: HostRows, epoch: number): SetData {
       adds = places.map(({ key, ...place }) => ({ ...place, record: { key, ...Object.fromEntries(setOf(given.get(key)!)), ...lookOf(rowOf.get(key)!) } }));
       for (const [key, values] of given) {
         const was = old.get(key);
-        const set = setOf(values, was);
+        const set = beside(setOf(values, was), values);
         if (was !== undefined && set.length > 0) records.push({ key, ...Object.fromEntries(set) });
         byKey.set(key, values.map((value, i) => (value === undefined ? was?.[i] : value)));
       }

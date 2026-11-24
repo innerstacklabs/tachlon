@@ -419,6 +419,19 @@ test("update and setData with a progress beside an actual start end as a mount o
   expect((await actuals(page))[1], "a finish given beside a progress stands").not.toBeNull();
 });
 
+test("setData of a progress 0 to 100 on a started row, the start the same in both, leaves remaining 0 and no finish as a mount does; update with progress 100 alone finishes", async ({ page }) => {
+  const row = (progress: number) => tasks(1, { actualStart: "2026-03-02", progress });
+  await mountHost(page, { tasks: row(100) });
+  const mounted = await actuals(page);
+  expect([mounted[1], mounted[2]]).toEqual([null, 0]);
+  await mountHost(page, { tasks: row(0) });
+  expect(await page.evaluate((rows) => window.upChart.setData({ tasks: rows } as never), row(100))).toEqual({ ok: true, updated: 1 });
+  expect(await actuals(page), "setData").toEqual(mounted);
+  await mountHost(page, { tasks: row(0) });
+  expect(await page.evaluate(() => window.upChart.update([{ key: "k0", progress: 100 }]))).toEqual({ ok: true, updated: 1 });
+  expect((await actuals(page))[1], "a lone progress is a typed percent: 100 finishes").not.toBeNull();
+});
+
 test("setData takes a task's progress 0 to 20 and its actualStart none to a date in one call: accepted, and the undo list stays", async ({ page }) => {
   const rows = (extra: object) => tasks(3).map((t, i) => (i === 0 ? { ...t, progress: 0, ...extra } : t));
   await mountHost(page, { tasks: rows({}) });
