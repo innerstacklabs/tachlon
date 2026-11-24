@@ -14,15 +14,48 @@ impl Progress {
     }
 }
 
+/// An opaque color from `"#rrggbb"`, hex digits in either case, as a document reads one.
+fn opaque(text: &str) -> Option<[u8; 4]> {
+    let hex = (text.strip_prefix('#'))
+        .filter(|h| h.len() == 6 && h.bytes().all(|b| b.is_ascii_hexdigit()));
+    let byte = |i: usize| u8::from_str_radix(hex?.get(i..i + 2)?, 16).ok();
+    Some([byte(0)?, byte(2)?, byte(4)?, 255])
+}
+
+impl Values {
+    /// Set `color` (`"#rrggbb"`) or `label` (text) to what `value` says (`null` for none), or `None` when `value` is not one.
+    pub(super) fn read_look(&mut self, name: &str, value: &Value) -> Option<()> {
+        match (name, value) {
+            ("label", Value::Null) => self.label = None,
+            ("label", text) => self.label = Some(text.as_str()?.to_owned()),
+            (_, Value::Null) => self.color = None,
+            (_, text) => self.color = Some(opaque(text.as_str()?)?),
+        }
+        Some(())
+    }
+
+    /// The first of `color` and `label` that `self` sets otherwise than `old` holds it. Neither is an edit, so
+    /// neither can be an undo step.
+    pub(super) fn look_changed(&self, old: &Values) -> Option<&'static str> {
+        if self.color != old.color {
+            return Some("color");
+        }
+        (self.label != old.label).then_some("label")
+    }
+}
+
 impl Session {
     /// What `task` holds of the values an update sets, and no progress.
     pub(super) fn values_of(&self, task: TaskId) -> Values {
         let current = &self.schedule.tasks()[task.0 as usize];
+        let meta = &self.meta[task.0 as usize];
         Values {
             duration: current.duration,
             snet: current.snet,
             limit: current.limit,
-            name: self.meta[task.0 as usize].name.clone(),
+            name: meta.name.clone(),
+            color: meta.color,
+            label: meta.label.clone(),
             progress: None,
             percent: None,
         }

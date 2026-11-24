@@ -82,6 +82,17 @@ test("setData adds the rows its data holds under their parents and after their p
   expect([undone.find((task) => task.key === "k2")!.name, undone.length], "the one Undo is the person's rename; the added rows stay").toEqual(["Task 2", 23]);
 });
 
+test("an added row takes its color and label in place, and a color the chart cannot read refuses its add by name", async ({ page }) => {
+  await open(page);
+  const look = { color: "#12ab34", label: "Shown" };
+  const given = [...tasks, { ...added[1], ...look }];
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), given)).toEqual({ ok: true, updated: 1 });
+  const row = await page.evaluate(() => (window.upChart.toDocument() as { tasks: { key?: string; color?: string; label?: string }[] }).tasks.find((task) => task.key === "n2"));
+  expect(row, "the color and the label are in the document").toMatchObject(look);
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), [...given, { ...added[2], color: "red" }])).toMatchObject({ ok: false, reason: "badValue", key: "n3" });
+  expect((await saved(page)).some((task) => task.key === "n3"), "n3 was not added").toBe(false);
+});
+
 test("a bad record on the second add keeps the first and corrected rows add the rest; a key the chart already holds refuses the whole call", async ({ page }) => {
   await open(page);
   const first = await page.evaluate((next) => window.upChart.setData({ tasks: next }), rows().map((task) => (task.key === "n1" ? { ...task, progress: 150 } : task)));
