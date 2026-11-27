@@ -178,7 +178,9 @@ test("setData drops a row its data no longer holds: the person's step that names
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k2"))).toEqual({ ok: true, updated: 1 });
   await expect.poll(() => table(page).then((after) => [after.rows, after.height, after.top, after.selected]), "a row less, the scroll and the selection as they were").toEqual([before.rows - 1, before.height - 24, before.top, before.selected]);
   await expect.poll(() => page.evaluate(() => [...document.querySelectorAll("#table-rows .row[data-pending]")].map((row) => row.querySelector(".name")?.textContent)), "only the other mark is left").toEqual(["Task 12"]);
-  expect([(await names(page)).includes("k2"), await page.evaluate(() => window.edits)], "k2 is gone, with no edit (that nothing was recorded is one read, after the table has settled)").toEqual([false, []]);
+  await frames(page); // that nothing was recorded or moved is one read after the frames wait: the edit event comes from the status tick
+  expect([(await names(page)).includes("k2"), await page.evaluate(() => window.edits)], "k2 is gone, with no edit").toEqual([false, []]);
+  expect(await table(page).then((now) => [now.top, now.selected]), "the scroll and the selection still hold a frame later").toEqual([before.top, before.selected]);
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
   expect((await saved(page)).find((task) => task.key === "k3")!.name, "the one Undo is the other row's step").toBe("Task 3");
   expect(await page.evaluate(() => window.upChart.commands.undo()), "the dropped row's step is gone").toBe(false);
