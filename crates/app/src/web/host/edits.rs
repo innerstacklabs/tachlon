@@ -96,6 +96,24 @@ impl App {
         }
     }
 
+    /// `move_task_by_key`, answered as JSON: `{"ok":true}` or `{"ok":false,"reason":r}` with `member` when named. Not
+    /// an edit; the person's steps that named a moved row are forgotten.
+    #[expect(
+        clippy::needless_pass_by_value,
+        reason = "wasm_bindgen takes an optional string by value; `Option<&str>` has no ABI"
+    )]
+    pub fn move_task(
+        &mut self,
+        key: &str,
+        parent: Option<String>,
+        after: Option<String>,
+        first: bool,
+    ) -> String {
+        let moved =
+            (self.session).move_task_by_key(key, parent.as_deref(), after.as_deref(), first);
+        moved.map_or_else(record_refusal, |()| r#"{"ok":true}"#.to_string())
+    }
+
     /// Add a host link record without an edit: `{"ok":true,"link":n}` or a record refusal.
     pub fn add_link_by_key(&mut self, json: &str) -> String {
         let added = self.session.add_link_by_key(json);

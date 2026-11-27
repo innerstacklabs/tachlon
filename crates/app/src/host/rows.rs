@@ -278,7 +278,7 @@ impl Session {
 
     /// Forget the steps the add of `task` makes impossible, and with a forgotten reparent or restore the steps that
     /// name its row, as `forget_row` does.
-    fn forget_blocked(&mut self, task: TaskId) {
+    pub(super) fn forget_blocked(&mut self, task: TaskId) {
         let Some(outline) = self.outline.as_ref() else {
             return;
         };
@@ -307,7 +307,7 @@ impl Session {
 
     /// Forget every undo and redo entry that names `row`. A forgotten restore of a deleted row deletes that row for
     /// good, so its own steps go too, and so on. When any is forgotten, the unsaved list is emptied.
-    fn forget_row(&mut self, row: TaskId) {
+    pub(super) fn forget_row(&mut self, row: TaskId) {
         let (mut rows, mut done, mut forgot) = (vec![row], Vec::new(), 0);
         while let Some(gone) = rows.pop() {
             done.push(gone);

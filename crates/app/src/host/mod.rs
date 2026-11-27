@@ -9,6 +9,7 @@ mod differs;
 mod edit;
 mod gate;
 mod keys;
+mod moves;
 mod outbox;
 mod overlay;
 mod pending;

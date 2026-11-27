@@ -285,7 +285,7 @@ impl Session {
                 task,
                 place,
                 siblings,
-            } => self.run_reparent(task, place, siblings, step.meta),
+            } => self.run_reparent(task, place, siblings, step.meta, false),
             Edit::RestoreLink { dep } if replay => self
                 .run_restore_link(dep, true)
                 .map(|(inverse, ms)| (Step::plain(inverse), ms)),
