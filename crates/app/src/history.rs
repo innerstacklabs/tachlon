@@ -309,7 +309,7 @@ impl Session {
         self.undo_counted().map(|pressed| pressed.applied)
     }
 
-    /// [`Session::undo`] after the gate has run, for an action that undoes several steps.
+    /// [`Session::undo`] after the gate has run; a discard undoes a host entry with it.
     pub(crate) fn undo_step(&mut self) -> Result<bool, EditError> {
         if self.busy() {
             return Ok(false);

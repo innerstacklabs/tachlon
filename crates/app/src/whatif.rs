@@ -1,4 +1,4 @@
-//! A what-if mark (gantt#703): the history depth and the dates at the start; discarding is `undo`.
+//! A what-if mark (gantt#703): the history depth and the dates at the start; discarding is one `undo` commit.
 
 use crate::Session;
 use crate::baseline::Baseline;
@@ -86,10 +86,8 @@ impl Session {
         let depth = mark.depth.ok_or(WhatIfError::Lost)?;
         self.gate(&Plan::Discard(depth))
             .map_err(WhatIfError::Undo)?;
-        while self.history_len().0 > depth {
-            if !self.undo_step().map_err(WhatIfError::Undo)? {
-                return Err(WhatIfError::Busy);
-            }
+        if !self.undo_to(depth).map_err(WhatIfError::Undo)? {
+            return Err(WhatIfError::Busy);
         }
         self.keep_whatif()
     }
