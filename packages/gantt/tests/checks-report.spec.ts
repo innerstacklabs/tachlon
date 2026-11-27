@@ -13,6 +13,7 @@ import { expect, test } from "./support/gantt";
 //   lags             0  no link has a positive lag
 //   links            3  A -> C, C -> E, B -> D
 //   finish_to_start  3  all three
+//   pin_broken_links 0  the file holds no pinned task
 //   high_float       0  no leaf has more than 44 days of float
 //   high_duration    0  no leaf is longer than 44 days
 //   hard_constraints 0  the file holds no task to a date
@@ -36,6 +37,7 @@ test("app.checks reads the open file's counts", async ({ g }) => {
     lags: 0,
     links: 3,
     finish_to_start: 3,
+    pin_broken_links: 0,
     high_float: 0,
     high_duration: 0,
     hard_constraints: 0,

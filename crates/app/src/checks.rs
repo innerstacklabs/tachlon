@@ -1,6 +1,7 @@
-//! The DCMA link checks as counts: missing logic with its open starts and open ends, leads, lags
-//! and the share of finish-to-start links. Summaries are skipped for those three, which is why this
-//! lives here and not in `engine`: only the session's outline knows which tasks are summaries.
+//! The DCMA link checks as counts: missing logic with its open starts and open ends, leads, lags,
+//! the share of finish-to-start links and the links a pin breaks. Summaries are skipped for those
+//! three, which is why this lives here and not in `engine`: only the session's outline knows which
+//! tasks are summaries.
 
 pub mod baseline;
 pub mod report;
@@ -26,6 +27,8 @@ pub struct Checks {
     pub links: usize,
     /// Live finish-to-start links.
     pub finish_to_start: usize,
+    /// Live links into a pinned task that the pin breaks: the predecessor allows a later start.
+    pub pin_broken_links: usize,
 }
 
 impl Checks {
@@ -43,6 +46,7 @@ impl Checks {
             lags: 0,
             links: 0,
             finish_to_start: 0,
+            pin_broken_links: schedule.pin_broken_links(session.solution()).len(),
         };
 
         for (_, dep) in schedule.live_dependencies() {

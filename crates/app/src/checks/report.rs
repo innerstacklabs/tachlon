@@ -6,9 +6,9 @@ use super::{Checks, baseline::BaselineChecks, schedule::ScheduleChecks};
 use crate::Session;
 
 /// The counts for `session` as a JSON object, keys in this order: `missing_logic`, `open_starts`,
-/// `open_ends`, `leads`, `lags`, `links`, `finish_to_start`, `high_float`, `high_duration`,
-/// `hard_constraints`, `negative_float`, `invalid_dates`, `missing_resources`, `missed`,
-/// `execution_index`. Every value is a count except
+/// `open_ends`, `leads`, `lags`, `links`, `finish_to_start`, `pin_broken_links`, `high_float`,
+/// `high_duration`, `hard_constraints`, `negative_float`, `invalid_dates`, `missing_resources`,
+/// `missed`, `execution_index`. Every value is a count except
 /// `invalid_dates`, which is `null` when the session has no data date, `missing_resources`, which is
 /// `null` when the file names no resource (a 0 in either would read as a clean check that never ran), and
 /// `execution_index`, the share of the tasks baselined to finish by the data date that have
@@ -30,7 +30,7 @@ pub fn json(session: &Session) -> String {
     format!(
         concat!(
             r#"{{"missing_logic":{},"open_starts":{},"open_ends":{},"leads":{},"lags":{},"#,
-            r#""links":{},"finish_to_start":{},"#,
+            r#""links":{},"finish_to_start":{},"pin_broken_links":{},"#,
             r#""high_float":{},"high_duration":{},"hard_constraints":{},"negative_float":{},"#,
             r#""invalid_dates":{},"missing_resources":{},"#,
             r#""missed":{},"execution_index":{}}}"#
@@ -42,6 +42,7 @@ pub fn json(session: &Session) -> String {
         links.lags,
         links.links,
         links.finish_to_start,
+        links.pin_broken_links,
         schedule.high_float,
         schedule.high_duration,
         schedule.hard_constraints,
