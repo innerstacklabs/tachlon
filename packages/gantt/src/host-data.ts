@@ -100,18 +100,19 @@ const matched = (list: readonly LinkText[], layout: Layout, within: Layout): Mat
     return [{ id: key === undefined ? JSON.stringify([pred, succ]) : `key ${key}`, entry, change: { pred, succ, ...(key === undefined ? {} : { key }), ...(type === undefined ? {} : { type }), ...(lag === undefined ? {} : { lag }) } }];
   });
 };
-/** A link's text without its `type` and `lag`, the two members the chart sets in place. */
-const bare = ({ entry }: Matched): string => JSON.stringify((JSON.parse(entry[0]) as [string, unknown][]).filter(([member]) => member !== "type" && member !== "lag"));
-/** The links to add, set (each with the entry it replaces) and drop to make `held` the links of `next`, or why `next` is more: a key or pair listed twice, or a link that stays (by its key, else its two ends) with other ends or a member besides `type` and `lag`. */
+/** A link's text without its ends, `type` and `lag`: the chart sets the last two in place, and a keyed link with other ends is a drop and an add. */
+const bare = ({ entry }: Matched): string => JSON.stringify((JSON.parse(entry[0]) as [string, unknown][]).filter(([member]) => !["from", "to", "type", "lag"].includes(member)));
+/** The links to add, set (each with the entry it replaces) and drop to make `held` the links of `next`, or why `next` is more: a key or pair listed twice, or a link that stays (by its key, else its two ends) with a member besides its ends, `type` and `lag`. A keyed link with other ends is a drop of the held link and an add of the new one, which takes the key. */
 function linksOf(held: readonly Matched[], next: readonly Matched[]): string | { adds: Matched[]; sets: { link: Matched; was: LinkText }[]; drops: Matched[] } {
   const text = (list: readonly Matched[]) => list.map(({ entry }) => entry[0]).sort();
   if (same(text(next), text(held))) return { adds: [], sets: [], drops: [] };
   const was = new Map(held.map((link) => [link.id, link]));
   const now = new Set(next.map(({ id }) => id));
   if (now.size !== next.length) return "a key or a pair of tasks is listed twice among the links.";
-  if (next.some((link) => was.has(link.id) && bare(was.get(link.id)!) !== bare(link))) return "a link that stays has other ends or a member besides its type and lag.";
-  const sets = next.filter((link) => was.has(link.id) && was.get(link.id)!.entry[0] !== link.entry[0]).map((link) => ({ link: { ...link, change: { ...link.change, type: link.change.type ?? "FS", lag: link.change.lag ?? 0 } }, was: was.get(link.id)!.entry }));
-  return { adds: next.filter(({ id }) => !was.has(id)), sets, drops: held.filter(({ id }) => !now.has(id)) };
+  if (next.some((link) => was.has(link.id) && bare(was.get(link.id)!) !== bare(link))) return "a link that stays has a member besides its ends, type and lag.";
+  const moved = new Set(next.filter(({ id, change }) => was.has(id) && (was.get(id)!.change.pred !== change.pred || was.get(id)!.change.succ !== change.succ)).map(({ id }) => id));
+  const sets = next.filter((link) => was.has(link.id) && !moved.has(link.id) && was.get(link.id)!.entry[0] !== link.entry[0]).map((link) => ({ link: { ...link, change: { ...link.change, type: link.change.type ?? "FS", lag: link.change.lag ?? 0 } }, was: was.get(link.id)!.entry }));
+  return { adds: next.filter(({ id }) => !was.has(id) || moved.has(id)), sets, drops: held.filter(({ id }) => !now.has(id) || moved.has(id)) };
 }
 
 const setOf = (values: readonly unknown[], was?: readonly unknown[]) => MEMBERS.flatMap((member, i) => (values[i] !== undefined && (was === undefined || differs(values[i], was[i])) ? [[member, values[i]] as const] : []));

@@ -184,7 +184,17 @@ test("a link the data holds and the chart lacks is added, one the data lacks is 
   expect([joined.length, unjoined.length, joined[1], unjoined[1]]).toEqual([2, 2, [{ pred: "k2", succ: "k3", lag: 1 }], [{ pred: "k1", succ: "k3", key: "l9", type: "SS", lag: 2 }]]);
   expect(give({ links: [{ from: 1, to: 2, key: "x" }, { ...links[1]! }] }), "a key makes the same pair another link").toMatchObject({ ok: true });
   expect([joined[2], unjoined[2]]).toEqual([[{ pred: "k1", succ: "k2", key: "x" }], [{ pred: "k1", succ: "k2" }]]);
-  expect(give({ links: [{ from: 1, to: 3, key: "x" }, { ...links[1]! }] }), "a key that stays with other ends is a change").toMatchObject({ ok: false, reason: "rowsChanged" });
+  expect(give({ links: [{ from: 1, to: 3, key: "x" }, { ...links[1]! }] }), "a key that stays with other ends is a drop by its key and an add with it").toMatchObject({ ok: true });
+  expect([joined[3], unjoined[3]]).toEqual([[{ pred: "k1", succ: "k3", key: "x" }], [{ pred: "k1", succ: "k2", key: "x" }]]);
+});
+
+test("a keyed link given other ends and another lag is a drop of the held link and an add of the new one, and a member besides its ends, type and lag is still a refusal", () => {
+  const { joined, unjoined, reset, give } = chart();
+  expect(give({ links: [{ from: 1, to: 2, key: "x" }, { ...links[1]! }] })).toMatchObject({ ok: true });
+  expect(give({ links: [{ from: 1, to: 3, key: "x", type: "SS", lag: 4 }, { ...links[1]! }] }), "the ends, type and lag all differ").toMatchObject({ ok: true });
+  expect([unjoined.at(-1), joined.at(-1), reset.length], "dropped as held and added as given, no set").toEqual([[{ pred: "k1", succ: "k2", key: "x" }], [{ pred: "k1", succ: "k3", key: "x", type: "SS", lag: 4 }], 0]);
+  expect(give({ links: [{ from: 1, to: 2, key: "x", note: "a" }, { ...links[1]! }] }), "other ends and another member").toMatchObject({ ok: false, reason: "rowsChanged" });
+  expect(joined.length, "nothing was applied").toBe(2);
 });
 
 test("a link that stays with another type or lag is set in place, by its key else its two ends, and the links are then held", () => {
