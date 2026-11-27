@@ -14,7 +14,7 @@ use crate::{
     reparent::Siblings,
     structure::Place,
 };
-use engine::{DepId, Instant, LagCalendar, Limit, LinkType, Milestone, Minutes, Pin, TaskId};
+use engine::{Instant, Limit, LinkType, Milestone, Minutes, Pin, TaskId};
 
 /// The fields of a task's limits, in the names of decision 0017.
 pub(super) const LIMIT_FIELDS: [&str; 8] = [
@@ -223,92 +223,6 @@ impl Session {
             }
         }
         changes
-    }
-
-    /// The link records an inverse `edit` puts back: removing a link was a create, restoring one a
-    /// delete, and a set puts back a type and a lag that differ from the link's now.
-    pub(crate) fn link_changes(&self, edit: &Edit) -> Vec<String> {
-        let link = |dep: DepId| self.link_head(dep);
-        let task = |t: TaskId| self.task_ref(t);
-        let lag = |dep: DepId, m: Minutes| Self::lag_days(self.lag_day_minutes(dep), m);
-        match *edit {
-            Edit::RemoveLink { dep } => {
-                let d = self.schedule.dependencies()[dep.0 as usize];
-                let own = match self.schedule.dependency_lag_calendar(dep) {
-                    None => String::new(),
-                    Some(LagCalendar::Successor) => r#","lagCalendar":"successor""#.into(),
-                    Some(LagCalendar::Predecessor) => r#","lagCalendar":"predecessor""#.into(),
-                    Some(LagCalendar::TwentyFourHour) => r#","lagCalendar":"24h""#.into(),
-                    Some(LagCalendar::Fixed(id)) => {
-                        let key = self.host.keys.calendar_key(id);
-                        let key = key.map_or_else(|| id.0.to_string(), quote);
-                        format!(r#","lagCalendar":{{"calendar":{key}}}"#)
-                    }
-                };
-                let ends = [task(d.pred), task(d.succ)];
-                vec![link_create(
-                    &link(dep),
-                    ends,
-                    d.kind,
-                    &lag(dep, d.lag),
-                    &own,
-                )]
-            }
-            Edit::RestoreLink { dep } => {
-                let gone = self.link_changes(&Edit::RemoveLink { dep });
-                let delete = |c: &String| c.replacen(r#""op":"create""#, r#""op":"delete""#, 1);
-                gone.iter().map(delete).collect()
-            }
-            Edit::SetLink {
-                dep,
-                kind,
-                lag: old,
-            } => {
-                let d = self.schedule.dependencies()[dep.0 as usize];
-                self.link_update(dep, (kind, old), (d.kind, d.lag))
-            }
-            _ => Vec::new(),
-        }
-    }
-
-    /// A lag of `minutes` as days of `day` minutes, a number.
-    #[expect(
-        clippy::cast_precision_loss,
-        reason = "a lag in minutes is far under 2^53, so f64 holds it exactly"
-    )]
-    pub(crate) fn lag_days(day: Minutes, minutes: Minutes) -> String {
-        format!("{:?}", minutes as f64 / day as f64)
-    }
-
-    /// The head of a link's record: its key and slot, and the day its lag is counted in.
-    pub(crate) fn link_head(&self, dep: DepId) -> String {
-        let key = self.host.keys.link_key(dep);
-        let key = key.map_or_else(|| "null".into(), quote);
-        let day = self.lag_day_minutes(dep);
-        format!(
-            r#""record":"link","key":{key},"link":{},"dayMinutes":{day}"#,
-            dep.0
-        )
-    }
-
-    /// The updates that take link `dep` from the (type, lag) pair `old` to `new`, one per value
-    /// that differs.
-    pub(crate) fn link_update(
-        &self,
-        dep: DepId,
-        old: (LinkType, Minutes),
-        new: (LinkType, Minutes),
-    ) -> Vec<String> {
-        let (head, day) = (self.link_head(dep), self.lag_day_minutes(dep));
-        let (kind, lag) = (|k| format!("\"{k:?}\""), |m| Self::lag_days(day, m));
-        let rows = [
-            ("type", old.0 != new.0, kind(old.0), kind(new.0)),
-            ("lag", old.1 != new.1, lag(old.1), lag(new.1)),
-        ];
-        let update = |(field, _, old, new): (&str, bool, String, String)| {
-            format!(r#"{{{head},"op":"update","field":"{field}","old":{old},"new":{new}}}"#)
-        };
-        rows.into_iter().filter(|r| r.1).map(update).collect()
     }
 
     pub(crate) fn carried(&self, edit: &Edit) -> Vec<(TaskId, &'static str, String)> {
