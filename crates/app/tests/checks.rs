@@ -21,7 +21,7 @@ use app::{
     outline::Outline,
 };
 use common::clock;
-use engine::{Calendar, Dependency, LinkType, Minutes, Schedule, Task, TaskId};
+use engine::{Calendar, Dependency, Limit, LinkType, Minutes, Pin, Schedule, Task, TaskId};
 use import::ProjectSelection;
 use timeline::Timeline;
 
@@ -134,6 +134,61 @@ fn relationship_types_report_the_share_of_finish_to_start_links() {
 
     assert_eq!((checks.links, checks.finish_to_start), (4, 2));
     assert_eq!(checks.finish_to_start_share(), Some(0.5));
+}
+
+/// A four-day predecessor from Monday 08:00, so it finishes on day 4 (Thursday), and a one-day
+/// finish-to-start successor pinned to start at 08:00 on day `pin_day` (1 is Monday).
+fn pinned(pin_day: i64) -> Session {
+    let day = vec![(480, 720), (780, 1020)];
+    let calendar = Calendar::new(
+        [
+            day.clone(),
+            day.clone(),
+            day.clone(),
+            day.clone(),
+            day,
+            vec![],
+            vec![],
+        ],
+        &[],
+    )
+    .expect("valid standard calendar");
+    let mut schedule = Schedule::new();
+    let calendar = schedule.add_calendar(calendar);
+    for (duration, pin) in [
+        (4 * 480, None),
+        (480, Some(Pin::Start((pin_day - 1) * 1440 + 480))),
+    ] {
+        schedule
+            .add_task(Task {
+                duration,
+                calendar,
+                snet: None,
+                limit: Limit {
+                    pin,
+                    ..Limit::default()
+                },
+                deleted: false,
+                actual_start: None,
+                actual_finish: None,
+                remaining: None,
+            })
+            .expect("calendar belongs to the schedule");
+    }
+    schedule
+        .add_dependency(link(0, 1, LinkType::FS, 0))
+        .expect("tasks exist");
+    let solution = schedule.compute().expect("the fixture has no loop");
+    let timeline = Timeline::new(vec![0, 1], 1_000.0, 400.0, 1.0);
+    Session::new(schedule, solution, timeline, Vec::new(), clock)
+}
+
+/// The pin on day 3 sits before the day-4 finish of its predecessor, so the link is broken; a pin
+/// on day 5 sits after it, so the same link is not.
+#[test]
+fn pin_broken_links_counts_the_links_into_a_task_pinned_before_its_predecessor_finishes() {
+    assert_eq!(Checks::of(&pinned(3)).pin_broken_links, 1);
+    assert_eq!(Checks::of(&pinned(5)).pin_broken_links, 0);
 }
 
 /// A project file as `App::create` opens it: tasks 0 to 4 are the summary Hull over Keel (1 day),

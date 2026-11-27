@@ -82,6 +82,8 @@ export interface ChecksReport {
   links: number;
   /** Links of type finish to start. */
   finishToStart: number;
+  /** Links into a pinned task that the pin breaks: the predecessor allows a later start than the pin gives. */
+  pinBrokenLinks: number;
   /** Unfinished tasks with more than 44 working days of total float. */
   highFloat: number;
   /** Tasks longer than 44 working days. */
@@ -111,6 +113,7 @@ export function toChecksReport(json: string): ChecksReport {
     lags: raw.lags!,
     links: raw.links!,
     finishToStart: raw.finish_to_start!,
+    pinBrokenLinks: raw.pin_broken_links!,
     highFloat: raw.high_float!,
     highDuration: raw.high_duration!,
     hardConstraints: raw.hard_constraints!,

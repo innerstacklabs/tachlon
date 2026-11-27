@@ -116,7 +116,7 @@ fn the_report_lists_every_count() {
         report::json(&fixture(Some(7 * DAY))),
         concat!(
             r#"{"missing_logic":5,"open_starts":4,"open_ends":4,"leads":1,"lags":1,"#,
-            r#""links":3,"finish_to_start":1,"#,
+            r#""links":3,"finish_to_start":1,"pin_broken_links":0,"#,
             r#""high_float":1,"high_duration":1,"hard_constraints":0,"negative_float":0,"#,
             r#""invalid_dates":1,"missing_resources":null,"#,
             r#""missed":0,"execution_index":null}"#
@@ -159,7 +159,7 @@ fn a_schedule_with_no_links_reports_zero_links() {
         json,
         concat!(
             r#"{"missing_logic":2,"open_starts":2,"open_ends":2,"leads":0,"lags":0,"#,
-            r#""links":0,"finish_to_start":0,"#,
+            r#""links":0,"finish_to_start":0,"pin_broken_links":0,"#,
             r#""high_float":0,"high_duration":0,"hard_constraints":0,"negative_float":0,"#,
             r#""invalid_dates":null,"missing_resources":null,"#,
             r#""missed":0,"execution_index":null}"#
