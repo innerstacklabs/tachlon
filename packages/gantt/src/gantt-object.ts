@@ -245,8 +245,9 @@ export function createGantt(p: GanttParts): Gantt { // oxlint-disable-line max-l
       alive();
       const custom = { tasks: p.fields.custom.take("tasks", data.tasks), links: p.fields.custom.take("links", data.links) };
       const rows = { ...p.fields.data({ tasks: custom.tasks.rows, links: custom.links.rows }), dataDate: data.dataDate };
-      const answer = p.setData(rows, shell.status().epoch, (records, day, adds, drops, links) => {
+      const answer = p.setData(rows, shell.status().epoch, (records, day, adds, drops, links, moves) => {
         if ((JSON.parse(app.task_slots(adds.map(({ record }) => record.key))) as (number | null)[]).some((slot) => slot !== null)) return rowsChanged("a task of the rows that the chart lacks has a key it already holds.");
+        if (moves.length > 0) return rowsChanged("a task was moved in the list or given another parent, which the chart does not apply yet.");
         const moved = day === undefined ? undefined : commands.setDataDate(day);
         if (moved !== undefined && !moved.ok) return moved;
         if (records.length + adds.length + drops.length + links.adds.length + links.sets.length + links.drops.length > 0 && p.busy()) return refused("busy");
