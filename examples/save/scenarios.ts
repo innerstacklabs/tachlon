@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import type { Page } from "@playwright/test";
+import type { Page, Response } from "@playwright/test";
 import type { FakeServer, Script, Seen } from "./server.ts";
 
 export type Form = "handlers" | "url" | "function";
@@ -10,6 +10,11 @@ interface SaveError { source: string; message: string; reason?: string; calls?: 
 
 const until = async (what: string, ok: () => boolean | Promise<boolean>, ms: number): Promise<void> => {
   for (const end = Date.now() + ms; !(await ok()); await new Promise((resolve) => setTimeout(resolve, 50))) if (Date.now() > end) assert.fail(`timed out waiting for ${what}`);
+};
+/** Waits until the page has taken the answer to a read: the answer has arrived and two frames have drawn, so what it does to the page (a row shown, a crash) is done when the next line looks. The server's log shows the read arrive, not the page take it. */
+const taken = async (page: Page, answer: Promise<Response>): Promise<void> => {
+  await (await answer).finished();
+  await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
 };
 const row = (page: Page, n: number) => page.locator(`#table-rows .row[data-row="${n}"]`);
 const text = async (page: Page, n: number, cell: "name" | "dur" | "start"): Promise<string> => (await row(page, n).locator(`.${cell}`).allTextContents())[0] ?? "";
@@ -299,8 +304,11 @@ export const SCENARIOS: Scenario[] = [
     n: 17, name: "17 a server that ignores the key, keys chart", keys: "chart", script: { ...LOST, honor: false },
     async run(page, server) {
       await ready(page);
+      const reread = page.waitForResponse((r) => r.request().method() === "GET" && new URL(r.url()).pathname === "/api/schedule"); // the read after the put-back
+      reread.catch(() => undefined); // a scenario that ends first leaves no rejection behind
       await insert(page, "Review");
       await until("the put-back and the read after it", async () => reads(server) === 2 && (await errors(page)).length === 1, 10_000);
+      await taken(page, reread);
       assert.match((await errors(page))[0]!.message, /A row with that key exists/, "the repeated create is refused");
       assert.equal(server.db.tasks.size, 4);
       await until("one row", async () => (await rows(page)) === 4, 5_000);
