@@ -37,6 +37,8 @@ const added = [
 /** The rows with the three added ones: `n1` under `t4`, `n3` at the top level after `t4` (a sibling that has a child), `n2` at the top level after `t9`. */
 const rows = (second: object = {}) => [...tasks.slice(0, 5), added[2]!, ...tasks.slice(5, 10), { ...added[1], ...second }, ...tasks.slice(10), added[0]!];
 
+/** The newest undo step the chart has reported. An `edit` event holds every step made since the last one, so the step is read across the events, never as the last event's only step. */
+const lastCommit = (page: Page) => page.evaluate(() => (window.edits as { commits: unknown[] }[]).flatMap((edit) => edit.commits).at(-1));
 const frames = (page: Page) => page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));
 const saved = (page: Page) => page.evaluate(() => (window.upChart.toDocument() as { tasks: { key?: string; name: string; duration: number; parent: number | null }[] }).tasks);
 const table = (page: Page) => page.evaluate(() => ({ rows: window.gantt!.status().rowCount, height: document.getElementById("table-body")!.scrollHeight, top: document.getElementById("table-body")!.scrollTop, selected: window.upChart.state().selection?.task }));
@@ -105,7 +107,7 @@ test("a row a person deleted, the data dropped and Undo brought back is taken in
   await page.evaluate(() => window.upChart.commands.deleteRow());
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5")), "the drop of a deleted row counts nothing").toEqual({ ok: true, updated: 0 });
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
-  await expect.poll(() => page.evaluate(() => window.edits.at(-1)), "Undo's create has been recorded").toMatchObject({ commits: [{ changes: [{ op: "create", key: "k5" }] }] });
+  await expect.poll(() => lastCommit(page), "Undo's create has been recorded").toMatchObject({ source: "undo", changes: [{ op: "create", key: "k5" }] });
   await expect(page.locator('#table-rows .row[data-row="5"] .name'), "the row is back in the table").toHaveText("Task 5");
   const before = { ...(await table(page)), edits: await page.evaluate(() => window.edits.length) };
   const back = owned.map((task) => (task.key === "k5" ? { ...task, name: "Back" } : task));
@@ -193,7 +195,7 @@ test("a row a person deleted and the data then drops keeps its Undo and its colu
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5")), "the row is not the chart's to remove: it counts nothing").toEqual({ ok: true, updated: 0 });
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
   await expect.poll(() => names(page), "Undo brings it back").toContain("k5");
-  await expect.poll(() => page.evaluate(() => window.edits.at(-1)), "with its own columns").toMatchObject({ commits: [{ changes: [{ op: "create", key: "k5", set: { owner: "sam" } }] }] });
+  await expect.poll(() => lastCommit(page), "with its own columns").toMatchObject({ source: "undo", changes: [{ op: "create", key: "k5", set: { owner: "sam" } }] });
 });
 
 test("a dropped row's columns are forgotten: the row given again has none to give back", async ({ page }) => {
