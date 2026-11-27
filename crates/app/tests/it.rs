@@ -152,6 +152,7 @@ mod outline_contracts;
 mod overlay_bars;
 mod percent_edit;
 mod percent_edit_rounding;
+mod physical_edit;
 mod physical_export;
 mod physical_percent;
 mod plan_text;

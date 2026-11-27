@@ -27,6 +27,7 @@ impl Step {
             | Edit::Rename { task, .. }
             | Edit::SetProgress { task, .. }
             | Edit::SetLimit { task, .. }
+            | Edit::SetPhysical { task, .. }
             | Edit::Delete { task } => *task == row,
             Edit::Restore { task, place } => *task == row || at(place),
             Edit::Reparent {
@@ -55,7 +56,9 @@ impl Step {
     ) -> bool {
         let parent = outline.parent(task);
         match &self.edit {
-            Edit::Delete { task } | Edit::SetProgress { task, .. } => Some(*task) == parent,
+            Edit::Delete { task }
+            | Edit::SetProgress { task, .. }
+            | Edit::SetPhysical { task, .. } => Some(*task) == parent,
             Edit::Restore { task: row, .. } => schedule
                 .task_links(*row)
                 .any(|(_, d)| Some(d.pred) == parent || Some(d.succ) == parent),
