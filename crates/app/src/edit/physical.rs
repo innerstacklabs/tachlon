@@ -35,6 +35,9 @@ impl Session {
         task: TaskId,
         physical: Option<u16>,
     ) -> Result<(Edit, f64), EditError> {
+        if self.busy() {
+            return Err(EditError::Busy);
+        }
         if !self.is_live(task) {
             return Err(ScheduleError::UnknownTask(task).into());
         }
@@ -42,15 +45,9 @@ impl Session {
             let name = self.meta[task.0 as usize].name.clone();
             return Err(EditError::ProgressOnSummary { name });
         }
-        let was = std::mem::replace(&mut self.meta[task.0 as usize].physical, physical);
+        let physical = std::mem::replace(&mut self.meta[task.0 as usize].physical, physical);
         self.changed();
-        Ok((
-            Edit::SetPhysical {
-                task,
-                physical: was,
-            },
-            0.0,
-        ))
+        Ok((Edit::SetPhysical { task, physical }, 0.0))
     }
 }
 
@@ -69,19 +66,14 @@ fn parse_physical(text: &str) -> Result<Option<u16>, EditError> {
         return Ok(None);
     }
     let number = text.strip_suffix('%').unwrap_or(text).trim_end();
-    let (whole, decimals) = number.split_once('.').unwrap_or((number, ""));
-    let digits = |s: &str| s.bytes().all(|b| b.is_ascii_digit());
-    let trailing_dot = decimals.is_empty() && number.contains('.');
-    if whole.is_empty() || decimals.len() > 2 || trailing_dot || !digits(whole) || !digits(decimals)
-    {
+    let (whole, decimals) = number.split_once('.').unwrap_or((number, "0"));
+    let digits = |s: &str| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit());
+    if !digits(whole) || !digits(decimals) || decimals.len() > 2 {
         return Err(EditError::BadPhysical);
     }
-    let whole = whole.parse::<u32>().ok().filter(|&w| w <= 100);
-    let cents = format!("{decimals:0<2}").parse::<u32>().ok();
-    whole
-        .zip(cents)
-        .map(|(whole, cents)| whole * 100 + cents)
-        .and_then(|total| u16::try_from(total).ok().filter(|&t| t <= 10_000))
+    let hundredths = format!("{whole}{decimals:0<2}").parse::<u16>().ok();
+    hundredths
+        .filter(|&h| h <= 10_000)
         .map(Some)
         .ok_or(EditError::BadPhysical)
 }

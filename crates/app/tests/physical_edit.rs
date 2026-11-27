@@ -5,6 +5,7 @@
 #![expect(clippy::unwrap_used, reason = "a test's unwrap is its assertion")]
 
 use crate::common::collapse;
+use crate::link_gesture::on;
 use crate::read_only::state;
 use crate::start_edit::session;
 use app::{Session, edit::EditError};
@@ -140,4 +141,14 @@ fn a_host_that_turned_progress_off_refuses_it() {
     let refused = EditError::NotAllowed("changing progress and the data date");
     assert_eq!(s.set_physical_text(FIRST, "50"), Err(refused));
     assert_eq!(state(&s), before);
+}
+
+#[test]
+fn a_physical_percent_typed_during_a_bar_press_is_refused_and_changes_nothing() {
+    let mut s = started();
+    let (x, y) = on(&s, 0);
+    s.pointer_down(x, y, false);
+    let before = (state(&s), s.task_physical(0));
+    assert_eq!(s.set_physical_text(FIRST, "50"), Err(EditError::Busy));
+    assert_eq!((state(&s), s.task_physical(0)), before);
 }
