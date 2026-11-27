@@ -76,7 +76,10 @@ export async function startServer(script: Script = {}): Promise<FakeServer> {
       const key = script.keys === "server" && row.id === undefined ? `s${++made}` : row.id; // a row that comes back (an undo) carries the key it had
       if (typeof key !== "string") return { status: 400, body: { message: "A new row needs a key" } };
       if (table.has(key)) return { status: 409, body: { message: "A row with that key exists", key } };
-      table.set(key, { ...row, id: key });
+      // The chart reads a row back with no `null` member and no calendar without a key (`{ calendar: n }`); it sends no start, so a new task starts where the stored days end.
+      const sent = Object.fromEntries(Object.entries(row).filter(([k, v]) => v !== null && !(k === "calendar" && typeof v === "object")));
+      const start = kind === "task" && sent.plannedStart === undefined ? { plannedStart: day([...table.values()].reduce((n, t) => n + Number(t.days), 0)) } : {};
+      table.set(key, { ...start, ...sent, id: key });
       return { status: 201, body: view(kind, table.get(key)!) };
     }
     const row = table.get(r.key ?? "");
