@@ -4,7 +4,7 @@ use super::Solution;
 use super::admissible::Admissible;
 use super::pass::finish_floor;
 use crate::calendar::{Instant, Minutes};
-use crate::model::{LinkType, Schedule, TaskId};
+use crate::model::{DepId, LinkType, Schedule, TaskId};
 
 /// Maximum difference between a dependency bound and the successor's early start.
 const DRIVING_TOLERANCE: Minutes = 1;
@@ -109,6 +109,36 @@ impl Schedule {
         result.sort_unstable();
         result.dedup();
         result
+    }
+
+    /// Returns the live links into a held, unstarted, unfinished task whose own
+    /// `dependency_start` lies past that task's early start. A pin holds its date whatever the
+    /// predecessors do, so such a link is one the pin breaks. A `sol` that is not this
+    /// schedule's solution breaks nothing.
+    #[must_use]
+    pub fn pin_broken_links(&self, sol: &Solution) -> Vec<DepId> {
+        if sol.dates.len() != self.tasks.len() {
+            return Vec::new();
+        }
+        let held = |t: TaskId| {
+            let task = &self.tasks[t.0 as usize];
+            task.actual_start.is_none()
+                && task.actual_finish.is_none()
+                && task
+                    .limit
+                    .start_pin(false)
+                    .or(task.limit.finish_pin())
+                    .is_some()
+        };
+        self.live_dependencies()
+            .filter(|(id, d)| {
+                held(d.succ)
+                    && self
+                        .dependency_start(sol, id.0 as usize)
+                        .is_some_and(|bound| bound > sol.get(d.succ).es)
+            })
+            .map(|(id, _)| id)
+            .collect()
     }
 
     /// The tasks on the longest path, traced backward from every task that
