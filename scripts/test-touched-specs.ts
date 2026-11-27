@@ -80,7 +80,10 @@ const driven: Array<{ name: string; changed: string[]; want: string[] }> = [
   { name: "a chart print module runs the journey that reads its sheet, and its own spec", changed: [`${WEB_ROOT}/src/print-sheet.ts`], want: ["journey-j5.spec.ts", "print-sheet.spec.ts"] },
   { name: "a chart file and a crate file add their specs together", changed: [`${WEB_ROOT}/src/range.ts`, "crates/xer/src/lib.rs"], want: [...FILES, "range.spec.ts", "copy-range.spec.ts"] },
 ];
-if (!webPlan("fast", [`${WEB_ROOT}/src/gantt-object.ts`], REAL).specs.includes("set-data-rows.spec.ts")) fail("gantt-object.ts calls setData, so it must run set-data-rows.spec.ts");
+for (const file of ["gantt-object.ts", "host-data.ts", "update.ts", "webgl-switch.ts"]) {
+  const got = webPlan("fast", [`${WEB_ROOT}/src/${file}`], REAL);
+  if (got.web !== "some" || !got.specs.includes("set-data-rows.spec.ts")) fail(`${file} is on setData's path, so it must run set-data-rows.spec.ts and not every spec`);
+}
 for (const row of driven) {
   const got = webPlan("fast", row.changed, REAL);
   const want = REAL.filter((s) => row.want.includes(s));

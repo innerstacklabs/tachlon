@@ -202,8 +202,8 @@ test("a dropped row's columns are forgotten: the row given again has none to giv
   await pick(page, 6);
   await page.evaluate(() => window.upChart.commands.deleteRow());
   await frames(page);
-  expect(await page.evaluate(() => window.edits.at(-1))).toMatchObject({ commits: [{ changes: [{ op: "delete", key: "k6" }] }] });
-  expect(await page.evaluate(() => JSON.stringify(window.edits.at(-1))), "no owner").not.toContain("owner");
+  await expect.poll(() => page.evaluate(() => window.edits.at(-1))).toMatchObject({ commits: [{ changes: [{ op: "delete", key: "k6" }] }] });
+  await expect.poll(() => page.evaluate(() => JSON.stringify(window.edits.at(-1))), "no owner").not.toContain("owner");
 });
 
 test("a summary whose children are all dropped is still a summary while the records are set; a row a person gave a child refuses its drop, and the drops before it stay", async ({ page }) => {
