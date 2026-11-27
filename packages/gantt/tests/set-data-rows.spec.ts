@@ -256,6 +256,21 @@ test("setData sets a kept link's type and lag in place, by key else by its two e
   expect([(await saved(page)).find((task) => task.key === "k2")!.name, await linksOf(page)]).toEqual(["Task 2", [["k1", "k2", "l1", "FS", 960], ["k3", "k4", null, "FS", 0]]]);
 });
 
+test("setData re-points a keyed link in place: the engine holds the new link under the key and none on the old pair, selection, scroll and the earlier rename's undo hold, and it is no edit", async ({ page }) => {
+  await open(page, tasks, [{ from: "t1", to: "t2", key: "l1" }, { from: "t3", to: "t4" }]);
+  const before = await table(page);
+  const next = [{ from: "t1", to: "t5", key: "l1", lag: 1 }, { from: "t3", to: "t4" }];
+  expect(await page.evaluate((links) => window.upChart.setData({ links }), next)).toEqual({ ok: true, updated: 2 });
+  await frames(page);
+  expect(await table(page), "the scroll and the selection are as they were").toEqual(before);
+  expect(await linksOf(page), "l1 joins k1 to k5 with a day of lag, and no link is left on k1 to k2").toEqual([["k3", "k4", null, "FS", 0], ["k1", "k5", "l1", "FS", 480]]);
+  expect(await page.evaluate(() => window.edits), "no edit").toEqual([]);
+  expect(await page.evaluate((links) => window.upChart.setData({ links }), next.map((link) => ({ ...link }))), "the same links again").toEqual({ ok: true, updated: 0 });
+  expect(await page.evaluate(() => window.upChart.commands.undo()), "the one Undo is the person's rename").toBe(true);
+  expect([(await saved(page)).find((task) => task.key === "k2")!.name, await linksOf(page)]).toEqual(["Task 2", [["k3", "k4", null, "FS", 0], ["k1", "k5", "l1", "FS", 480]]]);
+  expect(await page.evaluate(() => window.upChart.commands.undo()), "no step is left").toBe(false);
+});
+
 test("a link the engine refuses answers with its key and Partly applied, keeps the links before it, and corrected rows add the rest", async ({ page }) => {
   await open(page);
   const loop = [{ from: "t7", to: "t8", key: "a" }, { from: "t8", to: "t7", key: "b" }];
