@@ -19,7 +19,7 @@ The README's "How it compares" section is this table, and `node scripts/features
 | 3 | Critical path | Yes | Ent only | PRO only | Yes |
 | 4 | Eight constraint types (ASAP, ALAP, SNET, SNLT, FNET, FNLT, must start on, must finish on) | Yes | Core, Ent | PRO only | Yes |
 | 5 | Working calendars with holidays, and a calendar per task | Yes | Project calendar: All; task calendars: Core, Ent | Whole-chart working time: Both; project, resource and task calendars: PRO only | Project working time only |
-| 6 | Baseline with variance | Yes | Ent only | PRO only | Yes |
+| 6 | Baseline with variance | Yes: MS Project XML baselines; P6 baselines are not read yet | Ent only | PRO only | Yes |
 | 7 | Progress: percent complete, actual start and finish | Yes | All | Both | Yes |
 | 8 | Summary tasks in an outline | Yes | All | Both | Yes |
 | 9 | Milestones | Yes | All | Both | Yes |
