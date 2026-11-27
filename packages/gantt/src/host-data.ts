@@ -22,15 +22,16 @@ export interface Add { record: TaskUpdate; parent?: string; after?: string }
 export interface LinkChange { pred: string; succ: string; key?: string; type?: PlainLink["type"]; lag?: number }
 /** The links `setData` adds, after the tasks it adds, sets (the `type` and `lag` of a link it keeps, each as the data gives it or its default) and drops, before the tasks it drops (a link of a dropped task goes with the task and is not listed). */
 export interface LinkChanges { adds: LinkChange[]; sets: LinkChange[]; drops: LinkChange[] }
-/** `setData` of one start of the chart: `next` is the rows given, `epoch` the schedule's, `apply` moves the data date to `day` (when there is one) with the chart's `setDataDate`, sets the records with its `update`, adds the tasks it lacks, in the order given, then drops the links in `links.drops`, sets those in `links.sets`, adds those in `links.adds`, and drops the keys in `drops` (the rows the data no longer holds, the deepest first). A refusal it answers has `added`, how many adds the chart took before it, `unlinked`, `relinked` and `linked`, how many link drops, sets and adds (none: 0), and `dropped`, how many drops (none: 0), once it took the records (none when it refused them); `setData` does not pass them on. An answer that went as far as the drops also has `skipped`, the keys among the drops it took that the chart held no live task of (a row a person deleted): `setData` holds those rows until the chart holds them again. `live` (all live when left out) says for each key whether the chart holds a live task of it. */
-export type SetData = (next: HostRows, epoch: number, apply: (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[], links: LinkChanges) => UpdateResult & { added?: number; dropped?: number; skipped?: string[]; linked?: number; relinked?: number; unlinked?: number }, live?: (keys: string[]) => boolean[]) => UpdateResult;
+/** A task the data and the chart both hold, in another place than the chart has it: its `key`, the key of the row it goes under (none: the top level) and of the one it follows (none: it goes first). */
+export type Place = Omit<Add, "record"> & { key: string };
+/** `setData` of one start of the chart: `next` is the rows given, `epoch` the schedule's, `apply` moves the data date to `day` (when there is one) with the chart's `setDataDate`, sets the records with its `update`, adds the tasks it lacks, in the order given, then moves the rows in `moves`, in the order given (each is under its parent and after its sibling by then), then drops the links in `links.drops`, sets those in `links.sets`, adds those in `links.adds`, and drops the keys in `drops` (the rows the data no longer holds, the deepest first). A refusal it answers has `added`, how many adds the chart took before it, `moved`, how many moves (none: 0), `unlinked`, `relinked` and `linked`, how many link drops, sets and adds (none: 0), and `dropped`, how many drops (none: 0), once it took the records (none when it refused them); `setData` does not pass them on. An answer that went as far as the drops also has `skipped`, the keys among the drops it took that the chart held no live task of (a row a person deleted): `setData` holds those rows until the chart holds them again. `live` (all live when left out) says for each key whether the chart holds a live task of it. */
+export type SetData = (next: HostRows, epoch: number, apply: (records: TaskUpdate[], day: string | undefined, adds: Add[], drops: string[], links: LinkChanges, moves: Place[]) => UpdateResult & { added?: number; dropped?: number; moved?: number; skipped?: string[]; linked?: number; relinked?: number; unlinked?: number }, live?: (keys: string[]) => boolean[]) => UpdateResult;
 
 export const rowsChanged = (message: string): UpdateResult => Object.freeze({ ok: false, reason: "rowsChanged", message: `Nothing changed: ${message}` });
 const same = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && a.every((text, i) => text === b[i]);
 
 /** Where the tasks of a list sit: `at` is each one's `id` and its parent's key by its own key, `kids` the keys under each parent's key (`null`: the top level) in the order given. */
 interface Layout { at: Map<string, string>; kids: Map<string | null, string[]> }
-type Place = Omit<Add, "record"> & { key: string };
 
 /** The layout of tasks that each have a text key; undefined when a `parent` names no task. A `parent` is read as `fromTasks` reads it: none, `null`, `""` and `0` are the top level. */
 function layoutOf(tasks: readonly PlainTask[]): Layout | undefined {
@@ -47,16 +48,56 @@ function layoutOf(tasks: readonly PlainTask[]): Layout | undefined {
   return layout;
 }
 
-/** The tasks `next` has and `held` lacks, in outline order (a parent before its children), each with the key of the row it goes under and of the one it follows; or why `next` is more than adds and drops: a task moved, another `id` or `parent` (a kept child of a dropped row has one), or parents that form a loop. */
-function placesOf(held: Layout, next: Layout): string | Place[] {
-  if ([...held.at].some(([key, at]) => next.at.has(key) && next.at.get(key) !== at)) return "a task has another id or parent.";
-  if ([...held.kids].some(([parent, keys]) => !same(next.kids.get(parent)?.filter((key) => held.at.has(key)) ?? [], keys.filter((key) => next.at.has(key))))) return "a task was moved in the list.";
-  const places: Place[] = [];
+/** A row's `id` and its parent's key (`null`: the top level), as `Layout.at` holds them. */
+const partsOf = (at: string) => JSON.parse(at) as [unknown, string | null];
+/** `layout` with each row of `places` put under its parent and after the row it names (first when none): a row it holds is moved, one it lacks is added with the `id` that `next` gives it. */
+function placed(layout: Layout, places: readonly Place[], next: Layout): Layout {
+  const at = new Map(layout.at);
+  const kids = new Map<string | null, string[]>([...layout.kids].map(([parent, keys]) => [parent, [...keys]]));
+  for (const { key, parent = null, after } of places) {
+    if (at.has(key)) for (const keys of kids.values()) if (keys.includes(key)) keys.splice(keys.indexOf(key), 1);
+    const list = kids.get(parent) ?? [];
+    list.splice(after === undefined ? 0 : list.indexOf(after) + 1, 0, key);
+    kids.set(parent, list);
+    at.set(key, next.at.get(key)!);
+  }
+  return { at, kids };
+}
+/** The indexes of a longest run of `at` that rises: the rows of a list that a reorder can leave where they are. */
+function rising(at: readonly number[]): Set<number> {
+  const tails: number[] = [];
+  const via = at.map((x, i) => {
+    let [lo, hi] = [0, tails.length];
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (at[tails[mid]!]! < x) lo = mid + 1; else hi = mid; }
+    tails[lo] = i;
+    return tails[lo - 1] ?? -1;
+  });
+  const run = new Set<number>();
+  for (let i = tails.at(-1) ?? -1; i >= 0; i = via[i]!) run.add(i);
+  return run;
+}
+
+/** The tasks `next` has and `held` lacks (`adds`), in outline order (a parent before its children), each with the key of the row it goes under and of the nearest earlier row under that parent that is added or stays; and the `moves` that, after the adds, put every row `held` has where `next` has it, in outline order and as few as there can be (rows that keep their order under one parent stay); or why `next` is more than adds, drops and moves: a task has another `id`, or parents that form a loop. */
+function placesOf(held: Layout, next: Layout): string | { adds: Place[]; moves: Place[] } {
+  if ([...held.at].some(([key, at]) => next.at.has(key) && partsOf(next.at.get(key)!)[0] !== partsOf(at)[0])) return "a task has another id.";
+  const order: Place[] = [];
   const walk = (parent: string | null): number => (next.kids.get(parent) ?? []).reduce((count, key, i, list) => {
-    if (!held.at.has(key)) places.push({ key, parent: parent ?? undefined, after: list[i - 1] });
+    order.push({ key, parent: parent ?? undefined, after: list[i - 1] });
     return count + 1 + walk(key);
   }, 0);
-  return walk(null) === next.at.size ? places : "the parents of the tasks form a loop.";
+  if (walk(null) !== next.at.size) return "the parents of the tasks form a loop.";
+  const stay = new Set<string>();
+  for (const [parent, keys] of next.kids) {
+    const at = new Map((held.kids.get(parent) ?? []).map((key, i) => [key, i]));
+    const here = keys.filter((key) => at.has(key));
+    const run = rising(here.map((key) => at.get(key)!));
+    here.forEach((key, i) => { if (run.has(i)) stay.add(key); });
+  }
+  const adds = order.filter(({ key }) => !held.at.has(key)).map(({ key, parent }) => {
+    const list = next.kids.get(parent ?? null)!;
+    return { key, parent, after: list.slice(0, list.indexOf(key)).reverse().find((other) => !held.at.has(other) || stay.has(other)) };
+  });
+  return { adds, moves: order.filter(({ key }) => held.at.has(key) && !stay.has(key)) };
 }
 /** The keys `held` has and `next` lacks, the deepest first (rows of one depth in the order they are held). */
 function dropsOf(held: Layout, next: Layout): string[] {
@@ -181,8 +222,7 @@ export function hostData(first: HostRows, epoch: number): SetData {
     const idsOf = (keys: readonly string[]) => idsIn(full, keys);
     const byKey = new Map(old);
     const records: TaskUpdate[] = [];
-    let adds: Add[] = [];
-    let drops: string[] = [];
+    let [adds, drops, moves]: [Add[], string[], Place[]] = [[], [], []];
     let layout = held;
     if (next.tasks !== undefined && next.tasks !== kept.tasks?.deref()) {
       const given = membersByKey(next.tasks);
@@ -195,8 +235,9 @@ export function hostData(first: HostRows, epoch: number): SetData {
       if (typeof places === "string") return rowsChanged(places);
       layout = to;
       drops = dropsOf(held, to);
+      moves = places.moves;
       const rowOf = new Map(next.tasks.map((task) => [task.key, task]));
-      adds = places.map(({ key, ...place }) => ({ ...place, record: { key, ...Object.fromEntries(setOf(given.get(key)!)), ...lookOf(rowOf.get(key)!) } }));
+      adds = places.adds.map(({ key, ...place }) => ({ ...place, record: { key, ...Object.fromEntries(setOf(given.get(key)!)), ...lookOf(rowOf.get(key)!) } }));
       for (const [key, values] of given) {
         const was = old.get(key);
         const set = beside(setOf(values, was), values);
@@ -210,8 +251,8 @@ export function hostData(first: HostRows, epoch: number): SetData {
     const day = next.dataDate === undefined ? undefined : dayOf(next.dataDate);
     if (next.dataDate !== undefined && day === undefined) return Object.freeze({ ok: false, reason: "badDate", message: "Nothing changed: write the data date as YYYY-MM-DD." });
     const move = day !== kept.day ? day : undefined;
-    const idle = records.length === 0 && adds.length === 0 && drops.length === 0 && linkAdds.length === 0 && linkSets.length === 0 && linkDrops.length === 0 && move === undefined;
-    const { added, dropped, skipped = [], linked, relinked, unlinked, ...answer } = idle ? { ok: true as const, updated: 0 } : apply(records, move, adds, drops, { adds: linkAdds.map(({ change }) => change), sets: linkSets.map(({ link }) => link.change), drops: linkDrops.map(({ change }) => change) });
+    const idle = records.length === 0 && adds.length === 0 && moves.length === 0 && drops.length === 0 && linkAdds.length === 0 && linkSets.length === 0 && linkDrops.length === 0 && move === undefined;
+    const { added, dropped, moved, skipped = [], linked, relinked, unlinked, ...answer } = idle ? { ok: true as const, updated: 0 } : apply(records, move, adds, drops, { adds: linkAdds.map(({ change }) => change), sets: linkSets.map(({ link }) => link.change), drops: linkDrops.map(({ change }) => change) }, moves);
     const took = answer.ok ? adds.length : added;
     if (took !== undefined) { // the chart took the records: the rows it was given, the first `took` adds and the first drops are held, and what it refused is offered again
       const lost = answer.ok ? drops.length : dropped ?? 0;
@@ -219,11 +260,11 @@ export function hostData(first: HostRows, epoch: number): SetData {
       adds.slice(took).forEach(({ record }) => byKey.delete(record.key));
       taken.filter((key) => !skipped.includes(key)).forEach((key) => byKey.delete(key));
       const out = absent.filter((key) => !byKey.has(key)); // the deleted rows still not the chart's: those the rows did not give, or whose add was refused
-      const rows = took === adds.length ? layout : layoutOf((next.tasks ?? []).filter(({ key }) => byKey.has(key!)));
+      const rows = took === adds.length && (answer.ok || (moved ?? 0) === moves.length) ? layout : placed(held, [...adds.map(({ record, ...place }) => ({ ...place, key: record.key })), ...moves].slice(0, took + (moved ?? 0)), layout); // a refusal keeps the first adds, and the first moves once all the adds are taken
       out.forEach((key) => byKey.set(key, kept0.get(key)!));
       const ghosts = [...out, ...taken.filter((key) => skipped.includes(key))];
       const stays = staying(kept.linkTexts, idsOf([...taken.filter((key) => !skipped.includes(key)), ...absent.filter((key) => !out.includes(key))])).filter((entry) => !linkDrops.slice(0, answer.ok ? linkDrops.length : unlinked ?? 0).some((drop) => drop.entry === entry)).map((entry) => linkSets.slice(0, answer.ok ? linkSets.length : relinked ?? 0).find(({ was }) => was === entry)?.link.entry ?? entry);
-      kept = { ...kept, byKey, ghosts, layout: withRest(rows, full, [...drops.slice(lost), ...ghosts]), linkTexts: [...stays, ...linkAdds.slice(0, answer.ok ? linkAdds.length : linked ?? 0).map(({ entry }) => entry)], ...(answer.ok && next.tasks !== undefined && { tasks: weak(next.tasks) }), ...(answer.ok && next.links !== undefined && { links: weak(next.links) }), ...(move !== undefined && { day: move }) };
+      kept = { ...kept, byKey, ghosts, layout: withRest(rows, full, [...drops.slice(rows === layout ? lost : drops.length), ...ghosts]), linkTexts: [...stays, ...linkAdds.slice(0, answer.ok ? linkAdds.length : linked ?? 0).map(({ entry }) => entry)], ...(answer.ok && next.tasks !== undefined && { tasks: weak(next.tasks) }), ...(answer.ok && next.links !== undefined && { links: weak(next.links) }), ...(move !== undefined && { day: move }) };
     }
     return Object.freeze(answer) as UpdateResult;
   };
