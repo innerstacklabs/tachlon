@@ -15,7 +15,7 @@
    lines, each with the check's name, its number and one sentence on what it counts. A line with a problem to show adds a second sentence, in the text color, on why that kind of problem matters; a line that counts `0` adds none. Try it on the
    [office fit-out sample](/?sample=office-fitout).
 2. **Read the lines.** On the fit-out sample, the lines from Missing logic to Missing resources read Missing logic `1`, Open starts `0`, Open ends `1`, Leads `0`, Lags `7`, Finish to
-   start `63 of 69 links`, High float `0`, High duration `0`, Hard constraints `0`, Negative float `0`,
+   start `63 of 69 links`, Links a pin breaks `0`, High float `0`, High duration `0`, Hard constraints `0`, Negative float `0`,
    Invalid dates `0` and Missing resources `0`.
 3. **Close it.** **Close** or `Escape` shuts the window, and the chart gets its keys back.
 4. **It counts again each time it opens.** The window shows the schedule as it was when you opened
@@ -35,6 +35,9 @@ See step 5 of [Build a schedule from the keyboard](j6-build.md).
 {{#include ../../packages/gantt/guide/checks.md:share}}
 On this page, the share reads, for example, `63 of 69 links`; a file with no links reads `no links`.
 
+{{#include ../../packages/gantt/guide/checks.md:pin}}
+On this page, the fit-out sample reads `0`: no task there is pinned.
+
 {{#include ../../packages/gantt/guide/checks.md:counts}}
 
 {{#include ../../packages/gantt/guide/checks.md:invalid}}
@@ -51,7 +54,7 @@ The page on setting a baseline is [Set a baseline, read what slipped](baseline.m
 
 {{#include ../../packages/gantt/guide/checks.md:limits}}
 
-16. **What is not built.** The fifteen lines cover twelve of DCMA's fourteen checks. The other two
+17. **What is not built.** The fifteen lines cover twelve of DCMA's fourteen checks. The other two
     are on [What's coming](coming.md).
 
 ## Where it is checked
