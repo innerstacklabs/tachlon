@@ -37,7 +37,17 @@ impl Session {
             key.map(task).transpose()
         };
         let row = (self.task_for_key(key)).ok_or_else(|| fail("unknownKey", None))?;
-        let place = self.host_place(task_of("parent", parent)?, task_of("after", after)?, first);
+        let mut place =
+            self.host_place(task_of("parent", parent)?, task_of("after", after)?, first);
+        // Last under the parent is the last row other than this one, which an only child has none of.
+        if let (None, Some(outline)) = (after, self.outline.as_ref())
+            && place.after == Some(row)
+        {
+            let siblings = place
+                .parent
+                .map_or(outline.roots(), |p| outline.children(p));
+            place.after = siblings.iter().rev().copied().find(|&t| t != row);
+        }
         let rows = (self.outline.as_ref()).map_or_else(Vec::new, |o| o.subtree(row).to_vec());
         let revision = self.revision;
         let done = self.run_reparent(row, place, Siblings::Keep, None, true);

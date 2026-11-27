@@ -139,3 +139,15 @@ fn a_move_while_a_filter_or_grouping_is_on_is_taken_and_a_typed_reparent_is_stil
     assert_eq!(s.move_selected_up(), Err(EditError::ReparentGrouped));
     assert_eq!(roots(&s), [D, E, P, C]);
 }
+
+#[test]
+fn a_move_to_last_under_a_parent_leaves_a_row_already_last_there_and_an_only_child_where_it_is() {
+    let mut s = keyed();
+    s.move_task_by_key("t2", Some("t0"), None, false).unwrap();
+    s.move_task_by_key("t5", None, None, false).unwrap();
+    assert_eq!(s.outline().unwrap().children(P), [A, B]);
+    assert_eq!(roots(&s), [P, C, D, E]);
+    s.move_task_by_key("t2", None, Some("t3"), false).unwrap();
+    s.move_task_by_key("t1", Some("t0"), None, false).unwrap();
+    assert_eq!(s.outline().unwrap().children(P), [A]);
+}
