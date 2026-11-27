@@ -39,6 +39,8 @@ const reads = (server: FakeServer) => server.seen.filter((r) => r.method === "GE
 const errors = (page: Page): Promise<SaveError[]> => page.evaluate(() => Reflect.get(window, "errors") ?? []);
 const press = (page: Page, button: string | RegExp) => page.getByRole("button", { name: button }).click();
 const undo = async (page: Page) => { await row(page, 0).click({ position: { x: 4, y: 4 } }); await page.keyboard.press("ControlOrMeta+z"); };
+/** Leaves an idle connection to the server for the next request. The browser repeats a request whose response is lost only when it went out on a connection it had used before, and the page's event stream can take the one the first read left, so scenario 17's create would then be sent once. */
+const reuse = (page: Page) => page.evaluate(() => fetch("/api/idle").then(() => undefined));
 const HOST = new Set(["id", "title", "plannedStart", "days", "parentId"]); // the member names the server's rows use
 const task = (i: number) => ({ id: `t${i}`, title: `Task ${i}`, plannedStart: "2026-11-02", days: 2 });
 const newKey = (body?: Record<string, unknown>) => String(body?.id ?? "s1"); // the key a create's row gets: the chart's, or the server's first
@@ -304,6 +306,7 @@ export const SCENARIOS: Scenario[] = [
     n: 17, name: "17 a server that ignores the key, keys chart", keys: "chart", script: { ...LOST, honor: false },
     async run(page, server) {
       await ready(page);
+      await reuse(page);
       const reread = page.waitForResponse((r) => r.request().method() === "GET" && new URL(r.url()).pathname === "/api/schedule"); // the read after the put-back
       reread.catch(() => undefined); // a scenario that ends first leaves no rejection behind
       await insert(page, "Review");
@@ -318,6 +321,7 @@ export const SCENARIOS: Scenario[] = [
     n: 17, name: "17 a server that ignores the key, keys server", keys: "server", not: ["url"], script: { ...LOST, honor: false }, // with `idempotent`, as the copy of rule 11.1 has it; the URL form never sees host data arrive from outside
     async run(page, server) {
       await ready(page);
+      await reuse(page);
       await insert(page, "Review");
       await until("two rows stored", () => server.db.tasks.size === 5, 10_000);
       await page.locator("#refresh").click();
