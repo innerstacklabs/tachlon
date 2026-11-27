@@ -160,6 +160,7 @@ impl Session {
             Edit::Rename { task, .. } => ("rename", vec![*task]),
             Edit::SetProgress { task, .. } => ("setProgress", vec![*task]),
             Edit::SetLimit { task, .. } => ("setLimit", vec![*task]),
+            Edit::SetPhysical { task, .. } => ("setPhysical", vec![*task]),
             Edit::Delete { task } => ("delete", vec![*task]),
             Edit::Restore { task, .. } => ("restore", vec![*task]),
             Edit::Reparent { task, .. } => ("reparent", vec![*task]),
@@ -188,6 +189,7 @@ impl Session {
             | Edit::Rename { .. }
             | Edit::SetProgress { .. }
             | Edit::SetLimit { .. }
+            | Edit::SetPhysical { .. }
             | Edit::Reparent { .. } => &["updateTask"],
             Edit::Delete { task } if linked(*task) => &["deleteTask", "deleteLink"],
             Edit::Delete { .. } => &["deleteTask"],

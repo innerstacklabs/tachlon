@@ -28,7 +28,7 @@ fn assert_round_trip(edit: &Edit) {
         }
         // Structural edits need an outline; tests/structure.rs and tests/insert.rs round-trip them.
         // A link edit's inverse is another variant, so it is not a round trip of one value:
-        // tests/links.rs applies each in turn. A baseline edit changes no date: tests/baseline.rs. A data-date edit has its own file: tests/data_date_edit.rs.
+        // tests/links.rs applies each in turn. A baseline edit changes no date: tests/baseline.rs. A data-date edit has its own file: tests/data_date_edit.rs, a physical-percent edit tests/physical_edit.rs.
         Edit::Insert { .. }
         | Edit::Delete { .. }
         | Edit::Restore { .. }
@@ -40,7 +40,8 @@ fn assert_round_trip(edit: &Edit) {
         | Edit::SetBaseline { .. }
         | Edit::ClearBaseline
         | Edit::SetDataDate { .. }
-        | Edit::SetLimit { .. } => unreachable!("not a one-value round trip"),
+        | Edit::SetLimit { .. }
+        | Edit::SetPhysical { .. } => unreachable!("not a one-value round trip"),
     }
 
     let redo = session.apply(inverse).expect("the inverse applies");

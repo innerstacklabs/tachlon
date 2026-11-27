@@ -9,7 +9,7 @@ use crate::host::schedule_update;
 use crate::{
     Session,
     constraint::constraint_of,
-    edit::{Edit, day_minutes},
+    edit::{Edit, day_minutes, percent_number},
     json::quote,
     reparent::Siblings,
     structure::Place,
@@ -246,6 +246,9 @@ impl Session {
                 .iter()
                 .map(|field| (*task, *field, self.limit_field(limit, field)))
                 .collect(),
+            Edit::SetPhysical { task, physical } => {
+                vec![(*task, "physicalPercent", physical_json(*physical))]
+            }
             _ => Vec::new(),
         }
     }
@@ -286,6 +289,7 @@ impl Session {
             "actualStart" => self.date(t.actual_start),
             "actualFinish" => self.date(t.actual_finish),
             "remaining" => self.days(task, t.remaining),
+            "physicalPercent" => physical_json(self.meta[task.0 as usize].physical),
             _ => self.limit_field(&t.limit, field),
         }
     }
@@ -311,4 +315,9 @@ impl Session {
         let day = day_minutes(self.schedule.calendar_of(task)) as f64;
         minutes.map_or_else(|| "null".into(), |m| format!("{:?}", m as f64 / day))
     }
+}
+
+/// A physical percent as a host reads it (decision 0017): a number from 0 to 100, or `null`.
+fn physical_json(hundredths: Option<u16>) -> String {
+    hundredths.map_or_else(|| "null".into(), percent_number)
 }

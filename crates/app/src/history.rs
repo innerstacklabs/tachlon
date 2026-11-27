@@ -84,6 +84,7 @@ fn task_of(entry: &Entry) -> Option<TaskId> {
                 | Edit::SetDuration { task, .. }
                 | Edit::Rename { task, .. }
                 | Edit::SetProgress { task, .. }
+                | Edit::SetPhysical { task, .. }
                 | Edit::Delete { task }
                 | Edit::Restore { task, .. }
                 | Edit::Reparent { task, .. },
@@ -157,7 +158,7 @@ impl Session {
     /// An [`EditError`] for a refusal of [`Session::apply`] and for a typed name the document should not hold.
     pub fn edit(&mut self, edit: Edit) -> Result<(), EditError> {
         self.gate(&Plan::Edit(&edit))?;
-        if self.is_unstarted_zero(&edit) {
+        if self.is_unstarted_zero(&edit) || self.is_unchanged_physical(&edit) {
             return Ok(());
         }
         self.edit_from(edit, Source::Typed)

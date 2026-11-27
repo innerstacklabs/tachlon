@@ -127,7 +127,9 @@ fn group(edit: &Edit) -> Item {
         | Edit::RemoveLink { .. }
         | Edit::RestoreLink { .. }
         | Edit::SetLink { .. } => Item::Links,
-        Edit::SetProgress { .. } | Edit::SetDataDate { .. } => Item::Progress,
+        Edit::SetProgress { .. } | Edit::SetPhysical { .. } | Edit::SetDataDate { .. } => {
+            Item::Progress
+        }
         Edit::SetBaseline { .. } | Edit::ClearBaseline => Item::Baseline,
     }
 }

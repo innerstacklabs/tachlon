@@ -116,6 +116,8 @@ pub enum EditError {
     HasActuals,
     /// Text for a percent complete is not a whole number from 0 to 100.
     BadPercent,
+    /// Text for a physical percent complete is not a number from 0 to 100 with up to two decimals.
+    BadPhysical,
     /// A summary takes no progress of its own: record it on its sub-tasks.
     ProgressOnSummary { name: String },
     /// Delete deletes one row, and a range of several is selected.
@@ -205,6 +207,7 @@ impl EditError {
             Self::ActualAfterDataDate => "actualAfterDataDate",
             Self::HasActuals => "hasActuals",
             Self::BadPercent => "badPercent",
+            Self::BadPhysical => "badPhysical",
             Self::ProgressOnSummary { .. } => "progressOnSummary",
             Self::SeveralRows => "severalRows",
             Self::ReadOnly => "readOnly",
@@ -260,6 +263,7 @@ impl Worded for EditError {
             Self::BadDataDate => plain(&BAD_DATA_DATE),
             Self::BadDate => plain(&BAD_DATE),
             Self::BadPercent => plain(&BAD_PERCENT),
+            Self::BadPhysical => plain(&crate::texts::BAD_PHYSICAL),
             Self::Duration(error) => error.text(texts),
             Self::FinishBeforeStart => plain(&FINISH_BEFORE_START),
             Self::ActualAfterDataDate => plain(&ACTUAL_AFTER_DATA_DATE),

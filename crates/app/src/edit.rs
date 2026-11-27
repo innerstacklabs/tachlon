@@ -14,6 +14,7 @@ mod limit;
 mod link_text;
 mod links;
 mod percent;
+mod physical;
 mod predecessors;
 mod progress;
 pub mod start;
@@ -26,6 +27,7 @@ pub use duration::{
 use engine::{DepId, Instant, Limit, LinkType, Minutes, ScheduleError, TaskId};
 pub use error::EditError;
 pub use link_text::{LinkTextError, format_link_text, parse_link_text};
+pub(crate) use physical::percent_number;
 pub(crate) use predecessors::Memo as PredecessorsMemo;
 pub use predecessors::PredecessorFault;
 use std::sync::Arc;
@@ -108,6 +110,10 @@ pub enum Edit {
     /// Replace a task's date limits, its pin and as-late-as-possible included (gantt#1875), then
     /// recompute in full. Inverse: `SetLimit` with the replaced limits.
     SetLimit { task: TaskId, limit: Limit },
+    /// Set or clear a task's physical percent complete, in hundredths of a percent (tl#2080,
+    /// decision 0008 item 1a). It is metadata: no date moves and nothing recomputes. Refused for a
+    /// summary. Inverse: `SetPhysical` with the value it replaced.
+    SetPhysical { task: TaskId, physical: Option<u16> },
 }
 
 impl Session {
@@ -248,6 +254,7 @@ impl Session {
                 remaining,
             } => self.run_set_progress(task, actual_start, actual_finish, remaining),
             Edit::SetLimit { task, limit } => self.run_set_limit(task, limit),
+            Edit::SetPhysical { task, physical } => self.run_set_physical(task, physical),
             Edit::Rename { task, name } => {
                 if self.schedule.is_deleted(task) {
                     return Err(ScheduleError::UnknownTask(task).into());

@@ -45,6 +45,7 @@ texts! {
     BAD_DATA_DATE "badDataDate" "Write the data date as YYYY-MM-DD.";
     BAD_DATE "badDate" "Write the date as YYYY-MM-DD.";
     BAD_PERCENT "badPercent" "Write the percent complete as a whole number from 0 to 100, such as 75 or 75%.";
+    BAD_PHYSICAL "badPhysical" "Write the physical percent complete as a number from 0 to 100 with up to two decimals, such as 50 or 12.5%.";
     FINISH_BEFORE_START "finishBeforeStart" "The actual finish is before the actual start.";
     ACTUAL_AFTER_DATA_DATE "actualAfterDataDate" "An actual date cannot be after the data date. Move the data date first, or write a date on or before it.";
     HAS_ACTUALS "hasActuals" "This task has an actual start or finish, so it cannot be dragged. Clear its actual dates first.";

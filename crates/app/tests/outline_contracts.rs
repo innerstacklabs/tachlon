@@ -233,6 +233,10 @@ fn no_edit_changes_the_lengths_the_rollup_compares() {
             task: leaf,
             limit: Limit::default(),
         },
+        Edit::SetPhysical {
+            task: leaf,
+            physical: Some(5000),
+        },
     ];
     for edit in edits {
         let kind = match &edit {
@@ -252,6 +256,7 @@ fn no_edit_changes_the_lengths_the_rollup_compares() {
             Edit::SetDataDate { .. } => "SetDataDate",
             Edit::SetProgress { .. } => "SetProgress",
             Edit::SetLimit { .. } => "SetLimit",
+            Edit::SetPhysical { .. } => "SetPhysical",
         };
         session.edit(edit).expect("edit applies");
         assert_lengths_agree(&session, kind);

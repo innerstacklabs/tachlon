@@ -153,7 +153,7 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
   `drag_info` and `chain_builds`, and moves the view through `Session::resize`, `wheel`,
   `scroll_by`, `set_hover_row`, `pointer_leave`, `fit` and `scroll_to_row` (all in `view.rs`).
 
-- *One edit path.* `Edit` (`Move`, `SetDuration`, `Rename`, `Insert`, `Delete`, `Restore`, `Reparent`, `AddLink`, `RemoveLink`, `RestoreLink`, `SetLink`, `SetBaseline`, `ClearBaseline`, `SetDataDate`, `SetProgress`, `SetLimit`) is the one kind of change, and it
+- *One edit path.* `Edit` (`Move`, `SetDuration`, `Rename`, `Insert`, `Delete`, `Restore`, `Reparent`, `AddLink`, `RemoveLink`, `RestoreLink`, `SetLink`, `SetBaseline`, `ClearBaseline`, `SetDataDate`, `SetProgress`, `SetLimit`, `SetPhysical`) is the one kind of change, and it
   names a task by `TaskId`, never by row (decision 0001); `Insert` carries a `Place` and a name.
   `Session::run` applies an edit and returns its
   inverse; `Session::edit` records that inverse for undo (`HISTORY_CAP`, 200) and clears redo; the commits a host has not acknowledged are kept, at most `HISTORY_CAP`, so `Session::rollback_to` can take them back newest first.
@@ -192,9 +192,9 @@ adds the canvas and the renderer, and holds no schedule data of its own. The inv
   returns `RemoveLink`, `RemoveLink` returns `RestoreLink` and back, so undo and redo keep the
   link's `DepId`. Readers of the dependency list (outline, insert, highlight, details) use the
   live links only.
-  - *The other six.* `SetLink` changes a live link's type and lag, `SetBaseline` and `ClearBaseline` set and clear the
+  - *The other seven.* `SetLink` changes a live link's type and lag, `SetBaseline` and `ClearBaseline` set and clear the
     baseline, `SetDataDate` sets or clears the data date, `SetProgress` records a task's actual start, actual finish and
-    remaining duration, and `SetLimit` replaces a task's date limits. The doc comment on each variant in
+    remaining duration, `SetLimit` replaces a task's date limits, and `SetPhysical` sets its physical percent complete, which moves no date. The doc comment on each variant in
     `crates/app/src/edit.rs` gives its refusals and its inverse.
 - *A name is the task's own.* `TaskMeta::name` is the name the file gave (`Pour slab`), kept byte
   for byte except that a control character becomes a space and a blank name becomes `Task <uid>`;

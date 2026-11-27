@@ -14,6 +14,7 @@ What changed in each npm release, newest first. Each entry says what you must ch
 - `mount` takes `density` (`"compact"`, `"normal"` the default, `"roomy"`: rows 20, 24 and 40 px tall). The bars, the table rows, hit testing, keyboard paging and print follow one height, and `--gantt-row-h` on the root says it for your own layout. Any other value rejects `mount` with a `RangeError` before the root is touched. The React, Vue and Angular components take `density` and mount the chart again when it changes.
 - `setData` with a changed `progress` on a row that holds both `actualStart` and `actualFinish` sends both dates beside it, so the finish stands, as `mount` reads the row.
 - The `message` of a `hostEdit` refusal of a changed `color` or `label` (`notUpdatable`) names the task and says to call `update`, which sets it without an undo step.
+- `App.set_progress_field(i, "physical", text)` sets or clears a task's physical percent complete (a number from 0 to 100 with up to two decimals) as one undo step that moves no date, and the change a host's `updateTask` handler receives carries it as `physicalPercent`.
 - `App.move_task` moves a row and its subtree to the place you name (`parent`, `after` or `first`, as `App.add_task` reads them), keeping the selection and the scroll, and forgets the person's undo steps that named the moved rows. It is no edit: no undo step is made and `revision` stays.
 
 ## 0.5.0

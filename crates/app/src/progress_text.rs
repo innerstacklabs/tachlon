@@ -111,8 +111,7 @@ impl Session {
         if self.outline().is_some_and(|o| o.is_summary(TaskId(i))) {
             return String::new();
         }
-        let text = format!("{}.{:02}", hundredths / 100, hundredths % 100);
-        format!("{}%", text.trim_end_matches('0').trim_end_matches('.'))
+        format!("{}%", crate::edit::percent_number(hundredths))
     }
 
     /// Whether the open schedule carries progress: a live task with an actual start, an actual
