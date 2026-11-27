@@ -568,3 +568,4 @@ fn host_edit_refuses_a_changed_color_or_label_and_takes_the_one_a_task_holds() {
 mod first;
 mod forget;
 mod links;
+mod moves;

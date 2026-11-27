@@ -227,7 +227,7 @@ impl Session {
                 place,
                 siblings,
             } => self
-                .run_reparent(task, place, siblings, None)
+                .run_reparent(task, place, siblings, None, false)
                 .map(|(inverse, ms)| (inverse.edit, ms)),
             Edit::AddLink {
                 pred,

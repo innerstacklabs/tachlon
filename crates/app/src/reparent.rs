@@ -176,7 +176,8 @@ impl Session {
     /// task the level below the parent `place` names; `meta`, from a history step, puts back the
     /// exact level the task held when the step was recorded. The subtree shifts by the same
     /// delta; adopted siblings and released children shift by one level more or less, so each
-    /// keeps its offset from the task and the inverse shifts back exactly.
+    /// keeps its offset from the task and the inverse shifts back exactly. A `host`'s move is taken
+    /// while a row filter or a grouping is on and leaves the selection and the scroll.
     #[expect(clippy::too_many_lines, reason = "plans the move before changing it")]
     pub(crate) fn run_reparent(
         &mut self,
@@ -184,12 +185,15 @@ impl Session {
         place: Place,
         siblings: Siblings,
         meta: Option<Meta>,
+        host: bool,
     ) -> Done {
         self.check_structural()?;
-        if self.filtering() {
+        if !host && self.filtering() {
             return Err(EditError::ReparentFiltered);
         }
-        self.refuse_grouped(EditError::ReparentGrouped)?;
+        if !host {
+            self.refuse_grouped(EditError::ReparentGrouped)?;
+        }
         if !self.is_live(task) {
             return Err(ScheduleError::UnknownTask(task).into());
         }
@@ -316,7 +320,9 @@ impl Session {
         set(&mut self.meta, &changes);
         let elapsed = self.rebuild_structure(&wbs, |s| set(&mut s.meta, &held))?;
         // Selected and shown: `go_to` opens a collapsed new parent.
-        self.go_to(task.0);
+        if !host {
+            self.go_to(task.0);
+        }
         self.refresh_selection();
         let inverse = Step {
             edit: Edit::Reparent {
