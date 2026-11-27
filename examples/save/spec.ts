@@ -13,9 +13,9 @@ const SKIP: Record<Form, number[]> = {
 const BUILT: Form[] = ["handlers"];
 /** The scenarios that fail until what they test is built. Each is expected to fail, and the run fails, naming it, when one passes: the row that makes it pass deletes its name here. A name ending in `(keys chart)` or `(keys server)` is pending in that key mode only. */
 const PENDING = new Set([
-  "6 a server recalculation", "7 an outside change during a save", "8 a late result", "9 an old read", "10 a lost response", "11 a failure part of the way",
+  "6 a server recalculation", "7 an outside change during a save", "8 a late result", "9 an old read", "10 a lost response",
   "12 undo across the server", "13 the server is away", "14 discard", "15 repeats off", "16 the host's own names",
-  "17 a server that ignores the key, keys chart", "17 a server that ignores the key, keys server", "21 a 500 that applied nothing", "22 an expired login",
+  "21 a 500 that applied nothing", "22 an expired login",
   "24 a 503 part of the way", "25 a create the server cannot repeat",
 ]);
 
