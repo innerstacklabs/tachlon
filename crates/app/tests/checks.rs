@@ -23,6 +23,7 @@ use app::{
 use common::clock;
 use engine::{Calendar, Dependency, Limit, LinkType, Minutes, Pin, Schedule, Task, TaskId};
 use import::ProjectSelection;
+use std::sync::Arc;
 use timeline::Timeline;
 
 fn link(pred: u32, succ: u32, kind: LinkType, lag: Minutes) -> Dependency {
@@ -214,18 +215,32 @@ fn the_marks_follow_an_edit_and_its_undo() {
     assert_eq!(marks(&session), [false]);
 }
 
-/// A drag step moves the stamp: pulling a pinned task's predecessor later breaks the link, and back mends it.
+/// A drag step moves the stamp but the frames read the flags kept at the press; the release mends them.
 #[test]
-fn the_marks_follow_a_drag_of_the_predecessor() {
+fn a_drag_with_a_pin_leaves_the_marks_unrecomputed_until_the_release() {
     let mut session = pinned(5);
+    let kept = session.pin_broken_marks();
     let v = &session.timeline().viewport;
     let (x, y) = (v.x_of(480.0) + 2.0, v.row_top(0) + v.row_height / 2.0);
     session.pointer_down(x, y, false);
-    for (by, broken) in [(200.0, true), (0.0, false)] {
-        session.pointer_move(x + by, y);
-        session.apply_drag();
-        assert_eq!(marks(&session), [broken]);
-    }
+    session.pointer_move(x + 200.0, y);
+    session.apply_drag();
+    assert!(Arc::ptr_eq(&kept, &session.pin_broken_marks()));
+    session.pointer_up();
+    assert_eq!(marks(&session), [true]);
+}
+
+/// With no pin there is no link to break, so no flag is made.
+#[test]
+fn a_schedule_with_no_pin_has_no_marks() {
+    let mut session = pinned(5);
+    session
+        .edit(Edit::SetLimit {
+            task: TaskId(1),
+            limit: Limit::default(),
+        })
+        .expect("task 1 is live");
+    assert!(session.pin_broken_marks().is_empty());
 }
 
 /// A project file as `App::create` opens it: tasks 0 to 4 are the summary Hull over Keel (1 day),
