@@ -23,6 +23,13 @@ const LONG =
   ["PT8H0M0S", "PT1104H0M0S"].map((d, i) => `<Task><UID>${i + 1}</UID><Name>T${i}</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>${d}</Duration>${i ? "<ConstraintType>7</ConstraintType><ConstraintDate>2027-12-31T17:00:00</ConstraintDate>" : ""}</Task>`).join("") +
   "</Tasks></Project>";
 
+// Keel takes four days from Monday, so it finishes on day 4; Deck follows it and must start on day 3 (Wednesday), so its pin breaks that link.
+const PINNED =
+  '<Project xmlns="http://schemas.microsoft.com/project"><StartDate>2026-01-05T08:00:00</StartDate><Tasks>' +
+  '<Task><UID>1</UID><Name>Keel</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>PT32H0M0S</Duration></Task>' +
+  '<Task><UID>2</UID><Name>Deck</Name><OutlineLevel>1</OutlineLevel><Summary>0</Summary><Duration>PT8H0M0S</Duration><ConstraintType>2</ConstraintType><ConstraintDate>2026-01-07T08:00:00</ConstraintDate>' +
+  "<PredecessorLink><PredecessorUID>1</PredecessorUID><Type>1</Type></PredecessorLink></Task></Tasks></Project>";
+
 /** Open `xml` as a file and wait until the chart has swapped it in. */
 async function openXml(page: Page, xml: string): Promise<void> {
   const from = await page.evaluate(() => window.gantt!.status().epoch);
@@ -56,6 +63,7 @@ test("the_checks_dialog_lists_each_count_and_says_when_no_data_date_is_set", asy
     ["Leads", "0"],
     ["Lags", "0"],
     ["Finish to start", "3 of 3 links"],
+    ["Links a pin breaks", "0"],
     ["High float", "0"],
     ["High duration", "0"],
     ["Hard constraints", "0"],
@@ -79,6 +87,10 @@ test("the_checks_dialog_lists_each_count_and_says_when_no_data_date_is_set", asy
   // A file that names a resource makes the check run: Mast has none, so the count is 1 and no longer a sentence.
   await openXml(page, RESOURCED);
   expect((await readChecks(page)).find(([name]) => name === "Missing resources")!.slice(0, 2)).toEqual(["Missing resources", "1"]);
+
+  // A task pinned to day 3 behind a predecessor that finishes on day 4 is one broken link.
+  await openXml(page, PINNED);
+  expect((await readChecks(page)).find(([name]) => name === "Links a pin breaks")!.slice(0, 2)).toEqual(["Links a pin breaks", "1"]);
 });
 
 // Ten lines can have a Show button (here three do): it sets the Check filter to that check and closes the dialog. In links.xml Open ends keeps the summary Phase and the open ends D and E.

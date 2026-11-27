@@ -2,9 +2,9 @@
 <!-- needs: call:checks -->
 
 <!-- ANCHOR: goal -->
-**Goal:** before you trust a schedule's dates or send it on, count the things that make a schedule unreliable: tasks tied to nothing, odd links, and tasks that are very long or very loose. The checks give fourteen lines. They do not say pass or fail; you decide what a count means for your schedule.
+**Goal:** before you trust a schedule's dates or send it on, count the things that make a schedule unreliable: tasks tied to nothing, odd links, and tasks that are very long or very loose. The checks give fifteen lines. They do not say pass or fail; you decide what a count means for your schedule.
 <!-- ANCHOR_END: goal -->
-<!-- control: checks | reports one count for each of the fourteen checks -->
+<!-- control: checks | reports one count for each of the fifteen checks -->
 <!-- shot: checks-lines | the checks listed over the chart, each line with a check's name, its count and one sentence on what it counts -->
 
 ## Missing logic
