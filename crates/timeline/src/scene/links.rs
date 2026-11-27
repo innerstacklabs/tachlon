@@ -305,10 +305,7 @@ pub fn add_arrows(
     add_arrows_highlighted(scene, v, dpr, dates, links, None, None, theme);
 }
 
-/// Add visible dependency arrows, accenting highlighted links and dimming
-/// all other links when a highlight is supplied. `selected` is a dependency id
-/// and a width (`--gantt-selected-w`): that link is drawn that thick in
-/// `sel_edge`, over a highlight, and after every other link so none paints over it.
+/// [`add_arrows_marked`] with no link marked.
 #[expect(
     clippy::too_many_arguments,
     reason = "the viewport, the scale, the task data and each style input arrive as separate arguments, and a parameter struct would change every caller and test"
@@ -321,6 +318,29 @@ pub fn add_arrows_highlighted(
     index: &LinkIndex,
     highlight: Option<&Highlight>,
     selected: Option<(u32, f64)>,
+    theme: &Theme,
+) {
+    add_arrows_marked(scene, v, dpr, dates, index, highlight, selected, &[], theme);
+}
+
+/// Add visible dependency arrows, accenting highlighted links and dimming
+/// all other links when a highlight is supplied. `selected` is a dependency id
+/// and a width (`--gantt-selected-w`): that link is drawn that thick in
+/// `sel_edge`, over a highlight, and after every other link so none paints over it.
+/// A link with `marked[dep]` is 2 px wide in `held`, unless highlighted or selected.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the viewport, the scale, the task data and each style input arrive as separate arguments, and a parameter struct would change every caller and test"
+)]
+pub fn add_arrows_marked(
+    scene: &mut Scene,
+    v: &Viewport,
+    dpr: f64,
+    dates: &[TaskDates],
+    index: &LinkIndex,
+    highlight: Option<&Highlight>,
+    selected: Option<(u32, f64)>,
+    marked: &[bool],
     theme: &Theme,
 ) {
     let mut b = Builder {
@@ -336,10 +356,13 @@ pub fn add_arrows_highlighted(
     };
     // One pass over the visible links; the selected one is held back and drawn last.
     let mut draw = |p: &Placed, chosen: bool| {
-        let width = selected.map_or(1.0, |(_, w)| if chosen { w } else { 1.0 });
+        let pinned = marked.get(p.link.dep as usize) == Some(&true);
+        let plain = if pinned { 2.0 } else { 1.0 };
+        let width = selected.map_or(plain, |(_, w)| if chosen { w } else { plain });
         b.arrow_color = match highlight {
             _ if chosen => theme.sel_edge,
             Some(highlight) if highlight.has_edge(p.link.pred, p.link.succ) => theme.sel_edge,
+            _ if pinned => theme.held,
             Some(_) => [
                 theme.link[0],
                 theme.link[1],

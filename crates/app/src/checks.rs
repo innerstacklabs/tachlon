@@ -4,6 +4,7 @@
 //! tasks are summaries.
 
 pub mod baseline;
+pub(crate) mod broken;
 pub mod report;
 pub mod schedule;
 

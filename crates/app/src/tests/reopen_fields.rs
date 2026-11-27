@@ -231,6 +231,7 @@ fn reopen_decides_every_session_field() {
         found,
         progress_rollup: _, // a memo; `new` starts it empty, so a reopen carries none
         predecessors: _,    // a memo, as `progress_rollup` is
+        broken: _,          // a memo, as `progress_rollup` is
         baseline: carried_baseline,
         deadlines,
         resources,

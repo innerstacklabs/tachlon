@@ -118,6 +118,8 @@ pub struct Session {
     pub(crate) progress_rollup: crate::progress_rollup::Memo,
     /// The live links into each task, kept per `(revision, stamp)` for the predecessors read; every new session starts empty.
     pub(crate) predecessors: crate::edit::PredecessorsMemo,
+    /// The links a pin breaks, kept per `(revision, stamp)` for the chart; every new session starts empty.
+    pub(crate) broken: crate::checks::broken::Memo,
     /// The MS Project deadline per task id, display only (`with_deadlines`); `reopen` starts empty.
     pub(crate) deadlines: Vec<Option<engine::Instant>>,
     /// The resource names per task id, display only (`with_resources`); `reopen` starts empty.
@@ -188,6 +190,7 @@ impl Session {
             host: crate::host::Host::default(),
             progress_rollup: crate::progress_rollup::Memo::default(),
             predecessors: crate::edit::PredecessorsMemo::default(),
+            broken: crate::checks::broken::Memo::default(),
             deadlines: Vec::new(),
             resources: Vec::new(),
             names: timeline::names::Names::default(),

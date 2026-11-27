@@ -70,7 +70,7 @@ fn arrows_shift_the_bar_extras_with_the_bars() {
     assert_eq!(after, colours, "[bar-extras] still the same rectangles");
 }
 
-fn one_link_scene(scroll: f64) -> Scene {
+fn one_link_scene(scroll: f64, marked: &[bool]) -> Scene {
     let d = dates(3);
     let order: Vec<u32> = (0..3).collect();
     let dep = Dependency {
@@ -84,13 +84,13 @@ fn one_link_scene(scroll: f64) -> Scene {
     v.fit(0.0, 3.0 * DAY as f64);
     v.t0 = d[1].es as f64 - scroll / v.px_per_minute;
     let mut s = build(&v, 1.0, &order, &d, &Summaries::default(), None, None);
-    add_arrows(&mut s, &v, 1.0, &d, &links);
+    add_arrows_marked(&mut s, &v, 1.0, &d, &links, None, None, marked, &THEME);
     s
 }
 
 #[test]
 fn an_arrowhead_is_one_triangle() {
-    let s = one_link_scene(200.0);
+    let s = one_link_scene(200.0, &[]);
     let heads: Vec<_> = s.rects.iter().filter(|r| r.radius <= -2.0).collect();
     assert_eq!(heads.len(), 1, "one rect carries the triangle marker");
     assert_eq!(heads[0].radius, -2.0, "an FS link points right");
@@ -100,9 +100,26 @@ fn an_arrowhead_is_one_triangle() {
 #[test]
 fn a_clipped_arrowhead_keeps_its_columns() {
     // The tip sits on the canvas edge, so the quad would be cut and draw a squeezed triangle.
-    let s = one_link_scene(0.0);
+    let s = one_link_scene(0.0, &[]);
     assert!(s.rects.iter().all(|r| r.radius > -2.0), "no triangle");
     let arrow: Vec<_> = s.rects.iter().filter(|r| r.color == THEME.link).collect();
     let last = &arrow[arrow.len() - 2..];
     assert_eq!((last[0].size, last[1].size), ([1.0, 1.0], [1.0, 3.0]));
+}
+
+/// The link is dependency 0, and `marked` is read by dependency id: `[false, true]` leaves it plain.
+#[test]
+fn a_marked_link_is_two_pixels_wide_in_the_held_color_and_an_unmarked_one_is_not() {
+    let widths = |marked, color| {
+        let s = one_link_scene(200.0, marked);
+        let rects = s
+            .rects
+            .iter()
+            .filter(|r| r.color == color && r.radius >= 0.0);
+        rects.map(|r| r.size[0].min(r.size[1])).collect::<Vec<_>>()
+    };
+    let held = widths(&[true], THEME.held);
+    assert!(!held.is_empty() && held.iter().all(|&w| w == 2.0));
+    assert_eq!(widths(&[false, true], THEME.held), []);
+    assert!(widths(&[false, true], THEME.link).contains(&1.0));
 }
