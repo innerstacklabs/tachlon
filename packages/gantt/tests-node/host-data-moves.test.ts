@@ -30,6 +30,12 @@ test("a row goes under a parent the same call adds: the add comes first, and the
   expect([calls[0]!.adds.map(({ record }) => record.key), calls[0]!.moves]).toEqual([["k4"], [row("k1", "k4")]]);
 });
 
+test("an add and a reorder under one parent are one add and one move: the add never moves", () => {
+  const { calls, give } = chart([1, 2, 3].map((n) => task(n)));
+  expect(give([3, 4, 1, 2].map((n) => task(n)))).toEqual({ ok: true, updated: 0 });
+  expect([calls[0]!.adds.map(({ record, parent, after }) => [record.key, parent, after]), calls[0]!.moves], "k4 first, then k3 first").toEqual([[["k4", undefined, undefined]], [row("k3")]]);
+});
+
 test("a refusal keeps the first moves taken, and the rows given again offer the rest", () => {
   const { calls, give } = chart([1, 2, 3, 4].map((n) => task(n)), (_adds, moves) => (moves.length > 2 ? { ok: false, reason: "badValue", message: "Partly applied: no", added: 0, moved: 1 } : { ok: true, updated: 0 }));
   const reversed = () => [4, 3, 2, 1].map((n) => task(n));
@@ -65,6 +71,7 @@ test("adds, then moves, then drops make the rows given from any rows held, each 
       kids.set(parent, list);
     };
     const [{ adds, moves, drops } = { adds: [], moves: [], drops: [] }] = calls;
+    expect(moves.filter(({ key }) => !held.some((old) => old.key === key)), "a move names a row the chart held, never one the call adds").toEqual([]);
     adds.forEach(({ record, parent, after }) => put({ key: record.key, parent, after }));
     moves.forEach(put);
     drops.forEach((key) => { expect(kids.get(key) ?? [], `${key} is empty when dropped`).toEqual([]); kids.forEach((list) => { if (list.includes(key)) list.splice(list.indexOf(key), 1); }); });

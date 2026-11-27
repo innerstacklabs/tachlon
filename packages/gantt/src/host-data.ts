@@ -77,7 +77,7 @@ function rising(at: readonly number[]): Set<number> {
   return run;
 }
 
-/** The tasks `next` has and `held` lacks (`adds`), in outline order (a parent before its children), each with the key of the row it goes under and of the one it follows among the rows under that parent by then; and the `moves` that, after the adds, put every other row where `next` has it, in outline order and as few as there can be (rows that keep their order under one parent stay); or why `next` is more than adds, drops and moves: a task has another `id`, or parents that form a loop. */
+/** The tasks `next` has and `held` lacks (`adds`), in outline order (a parent before its children), each with the key of the row it goes under and of the nearest earlier row under that parent that is added or stays; and the `moves` that, after the adds, put every row `held` has where `next` has it, in outline order and as few as there can be (rows that keep their order under one parent stay); or why `next` is more than adds, drops and moves: a task has another `id`, or parents that form a loop. */
 function placesOf(held: Layout, next: Layout): string | { adds: Place[]; moves: Place[] } {
   if ([...held.at].some(([key, at]) => next.at.has(key) && partsOf(next.at.get(key)!)[0] !== partsOf(at)[0])) return "a task has another id.";
   const order: Place[] = [];
@@ -86,19 +86,18 @@ function placesOf(held: Layout, next: Layout): string | { adds: Place[]; moves: 
     return count + 1 + walk(key);
   }, 0);
   if (walk(null) !== next.at.size) return "the parents of the tasks form a loop.";
-  const adds = order.filter(({ key }) => !held.at.has(key)).map(({ key, parent }) => {
-    const list = next.kids.get(parent ?? null)!;
-    return { key, parent, after: list.slice(0, list.indexOf(key)).reverse().find((other) => !held.at.has(other) || partsOf(held.at.get(other)!)[1] === (parent ?? null)) };
-  });
-  const now = placed(held, adds, next);
   const stay = new Set<string>();
   for (const [parent, keys] of next.kids) {
-    const at = new Map((now.kids.get(parent) ?? []).map((key, i) => [key, i]));
+    const at = new Map((held.kids.get(parent) ?? []).map((key, i) => [key, i]));
     const here = keys.filter((key) => at.has(key));
     const run = rising(here.map((key) => at.get(key)!));
     here.forEach((key, i) => { if (run.has(i)) stay.add(key); });
   }
-  return { adds, moves: order.filter(({ key }) => !stay.has(key)) };
+  const adds = order.filter(({ key }) => !held.at.has(key)).map(({ key, parent }) => {
+    const list = next.kids.get(parent ?? null)!;
+    return { key, parent, after: list.slice(0, list.indexOf(key)).reverse().find((other) => !held.at.has(other) || stay.has(other)) };
+  });
+  return { adds, moves: order.filter(({ key }) => held.at.has(key) && !stay.has(key)) };
 }
 /** The keys `held` has and `next` lacks, the deepest first (rows of one depth in the order they are held). */
 function dropsOf(held: Layout, next: Layout): string[] {
