@@ -149,7 +149,7 @@ test("a deleted row the data gives again is a new row while it is still deleted,
   const before = await names(page);
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), [...without("k5"), owned[5]!]), "k5 at the end is a move").toMatchObject({ ok: false, reason: "rowsChanged", message: expect.stringContaining("moved") });
   expect(await names(page), "nothing changed").toEqual(before);
-  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), owned.map((task) => (task.key === "k5" ? { ...task, parent: "t4" } : task))), "k5 under k4 is a move").toMatchObject({ ok: false, reason: "rowsChanged", message: expect.stringContaining("another id or parent") });
+  expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), owned.map((task) => (task.key === "k5" ? { ...task, parent: "t4" } : task))), "k5 under k4 is a move").toMatchObject({ ok: false, reason: "rowsChanged", message: expect.stringContaining("another parent") });
 });
 
 test("a bad record on the second add keeps the first and corrected rows add the rest; a key the chart already holds refuses the whole call", async ({ page }) => {
