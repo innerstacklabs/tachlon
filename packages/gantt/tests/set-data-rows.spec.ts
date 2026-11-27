@@ -282,3 +282,13 @@ test("an added link's lag is counted as mount counts it, in each lagCalendar val
   }
   expect(seen, "two days of the successor's, the predecessor's, a 24-hour and the named calendar's day").toEqual([480, 960, 2880, 240]);
 });
+
+test("a link with a lag to a task a person deleted is answered as a refusal with its key and Partly applied, not thrown; the link before it stays", async ({ page }) => {
+  await open(page, owned);
+  await pick(page, 5);
+  await page.evaluate(() => window.upChart.commands.deleteRow());
+  const links = [{ from: "t1", to: "t2", key: "a" }, { from: "t3", to: "t5", key: "b", lag: 1 }];
+  const answer = await page.evaluate((next) => { try { return window.upChart.setData({ links: next }); } catch (err) { return `threw: ${(err as Error).message}`; } }, links);
+  expect(answer, "the engine's reason for the second link, not a throw").toMatchObject({ ok: false, reason: "unknownKey", key: "b", message: expect.stringContaining("Partly applied") });
+  expect(await linksOf(page), "the first link stays").toEqual([["k1", "k2", "a", "FS", 0]]);
+});

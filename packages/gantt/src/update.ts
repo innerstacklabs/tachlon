@@ -30,7 +30,7 @@ export function lagMinutes(app: PublicApp, unit: MountOptions["durationUnit"]): 
   const at = new Map(saved.tasks.flatMap((task) => (task.key === undefined ? [] : [[task.key, task.calendar] as const])));
   const lag = typeof saved.lag_calendar === "object" ? { calendar: String(saved.lag_calendar.calendar) } : saved.lag_calendar; // the document names a calendar by its position
   const byPosition = { list, at: new Map(list.map((_, i) => [String(i), i])) };
-  return (value, pred, succ) => toMinutes(value, unit, lagDay(lag, byPosition, at.get(pred)!, at.get(succ)!));
+  return (value, pred, succ) => toMinutes(value, unit, lagDay(lag, byPosition, at.get(pred) ?? 0, at.get(succ) ?? 0));
 }
 
 /** `records` as the app reads them (a separate `constraint`, a date in the form the host stores, a duration in working minutes), or why none can be: a refusal of `update` and `setData` before the app is asked. */
