@@ -83,7 +83,7 @@ macro_rules! theme_tokens {
             bar_text => ("bar-text", (0xff, 0xff, 0xff), (0x0e, 0x16, 0x30));
             /// Progress fill of a highlighted task bar, over the accent; its alpha is part of the token.
             bar_sel_progress => ("bar-sel-progress", (0x00, 0x00, 0x00, 0x59), (0xff, 0xff, 0xff, 0x66));
-            /// Outline of a dragged task held back by its predecessors.
+            /// Outline of a dragged task held back by its predecessors, and a link a pin breaks.
             held => ("held", (0x9a, 0x6a, 0x00), (0xe0, 0xa0, 0x30));
             /// The link being dragged out when the drop would be refused.
             link_refused => ("link-refused", (0x9a, 0x6a, 0x00), (0xe0, 0xa0, 0x30));

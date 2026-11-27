@@ -17,8 +17,8 @@
 use crate::common;
 
 use app::{
-    Session, checks::Checks, checks::schedule::ScheduleChecks, load_bytes, meta::TaskMeta,
-    outline::Outline,
+    Session, checks::Checks, checks::schedule::ScheduleChecks, edit::Edit, load_bytes,
+    meta::TaskMeta, outline::Outline,
 };
 use common::clock;
 use engine::{Calendar, Dependency, Limit, LinkType, Minutes, Pin, Schedule, Task, TaskId};
@@ -179,7 +179,8 @@ fn pinned(pin_day: i64) -> Session {
         .add_dependency(link(0, 1, LinkType::FS, 0))
         .expect("tasks exist");
     let solution = schedule.compute().expect("the fixture has no loop");
-    let timeline = Timeline::new(vec![0, 1], 1_000.0, 400.0, 1.0);
+    let mut timeline = Timeline::new(vec![0, 1], 1_000.0, 400.0, 1.0);
+    timeline.viewport.fit(0.0, 8.0 * 1440.0);
     Session::new(schedule, solution, timeline, Vec::new(), clock)
 }
 
@@ -189,6 +190,42 @@ fn pinned(pin_day: i64) -> Session {
 fn pin_broken_links_counts_the_links_into_a_task_pinned_before_its_predecessor_finishes() {
     assert_eq!(Checks::of(&pinned(3)).pin_broken_links, 1);
     assert_eq!(Checks::of(&pinned(5)).pin_broken_links, 0);
+}
+
+/// The marks, after checking they are the links the Checks line counts.
+fn marks(session: &Session) -> Vec<bool> {
+    let marks = session.pin_broken_marks();
+    let count = marks.iter().filter(|&&marked| marked).count();
+    assert_eq!(count, Checks::of(session).pin_broken_links);
+    marks.to_vec()
+}
+
+/// An edit that breaks the link (a fifth day of work ends past the pin), and its Undo.
+#[test]
+fn the_marks_follow_an_edit_and_its_undo() {
+    let mut session = pinned(5);
+    let longer = Edit::SetDuration {
+        task: TaskId(0),
+        minutes: 5 * 480,
+    };
+    session.edit(longer).expect("task 0 is live");
+    assert_eq!(marks(&session), [true]);
+    assert!(session.undo().expect("undoes"));
+    assert_eq!(marks(&session), [false]);
+}
+
+/// A drag step moves the stamp: pulling a pinned task's predecessor later breaks the link, and back mends it.
+#[test]
+fn the_marks_follow_a_drag_of_the_predecessor() {
+    let mut session = pinned(5);
+    let v = &session.timeline().viewport;
+    let (x, y) = (v.x_of(480.0) + 2.0, v.row_top(0) + v.row_height / 2.0);
+    session.pointer_down(x, y, false);
+    for (by, broken) in [(200.0, true), (0.0, false)] {
+        session.pointer_move(x + by, y);
+        session.apply_drag();
+        assert_eq!(marks(&session), [broken]);
+    }
 }
 
 /// A project file as `App::create` opens it: tasks 0 to 4 are the summary Hull over Keel (1 day),

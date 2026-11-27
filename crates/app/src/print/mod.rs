@@ -10,7 +10,7 @@ use crate::{Session, lookahead::active_in};
 use engine::Instant;
 use timeline::{
     Scene, Theme, Viewport,
-    scene::{RowMarks, add_arrows_highlighted, build_marked},
+    scene::{RowMarks, add_arrows_marked, build_marked},
     viewport::AXIS_HEIGHT,
 };
 
@@ -212,7 +212,7 @@ impl Session {
             &theme,
         );
         let links = timeline::scene::LinkIndex::of(self.schedule(), order);
-        add_arrows_highlighted(
+        add_arrows_marked(
             &mut scene,
             &view,
             timeline.dpr,
@@ -220,6 +220,7 @@ impl Session {
             &links,
             None,
             None,
+            &self.pin_broken_marks(),
             &theme,
         );
         scene

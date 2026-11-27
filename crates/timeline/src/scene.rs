@@ -38,7 +38,7 @@ pub use link_path::{HEAD, STUB};
 pub use link_preview::{
     PreviewFrom, PreviewTo, add_link_preview, add_link_terminal, terminal_contains,
 };
-pub use links::{Link, LinkIndex, Placed, add_arrows, add_arrows_highlighted};
+pub use links::{Link, LinkIndex, Placed, add_arrows, add_arrows_highlighted, add_arrows_marked};
 pub use outline::{CAP as OUTLINE_CAP, STROKE_PX, add_ghost_outlines, add_move_outlines};
 pub use svg::svg;
 

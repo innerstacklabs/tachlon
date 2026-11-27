@@ -14,7 +14,7 @@ impl Session {
         let mut scene = self.scene();
         let timeline = self.timeline();
         let before = scene.rects.len();
-        timeline::scene::add_arrows_highlighted(
+        timeline::scene::add_arrows_marked(
             &mut scene,
             &timeline.viewport,
             timeline.dpr,
@@ -22,6 +22,7 @@ impl Session {
             self.links(),
             self.revealed_highlight(),
             self.selected_link_drawn(),
+            &self.pin_broken_marks(),
             self.theme(),
         );
         // Names go first: the outlines and comparison bars splice in beside the arrows.
