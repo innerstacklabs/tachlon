@@ -11,7 +11,7 @@
 ## By hand
 
 1. **Open the panel.** Click **Checks** in the toolbar, the button with three short lines, beside
-   **Open…** and the export button. A window titled **Checks** opens over the chart with fourteen
+   **Open…** and the export button. A window titled **Checks** opens over the chart with fifteen
    lines, each with the check's name, its number and one sentence on what it counts. A line with a problem to show adds a second sentence, in the text color, on why that kind of problem matters; a line that counts `0` adds none. Try it on the
    [office fit-out sample](/?sample=office-fitout).
 2. **Read the lines.** On the fit-out sample, the lines from Missing logic to Missing resources read Missing logic `1`, Open starts `0`, Open ends `1`, Leads `0`, Lags `7`, Finish to
@@ -51,7 +51,7 @@ The page on setting a baseline is [Set a baseline, read what slipped](baseline.m
 
 {{#include ../../packages/gantt/guide/checks.md:limits}}
 
-16. **What is not built.** The fourteen lines cover twelve of DCMA's fourteen checks. The other two
+16. **What is not built.** The fifteen lines cover twelve of DCMA's fourteen checks. The other two
     are on [What's coming](coming.md).
 
 ## Where it is checked
