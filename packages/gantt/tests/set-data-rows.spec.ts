@@ -73,13 +73,12 @@ test("setData adds the rows its data holds under their parents and after their p
   const before = await table(page);
   expect(before.top, "the table is scrolled").toBeGreaterThan(0);
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), rows())).toEqual({ ok: true, updated: 3 });
-  await frames(page);
-  const after = await table(page);
-  expect([after.rows, after.height, after.top, after.selected], "the table has the three rows more, and the scroll and the selection are as they were").toEqual([before.rows + 3, before.height + 72, before.top, before.selected]);
+  await expect.poll(() => table(page).then((after) => [after.rows, after.height, after.top, after.selected]), "the table has the three rows more, and the scroll and the selection are as they were").toEqual([before.rows + 3, before.height + 72, before.top, before.selected]);
   const now = await saved(page);
   expect(now.map((task) => task.key).filter((key) => key === "n1" || key === "n2" || key === "n3" || key === "k4" || key === "k5" || key === "k9" || key === "k10"), "n1 first under k4, n3 after k4 and its child, n2 after k9").toEqual(["k4", "n1", "n3", "k5", "k9", "n2", "k10"]);
   expect(now.find((task) => task.key === "n1"), "the values and the parent as given").toMatchObject({ name: "Added one", duration: 1440, parent: now.findIndex((task) => task.key === "k4") });
   expect(now.find((task) => task.key === "n2"), "the values as given, at the top level").toMatchObject({ name: "Added two", duration: 480, parent: null });
+  await frames(page); // that nothing happened is one read after the frames wait: there is no condition to wait for
   expect(await page.evaluate(() => window.edits), "an add is not an edit").toEqual([]);
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), rows()), "the same rows again").toEqual({ ok: true, updated: 0 });
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
@@ -106,11 +105,13 @@ test("a row a person deleted, the data dropped and Undo brought back is taken in
   await page.evaluate(() => window.upChart.commands.deleteRow());
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5")), "the drop of a deleted row counts nothing").toEqual({ ok: true, updated: 0 });
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
-  await frames(page);
+  await expect.poll(() => page.evaluate(() => window.edits.at(-1)), "Undo's create has been recorded").toMatchObject({ commits: [{ changes: [{ op: "create", key: "k5" }] }] });
+  await expect(page.locator('#table-rows .row[data-row="5"] .name'), "the row is back in the table").toHaveText("Task 5");
   const before = { ...(await table(page)), edits: await page.evaluate(() => window.edits.length) };
   const back = owned.map((task) => (task.key === "k5" ? { ...task, name: "Back" } : task));
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), back), "k5 is held again: its name is set, nothing is added").toEqual({ ok: true, updated: 1 });
-  await frames(page);
+  await expect(page.locator('#table-rows .row[data-row="5"] .name'), "the table shows the name").toHaveText("Back");
+  await frames(page); // that nothing changed is one read after the frames wait: there is no condition to wait for
   expect({ ...(await table(page)), edits: await page.evaluate(() => window.edits.length) }, "no row more, the scroll and the selection as they were, and no edit").toEqual(before);
   expect((await saved(page)).filter((task) => task.key === "k5").map((task) => task.name), "one k5, renamed").toEqual(["Back"]);
   expect(await page.evaluate(() => window.upChart.commands.undo()), "the undo list is the person's: the rename that came first").toBe(true);
@@ -175,10 +176,11 @@ test("setData drops a row its data no longer holds: the person's step that names
   await page.evaluate(() => { window.edits.length = 0; });
   const before = await table(page);
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k2"))).toEqual({ ok: true, updated: 1 });
-  await frames(page);
-  const after = await table(page);
-  expect([after.rows, after.height, after.top, after.selected], "a row less, the scroll and the selection as they were").toEqual([before.rows - 1, before.height - 24, before.top, before.selected]);
-  expect([(await names(page)).includes("k2"), await page.evaluate(() => window.edits), await page.evaluate(() => [...document.querySelectorAll("#table-rows .row[data-pending]")].map((row) => row.querySelector(".name")?.textContent))], "k2 is gone, with no edit, and only the other mark is left").toEqual([false, [], ["Task 12"]]);
+  await expect.poll(() => table(page).then((after) => [after.rows, after.height, after.top, after.selected]), "a row less, the scroll and the selection as they were").toEqual([before.rows - 1, before.height - 24, before.top, before.selected]);
+  await expect.poll(() => page.evaluate(() => [...document.querySelectorAll("#table-rows .row[data-pending]")].map((row) => row.querySelector(".name")?.textContent)), "only the other mark is left").toEqual(["Task 12"]);
+  await frames(page); // that nothing was recorded or moved is one read after the frames wait: the edit event comes from the status tick
+  expect([(await names(page)).includes("k2"), await page.evaluate(() => window.edits)], "k2 is gone, with no edit").toEqual([false, []]);
+  expect(await table(page).then((now) => [now.top, now.selected]), "the scroll and the selection still hold a frame later").toEqual([before.top, before.selected]);
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
   expect((await saved(page)).find((task) => task.key === "k3")!.name, "the one Undo is the other row's step").toBe("Task 3");
   expect(await page.evaluate(() => window.upChart.commands.undo()), "the dropped row's step is gone").toBe(false);
@@ -190,8 +192,7 @@ test("a row a person deleted and the data then drops keeps its Undo and its colu
   await page.evaluate(() => window.upChart.commands.deleteRow());
   expect(await page.evaluate((next) => window.upChart.setData({ tasks: next }), without("k5")), "the row is not the chart's to remove: it counts nothing").toEqual({ ok: true, updated: 0 });
   expect(await page.evaluate(() => window.upChart.commands.undo())).toBe(true);
-  await frames(page);
-  expect(await names(page), "Undo brings it back").toContain("k5");
+  await expect.poll(() => names(page), "Undo brings it back").toContain("k5");
   await expect.poll(() => page.evaluate(() => window.edits.at(-1)), "with its own columns").toMatchObject({ commits: [{ changes: [{ op: "create", key: "k5", set: { owner: "sam" } }] }] });
 });
 
@@ -232,7 +233,7 @@ test("setData adds the link its data holds and drops the one it lacks, by key el
   expect(before.top, "the table is scrolled").toBeGreaterThan(0);
   const next = [{ from: "t3", to: "t4" }, { from: "t5", to: "t6", key: "l2", type: "SS" as const, lag: 1 }];
   expect(await page.evaluate((links) => window.upChart.setData({ links }), next)).toEqual({ ok: true, updated: 2 });
-  await frames(page);
+  await frames(page); // that the table and the edits did not change is one read after the frames wait: there is no condition to wait for
   expect(await table(page), "the scroll and the selection are as they were").toEqual(before);
   expect(await linksOf(page), "l1 is dropped by its key, k5 to k6 is added with its type and a day of lag").toEqual([["k3", "k4", null, "FS", 0], ["k5", "k6", "l2", "SS", 480]]);
   expect(await page.evaluate(() => window.edits), "no edit").toEqual([]);
@@ -247,7 +248,7 @@ test("setData sets a kept link's type and lag in place, by key else by its two e
   const before = await table(page);
   const next = [{ from: "t1", to: "t2", key: "l1", lag: 2 }, { from: "t3", to: "t4" }];
   expect(await page.evaluate((links) => window.upChart.setData({ links }), next)).toEqual({ ok: true, updated: 2 });
-  await frames(page);
+  await frames(page); // that the table and the edits did not change is one read after the frames wait: there is no condition to wait for
   expect(await table(page), "the scroll and the selection are as they were").toEqual(before);
   expect(await linksOf(page), "l1 has two days of lag, k3 to k4 is FS again").toEqual([["k1", "k2", "l1", "FS", 960], ["k3", "k4", null, "FS", 0]]);
   expect(await page.evaluate(() => window.edits), "no edit").toEqual([]);
@@ -261,7 +262,7 @@ test("setData re-points a keyed link in place: the engine holds the new link und
   const before = await table(page);
   const next = [{ from: "t1", to: "t5", key: "l1", lag: 1 }, { from: "t3", to: "t4" }];
   expect(await page.evaluate((links) => window.upChart.setData({ links }), next)).toEqual({ ok: true, updated: 2 });
-  await frames(page);
+  await frames(page); // that the table and the edits did not change is one read after the frames wait: there is no condition to wait for
   expect(await table(page), "the scroll and the selection are as they were").toEqual(before);
   expect(await linksOf(page), "l1 joins k1 to k5 with a day of lag, and no link is left on k1 to k2").toEqual([["k3", "k4", null, "FS", 0], ["k1", "k5", "l1", "FS", 480]]);
   expect(await page.evaluate(() => window.edits), "no edit").toEqual([]);
