@@ -35,7 +35,7 @@ jobs:
           save-if: false
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83  # v2.90.11
         with:
           tool: cargo-nextest@0.9.150
       - run: cargo nextest run --profile ci
@@ -43,7 +43,7 @@ jobs:
       - name: doc
         run: cargo doc --no-deps
       # Fails on any RustSec advisory not accepted, with a reason, in deny.toml.
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83  # v2.90.11
         with:
           tool: cargo-deny@0.20.2
       - name: deny (advisories)
@@ -64,7 +64,7 @@ jobs:
         with:
           save-if: false
       # Must match the wasm-bindgen version in Cargo.lock (build-web.sh checks).
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@073e1fd0bc889c9aee68dbaaa927cde1b5653a83  # v2.90.11
         with:
           tool: wasm-bindgen@0.2.129
       - uses: pnpm/action-setup@v4
